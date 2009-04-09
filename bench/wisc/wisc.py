@@ -452,7 +452,7 @@ def parse_opts(args):
                     help="Number of concurrent connections")
   parser.add_option("--loops", action="store",
                     type="int", dest="loops",
-                    default="10",
+                    default="1",
                     help="Number of times a query is repeated")
   parser.add_option("--scale_factor", action="store",
                     type="int", dest="scale_factor",
@@ -491,8 +491,8 @@ def main(argv=None):
         insert_wisc(options)
         if options.index_after_load:
             index_wisc(options)
-
-    run_wisc(options)
+    else:
+        run_wisc(options)
 
 if __name__ == "__main__":
     sys.exit(main())
