@@ -29,8 +29,9 @@ drop=${11}
 
 # if yes then create indexes after loading the tables, else ignore
 index_after=${12}
+loops=${13}
 
-shift 12
+shift 13
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -59,12 +60,12 @@ while (( "$#" )) ; do
   fi
 
   echo Running $b $engine
-  bash run1.sh $engine $sf $mysql $maxdop $prepare $myu $myp $myd $mysock $index_after > \
-      wb.o.$engine.$b.sf_$sf
-  echo -n $b "$engine " > wb.r.$engine.$b.sf_$sf
-  grep "Test time is" wb.o.$engine.$b.sf_$sf | awk '{ print $4 }' | tr '(' ' ' > res
-  awk '{ printf "%s ", $1 }' res >> wb.r.$engine.$b.sf_$sf
-  echo >> wb.r.$engine.$b.sf_$sf
+  bash run1.sh $engine $sf $mysql $maxdop $prepare $myu $myp $myd $mysock $index_after $loops > \
+      wb.o.$engine.$b.sf_$sf.l_$loops
+  echo -n $b "$engine " > wb.r.$engine.$b.sf_$sf.l_$loops
+  grep "Test time is" wb.o.$engine.$b.sf_$sf.l_$loops | awk '{ print $4 }' | tr '(' ' ' > res
+  awk '{ printf "%s ", $1 }' res >> wb.r.$engine.$b.sf_$sf.l_$loops
+  echo >> wb.r.$engine.$b.sf_$sf.l_$loops
 
   if [[ $drop != "no" ]]; then
     $mysql -u$myu -p$myp -S$mysock $myd -e "drop table onektup"
@@ -73,7 +74,7 @@ while (( "$#" )) ; do
   fi
 
   if [[ $use_oprofile == "yes" ]]; then
-    opreport --demangle=smart --symbols=$mybase/libexec/mysqld > wb.p.$engine.$b.sf_$sf
+    opreport --demangle=smart --symbols=$mybase/libexec/mysqld > wb.p.$engine.$b.sf_$sf.l_$loops
     opcontrol --shutdown
   fi
   

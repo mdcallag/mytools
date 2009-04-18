@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/python
 #
 # Copyright (C) 2009 Google Inc.
 #
@@ -111,6 +111,7 @@ DEFINE_string('db_name', 'test', 'Name of database for the test')
 DEFINE_string('db_user', 'root', 'DB user for the test')
 DEFINE_string('db_password', '', 'DB password for the test')
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
+DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
 DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
 DEFINE_integer('rows_per_report', 1000000,
                '#rows per progress report printed to stdout. If this '
@@ -138,7 +139,8 @@ DEFINE_integer('warmup', 0, 'TODO')
 
 def get_conn():
   return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
-                         db=FLAGS.db_name, passwd=FLAGS.db_password)
+                         db=FLAGS.db_name, passwd=FLAGS.db_password,
+                         unix_socket=FLAGS.db_socket)
 
 def create_table():
   conn = get_conn()

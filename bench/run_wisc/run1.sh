@@ -25,6 +25,7 @@ if [[ ${10} == "yes" ]]; then
 else
   index_after=""
 fi
+loops=${11}
 
 py_args=\
 "--db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock\
@@ -57,8 +58,8 @@ dop=1
 while [[ $dop -le $maxdop ]]; do
   echo Run $dop
 
-  echo Run:: ../wisc/wisc.py $py_args --threads=$dop
-  ../wisc/wisc.py $py_args --threads=$dop || exit 1
+  echo Run:: ../wisc/wisc.py $py_args --threads=$dop --loops=$loops
+  ../wisc/wisc.py $py_args --threads=$dop --loops=$loops || exit 1
 
   echo; echo; echo SHOW MUTEX STATUS
   $run_mysql -B -e 'show mutex status' | head -1

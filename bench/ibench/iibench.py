@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2.6 -W ignore::DeprecationWarning
+#!/usr/bin/python -W ignore::DeprecationWarning
 #
 # Copyright (C) 2009 Google Inc.
 #
@@ -23,13 +23,14 @@
    The output is:
      Legend:
        #rows = total number of rows inserted
-       #seconds = total number of seconds the test has run
-       cum_ips = #rows / #seconds
+       #seconds = number of seconds for the last insert batch
+       #total_seconds = total number of seconds the test has run
+       cum_ips = #rows / #total_seconds
        table_size = actual table size (inserts - deletes)
-       last_ips = #rows / #seconds for the last rows_per_report rows
+       last_ips = #rows / #seconds
        #queries = total number of queries
-       cum_qps = #queries / #seconds
-       last_ips = #queries / #seconds for the last rows_per_report rows
+       cum_qps = #queries / #total_seconds
+       last_ips = #queries / #seconds
        #rows #seconds cum_ips table_size last_ips #queries cum_qps last_qps
      1000000 895 1118 1000000 1118 5990 5990 7 7
      2000000 1897 1054 2000000 998 53488 47498 28 47
@@ -48,7 +49,7 @@
 __author__ = 'Mark Callaghan'
 
 import MySQLdb
-from multiprocessing import Queue, Process, Pipe
+from multiprocessing import Queue, Process, Pipe, Array
 import optparse
 from datetime import datetime
 import time
@@ -139,8 +140,8 @@ DEFINE_string('db_config_file', '', 'MySQL configuration file')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
 DEFINE_boolean('with_max_table_rows', False,
                'When True, allow table to grow to max_table_rows, then delete oldest')
-DEFINE_boolean('read_uncommitted', True, 'Set cursor isolation level to read uncommitted')
-DEFINE_integer('unique_checks', 0, 'Set unique_checks')
+DEFINE_boolean('read_uncommitted', False, 'Set cursor isolation level to read uncommitted')
+DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 
 
 #
@@ -256,13 +257,12 @@ def generate_insert_rows(row_count):
   rows = [generate_row(datetime) for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
   return ',\n'.join(rows)
 
-def Query(max_pk, query_func, pipe):
+def Query(max_pk, query_func, shared_arr):
   db_conn = get_conn()
 
   row_count = max_pk
   start_time = time.time()
   loops = 0
-  interval = 10
 
   cursor = db_conn.cursor()
   if FLAGS.read_uncommitted:  cursor.execute('set transaction isolation level read uncommitted')
@@ -272,34 +272,33 @@ def Query(max_pk, query_func, pipe):
     cursor.execute(query)
     count = len(cursor.fetchall())
     loops += 1
-    if (loops % interval) == 0:
-      while pipe.poll(0):
-        interval, row_count = pipe.recv()
-        interval = max(interval, 1)
-      pipe.send(loops)
+    if (loops % 4) == 0:
+      row_count = shared_arr[0]
+      shared_arr[1] = loops
+      if not FLAGS.read_uncommitted:
+        cursor.execute('commit')
 
   cursor.close()
   db_conn.close()
 
-def get_latest(pipes, row_count):
+def get_latest(counters, row_count):
   total = 0
-  for p in pipes:
-    count = 0
-    num_read = 0
-    while p.poll(0):
-      count = p.recv()
-      num_read += 1
-    p.send((num_read, row_count))
-    total += count
+  for c in counters:
+    total += c[1]
+    c[0] = row_count
   return total
 
-def Insert(rounds, max_pk, insert_q, pdc_recv, pk_recv, market_recv, register_recv):
+def Insert(rounds, max_pk, insert_q, pdc_arr, pk_arr, market_arr, register_arr):
   # generate insert rows in this loop and place into queue as they're
   # generated.  The execution process will pull them off from here.
   start_time = time.time()
   prev_time = start_time
   inserted = 0
-  recv_pipes = [pdc_recv, pk_recv, market_recv, register_recv]
+
+  counters = [pdc_arr, pk_arr, market_arr, register_arr]
+  for c in counters:
+    c[0] = max_pk
+
   prev_sum = 0
   table_size = 0
   # we use the tail pointer for deletion - it tells us the first row in the
@@ -319,10 +318,11 @@ def Insert(rounds, max_pk, insert_q, pdc_recv, pk_recv, market_recv, register_re
     if (inserted % FLAGS.rows_per_report) == 0:
       now = time.time()
       if not FLAGS.insert_only:
-        sum_queries += get_latest(recv_pipes, max_pk + inserted)
-      print '%d %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
+        sum_queries = get_latest(counters, max_pk + inserted)
+      print '%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
           inserted + max_pk,
           now - prev_time,
+          now - start_time,
           inserted / (now - start_time),
           table_size,
           FLAGS.rows_per_report / (now - prev_time),
@@ -370,18 +370,18 @@ def run_benchmark():
     conn.close()
 
   # Get the queries set up
-  (pdc_recv,pdc_send) = Pipe(True)
-  (pk_recv,pk_send) = Pipe(True)
-  (market_recv,market_send) = Pipe(True)
-  (register_recv,register_send) = Pipe(True)
+  pdc_count = Array('i', [0,0])
+  pk_count = Array('i', [0,0])
+  market_count = Array('i', [0,0])
+  register_count = Array('i', [0,0])
 
   if not FLAGS.insert_only:
-    query_pdc = Process(target=Query, args=(max_pk, generate_pdc_query, pdc_send))
-    query_pk = Process(target=Query, args=(max_pk, generate_pk_query, pk_send))
+    query_pdc = Process(target=Query, args=(max_pk, generate_pdc_query, pdc_count))
+    query_pk = Process(target=Query, args=(max_pk, generate_pk_query, pk_count))
     query_market = Process(target=Query, args=(max_pk, generate_market_query,
-                                                market_send))
+                                                market_count))
     query_register = Process(target=Query,
-                             args=(max_pk, generate_register_query, register_send))
+                             args=(max_pk, generate_register_query, register_count))
 
   # set up a queue that will be shared across the insert generation / insert
   # execution processes
@@ -395,7 +395,7 @@ def run_benchmark():
   stmt_q = Queue(1)
   insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn, cursor))
   inserter = Process(target=Insert, args=(rounds,max_pk,stmt_q,
-                        pdc_recv, pk_recv, market_recv, register_recv))
+                        pdc_count, pk_count, market_count, register_count))
 
   # start up the insert execution process with this queue
   insert_delete.start()
@@ -426,7 +426,7 @@ def run_benchmark():
   print 'Done'
 
 def main(argv):
-  print '#rows #seconds cum_ips table_size last_ips #queries cum_qps last_qps'
+  print '#rows #seconds #total_seconds cum_ips table_size last_ips #queries cum_qps last_qps'
   run_benchmark()
   return 0
 
