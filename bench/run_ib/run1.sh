@@ -34,7 +34,7 @@ while [[ $dop -le $maxdop ]]; do
     if [[ ${11} == "yes" ]]; then
       $run_mysql -e "drop table if exists $tn$i"
     fi
-    ../ibench/iibench.py --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
+    ../ibench/iibench.py --engine=$engine --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
         $setup $insert_only --max_rows=$nr --rows_per_report=10000 --table_name=$tn$i \
         >& ${tag}.${i}_of_${dop} &
     p[$i]=$!
