@@ -44,7 +44,7 @@ while [[ $dop -le $maxdop ]]; do
     wait ${p[ $i ]}
     i=$(( $i + 1))
   done
-  grep "^$nr " ${tag}.*_of_${dop} | awk '{ print $3 }' | sort -n | tail -1 | awk '{ print "maxtime", $1 }'
+  grep "^$max_rows_per " ${tag}.*_of_${dop} | awk '{ print $3 }' | sort -n | tail -1 | awk '{ print "maxtime", $1 }'
   $run_mysql -e "show table status like 'tn%'"
 
   dop=$(( $dop * 2 ))
