@@ -30,7 +30,7 @@ while [[ $dop -le $maxdop ]]; do
     if [[ ${11} == "yes" ]]; then
       $run_mysql -e "drop table if exists ${tn}${i}"
     fi
-    max_rows_per=$(( $nr / $i ))
+    max_rows_per=$(( $nr / $dop ))
     ../ibench/aibench.py --engine=$engine \
         --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
         $setup --num_query_sessions=$nqs --num_insert_sessions=$nis \
