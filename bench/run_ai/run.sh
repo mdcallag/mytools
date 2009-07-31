@@ -63,7 +63,7 @@ while (( "$#" )) ; do
       > ls.o.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
 
-  grep maxloadtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
+  grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
   echo >> ls.l.$engine.$b.nr_$nr
 
   echo Running $b shutdown
