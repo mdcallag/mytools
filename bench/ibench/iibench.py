@@ -17,7 +17,7 @@
 """Implements a modified version of the insert benchmark as defined by Tokutek.
 
    A typical command line is:
-     ibench.py --db_user=foo --db_password=bar --max_rows=1000000000
+     iibench.py --db_user=foo --db_password=bar --max_rows=1000000000
 
    Results are printed after each rows_per_reports rows are inserted.
    The output is:
