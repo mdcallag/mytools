@@ -37,6 +37,20 @@ drop=${13}
 etrx=${14}
 
 shift 14
+
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
+if [ ! -z $vmstat_bin ]; then
+  $vmstat_bin 10 100000 > sb.v.$engine.t_$t.r_$nr.tx_$strx &
+  vmstat_pid=$!
+fi
+if [ ! -z $iostat_bin ]; then
+  $iostat_bin -x 10 100000 > sb.i.$engine.t_$t.r_$nr.tx_$strx &
+  iostat_pid=$!
+fi
+
+
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -85,3 +99,10 @@ while (( "$#" )) ; do
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
   sleep 10
 done
+
+if [ ! -z $vmstat_bin ]; then
+  kill -9 $vmstat_pid
+fi
+if [ ! -z $iostat_bin ]; then
+  kill -9 $iostat_pid
+fi
