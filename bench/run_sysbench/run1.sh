@@ -41,7 +41,7 @@ mysock=${12}
 
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 
-sb=./sysbench2
+sb=./sysbench
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
@@ -49,7 +49,7 @@ fi
 
 def_args=" --mysql-socket=$mysock --mysql-user=$myu --mysql-password=$myp --mysql-db=$myd "
 
-sb_args=" --test=oltp ${def_args} --oltp-table-size=$nr --max-time=$t --max-requests=0 --mysql-table-engine=$e --db-ps-mode=disable --mysql-engine-trx=$etrx --oltp-secondary-index"
+sb_args=" --test=oltp ${def_args} --oltp-table-size=$nr --max-time=$t --max-requests=0 --mysql-table-engine=$e --db-ps-mode=disable --mysql-engine-trx=$etrx "
 
 # Values used by Percona
 # sb_args=" --test=oltp ${def_args}  --oltp-table-size=$nr --mysql-engine-trx=yes --oltp-test-mode=nontrx --oltp-nontrx-mode=update_key --max-requests=0 --oltp-dist-type=uniform --init-rng=on --max-time=$t --max-requests=0 "

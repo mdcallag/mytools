@@ -190,7 +190,7 @@ iostat_cols = { 'rrqm/s':1, 'wrqm/s':2, 'r/s':3, 'w/s':4, 'rsec/s':5,
 
 agg_funcs = [ 'sum', 'rate', 'ratesum', 'max', 'avg' ]
 
-def vmstat_get_devices():
+def iostat_get_devices():
   scan_iostat = ScanFork('iostat -x 1 1', 0)
   saw_device = False
   devices = []
@@ -218,7 +218,7 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
   scan_vmstat = None
   scan_iostat = None
   inputs = []
-  devices = vmstat_get_devices()
+  devices = iostat_get_devices()
 
   if data_sources:
     f = open(data_sources)
