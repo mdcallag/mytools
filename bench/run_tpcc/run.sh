@@ -33,6 +33,9 @@ rt=${12}
 # Number of seconds to test the server
 mt=${13}
 
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
 shift 13
 while (( "$#" )) ; do
   b=$1
@@ -62,10 +65,22 @@ while (( "$#" )) ; do
     opcontrol --start
   fi
 
+  if [ ! -z $vmstat_bin ]; then
+    $vmstat_bin 10 100000 > tpc.v.$engine.$b.nw_$nw &
+    vmstat_pid=$!
+  fi
+  if [ ! -z $iostat_bin ]; then
+    $iostat_bin -x 10 100000 > sb.i.$engine.$b.nw_$nw &
+    iostat_pid=$!
+  fi
+
   echo Running $b $engine
   bash run1.sh $nw $engine $mysql $maxdop $myu $myp $myd $mysock $rt $mt $prepare $drop  \
       > tpc.o.$engine.$b.nw_$nw
   echo -n $b "$engine " > tpc.r.$engine.$b.nw_$nw
+
+  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
+  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
 
   grep TpmC tpc.o.$engine.$b.nw_$nw | grep -v '<TpmC>' | \
       awk '{ printf "%s ", $1 }' >> tpc.r.$engine.$b.nw_$nw

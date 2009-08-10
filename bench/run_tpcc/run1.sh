@@ -39,6 +39,8 @@ while [[ $dop -le $maxdop ]]; do
 
 done
 
+$run_mysql -e 'show table status'
+
 if [[ $drop == "yes" ]]; then
   echo TODO implement drop
 fi
