@@ -70,7 +70,7 @@ while (( "$#" )) ; do
     vmstat_pid=$!
   fi
   if [ ! -z $iostat_bin ]; then
-    $iostat_bin -x 10 100000 > sb.i.$engine.$b.nw_$nw &
+    $iostat_bin -x 10 100000 > tpc.i.$engine.$b.nw_$nw &
     iostat_pid=$!
   fi
 
