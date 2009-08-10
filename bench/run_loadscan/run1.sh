@@ -20,8 +20,8 @@ while [[ $dop -le $maxdop ]]; do
   i=1
   while [[ $i -le $dop ]]; do
     $run_mysql -e "drop table if exists $tn$i"
-    ../ibench/iibench.py --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
-        --setup --max_rows=$nr --rows_per_report=10000 --table_name=$tn$i \
+    python ../ibench/iibench.py --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
+        --setup --max_rows=$nr --rows_per_report=10000 --table_name=$tn$i --engine=$engine \
         --insert_only >& ${tag}.${i}_of_${dop} &
     p[$i]=$!
     i=$(( $i + 1))
@@ -50,13 +50,15 @@ while [[ $dop -le $maxdop ]]; do
   grep "^scantime " ${tag}*_of_${dop}.time | awk '{ print $2 }' \
       | sort -n | tail -1 | awk '{ print "maxscantime", $1 }'
 
+  i=1
   while [[ $i -le $dop ]]; do
+    $run_mysql -e "show create table ${tn}${i}"
+    $run_mysql -e "show table status like \"${tn}${i}\""
     $run_mysql -e "drop table ${tn}${i}"
     i=$(( $i + 1))
   done
 
   dop=$(( $dop * 2 ))
-
 
 done
 

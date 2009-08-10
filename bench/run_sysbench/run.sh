@@ -37,6 +37,11 @@ drop=${13}
 etrx=${14}
 
 shift 14
+
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
+
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -64,6 +69,15 @@ while (( "$#" )) ; do
     opcontrol --start
   fi
 
+  if [ ! -z $vmstat_bin ]; then
+    $vmstat_bin 10 100000 > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx &
+    vmstat_pid=$!
+  fi
+  if [ ! -z $iostat_bin ]; then
+    $iostat_bin -x 10 100000 > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx &
+    iostat_pid=$!
+  fi
+
   echo Running $b $engine
   bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $mysock > \
       sb.o.$engine.$b.t_$t.r_$nr.tx_$strx
@@ -71,6 +85,9 @@ while (( "$#" )) ; do
   grep transactions: sb.o.$engine.$b.t_$t.r_$nr.tx_$strx | awk '{ print $3 }' | tr '(' ' ' > res
   awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
   echo >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
+
+  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
+  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
 
   if [[ $drop != "no" ]]; then
     $mysql -u$myu -p$myp -S$mysock -e "drop table sbtest"
@@ -85,3 +102,4 @@ while (( "$#" )) ; do
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
   sleep 10
 done
+

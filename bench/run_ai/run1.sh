@@ -18,9 +18,11 @@ fi
 nqs=${12}
 nis=${13}
 
+rpq=${14}
+
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 
-dop=1
+dop=4
 rm -f ${tag}.*
 TIMEFORMAT='%R'
 while [[ $dop -le $maxdop ]]; do
@@ -31,10 +33,11 @@ while [[ $dop -le $maxdop ]]; do
       $run_mysql -e "drop table if exists ${tn}${i}"
     fi
     max_rows_per=$(( $nr / $dop ))
-    ../ibench/aibench.py --engine=$engine \
+    python ../ibench/aibench.py --engine=$engine \
         --db_name=$myd --db_user=$myu --db_password=$myp --db_sock=$mysock \
         $setup --num_query_sessions=$nqs --num_insert_sessions=$nis \
         --max_rows=$max_rows_per --rows_per_report=10000 --table_name=${tn}${i} \
+        --rows_per_query=$rpq \
         >& ${tag}.${i}_of_${dop} &
     p[$i]=$!
     i=$(( $i + 1))

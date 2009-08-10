@@ -1,4 +1,3 @@
-#!/usr/bin/python -W ignore::DeprecationWarning
 #
 # Copyright (C) 2009 Google Inc.
 # Copyright (C) 2009 Facebook Inc.

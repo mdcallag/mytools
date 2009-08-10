@@ -28,7 +28,12 @@ setup=${11}
 num_query_sessions=${12}
 num_insert_sessions=${13}
 
-shift 13
+rows_per_query=${14}
+
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
+shift 14
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -53,21 +58,39 @@ while (( "$#" )) ; do
   if [[ $use_oprofile == "yes" ]]; then
     opcontrol --shutdown
     opcontrol --reset
-    opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --separate=library
+    # opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --separate=library
+    opcontrol --setup --no-vmlinux --separate=library
     opcontrol --start
+  fi
+
+  if [ ! -z $vmstat_bin ]; then
+    $vmstat_bin 5 100000 > ls.v.$engine.$b.nr_$nr &
+    vmstat_pid=$!
+  fi
+  if [ ! -z $iostat_bin ]; then
+    $iostat_bin -x 5 100000 > ls.i.$engine.$b.nr_$nr &
+    iostat_pid=$!
   fi
 
   echo Running $b $engine
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr \
-               $setup $num_query_sessions $num_insert_sessions \
+               $setup $num_query_sessions $num_insert_sessions $rows_per_query \
       > ls.o.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
 
   grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
   echo >> ls.l.$engine.$b.nr_$nr
 
+  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
+  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
+
   echo Running $b shutdown
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
   sleep 10
+
+  if [[ $use_oprofile == "yes" ]]; then
+    opreport --demangle=smart --symbols --exclude-dependent | grep -v python2 \
+        > ls.p.$engine.$b.nr_$nr
+  fi
 done
 

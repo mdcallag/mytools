@@ -25,6 +25,10 @@ nr=$9
 tn=${10}
 
 shift 10
+
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -53,11 +57,23 @@ while (( "$#" )) ; do
     opcontrol --start
   fi
 
+  if [ ! -z $vmstat_bin ]; then
+    $vmstat_bin 10 100000 > ls.v.$engine.$b.nr_$nr &
+    vmstat_pid=$!
+  fi
+  if [ ! -z $iostat_bin ]; then
+    $iostat_bin -x 10 100000 > ls.i.$engine.$b.nr_$nr &
+    iostat_pid=$!
+  fi
+
   echo Running $b $engine
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr \
       > ls.o.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.s.$engine.$b.nr_$nr
+
+  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
+  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
 
   grep maxloadtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
   echo >> ls.l.$engine.$b.nr_$nr
