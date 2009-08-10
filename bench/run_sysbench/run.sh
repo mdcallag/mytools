@@ -41,7 +41,6 @@ shift 14
 vmstat_bin=$( which vmstat )
 iostat_bin=$( which iostat )
 
-
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -102,4 +101,3 @@ while (( "$#" )) ; do
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
   sleep 10
 done
-
