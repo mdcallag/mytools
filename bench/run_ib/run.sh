@@ -71,10 +71,10 @@ while (( "$#" )) ; do
   echo Running $b $engine
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr $setup $insert_only \
       > ls.o.$engine.$b.nr_$nr
-  echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
+  echo -n $b "$engine " > ls.r.$engine.$b.nr_$nr
 
-  grep maxloadtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
-  echo >> ls.l.$engine.$b.nr_$nr
+  grep maxloadtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.r.$engine.$b.nr_$nr
+  echo >> ls.r.$engine.$b.nr_$nr
 
   $run_mysql -e 'show innodb status\G' >> ls.o.$engine.$b.nr_$nr
 
