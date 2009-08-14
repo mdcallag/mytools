@@ -25,15 +25,19 @@ nr=$9
 tn=${10}
 
 setup=${11}
-num_query_sessions=${12}
-num_insert_sessions=${13}
+drop=${12}
 
-rows_per_query=${14}
+# configurable but '1' is the best choice
+num_query_sessions=${13}
+num_insert_sessions=${14}
+
+# '1' or '10' is a good choice
+rows_per_query=${15}
 
 vmstat_bin=$( which vmstat )
 iostat_bin=$( which iostat )
 
-shift 14
+shift 15
 while (( "$#" )) ; do
   b=$1
   shift 1
@@ -74,12 +78,12 @@ while (( "$#" )) ; do
 
   echo Running $b $engine
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr \
-               $setup $num_query_sessions $num_insert_sessions $rows_per_query \
+               $setup $drop $num_query_sessions $num_insert_sessions $rows_per_query \
       > ls.o.$engine.$b.nr_$nr
-  echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
+  echo -n $b "$engine " > ls.r.$engine.$b.nr_$nr
 
-  grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
-  echo >> ls.l.$engine.$b.nr_$nr
+  grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.r.$engine.$b.nr_$nr
+  echo >> ls.r.$engine.$b.nr_$nr
 
   if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
   if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi

@@ -15,14 +15,16 @@ else
   setup=""
 fi
 
-nqs=${12}
-nis=${13}
+drop=${12}
 
-rpq=${14}
+nqs=${13}
+nis=${14}
+
+rpq=${15}
 
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 
-dop=4
+dop=1
 rm -f ${tag}.*
 TIMEFORMAT='%R'
 while [[ $dop -le $maxdop ]]; do
@@ -49,6 +51,14 @@ while [[ $dop -le $maxdop ]]; do
   done
   grep "^$max_rows_per " ${tag}.*_of_${dop} | awk '{ print $3 }' | sort -n | tail -1 | awk '{ print "maxtime", $1 }'
   $run_mysql -e "show table status like 'tn%'"
+
+  if [[ $drop == "yes" ]]; then
+    i=1
+    while [[ $i -le $dop ]]; do
+      $run_mysql -e "drop table if exists ${tn}${i}"
+      i=$(( $i + 1))
+    done
+  fi
 
   dop=$(( $dop * 2 ))
 
