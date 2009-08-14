@@ -27,6 +27,9 @@ tn=${10}
 setup=${11}
 insert_only=${12}
 
+vmstat_bin=$( which vmstat )
+iostat_bin=$( which iostat )
+
 shift 12
 while (( "$#" )) ; do
   b=$1
@@ -56,6 +59,15 @@ while (( "$#" )) ; do
     opcontrol --start
   fi
 
+  if [ ! -z $vmstat_bin ]; then
+    $vmstat_bin 5 100000 > ls.v.$engine.$b.nr_$nr &
+    vmstat_pid=$!
+  fi
+  if [ ! -z $iostat_bin ]; then
+    $iostat_bin -x 5 100000 > ls.i.$engine.$b.nr_$nr &
+    iostat_pid=$!
+  fi
+
   echo Running $b $engine
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr $setup $insert_only \
       > ls.o.$engine.$b.nr_$nr
@@ -63,6 +75,16 @@ while (( "$#" )) ; do
 
   grep maxloadtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
   echo >> ls.l.$engine.$b.nr_$nr
+
+  $run_mysql -e 'show innodb status\G' >> ls.o.$engine.$b.nr_$nr
+
+  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
+  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
+
+  if [[ $use_oprofile == "yes" ]]; then
+    opreport --demangle=smart --symbols >> ls.o.$engine.$b.nr_$nr
+    opcontrol --shutdown
+  fi
 
   echo Running $b shutdown
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown

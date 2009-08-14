@@ -85,6 +85,8 @@ while (( "$#" )) ; do
   awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
   echo >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
 
+  $mysql -u$myu -p$myp -S$mysock -e "show innodb status\G" >> sb.o.$engine.$b.t_$t.r_$nr.tx_$strx
+
   if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
   if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
 
@@ -93,10 +95,10 @@ while (( "$#" )) ; do
   fi
 
   if [[ $use_oprofile == "yes" ]]; then
-    opreport --demangle=smart --symbols=$mybase/libexec/mysqld > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx
+    opreport --demangle=smart --symbols > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx
     opcontrol --shutdown
   fi
-  
+ 
   echo Running $b shutdown
   $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
   sleep 10
