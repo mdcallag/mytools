@@ -41,7 +41,7 @@ mysock=${12}
 
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 
-sb=./sysbench
+sb=../sysbench
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"

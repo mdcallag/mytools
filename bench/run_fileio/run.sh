@@ -24,15 +24,15 @@ touch fi.o.fn_${file_num}.fts_${file_total_size}.ftm_${file_test_mode}.fef_${fil
 dop=1
 while [[ $dop -le $maxdop ]]; do
   echo prepare $dop
-  echo "sysbench2 $sbargs prepare" >> \
+  echo "sysbench $sbargs prepare" >> \
       fi.o.fn_${file_num}.fts_${file_total_size}.ftm_${file_test_mode}.fef_${file_extra_flags}
-  ./sysbench2 $sbargs prepare >> \
+  ../sysbench $sbargs prepare >> \
       fi.o.fn_${file_num}.fts_${file_total_size}.ftm_${file_test_mode}.fef_${file_extra_flags}
 
   echo run $dop
-  echo "sysbench2 $sbargs --num-threads=$dop --max-time=$max_time run" >> \
+  echo "sysbench $sbargs --num-threads=$dop --max-time=$max_time run" >> \
       fi.o.fn_${file_num}.fts_${file_total_size}.ftm_${file_test_mode}.fef_${file_extra_flags}
-  ./sysbench2 $sbargs --num-threads=$dop --max-time=$max_time run >> \
+  ../sysbench $sbargs --num-threads=$dop --max-time=$max_time run >> \
       fi.o.fn_${file_num}.fts_${file_total_size}.ftm_${file_test_mode}.fef_${file_extra_flags}
   dop=$(( $dop * 2 ))
 done
