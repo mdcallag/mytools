@@ -50,6 +50,22 @@ while [[ $dop -le $maxdop ]]; do
   grep "^scantime " ${tag}*_of_${dop}.time | awk '{ print $2 }' \
       | sort -n | tail -1 | awk '{ print "maxscantime", $1 }'
 
+  # Perform the join
+  i=1
+  while [[ $i -le $dop ]]; do
+    /usr/bin/time -o ${tag}.${i}_of_${dop}.time -f 'jointime %e' \
+        $run_mysql -e "select count(*) from $tn$i a, $tn$i b where a.transactionid = b.transactionid" &
+    p[$i]=$!
+    i=$(( $i + 1))
+  done
+  i=1
+  while [[ $i -le $dop ]]; do
+    wait ${p[ $i ]}
+    i=$(( $i + 1))
+  done
+  grep "^jointime " ${tag}*_of_${dop}.time | awk '{ print $2 }' \
+      | sort -n | tail -1 | awk '{ print "maxjointime", $1 }'
+
   i=1
   while [[ $i -le $dop ]]; do
     $run_mysql -e "show create table ${tn}${i}"
@@ -59,6 +75,7 @@ while [[ $dop -le $maxdop ]]; do
   done
 
   dop=$(( $dop * 2 ))
+
 
 done
 

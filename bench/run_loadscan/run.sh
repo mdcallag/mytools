@@ -71,6 +71,7 @@ while (( "$#" )) ; do
       > ls.o.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.s.$engine.$b.nr_$nr
+  echo -n $b "$engine " > ls.j.$engine.$b.nr_$nr
 
   if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
   if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
@@ -80,6 +81,9 @@ while (( "$#" )) ; do
 
   grep maxscantime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.s.$engine.$b.nr_$nr
   echo >> ls.s.$engine.$b.nr_$nr
+
+  grep maxjointime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.j.$engine.$b.nr_$nr
+  echo >> ls.j.$engine.$b.nr_$nr
 
   # TODO cleanup
 
