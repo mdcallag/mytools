@@ -60,11 +60,11 @@ while (( "$#" )) ; do
   fi
 
   if [ ! -z $vmstat_bin ]; then
-    $vmstat_bin 5 100000 > ls.v.$engine.$b.nr_$nr &
+    $vmstat_bin 60 100000 > ls.v.$engine.$b.nr_$nr &
     vmstat_pid=$!
   fi
   if [ ! -z $iostat_bin ]; then
-    $iostat_bin -x 5 100000 > ls.i.$engine.$b.nr_$nr &
+    $iostat_bin -x 60 100000 > ls.i.$engine.$b.nr_$nr &
     iostat_pid=$!
   fi
 
