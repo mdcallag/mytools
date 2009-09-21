@@ -6,13 +6,31 @@ BEGIN {
   c[9] = "000080"; c[10] = "808000"; c[11] = "800080";
 }
 
+function pow2(x) {
+  s = 1;
+  while (x > 0) {
+    s *= 2;
+    x -= 1;
+  }
+  return s;
+}
+
+function scale_val(val, x) {
+  if (mul > 1) {
+    return ((mul * pow2(x - 3))  / val);
+  } else {
+    return val;
+  }
+}
+
 // {
-  if (chdl == "") { chdl = "chdl=" $1 } else { chdl = chdl "|" $1 }
+  if (chdl == "") { chdl = "chdl=" $1 "-" $2 } else { chdl = chdl "|" $1 "-" $2 }
 
-  for (i = 3; i <= NF; i++) { if ($i > maxv) { maxv = $i } }
+  for (i = 3; i <= NF; i++) { scale_i = scale_val($i, i); if (scale_i > maxv) { maxv = scale_i } }
+  maxf=NF
 
-  d = sprintf("%.0f", $3);
-  for (i = 4; i <= NF; i++) { if ($i == 0) { $i = -1 }; d = d "," sprintf("%.0f", $i) }
+  d = sprintf("%.0f", scale_val($3, 3));
+  for (i = 4; i <= NF; i++) { if ($i == 0) { $i = -1 }; d = d "," sprintf("%.0f", scale_val($i, i)) }
 
   if (chd == "") { chd = "chd=t:" d } else { chd = chd "|" d }
 
@@ -26,7 +44,9 @@ END {
   type1 = "cht=lc";
   type2 = "chxt=x,y,x,y";
   title = "chtt=" tt
-  chxl = "chxl=" "0:|1|2|4|8|16|32|64" "|2:|Concurrent users|" "|3:|Throughput|"
+  flds="1"
+  for (i = 4; i <= NF; i++) { flds = flds "|" pow2(i-3) }
+  chxl = "chxl=" "0:|" flds "|2:|Concurrent users|" "|3:|QPS|"
   chxp = "chxp=2,50|3,50"
   maxy = sprintf("%.0f", maxv);
   maxv = "chds=0," sprintf("%.0f", maxv);
