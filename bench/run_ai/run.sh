@@ -64,11 +64,11 @@ while (( "$#" )) ; do
   fi
 
   if [ ! -z $vmstat_bin ]; then
-    $vmstat_bin 5 100000 > ls.v.$engine.$b.nr_$nr &
+    $vmstat_bin 10 100000 > ls.v.$engine.$b.nr_$nr &
     vmstat_pid=$!
   fi
   if [ ! -z $iostat_bin ]; then
-    $iostat_bin -x 5 100000 > ls.i.$engine.$b.nr_$nr &
+    $iostat_bin -x 10 100000 > ls.i.$engine.$b.nr_$nr &
     iostat_pid=$!
   fi
 
@@ -77,9 +77,13 @@ while (( "$#" )) ; do
                $setup $num_query_sessions $num_insert_sessions $rows_per_query \
       > ls.o.$engine.$b.nr_$nr
   echo -n $b "$engine " > ls.r.$engine.$b.nr_$nr
+  echo -n $b "$engine " > ls.q.$engine.$b.nr_$nr
 
   grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.r.$engine.$b.nr_$nr
   echo >> ls.r.$engine.$b.nr_$nr
+
+  grep totqps ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.q.$engine.$b.nr_$nr
+  echo >> ls.q.$engine.$b.nr_$nr
 
   if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
   if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi

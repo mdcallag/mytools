@@ -46,7 +46,7 @@ END {
   title = "chtt=" tt
   flds="1"
   for (i = 4; i <= NF; i++) { flds = flds "|" pow2(i-3) }
-  chxl = "chxl=" "0:|" flds "|2:|Concurrent users|" "|3:|QPS|"
+  chxl = "chxl=" "0:|" flds "|2:|Concurrent users|" "|3:|Time|"
   chxp = "chxp=2,50|3,50"
   maxy = sprintf("%.0f", maxv);
   maxv = "chds=0," sprintf("%.0f", maxv);
