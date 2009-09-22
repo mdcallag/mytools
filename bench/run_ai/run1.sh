@@ -22,7 +22,7 @@ rpq=${14}
 
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 
-dop=4
+dop=1
 rm -f ${tag}.*
 TIMEFORMAT='%R'
 while [[ $dop -le $maxdop ]]; do
