@@ -76,10 +76,10 @@ while (( "$#" )) ; do
   bash run1.sh $nr $engine $mysql $maxdop $myu $myp $myd $tn $mysock ls.x.$engine.$b.nr_$nr \
                $setup $num_query_sessions $num_insert_sessions $rows_per_query \
       > ls.o.$engine.$b.nr_$nr
-  echo -n $b "$engine " > ls.l.$engine.$b.nr_$nr
+  echo -n $b "$engine " > ls.r.$engine.$b.nr_$nr
 
-  grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.l.$engine.$b.nr_$nr
-  echo >> ls.l.$engine.$b.nr_$nr
+  grep maxtime ls.o.$engine.$b.nr_$nr | awk '{ printf "%s ", $2 }' >> ls.r.$engine.$b.nr_$nr
+  echo >> ls.r.$engine.$b.nr_$nr
 
   if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
   if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
