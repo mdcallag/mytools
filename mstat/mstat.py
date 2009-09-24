@@ -238,7 +238,7 @@ def get_my_cols(db_user, db_password, db_host, db_name):
     connect.close()
     return names
   except MySQLdb.Error, e:
-    print 'sql (%s) fails (%s)' % (self.sql, e)
+    print 'SHOW GLOBAL STATUS fails (%s)' % e
     return []
 
 def parse_args(arg, counters, expanded_args, devices):
