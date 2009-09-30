@@ -24,7 +24,9 @@ nr=$9
 # Test duration
 t=${10}
 
-# if 0 then use --oltp-read-only else ignore
+# rw : (default, no extra params)
+# ro : --oltp-read-only
+# si : --oltp-test-mode=simple
 strx=${11}
 
 # if yes then prepare the sbtest table else ignore
@@ -36,70 +38,101 @@ drop=${13}
 # --mysql-engine-trx=[yes,no]
 etrx=${14}
 
-shift 14
+dbh=${15}
 
-vmstat_bin=$( which vmstat )
-iostat_bin=$( which iostat )
+shift 15
 
 while (( "$#" )) ; do
   b=$1
   shift 1
   mybase=$ibase/$b
-  mysql=$mybase/bin/mysql
   mysock=$mybase/var/mysql.sock
   echo Running $b from $mybase
 
-  # mv /etc/my.cnf /etc/my.cnf.bak
+  mysql=$mybase/bin/mysql
+  run_mysql="$mysql -u$myu -p$myp -h$dbh -A "
 
-  $mybase/bin/mysqladmin -uroot -S$mysock shutdown
+  echo Run ssh $dbh "$mybase/bin/mysqladmin -uroot -p$myp -S$mysock shutdown"
+  ssh $dbh "$mybase/bin/mysqladmin -uroot -p$myp -S$mysock shutdown"
 
   if [[ $runasroot == "yes" ]] ; then
-    $mybase/bin/mysqld_safe --user=root &
+    ssh $dbh "$mybase/bin/mysqld_safe --user=root > /dev/null 2>&1 &"
   else
-    $mybase/bin/mysqld_safe &
+    ssh $dbh "$mybase/bin/mysqld_safe > /dev/null 2>&1 &"
   fi
   echo Sleep after startup  
-  sleep 15
+  sleep 5
+
+  echo ssh $dbh "$mybase/bin/mysql -uroot -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
+  ssh $dbh "$mybase/bin/mysql -uroot -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
 
   if [[ $use_oprofile == "yes" ]]; then
-    opcontrol --shutdown
-    opcontrol --reset
-    opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --separate=library
-    opcontrol --start
+    ssh $dbh "opcontrol --shutdown; opcontrol --reset; opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --separate=library; opcontrol --start"
   fi
 
-  if [ ! -z $vmstat_bin ]; then
-    $vmstat_bin 10 100000 > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx &
-    vmstat_pid=$!
-  fi
-  if [ ! -z $iostat_bin ]; then
-    $iostat_bin -x 10 100000 > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx &
-    iostat_pid=$!
-  fi
+  # TODO -- support ssh
+  ssh $dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx &
+  ssh $dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx &
 
   echo Running $b $engine
-  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $mysock > \
+  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $dbh > \
       sb.o.$engine.$b.t_$t.r_$nr.tx_$strx
   echo -n $b "$engine " > sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
   grep transactions: sb.o.$engine.$b.t_$t.r_$nr.tx_$strx | awk '{ print $3 }' | tr '(' ' ' > res
   awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
   echo >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
 
-  $mysql -u$myu -p$myp -S$mysock -e "show innodb status\G" >> sb.o.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -e "show innodb status\G" >> sb.is.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -e "show status" >> sb.s.$engine.$b.t_$t.r_$nr.tx_$strx
 
-  if [ ! -z $vmstat_bin ]; then kill -9 $vmstat_pid; fi
-  if [ ! -z $iostat_bin ]; then kill -9 $iostat_pid; fi
+  #
+  # Innodb mutex stats
+  #
+  $run_mysql -e 'show mutex status' > sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx
+  # By mutex
+  $run_mysql -B -e 'show mutex status' | head -1 > sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx
+  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx | \
+    grep -v OS_waits | \
+    awk '{ if ($1 != pk) { if (s > 0) { printf "%10d\t%s\n", s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s > 0) { printf "%10d\t%s\n", s, pk } } ' | \
+    sort -r -n -k 1,1 | \
+    head -20 >> sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx
+  # By callers
+  $run_mysql -B -e 'show mutex status' | head -1 > sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx
+  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx | \
+    grep -v OS_waits | \
+    awk '{ if ($1 != pk) { if (s < 0) { printf "%10d\t%s\n", -s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s < 0) { printf "%10d\t%s\n", -s, pk } } '  | \
+    sort -r -n -k 1,1 | \
+    head -20 >> sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx
+
+  #
+  # General mutex stats
+  #
+  $run_mysql -e 'show global mutex status' > sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx
+  # By mutex
+  $run_mysql -B -e 'show global mutex status' | head -1 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx
+  sort -r -n -k 3,3 sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx | grep -v Sleeps | head -20 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx
+  # By caller
+  $run_mysql -B -e 'show global mutex status' | head -1 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx
+  grep -v Sleeps sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx | \
+    awk '{ if ($3 < 0) { $3 = -$3; print $0 } }' | \
+    sort -r -n -k 3,3 | \
+    head -20 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx
+
+  ssh $dbh killall vmstat
+  ssh $dbh killall iostat
 
   if [[ $drop != "no" ]]; then
-    $mysql -u$myu -p$myp -S$mysock -e "drop table sbtest"
+    $run_mysql $myd -e "drop table sbtest"
   fi
 
   if [[ $use_oprofile == "yes" ]]; then
-    opreport --demangle=smart --symbols > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx
-    opcontrol --shutdown
+    ssh $dbh "opcontrol --dump"
+    sleep 5
+    ssh $dbh "opreport --demangle=smart --symbols" > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx
+    ssh $dbh "opcontrol --shutdown"
   fi
  
   echo Running $b shutdown
-  $mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown
+  ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
   sleep 10
 done

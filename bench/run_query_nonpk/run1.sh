@@ -11,10 +11,15 @@ mysock=${10}
 tag=${11}
 ic=${12}
 
+# run_mysql="$mysql --default-character-set=utf8 -u$myu -p$myp -S$mysock $myd -A"
+# run_mysql_nod="$mysql --default-character-set=utf8 -u$myu -p$myp -S$mysock -A"
+
 run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
 run_mysql_nod="$mysql -u$myu -p$myp -S$mysock -A"
+
 run_mypy="python /data/mycli.py --db_user=$myu --db_password=$myp --db_socket=$mysock --db_name=$myd"
 run_slap="/data/5138orig/bin/mysqlslap --user=$myu --password=$myp --socket=$mysock --host=localhost "
+run_dslap="/data/drizzle/bin/drizzleslap --user=$myu --password=$myp --socket=$mysock --host=localhost "
 
 rm -f ${tag}.*
 TIMEFORMAT='%R'
@@ -41,6 +46,7 @@ for i in $( seq 1 $maxdop ) ; do
   done
   $run_mysql -e "update $tn$i set i=p, j=p"
   $run_mysql -e "create index si$i on $tn$i(i)"
+  $run_mysql -e "analyze table $tn$i"
 done
 
 # Run the performance test
@@ -52,8 +58,8 @@ while [[ $dop -le $maxdop ]]; do
     echo Use mysql client
     for i in $( seq 1 $dop ) ; do
       /usr/bin/time -o ${tag}.${i}_of_${dop}.time -f 'scantime %e %S %U %P' \
-          $run_mysql < q$i | head -20 >& ${tag}.${i}_of_${dop}.out &
-      #    $run_mypy q$i >& ${tag}.${i}_of_${dop}.out &
+          $run_mysql < q1 | head -20 >& ${tag}.${i}_of_${dop}.out &
+      #    $run_mypy q1 >& ${tag}.${i}_of_${dop}.out &
       p[$i]=$!
     done
   
@@ -66,7 +72,8 @@ while [[ $dop -le $maxdop ]]; do
   else
 
     echo Use mysqlslap
-    echo $run_slap --concurrency=$dop --query=q$i
+    echo $run_slap --concurrency=$dop --query=q1
+    # echo $run_dslap --concurrency=$dop --query=q1
     /usr/bin/time -o ${tag}.${dop}.time -f 'scantime %e %S %U %P' \
         $run_slap --concurrency=$dop --query=q1 >& ${tag}.${dop}.out 
 
@@ -81,5 +88,6 @@ for i in $( seq 1 $maxdop ) ; do
   $run_mysql -e "show create table ${tn}${i}"
   $run_mysql -e "show table status like \"${tn}${i}\""
   $run_mysql -e "drop table ${tn}${i}"
-  $run_mysql -e "show status like '%seconds'"
 done
+
+$run_mysql -e "show status like '%seconds'"
