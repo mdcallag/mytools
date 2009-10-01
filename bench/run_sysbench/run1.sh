@@ -10,9 +10,15 @@ nr=$3
 strx=$4
 case $strx in
   "ro")
-    xa="--oltp-read-only" ;;
+    xa="--oltp-read-only --oltp-skip-trx" ;;
+  "roha")
+    xa="--oltp-read-only --oltp-skip-trx --oltp-point-select-mysql-handler" ;;
   "si")
-    xa="--oltp-read-only --oltp-test-mode=simple" ;;
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple" ;;
+  "siha")
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-mysql-handler" ;;
+  "siac")
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols" ;;
   "rw"|*)
     xa=" " ;;
 esac
@@ -33,10 +39,15 @@ myu=$9
 myp=${10}
 myd=${11}
 dbh=${12}
+usepk=${13}
+
+if [[ $usepk != "yes" ]]; then
+ xa="$xa --oltp-secondary --oltp-auto-inc=off" 
+fi
 
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
-sb=../sysbench
+sb="../sysbench --seed-rng=1 "
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
@@ -54,8 +65,8 @@ if [[ $prepare == "yes" ]]; then
   $mysql -u$myu -p$myp -h$dbh -A -e "create database $myd"
   $run_mysql -e 'drop table if exists sbtest'
   $run_mysql -e 'show tables'
-  echo Run:: $sb $sb_args prepare
-  $sb $sb_args prepare || exit 1
+  echo Run:: $sb $sb_args $xa prepare
+  $sb $sb_args $xa prepare || exit 1
 fi
 
 $run_mysql -e 'analyze table sbtest'

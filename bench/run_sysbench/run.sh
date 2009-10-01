@@ -25,8 +25,11 @@ nr=$9
 t=${10}
 
 # rw : (default, no extra params)
-# ro : --oltp-read-only
-# si : --oltp-test-mode=simple
+# ro   : --oltp-read-only --oltp-skip-trx
+# si   : --oltp-read-only --oltp-skip-trx --oltp-test-mode=simple
+# roha : --oltp-read-only --oltp-skip-trx --oltp-point-select-mysql-handler
+# siha : --oltp-read-only --oltp-skip-trx ---oltp-point-select-mysql-handler --oltp-test-mode=simple
+# siac : --oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols
 strx=${11}
 
 # if yes then prepare the sbtest table else ignore
@@ -40,7 +43,10 @@ etrx=${14}
 
 dbh=${15}
 
-shift 15
+# when 'no' --oltp-secondary
+usepk=${16}
+
+shift 16
 
 while (( "$#" )) ; do
   b=$1
@@ -71,52 +77,52 @@ while (( "$#" )) ; do
   fi
 
   # TODO -- support ssh
-  ssh $dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx &
-  ssh $dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx &
+  ssh $dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk &
+  ssh $dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk &
 
   echo Running $b $engine
-  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $dbh > \
-      sb.o.$engine.$b.t_$t.r_$nr.tx_$strx
-  echo -n $b "$engine " > sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
-  grep transactions: sb.o.$engine.$b.t_$t.r_$nr.tx_$strx | awk '{ print $3 }' | tr '(' ' ' > res
-  awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
-  echo >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx
+  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $dbh $usepk > \
+      sb.o.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  echo -n $b "$engine " > sb.r.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  grep transactions: sb.o.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk | awk '{ print $3 }' | tr '(' ' ' > res
+  awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  echo >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
 
-  $run_mysql -e "show innodb status\G" >> sb.is.$engine.$b.t_$t.r_$nr.tx_$strx
-  $run_mysql -e "show status" >> sb.s.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -e "show innodb status\G" >> sb.is.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  $run_mysql -e "show status" >> sb.s.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
 
   #
   # Innodb mutex stats
   #
-  $run_mysql -e 'show mutex status' > sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -e 'show mutex status' > sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
   # By mutex
-  $run_mysql -B -e 'show mutex status' | head -1 > sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx
-  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx | \
+  $run_mysql -B -e 'show mutex status' | head -1 > sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk | \
     grep -v OS_waits | \
     awk '{ if ($1 != pk) { if (s > 0) { printf "%10d\t%s\n", s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s > 0) { printf "%10d\t%s\n", s, pk } } ' | \
     sort -r -n -k 1,1 | \
-    head -20 >> sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx
+    head -20 >> sb.ms20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
   # By callers
-  $run_mysql -B -e 'show mutex status' | head -1 > sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx
-  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx | \
+  $run_mysql -B -e 'show mutex status' | head -1 > sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  sort -k 1,1 sb.ms.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk | \
     grep -v OS_waits | \
     awk '{ if ($1 != pk) { if (s < 0) { printf "%10d\t%s\n", -s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s < 0) { printf "%10d\t%s\n", -s, pk } } '  | \
     sort -r -n -k 1,1 | \
-    head -20 >> sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx
+    head -20 >> sb.cms20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
 
   #
   # General mutex stats
   #
-  $run_mysql -e 'show global mutex status' > sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -e 'show global mutex status' > sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
   # By mutex
-  $run_mysql -B -e 'show global mutex status' | head -1 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx
-  sort -r -n -k 3,3 sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx | grep -v Sleeps | head -20 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx
+  $run_mysql -B -e 'show global mutex status' | head -1 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  sort -r -n -k 3,3 sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk | grep -v Sleeps | head -20 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
   # By caller
-  $run_mysql -B -e 'show global mutex status' | head -1 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx
-  grep -v Sleeps sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx | \
+  $run_mysql -B -e 'show global mutex status' | head -1 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
+  grep -v Sleeps sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk | \
     awk '{ if ($3 < 0) { $3 = -$3; print $0 } }' | \
     sort -r -n -k 3,3 | \
-    head -20 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx
+    head -20 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
 
   ssh $dbh killall vmstat
   ssh $dbh killall iostat
@@ -128,7 +134,7 @@ while (( "$#" )) ; do
   if [[ $use_oprofile == "yes" ]]; then
     ssh $dbh "opcontrol --dump"
     sleep 5
-    ssh $dbh "opreport --demangle=smart --symbols" > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx
+    ssh $dbh "opreport --demangle=smart --symbols" > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk
     ssh $dbh "opcontrol --shutdown"
   fi
  
