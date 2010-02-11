@@ -45,9 +45,16 @@ if [[ $usepk != "yes" ]]; then
  xa="$xa --oltp-secondary --oltp-auto-inc=off" 
 fi
 
+dist=${14}
+if [[ $dist == "u" ]]; then
+  xa="$xa --oltp-dist-type=uniform "
+else
+  xa="$xa --oltp-dist-type=special "
+fi
+
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
-sb="../sysbench --seed-rng=1 "
+sb="../sysbench "
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
@@ -67,21 +74,21 @@ if [[ $prepare == "yes" ]]; then
   $run_mysql -e 'show tables'
   echo Run:: $sb $sb_args $xa prepare
   $sb $sb_args $xa prepare || exit 1
+  $run_mysql -e 'analyze table sbtest'
+  $run_mysql -e 'select count(*) from sbtest'
+sleep 30
 fi
 
-$run_mysql -e 'analyze table sbtest'
-$run_mysql -e 'select count(*) from sbtest'
-sleep 30
+sleep 10
 
 dop=1
 while [[ $dop -le $maxdop ]]; do
   echo Run $dop
-  echo $sb $sb_args $xa --num-threads=$dop run
-  $sb $sb_args $xa --num-threads=$dop run
+  echo $sb $sb_args $xa --num-threads=$dop --seed-rng=$dop run
+  $sb $sb_args $xa --num-threads=$dop --seed-rng=$dop run
 
   echo
   $run_mysql -e 'show table status like "sbtest"'
-  $run_mysql -e 'select count(*) from sbtest'
 
   dop=$(( $dop * 2 ))
 
@@ -90,4 +97,5 @@ done
 $run_mysql -e 'show variables like "version_comment"'
 $run_mysql -e 'show status like "%_seconds"'
 $run_mysql -e 'show status like "qc%"'
+$run_mysql -e 'show variables'
 

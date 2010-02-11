@@ -89,3 +89,4 @@ for i in $( seq 1 $maxdop ) ; do
 done
 
 $run_mysql -e "show status like '%seconds'"
+$run_mysql -e "show variables"
