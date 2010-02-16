@@ -174,28 +174,20 @@ while (( "$#" )) ; do
   # Innodb mutex stats
   #
   $run_mysql -e 'show mutex status' > ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
-
-  if grep Line ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only} > /dev/null; then
-    grep -v Line ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only} | \
-        awk '{ printf "%s:%s %s\n", $1, $2, $3 }' > ls.mst.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
-    mv ls.mst.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only} ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
-  fi
-
   # By mutex
   $run_mysql -B -e 'show mutex status' | head -1 > ls.ms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
   sort -k 1,1 ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only} | \
     grep -v OS_waits | \
     awk '{ if ($1 != pk) { if (s > 0) { printf "%10d\t%s\n", s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s > 0) { printf "%10d\t%s\n", s, pk } } ' | \
     sort -r -n -k 1,1 | \
-    head -20 > ls.ms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
-
+    head -20 >> ls.ms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
   # By callers
   $run_mysql -B -e 'show mutex status' | head -1 > ls.cms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
   sort -k 1,1 ls.ms.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only} | \
     grep -v OS_waits | \
     awk '{ if ($1 != pk) { if (s < 0) { printf "%10d\t%s\n", -s, pk }; s = $2; pk = $1 } else { s += $2 } } END { if (s < 0) { printf "%10d\t%s\n", -s, pk } } '  | \
     sort -r -n -k 1,1 | \
-    head -20 > ls.cms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
+    head -20 >> ls.cms20.$engine.$b.nr_$nr.nq_$nq.$sql.io_${idx_only}
 
   #
   # General mutex stats

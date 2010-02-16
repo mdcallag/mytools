@@ -10,9 +10,9 @@ nr=$3
 strx=$4
 case $strx in
   "ro")
-    xa="--oltp-read-only --oltp-skip-trx" ;;
+    xa="--oltp-read-only" ;;
   "roha")
-    xa="--oltp-read-only --oltp-skip-trx --oltp-point-select-mysql-handler" ;;
+    xa="--oltp-read-only --oltp-point-select-mysql-handler" ;;
   "si")
     xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple" ;;
   "siha")
@@ -52,6 +52,8 @@ else
   xa="$xa --oltp-dist-type=special "
 fi
 
+warmup=${15}
+
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
 sb="../sysbench "
@@ -59,6 +61,8 @@ sb="../sysbench "
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
 fi
+
+xa="$xa --oltp-range-size=1000"
 
 def_args=" --mysql-host=$dbh --mysql-user=$myu --mysql-password=$myp --mysql-db=$myd "
 
@@ -76,10 +80,20 @@ if [[ $prepare == "yes" ]]; then
   $sb $sb_args $xa prepare || exit 1
   $run_mysql -e 'analyze table sbtest'
   $run_mysql -e 'select count(*) from sbtest'
-sleep 30
+  sleep 20
 fi
 
-sleep 10
+# Warmup buffer cache -- TODO make this optional
+if [[ $warmup == "yes" ]]; then
+  echo Warmup buffer cache at $( date )
+  $run_mysql -e 'show create table sbtest'
+  for i in $( seq 1 $nr ) ; do
+    echo "select count(*) from sbtest where id = $i;"
+  done | $run_mysql > /dev/null
+  echo Done warmup buffer cache at $( date )
+fi
+
+touch startme
 
 dop=1
 while [[ $dop -le $maxdop ]]; do
@@ -98,4 +112,5 @@ $run_mysql -e 'show variables like "version_comment"'
 $run_mysql -e 'show status like "%_seconds"'
 $run_mysql -e 'show status like "qc%"'
 $run_mysql -e 'show variables'
-
+$run_mysql -e 'show global status'
+$run_mysql -e 'show innodb status\G'

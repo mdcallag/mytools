@@ -49,7 +49,10 @@ usepk=${16}
 # distribution u==uniform, s==special
 dist=${17}
 
-shift 17
+# yes -> warmup the buffer cache
+warmup=${18}
+
+shift 18
 
 while (( "$#" )) ; do
   b=$1
@@ -70,32 +73,34 @@ while (( "$#" )) ; do
     ssh $dbh "$mybase/bin/mysqld_safe > /dev/null 2>&1 &"
   fi
   echo Sleep after startup  
-  sleep 15
-
-  # Warmup buffer cache -- TODO make this optional
-  # echo Warmup buffer cache
-  # $run_mysql test -e 'select count(*) from sbtest where length(c) > -1'
-  # $run_mysql test -e 'select count(*) from sbtest where (k + 1 ) > -99'
-  # echo Done warmup buffer cache
+  sleep 10
 
   echo ssh $dbh "$mybase/bin/mysql -uroot -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
   ssh $dbh "$mybase/bin/mysql -uroot -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
-
-  if [[ $use_oprofile == "yes" ]]; then
-    echo Start oprofile
-    ssh $dbh opcontrol --shutdown
-    ssh $dbh  opcontrol --reset
-    ssh $dbh  opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --separate=library
-    ssh $dbh  opcontrol --start
-  fi
 
   # TODO -- support ssh
   ssh $dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
   ssh $dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
 
   echo Running $b $engine
-  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $dbh $usepk $dist > \
-      sb.o.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  rm -f startme
+  bash run1.sh $engine $t $nr $strx $etrx $mysql $maxdop $prepare $myu $myp $myd $dbh $usepk $dist $warmup > \
+      sb.o.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
+  fid=$!
+
+  if [[ $use_oprofile == "yes" ]]; then
+    while [[ ! -f startme ]]; do echo "wait for startme"; sleep 5; done
+    echo "found startme"; sleep 5
+    ssh $dbh which opcontrol
+    ssh $dbh opcontrol --shutdown
+    ssh $dbh opcontrol --reset
+    ssh $dbh opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --image=all --separate=library
+    ssh $dbh opcontrol --start
+    ssh $dbh opcontrol --status
+  fi
+
+  wait $fid
+
   echo -n $b "$engine " > sb.r.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
   grep transactions: sb.o.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist | awk '{ print $3 }' | tr '(' ' ' > res
   awk '{ printf "%s ", $1 }' res >> sb.r.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
@@ -105,15 +110,11 @@ while (( "$#" )) ; do
   ssh $dbh killall iostat
 
   if [[ $use_oprofile == "yes" ]]; then
-    echo Stop oprofile
     ssh $dbh opcontrol --dump
     sleep 5
     ssh $dbh opreport --demangle=smart --symbols > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
     ssh $dbh opcontrol --shutdown
   fi
-
-  $run_mysql -e "show innodb status\G" >> sb.is.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
-  $run_mysql -e "show status" >> sb.s.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
 
   #
   # Innodb mutex stats
@@ -160,5 +161,5 @@ while (( "$#" )) ; do
  
   echo Running $b shutdown
   ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
-  sleep 10
+  sleep 5
 done
