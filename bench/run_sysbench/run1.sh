@@ -87,7 +87,7 @@ fi
 if [[ $warmup == "yes" ]]; then
   echo Warmup buffer cache at $( date )
   $run_mysql -e 'show create table sbtest'
-  for i in $( seq 1 $nr ) ; do
+  for i in $( seq -f '%7.0f' 1 $nr ) ; do
     echo "select count(*) from sbtest where id = $i;"
   done | $run_mysql > /dev/null
   echo Done warmup buffer cache at $( date )
