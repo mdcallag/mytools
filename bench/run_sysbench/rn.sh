@@ -11,4 +11,8 @@ p=$5
 w=$6
 # engine == innodb, ...
 e=$7
-bash run.sh $p /data yes root pw test no $e 2000000 $sec $t yes yes yes $h yes u $w $b
+# trx - yes, no
+x=$8
+# range size
+r=$9
+bash run.sh $p /data yes root pw test no $e 2000000 $sec $t yes yes $x $h yes u $w $r $b

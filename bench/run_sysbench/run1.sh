@@ -10,18 +10,29 @@ nr=$3
 strx=$4
 case $strx in
   "ro")
-    xa="--oltp-read-only" ;;
+    xa="--oltp-read-only " ;;
   "roha")
-    xa="--oltp-read-only --oltp-point-select-mysql-handler" ;;
+    xa="--oltp-read-only --oltp-point-select-mysql-handler " ;;
   "si")
-    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple" ;;
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple " ;;
   "siha")
-    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-mysql-handler" ;;
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-mysql-handler " ;;
+  "sihaorc")
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-mysql-handler-open-read-close " ;;
   "siac")
-    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols" ;;
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols " ;;
+  "sij")
+    xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simplejoin " ;;
+  "incupd")
+    xa="--oltp-skip-trx --oltp-test-mode=incupdate " ;;
+  "incins")
+    xa="--oltp-skip-trx --oltp-test-mode=incinsert " ;;
+  "sirw")
+    xa="--oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-non-index-updates " ;;
   "rw"|*)
-    xa=" " ;;
+    xa="" ;;
 esac
+
 
 # --mysql-engine-trx=[yes,no]
 etrx=$5
@@ -54,15 +65,16 @@ fi
 
 warmup=${15}
 
+range=${16}
+xa="$xa --oltp-range-size=${range} "
+
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
-sb="../sysbench "
+sb="../sysbench4 "
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
 fi
-
-xa="$xa --oltp-range-size=1000"
 
 def_args=" --mysql-host=$dbh --mysql-user=$myu --mysql-password=$myp --mysql-db=$myd "
 
@@ -87,10 +99,42 @@ fi
 if [[ $warmup == "yes" ]]; then
   echo Warmup buffer cache at $( date )
   $run_mysql -e 'show create table sbtest'
-  for i in $( seq -f '%7.0f' 1 $nr ) ; do
-    echo "select count(*) from sbtest where id = $i;"
-  done | $run_mysql > /dev/null
-  echo Done warmup buffer cache at $( date )
+  mkdir -p w
+
+  x=1
+  turn=0
+  rm -f wuq; touch wuq;
+  while [[ $x -le $nr ]]; do
+    m=$(( $x + 9999 ))
+    if [[ $m -gt $nr ]]; then m=$nr ; fi
+
+    echo Warmup from $x to $m for max rows $nr
+
+    if [ ! -f w/wuq.$x.$m.gz ]; then
+      echo "select count(*) from sbtest where id in (" > w/wuq.$x.$m
+      for i in $( seq -f '%7.0f' $x $(( $m - 1 )) ) ; do
+        echo -n "$i," >> w/wuq.$x.$m
+      done
+      echo -n "$m);" >> w/wuq.$x.$m
+    else
+      gunzip w/wuq.$x.$m     
+    fi
+
+    cat w/wuq.$x.$m >> wuq 
+    gzip w/wuq.$x.$m
+
+    x=$(( $m + 1 ))
+
+    turn=$(( $turn + 1 ))
+    if [[ $turn -eq 10 ]]; then
+      cp wuq wuq.bak
+      while ! $run_mysql < wuq ; do echo Failed with $? ; done
+      turn=0
+      rm -f wuq; touch wuq;
+    fi
+
+  done
+  echo Done warmup buffer cache at $( date ) with loop $x and max $nr
 fi
 
 touch startme
@@ -103,8 +147,10 @@ while [[ $dop -le $maxdop ]]; do
 
   echo
   $run_mysql -e 'show table status like "sbtest"'
+  $run_mysql -e 'select * from sbtest order by id asc limit 2'
 
   dop=$(( $dop * 2 ))
+#  dop=$(( $dop + 1 ))
 
 done
 
