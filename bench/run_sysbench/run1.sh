@@ -28,7 +28,7 @@ case $strx in
   "incins")
     xa="--oltp-skip-trx --oltp-test-mode=incinsert " ;;
   "sirw")
-    xa="--oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-non-index-updates " ;;
+    xa="--oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-simple-update " ;;
   "rw"|*)
     xa="" ;;
 esac

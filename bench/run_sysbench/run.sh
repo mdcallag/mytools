@@ -34,7 +34,7 @@ t=${10}
 # sij : --oltp-read-only --oltp-skip-trx --oltp-test-mode=simplejoin 
 # incupd : --oltp-skip-trx --oltp-test-mode=incupdate
 # incins : --oltp-skip-trx --oltp-test-mode=incinsert
-# sirw : --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-non-index-updates
+# sirw : --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-simple-update
 
 strx=${11}
 
@@ -79,6 +79,7 @@ while (( "$#" )) ; do
   ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
 
   if [[ $runasroot == "yes" ]] ; then
+    echo ssh $dbh "$mybase/bin/mysqld_safe --user=root > /dev/null 2>&1 &"
     ssh $dbh "$mybase/bin/mysqld_safe --user=root > /dev/null 2>&1 &"
   else
     ssh $dbh "$mybase/bin/mysqld_safe > /dev/null 2>&1 &"
