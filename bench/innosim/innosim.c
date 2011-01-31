@@ -33,6 +33,8 @@ typedef unsigned int uint;
 
 /* Configurable */
 
+int test_duration = 60;
+
 int prepare = 0;
 
 int doublewrite = 1;
@@ -414,7 +416,7 @@ void process_stats(operation_stats* stats, int num, const char* msg, int loop) {
     if (maxv > max_maxv) max_maxv = maxv;
   }
 
-  printf("%s: %d loop, %lu ops, %.2f millis/op, %.2f p95, %.2f p99, %.2f max\n",
+  printf("%s: %d loop, %lu ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
          msg, loop, sum_requests,
          ((double) sum_latency / sum_requests) / 1000.0,
          max_p95 / 1000.0, max_p99 / 1000.0, max_maxv / 1000.0);
@@ -463,6 +465,12 @@ void print_help() {
 "write to the doublewrite buffer and then requests that the writer threads perform the\n"
 "writes for the pages.\n"
 "\n"
+"Statistics are reported every --stats-interval seconds. One line is reported for each of:\n"
+"reads done by the user threads, writes done by the writer threads, binlog writes, \n"
+"transaction log writes, binlog fsyncs and transaction log fsyncs. Each line includes the \n"
+"number of operations, and latencies (average, 95th percentile, 99th percentile and max).\n"
+"All latencies are in milliseconds.\n"
+"\n"
 "Options:\n"
 "  --help -- print help message and exit\n"
 "  --prepare 1|0         -- 1: create files and then run, 0: assume files exist, run\n"
@@ -482,6 +490,7 @@ void print_help() {
 "  --num-users n         -- number of user threads\n"
 "  --dirty-pct n         -- percent of user transactions that dirty a page\n"
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
+"  --test-duration n     -- number of seconds to run the test\n"
 );
 
   exit(0);
@@ -532,19 +541,19 @@ void process_options(int argc, char **argv) {
 
     } else if (!strcmp(argv[x], "--binlog-file-size")) {
       if (x == (argc - 1)) { printf("--binlog-file-size needs an arg\n"); exit(-1); }
-      binlog_file_size = atoi(argv[++x]);
+      binlog_file_size = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--trxlog-file-size")) {
       if (x == (argc - 1)) { printf("--trxlog-file-size needs an arg\n"); exit(-1); }
-      trxlog_file_size = atoi(argv[++x]);
+      trxlog_file_size = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--data-file-size")) {
       if (x == (argc - 1)) { printf("--data-file-size needs an arg\n"); exit(-1); }
-      data_file_size = atoi(argv[++x]);
+      data_file_size = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--data-block-size")) {
       if (x == (argc - 1)) { printf("--data-block-size needs an arg\n"); exit(-1); }
-      data_block_size = atoi(argv[++x]);
+      data_block_size = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--num-writers")) {
       if (x == (argc - 1)) { printf("--num-writers needs an arg\n"); exit(-1); }
@@ -565,6 +574,10 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--stats-interval")) {
       if (x == (argc - 1)) { printf("--stats-interval needs an arg\n"); exit(-1); }
       stats_interval = atoi(argv[++x]);
+
+    } else if (!strcmp(argv[x], "--test-duration")) {
+      if (x == (argc - 1)) { printf("--test-duration needs an arg\n"); exit(-1); }
+      test_duration = atoi(argv[++x]);
     }
 
   }
@@ -586,6 +599,7 @@ void process_options(int argc, char **argv) {
   printf("Number of user threads: %d\n", num_users);
   printf("Dirty percent: %d\n", dirty_pct);
   printf("Stats interval: %d\n", stats_interval);
+  printf("Test duration: %d\n", test_duration);
 }
  
 int main(int argc, char **argv) {
@@ -644,7 +658,7 @@ int main(int argc, char **argv) {
     pthread_create(&writer_threads[i], NULL, writer, &writer_stats[i]);
   }
 
-  while (1) {
+  for (test_loop = 1; test_loop <= test_duration; test_loop += stats_interval) {
 
     sleep(stats_interval);
 
@@ -661,8 +675,6 @@ int main(int argc, char **argv) {
     printf("other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
  
     pthread_mutex_unlock(&stats_mutex);
-
-    test_loop++;
   }
 
   if (binlog)
