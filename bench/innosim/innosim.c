@@ -53,6 +53,11 @@ int num_writers = 8;
 int num_users = 8;
 
 int dirty_pct = 30;
+int read_hit_pct = 0;
+
+#define BUFFER_POOL_MAX 1000000
+
+int max_dirty_pages = BUFFER_POOL_MAX;
 
 int stats_interval=1;
 
@@ -89,10 +94,13 @@ pthread_cond_t buffer_pool_list_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_pool_list_not_full = PTHREAD_COND_INITIALIZER;
 
 #define INTERVAL_MAX 10000
+#define TOTAL_MAX 100000
 
 typedef struct {
   int total_requests;
   longlong total_latency;
+  long total_max;
+  long total_latencies[TOTAL_MAX];
   long interval_requests;
   long interval_latency;
   long interval_max;
@@ -108,8 +116,6 @@ operation_stats binlog_fsync_stats;
 operation_stats trxlog_write_stats;
 operation_stats trxlog_fsync_stats;
 operation_stats doublewrite_stats;
-
-#define BUFFER_POOL_MAX 1000000
 
 typedef struct {
   int dirty_pages;
@@ -167,19 +173,32 @@ void stats_report(operation_stats* stats,
   if (latency > stats->interval_max)
     stats->interval_max = latency;
 
-  /* Use Reservoir sampling for interval_latencies */
+  if (latency > stats->total_max)
+    stats->total_max = latency;
+
+  /* Use Reservoir sampling */
+
   if (stats->interval_requests <= INTERVAL_MAX)
     sample_index = stats->interval_requests - 1;
   else
     sample_index = rand_double(randctx) * stats->interval_requests;
+  if (sample_index < INTERVAL_MAX)
+    stats->interval_latencies[sample_index] = latency; 
 
-  if (sample_index < INTERVAL_MAX) stats->interval_latencies[sample_index] = latency; 
+  if (stats->total_requests <= TOTAL_MAX)
+    sample_index = stats->total_requests - 1;
+  else
+    sample_index = rand_double(randctx) * stats->total_requests;
+  if (sample_index < TOTAL_MAX)
+    stats->total_latencies[sample_index] = latency; 
+
   pthread_mutex_unlock(&stats_mutex);
 }
 
 void stats_init(operation_stats* stats) {
   stats->total_requests = 0;
   stats->total_latency = 0;
+  stats->total_max = 0;
   stats->interval_requests = 0;
   stats->interval_latency = 0;
   stats->interval_max = 0;
@@ -194,7 +213,7 @@ int lcompare(const void* a, const void* b) {
 void stats_summarize_interval(operation_stats* stats,
                               long* p95, long* p99, double* avg,
                               long* maxv, long* requests, longlong* latency) {
-  int nsamples = (stats->interval_requests <  INTERVAL_MAX) ? stats->interval_requests : INTERVAL_MAX;
+  int nsamples = MYMIN(stats->interval_requests, INTERVAL_MAX);
 
   qsort(&(stats->interval_latencies[0]), nsamples, sizeof(long), lcompare);
 
@@ -210,6 +229,20 @@ void stats_summarize_interval(operation_stats* stats,
   stats->interval_max = 0;
 }
 
+void stats_summarize_total(operation_stats* stats,
+                           long* p95, long* p99, double* avg,
+                           long* maxv, long* requests, longlong* latency) {
+  int nsamples = MYMIN(stats->total_requests, TOTAL_MAX);
+
+  qsort(&(stats->total_latencies[0]), nsamples, sizeof(long), lcompare);
+
+  *requests = stats->total_requests;
+  *latency = stats->total_latency;
+  *maxv = stats->total_max;
+  *p95 = stats->total_latencies[(int) (nsamples * 0.95)];
+  *p99 = stats->total_latencies[(int) (nsamples * 0.99)];
+  *avg = (double) stats->total_latency / (double) stats->total_requests;
+}
 
 void buffer_pool_init(buffer_pool_t* pool) {
   pool->dirty_pages = 0;
@@ -272,6 +305,10 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
 
 void buffer_pool_dirty_page(buffer_pool_t* pool, uint* ctx) {
   pthread_mutex_lock(&buffer_pool_mutex);
+
+  while ((pool->dirty_pages + pool->list_count) >= max_dirty_pages)
+    pthread_cond_wait(&buffer_pool_list_not_full, &buffer_pool_mutex);    
+
   pool->dirty_pages++;
   pthread_mutex_unlock(&buffer_pool_mutex);
 
@@ -336,9 +373,12 @@ void* user_func(void* arg) {
     block_num = rand_block(&ctx);
     offset = block_num * data_block_size;
 
-    now(&start);
-    pread64(data_fd, data, data_block_size, offset);
-    stats_report(stats, &start, &ctx);
+    if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
+      /* Do the read when it misses the pretend cache */
+      now(&start);
+      pread64(data_fd, data, data_block_size, offset);
+      stats_report(stats, &start, &ctx);
+    }
 
     if ((rand_double(&ctx) * 100) <= (double) dirty_pct)
       buffer_pool_dirty_page(&buffer_pool, &ctx);
@@ -395,6 +435,32 @@ void* writer(void* arg) {
   }
 
   free(data);
+}
+
+void final_stats(operation_stats* stats, int num, const char* msg, int loop) {
+  long max_p95 = 0, max_p99 = 0, max_maxv = 0;
+  longlong sum_latency = 0;
+  long sum_requests = 0;
+  int i;
+
+  for (i = 0; i < num; ++i, ++stats) {
+    long requests, p95, p99, maxv;
+    longlong latency;
+    double avg;
+
+    stats_summarize_total(stats, &p95, &p99, &avg, &maxv, &requests, &latency);
+    sum_requests += requests;
+    sum_latency += latency;
+    if (p95 > max_p95) max_p95 = p95;
+    if (p99 > max_p99) max_p99 = p99;
+    if (maxv > max_maxv) max_maxv = maxv;
+  }
+
+  printf("%s: final, %lu ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+         msg, sum_requests,
+         (double) sum_requests / (loop * stats_interval),
+         ((double) sum_latency / sum_requests) / 1000.0,
+         max_p95 / 1000.0, max_p99 / 1000.0, max_maxv / 1000.0);
 }
 
 void process_stats(operation_stats* stats, int num, const char* msg, int loop) {
@@ -465,6 +531,12 @@ void print_help() {
 "write to the doublewrite buffer and then requests that the writer threads perform the\n"
 "writes for the pages.\n"
 "\n"
+"To simulate a write-intensive workload that does few reads because reads are cached, set \n"
+"--read-hit-pct to a non-zero value\n"
+"\n"
+"Use --max-dirty-pages to limit the maximum number of pages that are currently marked dirty\n"
+"and rate-limit a write-mostly benchmark\n"
+"\n"
 "Statistics are reported every --stats-interval seconds. One line is reported for each of:\n"
 "reads done by the user threads, writes done by the writer threads, binlog writes, \n"
 "transaction log writes, binlog fsyncs and transaction log fsyncs. Each line includes the \n"
@@ -488,7 +560,9 @@ void print_help() {
 "  --data-block-size n   -- size of database blocks in bytes\n"
 "  --num-writers n       -- number of writer threads\n"
 "  --num-users n         -- number of user threads\n"
+"  --max-dirty-pages n   -- maximum number of dirty pages, used to rate limit write-mostly workloads\n"
 "  --dirty-pct n         -- percent of user transactions that dirty a page\n"
+"  --read-hit-pct n      -- for transactions that dirty a page, percentage of time a read is not needed because it was cached\n"
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
 "  --test-duration n     -- number of seconds to run the test\n"
 );
@@ -571,6 +645,23 @@ void process_options(int argc, char **argv) {
         exit(-1);
       }
 
+    } else if (!strcmp(argv[x], "--read-hit-pct")) {
+      if (x == (argc - 1)) { printf("--read-hit-pct needs an arg\n"); exit(-1); }
+      read_hit_pct = atoi(argv[++x]);
+      if (read_hit_pct < 0 || read_hit_pct > 100) {
+        printf("--read-hit-pct set to %d and should be between 0 and 100\n", read_hit_pct);
+        exit(-1);
+      }
+
+    } else if (!strcmp(argv[x], "--max-dirty-pages")) {
+      if (x == (argc - 1)) { printf("--max-dirty-pages needs an arg\n"); exit(-1); }
+      max_dirty_pages = atoi(argv[++x]);
+      if (max_dirty_pages < 1 || max_dirty_pages > BUFFER_POOL_MAX) {
+        printf("--max-dirty-pages set to %d and should be between 1 and %d\n",
+               max_dirty_pages, BUFFER_POOL_MAX);
+        exit(-1);
+      }
+
     } else if (!strcmp(argv[x], "--stats-interval")) {
       if (x == (argc - 1)) { printf("--stats-interval needs an arg\n"); exit(-1); }
       stats_interval = atoi(argv[++x]);
@@ -598,6 +689,8 @@ void process_options(int argc, char **argv) {
   printf("Number of writer threads: %d\n", num_writers);
   printf("Number of user threads: %d\n", num_users);
   printf("Dirty percent: %d\n", dirty_pct);
+  printf("Read hit percent: %d\n", read_hit_pct);
+  printf("Max dirty pages: %d\n", max_dirty_pages);
   printf("Stats interval: %d\n", stats_interval);
   printf("Test duration: %d\n", test_duration);
 }
@@ -607,6 +700,7 @@ int main(int argc, char **argv) {
   pthread_t *user_threads;
   pthread_t write_scheduler;
   int i, test_loop = 0;
+  struct stat stat_buf;
 
   process_options(argc, argv);
 
@@ -642,6 +736,27 @@ int main(int argc, char **argv) {
   assert(data_fd >= 0);
   lseek(data_fd, 0, SEEK_SET);
 
+  i = fstat(data_fd, &stat_buf);
+  if (i) {
+    perror("stat for --data-file-name failed");
+    printf("Do you need to prepare files? (use --prepare 1)\n");
+    exit(-1);
+  }
+
+  printf("Filesystem block size for %s is %d\n", data_fname, (int) stat_buf.st_blksize);
+  if (stat_buf.st_size < data_file_size) {
+    printf("Datafile %s is too small (%llu) and must be at least %llu bytes\n",
+           data_fname, (ulonglong) stat_buf.st_size, (ulonglong) data_file_size);
+    printf("Do you need to prepare files? (use --prepare 1)\n");
+    exit(-1);
+  }
+  if ((stat_buf.st_blocks * 512LL) < stat_buf.st_size) {
+    printf("Datafile %s has holes. It has %llu blocks and requires %llu blocks with no holes\n",
+           data_fname, (ulonglong) stat_buf.st_blocks, (ulonglong) stat_buf.st_size / 512ULL);
+    printf("Do you need to prepare files? (use --prepare 1)\n");
+    exit(-1);
+  }
+
   user_threads = (pthread_t*) malloc(sizeof(pthread_t) * num_users);
   user_stats = (operation_stats*) malloc(sizeof(operation_stats) * num_users);
   for (i = 0; i < num_users; ++i) {
@@ -676,6 +791,18 @@ int main(int argc, char **argv) {
  
     pthread_mutex_unlock(&stats_mutex);
   }
+
+  pthread_mutex_lock(&stats_mutex);
+  final_stats(user_stats, num_users, "read", test_loop - stats_interval);
+  final_stats(writer_stats, num_writers, "write", test_loop - stats_interval);
+  final_stats(&scheduler_stats, 1, "scheduler", test_loop - stats_interval);
+  final_stats(&doublewrite_stats, 1, "doublewrite", test_loop - stats_interval);
+  final_stats(&binlog_write_stats, 1, "binlog_write", test_loop - stats_interval);
+  final_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop - stats_interval);
+  final_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop - stats_interval);
+  final_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop - stats_interval);
+  printf("other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
+  pthread_mutex_unlock(&stats_mutex);
 
   if (binlog)
     free(binlog_buf);
