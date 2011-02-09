@@ -26,9 +26,6 @@ bash run_innosim.sh  1 1 8  $concur  25   0 $secs 0; sleep $sleep_secs
 echo read-write $concur concur dirty=17 (100 page reads to 34 page writes)
 bash run_innosim.sh  1 1 8  $concur  17   0 $secs 0; sleep $sleep_secs
 
-echo read-write $concur concur dirty=13 (100 page reads to 26 page writes)
-bash run_innosim.sh  1 1 8  $concur  13   0 $secs 0; sleep $sleep_secs
-
 echo read-write $concur concur dirty=6  (100 page reads to 12 page writes)
 bash run_innosim.sh  1 1 8  $concur  6   0 $secs 0; sleep $sleep_secs
 
