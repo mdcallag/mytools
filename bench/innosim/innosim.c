@@ -33,6 +33,8 @@ typedef unsigned int uint;
 
 /* Configurable */
 
+int scheduler_sleep_usecs = 100000;
+
 int test_duration = 60;
 
 int prepare = 0;
@@ -208,6 +210,12 @@ int lcompare(const void* a, const void* b) {
   long const* la = (long const*) a;
   long const* lb = (long const*) b;
   return *la - *lb;
+}
+
+int icompare(const void* a, const void* b) {
+  int const* ia = (int const*) a;
+  int const* ib = (int const*) b;
+  return *ia - *ib;
 }
 
 void stats_summarize_interval(operation_stats* stats,
@@ -403,7 +411,7 @@ void* write_scheduler_func(void* arg) {
       now(&start);
     }
 
-    usleep(100000); /* TODO mdcallag: do something better */
+    usleep(scheduler_sleep_usecs); /* TODO mdcallag: do something better */
   }
 
   free(data);
@@ -565,6 +573,7 @@ void print_help() {
 "  --read-hit-pct n      -- for transactions that dirty a page, percentage of time a read is not needed because it was cached\n"
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
 "  --test-duration n     -- number of seconds to run the test\n"
+"  --scheduler-sleep-usecs n -- page writes are scheduled every n microseconds\n"
 );
 
   exit(0);
@@ -662,6 +671,15 @@ void process_options(int argc, char **argv) {
         exit(-1);
       }
 
+    } else if (!strcmp(argv[x], "--scheduler-sleep-usecs")) {
+      if (x == (argc - 1)) { printf("--scheduler-sleep-usecs needs an arg\n"); exit(-1); }
+      scheduler_sleep_usecs = atoi(argv[++x]);
+      if (scheduler_sleep_usecs < 1 || scheduler_sleep_usecs > 1000000) {
+        printf("--scheduler-sleep-usecs set to %d and should be between 1 and 1000000\n",
+               scheduler_sleep_usecs);
+        exit(-1);
+      }
+
     } else if (!strcmp(argv[x], "--stats-interval")) {
       if (x == (argc - 1)) { printf("--stats-interval needs an arg\n"); exit(-1); }
       stats_interval = atoi(argv[++x]);
@@ -693,6 +711,7 @@ void process_options(int argc, char **argv) {
   printf("Max dirty pages: %d\n", max_dirty_pages);
   printf("Stats interval: %d\n", stats_interval);
   printf("Test duration: %d\n", test_duration);
+  printf("Scheduler sleep microseconds: %d\n", scheduler_sleep_usecs);
 }
  
 int main(int argc, char **argv) {
@@ -701,6 +720,8 @@ int main(int argc, char **argv) {
   pthread_t write_scheduler;
   int i, test_loop = 0;
   struct stat stat_buf;
+  int *reads_per_interval;
+  int max_loops;
 
   process_options(argc, argv);
 
@@ -718,6 +739,15 @@ int main(int argc, char **argv) {
 
   if (prepare)
     prepare_files();
+
+  max_loops = test_duration / stats_interval;
+  reads_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
+  memset(reads_per_interval, 0, sizeof(int) * (1 + max_loops));
+
+  if (!reads_per_interval) {
+    fprintf(stderr, "Cannot allocate for test_duration / stats_interval samples\n");
+    exit(-1);
+  }
 
   if (binlog) { 
     binlog_fd = open(binlog_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
@@ -773,11 +803,13 @@ int main(int argc, char **argv) {
     pthread_create(&writer_threads[i], NULL, writer, &writer_stats[i]);
   }
 
-  for (test_loop = 1; test_loop <= test_duration; test_loop += stats_interval) {
+  for (test_loop = 1; test_loop <= max_loops; ++test_loop) {
 
     sleep(stats_interval);
 
     pthread_mutex_lock(&stats_mutex);
+
+    reads_per_interval[test_loop - 1] = user_stats->interval_requests;
 
     process_stats(user_stats, num_users, "read", test_loop);
     process_stats(writer_stats, num_writers, "write", test_loop);
@@ -801,7 +833,19 @@ int main(int argc, char **argv) {
   final_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop - stats_interval);
   final_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop - stats_interval);
   final_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop - stats_interval);
-  printf("other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
+  printf("final other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
+
+  qsort(reads_per_interval, max_loops, sizeof(int), icompare);
+  printf("final percentile rd IOPs: %d p50, %d p75, %d p90, %d p95, %d p96, %d p97, %d p98, %d p99\n",
+         reads_per_interval[(int) (max_loops * 0.50)],
+         reads_per_interval[(int) (max_loops * 0.25)],
+         reads_per_interval[(int) (max_loops * 0.10)],
+         reads_per_interval[(int) (max_loops * 0.05)],
+         reads_per_interval[(int) (max_loops * 0.04)],
+         reads_per_interval[(int) (max_loops * 0.03)],
+         reads_per_interval[(int) (max_loops * 0.02)],
+         reads_per_interval[(int) (max_loops * 0.01)]);
+
   pthread_mutex_unlock(&stats_mutex);
 
   if (binlog)
