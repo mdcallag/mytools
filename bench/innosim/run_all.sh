@@ -10,12 +10,12 @@ echo Prepare
 bash run_innosim.sh  1 1 8  1   0   0 10 1
 fi
 
-for concur in 1 4 8 16 32 64 128 ; do
+for concur in 1 4 8 16 32 64 ; do
   echo read-only $concur concur
   bash run_innosim.sh  1 1 8  $concur   0   0 $secs 0; sleep $sleep_secs
 done
 
-for concur in 1 4 8 16 32 64 128 ; do
+for concur in 1 4 8 16 32 64 ; do
 
 echo write-only $concur concur
 bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0; sleep $sleep_secs
