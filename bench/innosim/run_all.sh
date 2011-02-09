@@ -16,9 +16,11 @@ for concur in 1 4 8 16 32 64 ; do
 done
 
 for concur in 1 4 8 16 32 64 ; do
+  echo write-only $concur concur
+  bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0; sleep $sleep_secs
+done
 
-echo write-only $concur concur
-bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0; sleep $sleep_secs
+for concur in 1 4 8 16 32 64 ; do
 
 echo read-write $concur concur dirty=25  (100 page reads to 50 page writes)
 bash run_innosim.sh  1 1 8  $concur  25   0 $secs 0; sleep $sleep_secs
