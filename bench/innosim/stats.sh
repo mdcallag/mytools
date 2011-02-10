@@ -1,4 +1,4 @@
-for d in 6 17 25 ; do rm -f d.$d p.$d pz.$d q.$d ; done
+for d in 6 17 25 ; do rm -f d.$d p.$d percentile_iops.$d report.$d ; done
 
 rm -f r
 
@@ -20,14 +20,16 @@ for d in 6 17 25 ; do paste d.$d r > p.$d ; done
 
 for d in 6 17 25 ; do
 
-awk '{ printf "%s\t%s\t%s\t%s\t%.3f\n", $1, $2, $3, $4, ($1 * ((100 + d + d) / 100)) / $4 }' d=$d p.$d > q.$d 
+awk '{ printf "%s\t%s\t%s\t%s\t%.3f\n", $1, $2, $3, $4, ($1 * ((100 + d + d) / 100)) / $4 }' d=$d p.$d > report.$d 
 
 done
 
 for d in 6 17 25 ; do
 for u in 1 4 8 16 32 64  ; do
 
-grep read: o.bl_1.trx_1.dblwr_1.wthr_8.uthr_$u.dirty_$d.* | awk '{ print $4 }' | sort -nk1 > /tmp/o.$u.$d; p50=$( head -600 /tmp/o.$u.$d | tail -1 ); p75=$( head -300 /tmp/o.$u.$d | tail -1 ); p90=$( head -120 /tmp/o.$u.$d | tail -1 ); p95=$( head -60 /tmp/o.$u.$d | tail -1 ); p96=$( head -48 /tmp/o.$u.$d | tail -1 ); p97=$( head -36 /tmp/o.$u.$d | tail -1 ); echo $p50 $p75 $p90 $p95 $p96 $p97 | awk '{ printf "%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5, $6 }' 
+grep "^final percentile rd IOPs" o.bl_1.trx_1.dblwr_1.wthr_8.uthr_$u.dirty_$d.* | \
+    awk '{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $5, $7, $9, $11, $13, $15, $17, $19 }'
 
-done >> pz.$d 
+done >> percentile_iops.$d
 done
+
