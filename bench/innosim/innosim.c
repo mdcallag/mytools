@@ -129,12 +129,27 @@ typedef struct {
 
 buffer_pool_t buffer_pool;
 
-double rand_double(uint *ctx) {
-  int r = rand_r(ctx);
-  return (double) r / (double) RAND_MAX;
+void init_rand_ctx(struct drand48_data* ctx) {
+  static long state = 0;
+  static int done = 0;
+
+  if (!done) {
+    struct timeval tv;
+
+    assert(!gettimeofday(&tv, NULL));
+    done = 1;
+    state = tv.tv_usec + (tv.tv_sec * 1000000);
+  }
+  assert(!srand48_r(state++, ctx));
 }
 
-longlong rand_block(uint* ctx) {
+double rand_double(struct drand48_data* ctx) {
+  double r;
+  assert(!drand48_r(ctx, &r));
+  return r;
+}
+
+longlong rand_block(struct drand48_data* ctx) {
   longlong block_no = rand_double(ctx) * n_blocks;
   return MYMIN(block_no, (n_blocks-1));
 }
@@ -156,7 +171,7 @@ long now_minus_then_usecs(struct timeval const* now,
 
 void stats_report(operation_stats* stats,
                   struct timeval *start,
-		  uint *randctx) {
+		  struct drand48_data* randctx) {
   int sample_index;
   long latency;
   struct timeval stop;
@@ -285,7 +300,7 @@ int buffer_pool_list_pop(buffer_pool_t* pool, longlong* page_id) {
 
 void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int write_size, 
                int truncate_if_max, int fd, char* buf,
-               operation_stats* write_stats, operation_stats* fsync_stats, uint* ctx) {
+               operation_stats* write_stats, operation_stats* fsync_stats, struct drand48_data* ctx) {
 
     struct timeval start;
 
@@ -311,7 +326,7 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     pthread_mutex_unlock(mux);
 }
 
-void buffer_pool_dirty_page(buffer_pool_t* pool, uint* ctx) {
+void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
   pthread_mutex_lock(&buffer_pool_mutex);
 
   while ((pool->dirty_pages + pool->list_count) >= max_dirty_pages)
@@ -331,7 +346,7 @@ void buffer_pool_dirty_page(buffer_pool_t* pool, uint* ctx) {
   }
 }
 
-int buffer_pool_schedule_writes(buffer_pool_t* pool, uint* ctx, char* doublewrite_buf) {
+int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, char* doublewrite_buf) {
   int pages = 0, x;
   struct timeval start;
   longlong page_array[DOUBLEWRITE_SIZE];
@@ -369,11 +384,13 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, uint* ctx, char* doublewrit
 
 void* user_func(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  uint ctx = (uint) pthread_self();
+  struct drand48_data ctx;
   size_t block_num;
   off_t offset;
   char* data;
   struct timeval start;
+
+  init_rand_ctx(&ctx);
 
   assert(!posix_memalign((void**) &data, data_block_size, data_block_size));
 
@@ -397,10 +414,11 @@ void* user_func(void* arg) {
 
 void* write_scheduler_func(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  uint ctx = (uint) pthread_self();
   struct timeval start;
   char *data;
+  struct drand48_data ctx;
 
+  init_rand_ctx(&ctx);
   assert(!posix_memalign((void**) &data, 128 * data_block_size, data_block_size));
 
   while (1) {
@@ -419,12 +437,13 @@ void* write_scheduler_func(void* arg) {
 
 void* writer(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  uint ctx = (uint) pthread_self();
   longlong block_num;
   off_t offset;
   char* data;
   struct timeval start;
+  struct drand48_data ctx;
 
+  init_rand_ctx(&ctx);
   assert(!posix_memalign((void**) &data, data_block_size, data_block_size));
 
   while (1) {
@@ -491,7 +510,7 @@ void process_stats(operation_stats* stats, int num, const char* msg, int loop, i
     if (maxv > max_maxv) max_maxv = maxv;
   }
 
-  printf("%s: %d loop, %lu ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+  printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
          msg, loop, *sum_requests,
          ((double) sum_latency / *sum_requests) / 1000.0,
          max_p95 / 1000.0, max_p99 / 1000.0, max_maxv / 1000.0);
@@ -854,4 +873,6 @@ int main(int argc, char **argv) {
     free(binlog_buf);
   if (trxlog)
     free(trxlog_buf);
+
+  return 0;
 }
