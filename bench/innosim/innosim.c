@@ -95,8 +95,8 @@ pthread_cond_t buffer_pool_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_pool_list_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_pool_list_not_full = PTHREAD_COND_INITIALIZER;
 
-#define INTERVAL_MAX 10000
-#define TOTAL_MAX 100000
+#define INTERVAL_MAX  100000
+#define TOTAL_MAX    1000000
 
 typedef struct {
   int total_requests;
@@ -169,17 +169,10 @@ long now_minus_then_usecs(struct timeval const* now,
     return -1;
 }
 
-void stats_report(operation_stats* stats,
-                  struct timeval *start,
-		  struct drand48_data* randctx) {
+void stats_report_with_latency(operation_stats* stats,
+                               long latency,
+       		               struct drand48_data* randctx) {
   int sample_index;
-  long latency;
-  struct timeval stop;
-
-  now(&stop);
-  latency = now_minus_then_usecs(&stop, start);
-  
-  pthread_mutex_lock(&stats_mutex);
 
   stats->total_requests++;
   stats->total_latency += latency;
@@ -208,7 +201,19 @@ void stats_report(operation_stats* stats,
     sample_index = rand_double(randctx) * stats->total_requests;
   if (sample_index < TOTAL_MAX)
     stats->total_latencies[sample_index] = latency; 
+}
 
+void stats_report(operation_stats* stats,
+                  struct timeval *start,
+		  struct drand48_data* randctx) {
+  long latency;
+  struct timeval stop;
+
+  now(&stop);
+  latency = now_minus_then_usecs(&stop, start);
+
+  pthread_mutex_lock(&stats_mutex);
+  stats_report_with_latency(stats, latency, randctx);
   pthread_mutex_unlock(&stats_mutex);
 }
 
@@ -464,56 +469,66 @@ void* writer(void* arg) {
   free(data);
 }
 
-void final_stats(operation_stats* stats, int num, const char* msg, int loop) {
-  long max_p95 = 0, max_p99 = 0, max_maxv = 0;
+int process_stats(operation_stats* const stats, int num, const char* msg, int loop, int final) {
+  long max_maxv = 0;
   longlong sum_latency = 0;
-  long sum_requests = 0;
-  int i;
+  int sx, rx;
+  operation_stats combined;
+  struct drand48_data randctx;
+  long requests, p95, p99, maxv;
+  longlong latency;
+  double avg;
+  int sum_requests = 0;
+  operation_stats* curstats;
 
-  for (i = 0; i < num; ++i, ++stats) {
-    long requests, p95, p99, maxv;
-    longlong latency;
-    double avg;
+  stats_init(&combined);
+  init_rand_ctx(&randctx);
 
-    stats_summarize_total(stats, &p95, &p99, &avg, &maxv, &requests, &latency);
-    sum_requests += requests;
-    sum_latency += latency;
-    if (p95 > max_p95) max_p95 = p95;
-    if (p99 > max_p99) max_p99 = p99;
-    if (maxv > max_maxv) max_maxv = maxv;
+  if (!final) {
+    /* Merge into combined before interval_latencies are cleared */
+    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
+      for (rx = 0; rx < curstats->interval_requests; ++rx)
+        stats_report_with_latency(&combined, curstats->interval_latencies[rx], &randctx);
+
+    /* And then summarize */
+    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
+      stats_summarize_interval(curstats, &p95, &p99, &avg, &maxv, &requests, &latency);
+      sum_requests += requests;
+      sum_latency += latency;
+      if (maxv > max_maxv) max_maxv = maxv;
+    }
+   
+  } else {
+    /* Summarize to update total_latencies */
+    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
+      stats_summarize_total(curstats, &p95, &p99, &avg, &maxv, &requests, &latency);
+      sum_requests += requests;
+      sum_latency += latency;
+      if (maxv > max_maxv) max_maxv = maxv;
+    }
+
+    /* And then merge into combined */
+    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
+      for (rx = 0; rx < curstats->total_requests; ++rx)
+        stats_report_with_latency(&combined, curstats->total_latencies[rx], &randctx);
   }
 
-  printf("%s: final, %lu ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
-         msg, sum_requests,
-         (double) sum_requests / (loop * stats_interval),
-         ((double) sum_latency / sum_requests) / 1000.0,
-         max_p95 / 1000.0, max_p99 / 1000.0, max_maxv / 1000.0);
-}
+  stats_summarize_interval(&combined, &p95, &p99, &avg, &maxv, &requests, &latency);
 
-void process_stats(operation_stats* stats, int num, const char* msg, int loop, int *sum_requests) {
-  long max_p95 = 0, max_p99 = 0, max_maxv = 0;
-  longlong sum_latency = 0;
-  int i;
-
-  *sum_requests = 0;
-
-  for (i = 0; i < num; ++i, ++stats) {
-    long requests, p95, p99, maxv;
-    longlong latency;
-    double avg;
-
-    stats_summarize_interval(stats, &p95, &p99, &avg, &maxv, &requests, &latency);
-    *sum_requests += requests;
-    sum_latency += latency;
-    if (p95 > max_p95) max_p95 = p95;
-    if (p99 > max_p99) max_p99 = p99;
-    if (maxv > max_maxv) max_maxv = maxv;
+  if (!final) {
+    printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+           msg, loop, sum_requests,
+           ((double) sum_latency / sum_requests) / 1000.0,
+           p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
+  } else {
+    printf("%s: final, %lu ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+           msg, sum_requests,
+           (double) sum_requests / (loop * stats_interval),
+           ((double) sum_latency / sum_requests) / 1000.0,
+           p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
   }
 
-  printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
-         msg, loop, *sum_requests,
-         ((double) sum_latency / *sum_requests) / 1000.0,
-         max_p95 / 1000.0, max_p99 / 1000.0, max_maxv / 1000.0);
+  return sum_requests;
 }
 
 void prepare_files() {
@@ -824,36 +839,34 @@ int main(int argc, char **argv) {
   }
 
   for (test_loop = 1; test_loop <= max_loops; ++test_loop) {
-    int sum_requests;
-
     sleep(stats_interval);
 
     pthread_mutex_lock(&stats_mutex);
 
-    process_stats(user_stats, num_users, "read", test_loop, &sum_requests);
-    reads_per_interval[test_loop - 1] = sum_requests;
+    reads_per_interval[test_loop - 1] =
+        process_stats(user_stats, num_users, "read", test_loop, 0);
 
-    process_stats(writer_stats, num_writers, "write", test_loop, &sum_requests);
-    process_stats(&scheduler_stats, 1, "scheduler", test_loop, &sum_requests);
-    process_stats(&doublewrite_stats, 1, "doublewrite", test_loop, &sum_requests);
-    process_stats(&binlog_write_stats, 1, "binlog_write", test_loop, &sum_requests);
-    process_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop, &sum_requests);
-    process_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop, &sum_requests);
-    process_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop, &sum_requests);
+    process_stats(writer_stats, num_writers, "write", test_loop, 0);
+    process_stats(&scheduler_stats, 1, "scheduler", test_loop, 0);
+    process_stats(&doublewrite_stats, 1, "doublewrite", test_loop, 0);
+    process_stats(&binlog_write_stats, 1, "binlog_write", test_loop, 0);
+    process_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop, 0);
+    process_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop, 0);
+    process_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop, 0);
     printf("other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
  
     pthread_mutex_unlock(&stats_mutex);
   }
 
   pthread_mutex_lock(&stats_mutex);
-  final_stats(user_stats, num_users, "read", test_loop - stats_interval);
-  final_stats(writer_stats, num_writers, "write", test_loop - stats_interval);
-  final_stats(&scheduler_stats, 1, "scheduler", test_loop - stats_interval);
-  final_stats(&doublewrite_stats, 1, "doublewrite", test_loop - stats_interval);
-  final_stats(&binlog_write_stats, 1, "binlog_write", test_loop - stats_interval);
-  final_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop - stats_interval);
-  final_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop - stats_interval);
-  final_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop - stats_interval);
+  process_stats(user_stats, num_users, "read", test_loop - stats_interval, 1);
+  process_stats(writer_stats, num_writers, "write", test_loop - stats_interval, 1);
+  process_stats(&scheduler_stats, 1, "scheduler", test_loop - stats_interval, 1);
+  process_stats(&doublewrite_stats, 1, "doublewrite", test_loop - stats_interval, 1);
+  process_stats(&binlog_write_stats, 1, "binlog_write", test_loop - stats_interval, 1);
+  process_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop - stats_interval, 1);
+  process_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop - stats_interval, 1);
+  process_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop - stats_interval, 1);
   printf("final other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
 
   qsort(reads_per_interval, max_loops, sizeof(int), icompare);
