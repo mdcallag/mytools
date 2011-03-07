@@ -487,7 +487,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   if (!final) {
     /* Merge into combined before interval_latencies are cleared */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
-      for (rx = 0; rx < curstats->interval_requests; ++rx)
+      for (rx = 0; rx < MYMIN(INTERVAL_MAX, curstats->interval_requests); ++rx)
         stats_report_with_latency(&combined, curstats->interval_latencies[rx], &randctx);
 
     /* And then summarize */
@@ -499,7 +499,12 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
     }
    
   } else {
-    /* Summarize to update total_latencies */
+    /* Merge into combined */
+    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
+      for (rx = 0; rx < MYMIN(TOTAL_MAX, curstats->total_requests); ++rx)
+        stats_report_with_latency(&combined, curstats->total_latencies[rx], &randctx);
+
+    /* And then summarize  */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
       stats_summarize_total(curstats, &p95, &p99, &avg, &maxv, &requests, &latency);
       sum_requests += requests;
@@ -507,10 +512,6 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
       if (maxv > max_maxv) max_maxv = maxv;
     }
 
-    /* And then merge into combined */
-    for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
-      for (rx = 0; rx < curstats->total_requests; ++rx)
-        stats_report_with_latency(&combined, curstats->total_latencies[rx], &randctx);
   }
 
   stats_summarize_interval(&combined, &p95, &p99, &avg, &maxv, &requests, &latency);
