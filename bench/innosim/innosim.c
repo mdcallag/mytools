@@ -473,22 +473,22 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   long max_maxv = 0;
   longlong sum_latency = 0;
   int sx, rx;
-  operation_stats combined;
   struct drand48_data randctx;
   long requests, p95, p99, maxv;
   longlong latency;
   double avg;
   int sum_requests = 0;
   operation_stats* curstats;
+  operation_stats* combined = (operation_stats*) malloc(sizeof(operation_stats));
 
-  stats_init(&combined);
+  stats_init(combined);
   init_rand_ctx(&randctx);
 
   if (!final) {
     /* Merge into combined before interval_latencies are cleared */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
       for (rx = 0; rx < MYMIN(INTERVAL_MAX, curstats->interval_requests); ++rx)
-        stats_report_with_latency(&combined, curstats->interval_latencies[rx], &randctx);
+        stats_report_with_latency(combined, curstats->interval_latencies[rx], &randctx);
 
     /* And then summarize */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
@@ -502,7 +502,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
     /* Merge into combined */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
       for (rx = 0; rx < MYMIN(TOTAL_MAX, curstats->total_requests); ++rx)
-        stats_report_with_latency(&combined, curstats->total_latencies[rx], &randctx);
+        stats_report_with_latency(combined, curstats->total_latencies[rx], &randctx);
 
     /* And then summarize  */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
@@ -514,7 +514,8 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
   }
 
-  stats_summarize_interval(&combined, &p95, &p99, &avg, &maxv, &requests, &latency);
+  stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency);
+  free(combined);
 
   if (!final) {
     printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
@@ -534,9 +535,11 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
 void prepare_files() {
   int fd;
-  char buf[1024 * 1024 * 8];
+  char* buf;
   longlong offset;
 
+  buf = (char*) malloc(1024 * 1024 * 8);
+  assert(buf);
   memset(buf, 105, sizeof(buf));
 
   fprintf(stderr, "preparing data file %s\n", data_fname);
@@ -560,6 +563,7 @@ void prepare_files() {
   }
   fsync(fd);
   close(fd);
+  free(buf);
 }
 
 void print_help() {
