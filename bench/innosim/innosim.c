@@ -753,6 +753,20 @@ void process_options(int argc, char **argv) {
   printf("Test duration: %d\n", test_duration);
   printf("Scheduler sleep microseconds: %d\n", scheduler_sleep_usecs);
 }
+
+void print_percentiles(int *per_interval, const char* msg, int max_loops)
+{
+  printf("final percentile %s IOPs: %d p50, %d p75, %d p90, %d p95, %d p96, %d p97, %d p98, %d p99\n",
+         msg,
+         per_interval[(int) (max_loops * 0.50)],
+         per_interval[(int) (max_loops * 0.25)],
+         per_interval[(int) (max_loops * 0.10)],
+         per_interval[(int) (max_loops * 0.05)],
+         per_interval[(int) (max_loops * 0.04)],
+         per_interval[(int) (max_loops * 0.03)],
+         per_interval[(int) (max_loops * 0.02)],
+         per_interval[(int) (max_loops * 0.01)]);
+}
  
 int main(int argc, char **argv) {
   pthread_t *writer_threads;
@@ -761,6 +775,7 @@ int main(int argc, char **argv) {
   int i, test_loop = 0;
   struct stat stat_buf;
   int *reads_per_interval;
+  int *writes_per_interval;
   int max_loops;
 
   process_options(argc, argv);
@@ -784,7 +799,10 @@ int main(int argc, char **argv) {
   reads_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
   memset(reads_per_interval, 0, sizeof(int) * (1 + max_loops));
 
-  if (!reads_per_interval) {
+  writes_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
+  memset(writes_per_interval, 0, sizeof(int) * (1 + max_loops));
+
+  if (!reads_per_interval || !writes_per_interval) {
     fprintf(stderr, "Cannot allocate for test_duration / stats_interval samples\n");
     exit(-1);
   }
@@ -851,7 +869,9 @@ int main(int argc, char **argv) {
     reads_per_interval[test_loop - 1] =
         process_stats(user_stats, num_users, "read", test_loop, 0);
 
-    process_stats(writer_stats, num_writers, "write", test_loop, 0);
+    writes_per_interval[test_loop - 1] =
+        process_stats(writer_stats, num_writers, "write", test_loop, 0);
+
     process_stats(&scheduler_stats, 1, "scheduler", test_loop, 0);
     process_stats(&doublewrite_stats, 1, "doublewrite", test_loop, 0);
     process_stats(&binlog_write_stats, 1, "binlog_write", test_loop, 0);
@@ -875,15 +895,10 @@ int main(int argc, char **argv) {
   printf("final other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
 
   qsort(reads_per_interval, max_loops, sizeof(int), icompare);
-  printf("final percentile rd IOPs: %d p50, %d p75, %d p90, %d p95, %d p96, %d p97, %d p98, %d p99\n",
-         reads_per_interval[(int) (max_loops * 0.50)],
-         reads_per_interval[(int) (max_loops * 0.25)],
-         reads_per_interval[(int) (max_loops * 0.10)],
-         reads_per_interval[(int) (max_loops * 0.05)],
-         reads_per_interval[(int) (max_loops * 0.04)],
-         reads_per_interval[(int) (max_loops * 0.03)],
-         reads_per_interval[(int) (max_loops * 0.02)],
-         reads_per_interval[(int) (max_loops * 0.01)]);
+  qsort(writes_per_interval, max_loops, sizeof(int), icompare);
+
+  print_percentiles(reads_per_interval, "rd", max_loops);
+  print_percentiles(writes_per_interval, "wr", max_loops);
 
   pthread_mutex_unlock(&stats_mutex);
 
