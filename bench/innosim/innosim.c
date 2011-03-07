@@ -522,7 +522,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
            ((double) sum_latency / sum_requests) / 1000.0,
            p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
   } else {
-    printf("%s: final, %lu ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+    printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
            msg, sum_requests,
            (double) sum_requests / (loop * stats_interval),
            ((double) sum_latency / sum_requests) / 1000.0,
