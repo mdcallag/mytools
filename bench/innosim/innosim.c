@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 typedef unsigned long long ulonglong;
 typedef long long longlong;
@@ -533,22 +535,24 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   return sum_requests;
 }
 
+#define BUF_SIZE (1024 * 1024 * 8)
+
 void prepare_files() {
   int fd;
   char* buf;
   longlong offset;
 
-  buf = (char*) malloc(1024 * 1024 * 8);
+  buf = (char*) malloc(BUF_SIZE);
   assert(buf);
-  memset(buf, 105, sizeof(buf));
+  memset(buf, 105, BUF_SIZE);
 
   fprintf(stderr, "preparing data file %s\n", data_fname);
   fd = open(data_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
   assert (fd >= 0);
   offset = 0;
   while (offset < data_file_size) {
-    assert(write(fd, buf, sizeof(buf)) == sizeof(buf));
-    offset += sizeof(buf);
+    assert(write(fd, buf, BUF_SIZE) == BUF_SIZE);
+    offset += BUF_SIZE;
   }
   fsync(fd);
   close(fd);
@@ -558,8 +562,8 @@ void prepare_files() {
   assert(fd >= 0);
   offset = 0;
   while (offset < trxlog_file_size) {
-    assert(write(fd, buf, sizeof(buf)) == sizeof(buf));
-    offset += sizeof(buf);
+    assert(write(fd, buf, BUF_SIZE) == BUF_SIZE);
+    offset += BUF_SIZE;
   }
   fsync(fd);
   close(fd);
