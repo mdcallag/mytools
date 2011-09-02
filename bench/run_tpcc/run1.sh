@@ -15,33 +15,64 @@ prepare=${11}
 # if yes then drop the sbtest table at test end else ignore
 drop=${12}
 
-run_mysql="$mysql -u$myu -p$myp -S$mysock $myd -A"
+dbh=${13}
+
+# use innodb compression (yes|no)
+compress=${14}
+
+run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
+
+if [[ $prepare == "yes" ]]; then
+  echo prepare: drop and create db
+  $run_mysql -e "drop database test; create database test"
+  echo prepare: create tables
+  $run_mysql < create_table.sql
+  if [ ${compress} == "yes" ]; then
+    echo "Use innodb compression"
+    for t in warehouse district customer history new_orders orders order_line item stock  ; do
+      $run_mysql -e "alter table $t engine=innodb key_block_size=8"
+    done
+  else
+    echo "Do not use innodb compression"
+  fi
+  echo Running tpcc_load
+  echo ./tpcc_load $dbh $myd $myu $myp $nw
+  if ! ./tpcc_load $dbh $myd $myu $myp $nw  ; then
+    echo Load failed
+    exit 1
+  fi
+  echo Sleep 30 seconds after running load
+  sleep 30
+fi
 
 dop=1
 while [[ $dop -le $maxdop ]]; do
 
-  if [[ $prepare == "yes" ]]; then
-    $run_mysql < create_table.sql
-    echo Running tpcc_load
-    echo ./tpcc_load 127.0.0.1 $myd $myu $myp $nw 1 1 $nw
-    ./tpcc_load 127.0.0.1 $myd $myu $myp $nw 1 1 $nw
-    ./tpcc_load 127.0.0.1 $myd $myu $myp $nw 2 1 $nw
-    ./tpcc_load 127.0.0.1 $myd $myu $myp $nw 3 1 $nw
-    ./tpcc_load 127.0.0.1 $myd $myu $myp $nw 4 1 $nw
-    echo Sleep 30 seconds after running load
-    sleep 30
-  fi
+  lag=1000000
+  lag_sleep=1
+  while [[ $lag -gt 1000 ]]; do
+    sleep $lag_sleep
+    lag=$( $run_mysql -e "show engine innodb status\G" | grep History | awk '{ print $4 }' )
+    echo Wait for purge lag to drop from $lag to 1000 with dop $dop
+    lag_sleep=10
+  done
 
-  echo ./tpcc_start 127.0.0.1 $myd $myu $myp $nw $dop $rt $mt
-  ./tpcc_start 127.0.0.1 $myd $myu $myp $nw $dop $rt $mt
+  echo ./tpcc_start $dbh $myd $myu $myp $nw $dop $rt $mt
+  ./tpcc_start $dbh $myd $myu $myp $nw $dop $rt $mt > tpc.o.$dop
 
   dop=$(( $dop * 2 ))
 
 done
 
-$run_mysql -e 'show table status'
+$run_mysql -e 'show table status\G'
+
+$run_mysql -e "select COMPRESS_OPS, COMPRESS_OPS_OK, COMPRESS_USECS, COMPRESS_OK_USECS, UNCOMPRESS_OPS, UNCOMPRESS_USECS \
+from information_schema.table_statistics where SCHEMA_NAME=${myd}"
+
+$run_mysql -e 'select * from information_schema.table_statistics\G'
+
 
 if [[ $drop == "yes" ]]; then
-  echo TODO implement drop
+  $run_mysql -e "drop database test; create database test"
 fi
 
