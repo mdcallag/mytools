@@ -70,15 +70,22 @@ xa="$xa --oltp-range-size=${range} "
 
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
-sb="../sysbench4 "
+sb="/data/bench/sysbench4 "
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
 fi
 
+innodb_compress=no
+if [[ $e == "innodb_compress" ]]; then
+  e="innodb"
+  innodb_compress=yes
+fi
+
 def_args=" --mysql-host=$dbh --mysql-user=$myu --mysql-password=$myp --mysql-db=$myd "
 
 sb_args=" --test=oltp ${def_args} --oltp-table-size=$nr --max-time=$t --max-requests=0 --mysql-table-engine=$e --db-ps-mode=disable --mysql-engine-trx=$etrx "
+sb_args=" --batch --batch-delay=10 $sb_args"
 
 # Values used by Percona
 # sb_args=" --test=oltp ${def_args}  --oltp-table-size=$nr --mysql-engine-trx=yes --oltp-test-mode=nontrx --oltp-nontrx-mode=update_key --max-requests=0 --oltp-dist-type=uniform --init-rng=on --max-time=$t --max-requests=0 "
@@ -95,10 +102,22 @@ if [[ $prepare == "yes" ]]; then
   sleep 20
 fi
 
+# TODO -- add an option for this? Yay, another option!
+# This was here to verify correctness but for IO bound tests it makes things too slow
+if [[ $strx == "incupd" ]]; then
+ $run_mysql -e 'update sbtest set c = 0'
+fi
+
+if [[ $innodb_compress == "yes" ]]; then
+  echo Compress
+  $mysql -u$myu -p$myp -h$dbh $myd -A -e "alter table sbtest engine=innodb key_block_size=8"
+fi
+
+$run_mysql -e 'show create table sbtest'
+
 # Warmup buffer cache -- TODO make this optional
 if [[ $warmup == "yes" ]]; then
   echo Warmup buffer cache at $( date )
-  $run_mysql -e 'show create table sbtest'
   mkdir -p w
 
   x=1
@@ -137,6 +156,11 @@ if [[ $warmup == "yes" ]]; then
   echo Done warmup buffer cache at $( date ) with loop $x and max $nr
 fi
 
+$run_mysql -e 'select * from sbtest where id=1' 
+if [ $nr -le 10000000 ]; then
+  $run_mysql -e 'select min(c), max(c), avg(c), count(c), sum(c) from sbtest' 
+fi
+
 touch startme
 
 dop=1
@@ -148,6 +172,7 @@ while [[ $dop -le $maxdop ]]; do
   echo
   $run_mysql -e 'show table status like "sbtest"'
   $run_mysql -e 'select * from sbtest order by id asc limit 2'
+  $run_mysql -e 'show global status like "%binlog%"'
 
   dop=$(( $dop * 2 ))
 #  dop=$(( $dop + 1 ))
@@ -155,8 +180,9 @@ while [[ $dop -le $maxdop ]]; do
 done
 
 $run_mysql -e 'show variables like "version_comment"'
-$run_mysql -e 'show status like "%_seconds"'
-$run_mysql -e 'show status like "qc%"'
-$run_mysql -e 'show variables'
+$run_mysql -e 'show global status like "%_seconds"'
+$run_mysql -e 'show global status like "qc%"'
+$run_mysql -e 'show global variables'
 $run_mysql -e 'show global status'
 $run_mysql -e 'show innodb status\G'
+$run_mysql -e 'select * from information_schema.innodb_cmp'
