@@ -130,6 +130,7 @@ DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('insert_only', False,
                'When True, only run the insert thread. Otherwise, '
                'start 4 threads to do queries.')
+DEFINE_boolean('no_inserts', False, 'When False don''t do inserts')
 DEFINE_string('table_name', 'purchases_index',
               'Name of table to use')
 DEFINE_boolean('setup', False,
@@ -273,7 +274,8 @@ def Query(max_pk, query_func, shared_arr):
     count = len(cursor.fetchall())
     loops += 1
     if (loops % 4) == 0:
-      row_count = shared_arr[0]
+      if not FLAGS.no_inserts:
+        row_count = shared_arr[0]
       shared_arr[1] = loops
       if not FLAGS.read_uncommitted:
         cursor.execute('commit')
@@ -287,6 +289,24 @@ def get_latest(counters, row_count):
     total += c[1]
     c[0] = row_count
   return total
+
+def print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size):
+  now = time.time()
+  sum_queries = 0
+  if not FLAGS.insert_only:
+    sum_queries = get_latest(counters, max_pk + inserted)
+  print '%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
+      inserted + max_pk,
+      now - prev_time,
+      now - start_time,
+      inserted / (now - start_time),
+      table_size,
+      FLAGS.rows_per_report / (now - prev_time),
+      sum_queries,
+      sum_queries / (now - start_time),
+      (sum_queries - prev_sum) / (now - prev_time))
+  sys.stdout.flush()
+  return now, sum_queries
 
 def Insert(rounds, max_pk, insert_q, pdc_arr, pk_arr, market_arr, register_arr):
   # generate insert rows in this loop and place into queue as they're
@@ -316,22 +336,9 @@ def Insert(rounds, max_pk, insert_q, pdc_arr, pk_arr, market_arr, register_arr):
     table_size += FLAGS.rows_per_commit
 
     if (inserted % FLAGS.rows_per_report) == 0:
-      now = time.time()
-      if not FLAGS.insert_only:
-        sum_queries = get_latest(counters, max_pk + inserted)
-      print '%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
-          inserted + max_pk,
-          now - prev_time,
-          now - start_time,
-          inserted / (now - start_time),
-          table_size,
-          FLAGS.rows_per_report / (now - prev_time),
-          sum_queries,
-          sum_queries / (now - start_time),
-          (sum_queries - prev_sum) / (now - prev_time))
-      sys.stdout.flush()
-      prev_time = now
-      prev_sum = sum_queries
+      prev_time, prev_sum = \
+          print_stats(counters, max_pk, inserted, prev_time, prev_sum,
+                      start_time, table_size)
 
     # deletes
     if FLAGS.with_max_table_rows:
@@ -392,14 +399,15 @@ def run_benchmark():
     cursor.execute('set tokudb_commit_sync=0')
   cursor.execute('set unique_checks=%d' % (FLAGS.unique_checks))
 
-  stmt_q = Queue(1)
-  insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn, cursor))
-  inserter = Process(target=Insert, args=(rounds,max_pk,stmt_q,
-                        pdc_count, pk_count, market_count, register_count))
+  if not FLAGS.no_inserts:
+    stmt_q = Queue(1)
+    insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn, cursor))
+    inserter = Process(target=Insert, args=(rounds,max_pk,stmt_q,
+                       pdc_count, pk_count, market_count, register_count))
 
-  # start up the insert execution process with this queue
-  insert_delete.start()
-  inserter.start()
+    # start up the insert execution process with this queue
+    insert_delete.start()
+    inserter.start()
 
   # start up the query processes
   if not FLAGS.insert_only:
@@ -408,14 +416,33 @@ def run_benchmark():
     query_market.start()
     query_register.start()
 
-  # block until the inserter is done
-  insert_delete.join()
+  if not FLAGS.no_inserts:
+    # block until the inserter is done
+    insert_delete.join()
 
   # close the connection and then terminate the insert / delete process
   cursor.close()
   db_conn.close()
-  inserter.terminate()
-  insert_delete.terminate()
+
+  if not FLAGS.no_inserts:
+    inserter.terminate()
+    insert_delete.terminate()
+
+  if FLAGS.no_inserts:
+    start_time = time.time()
+    prev_time = start_time
+    inserted = 0
+    counters = [pdc_count, pk_count, market_count, register_count]
+    for c in counters:
+      c[0] = max_pk
+
+    prev_sum = 0
+    table_size = 0
+    sum_queries = 0
+
+    while True:
+      time.sleep(10)
+      print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size)
 
   if not FLAGS.insert_only:
     query_pdc.terminate()
