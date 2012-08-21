@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <zlib.h>
 
 typedef unsigned long long ulonglong;
 typedef long long longlong;
@@ -52,6 +53,10 @@ longlong binlog_file_size = 10L * 1024 * 1024;
 longlong trxlog_file_size = 10L * 1024 * 1024;
 longlong data_file_size = 10L * 1024 * 1024;
 longlong data_block_size = 16L*1024;
+
+longlong buffer_pool_bytes = 1024 * 1024 * 100;
+longlong buffer_pool_pages = (1024 * 1024 * 100) / (16 * 1024);
+char* buffer_pool_mem = NULL;
 
 int num_writers = 8;
 int num_users = 8;
@@ -109,6 +114,7 @@ typedef struct {
   long interval_latency;
   long interval_max;
   long interval_latencies[INTERVAL_MAX];
+  unsigned long adler;
 } operation_stats;
 
 operation_stats* writer_stats;
@@ -154,6 +160,17 @@ double rand_double(struct drand48_data* ctx) {
 longlong rand_block(struct drand48_data* ctx) {
   longlong block_no = rand_double(ctx) * n_blocks;
   return MYMIN(block_no, (n_blocks-1));
+}
+
+char* rand_buffer_pool_ptr(long long bytes_from_end, struct drand48_data* ctx) {
+ return (buffer_pool_mem +
+         (longlong) (rand_double(ctx) * buffer_pool_bytes) -
+         bytes_from_end);
+}
+
+char* rand_buffer_pool_page(struct drand48_data* ctx) {
+ longlong buf_pool_page_num = (longlong) (rand_double(ctx) * (buffer_pool_pages - 1));
+ return (buffer_pool_mem + (buf_pool_page_num * data_block_size));
 }
 
 void now(struct timeval* tv) {
@@ -322,6 +339,7 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     }
 
     now(&start);
+    write_stats->adler = adler32(0, buf, write_size);
     assert(pwrite64(fd, buf, write_size, *offset) == write_size);
     *offset += write_size;
     stats_report(write_stats, &start, ctx);
@@ -334,6 +352,9 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
 }
 
 void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
+  char *ptr = rand_buffer_pool_ptr(100, ctx);
+  int x;
+
   pthread_mutex_lock(&buffer_pool_mutex);
 
   while ((pool->dirty_pages + pool->list_count) >= max_dirty_pages)
@@ -341,6 +362,10 @@ void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
 
   pool->dirty_pages++;
   pthread_mutex_unlock(&buffer_pool_mutex);
+
+  /* Simulate modifying data in the page */
+  for (x=0; x < 100; ++x, ++ptr)
+    *ptr = (char) x;
 
   if (trxlog) {
     write_log(&trxlog_mutex, &trxlog_offset, trxlog_file_size, trxlog_write_size, 0,
@@ -372,6 +397,11 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
     now(&start);
     pwrite64(data_fd, doublewrite_buf, pages * data_block_size, 0);
     stats_report(&doublewrite_stats, &start, ctx);
+  }
+
+  for (x = 0; x < pages; ++x) {
+    /* Compute checkum for pages to be written */
+    doublewrite_stats.adler = adler32(0, rand_buffer_pool_page(ctx), data_block_size);
   }
 
   pthread_mutex_lock(&buffer_pool_mutex);
@@ -409,7 +439,17 @@ void* user_func(void* arg) {
       /* Do the read when it misses the pretend cache */
       now(&start);
       pread64(data_fd, data, data_block_size, offset);
+
+      stats->adler = adler32(0, data, data_block_size);
+
       stats_report(stats, &start, &ctx);
+    } else {
+      /* Do some work to simulate reading data from the buffer pool */
+      int x;
+      char *ptr = rand_buffer_pool_ptr(100, &ctx);
+
+      for (x=0; x < 100; ++x, ++ptr)
+        stats->adler += *ptr;
     }
 
     if ((rand_double(&ctx) * 100) <= (double) dirty_pct)
@@ -570,6 +610,17 @@ void prepare_files() {
   free(buf);
 }
 
+void buffer_pool_fill() {
+  char buf[1024];
+  long long x;
+  int i;
+
+  for (i=0; i < 1024; ++i) buf[i] = (char) i;
+  for (x=0; x < buffer_pool_bytes; x += 1024) {
+    memcpy(buffer_pool_mem + x, buf, 1024);
+  }
+}
+
 void print_help() {
   printf(
 "This is a simple InnoDB IO simulator that models: database file reads, database file writes,\n"
@@ -625,6 +676,7 @@ void print_help() {
 
 void process_options(int argc, char **argv) {
   int x;
+  int buffer_pool_mb;
 
   for (x = 1; x < argc; ++x) {
     if (!strcmp(argv[x], "--help")) {
@@ -731,9 +783,19 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--test-duration")) {
       if (x == (argc - 1)) { printf("--test-duration needs an arg\n"); exit(-1); }
       test_duration = atoi(argv[++x]);
+  
+    } else if (!strcmp(argv[x], "--buffer-pool-mb")) {
+      buffer_pool_mb = atoi(argv[++x]);
+      if (buffer_pool_mb < 1 || buffer_pool_mb > 1000000) {
+        printf("--buffer-pool-mb set to %d and should be between 1 and 1000000\n",
+               buffer_pool_mb);
+        exit(-1);
+      }
+      buffer_pool_bytes = 1024LL * 1024LL * buffer_pool_mb;
     }
-
   }
+
+  buffer_pool_pages = buffer_pool_bytes / data_block_size;
 
   printf("Prepare files: %d\n", prepare);
   printf("Doublewrite buffer enabled: %d\n", doublewrite);
@@ -756,6 +818,7 @@ void process_options(int argc, char **argv) {
   printf("Stats interval: %d\n", stats_interval);
   printf("Test duration: %d\n", test_duration);
   printf("Scheduler sleep microseconds: %d\n", scheduler_sleep_usecs);
+  printf("Buffer pool MB: %d, pages %lld\n", buffer_pool_mb, buffer_pool_pages);
 }
 
 void print_percentiles(int *per_interval, const char* msg, int max_loops)
@@ -805,6 +868,14 @@ int main(int argc, char **argv) {
 
   writes_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
   memset(writes_per_interval, 0, sizeof(int) * (1 + max_loops));
+
+  buffer_pool_mem = malloc(buffer_pool_bytes);
+  if (!buffer_pool_mem) {
+    fprintf(stderr, "Cannot allocate %d MB for the buffer pool\n",
+            (int) (buffer_pool_bytes / (1024 * 1024)));
+    exit(-1);
+  }
+  buffer_pool_fill(buffer_pool_bytes);
 
   if (!reads_per_interval || !writes_per_interval) {
     fprintf(stderr, "Cannot allocate for test_duration / stats_interval samples\n");
@@ -910,6 +981,8 @@ int main(int argc, char **argv) {
     free(binlog_buf);
   if (trxlog)
     free(trxlog_buf);
+
+  free(buffer_pool_mem);
 
   return 0;
 }
