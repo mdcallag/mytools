@@ -830,7 +830,6 @@ void prepare_data_file() {
   int fd;
   int page_num;
   char* buf;
-  longlong offset;
   const int BUF_SIZE = 1024 * 1024;
 
   buf = (char*) malloc(BUF_SIZE);
