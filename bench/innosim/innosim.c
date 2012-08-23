@@ -58,6 +58,11 @@ int doublewrite = 1;
 int binlog = 1;
 int trxlog = 1;
 
+int doublewrite_pages = 0;
+int doublewrite_writes = 0;
+double total_doublewrite_pages = 0;
+double total_doublewrite_writes = 0;
+
 int binlog_write_size = 128;
 int trxlog_write_size = 512;
 
@@ -86,14 +91,16 @@ int max_dirty_pages = BUFFER_POOL_MAX;
 int stats_interval=1;
 
 const char* data_fname = "DATA";
+const char* doublewrite_fname = NULL;
 const char* binlog_fname = "BINLOG";
 const char* trxlog_fname = "TRXLOG";
 
 /* Not configurable */
 
-#define DOUBLEWRITE_SIZE 128
+#define DOUBLEWRITE_SIZE 64
 
 int data_fd;
+int doublewrite_fd = -1;
 int binlog_fd;
 int trxlog_fd;
 
@@ -106,6 +113,7 @@ char* trxlog_buf = NULL;
 size_t n_blocks = 0;
 
 #define MYMIN(x,y) ((x) < (y) ? (x) : (y))
+#define MYMAX(x,y) ((x) > (y) ? (x) : (y))
 
 /* Statistics */
 pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -152,6 +160,24 @@ typedef struct {
 } buffer_pool_t;
 
 buffer_pool_t buffer_pool;
+
+void check_pwrite(int fd, void* buf, size_t size, longlong offset, const char* msg) {
+  int r = pwrite64(fd, buf, size, offset);
+  if (r != size) {
+    fprintf(stderr, "pwrite of %d bytes from %p at %llu returned %d on file descriptor %d with errno %d\n", (int) size, buf, offset, r, fd, errno);
+    perror(msg);
+    assert(0);
+  }
+}
+
+void check_write(int fd, void* buf, size_t size, const char* msg) {
+  int r = write(fd, buf, size);
+  if (r != size) {
+    fprintf(stderr, "write of %d bytes returned %d on file descriptor %d\n", (int) size, r, fd);
+    perror(msg);
+    assert(0);
+  }
+}
 
 void init_rand_ctx(struct drand48_data* ctx) {
   static long state = 0;
@@ -459,8 +485,13 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     }
 
     now(&start);
+
     write_stats->adler = adler32(0, buf, write_size);
-    assert(pwrite64(fd, buf, write_size, *offset) == write_size);
+    if (!truncate_if_max)
+      check_pwrite(fd, buf, write_size, *offset, "write_log for trxlog");
+    else
+      check_write(fd, buf, write_size, "write_log for binlog");
+
     *offset += write_size;
     stats_report(write_stats, &start, ctx);
 
@@ -510,6 +541,9 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
   }
   pthread_mutex_unlock(&buffer_pool_mutex);
 
+  if (!pages)
+    return 0;
+
   for (x = 0; x < pages; ++x)
     page_array[x] = rand_block(ctx);
 
@@ -523,8 +557,13 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
     }
 
     now(&start);
-    assert(pwrite64(data_fd, doublewrite_buf, pages * data_block_size, 0) ==
-           (pages * data_block_size));
+
+    check_pwrite(doublewrite_fd, doublewrite_buf, pages * data_block_size, 0, "doublewrite buffer write");
+    doublewrite_writes++;
+    doublewrite_pages += pages;
+    total_doublewrite_writes++;
+    total_doublewrite_pages += pages;
+
     stats_report(&doublewrite_stats, &start, ctx);
   }
 
@@ -537,7 +576,6 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
   }
 
   pthread_cond_broadcast(&buffer_pool_list_not_empty);
-
   pthread_mutex_unlock(&buffer_pool_mutex);
 
   return pages;
@@ -659,7 +697,7 @@ void* writer(void* arg) {
     page_write_checksum(data, (unsigned int) block_num);
 
     now(&start);
-    assert(pwrite64(data_fd, data, data_block_size, offset) == data_block_size);
+    check_pwrite(data_fd, data, data_block_size, offset, "writer thread");
     stats_report(stats, &start, &ctx);
   }
 
@@ -750,7 +788,45 @@ void buffer_pool_fill() {
                     compressed_page, data_block_size+100);
 }
 
-void prepare_files() {
+void prepare_file(const char* fname, longlong size) {
+  int fd;
+  struct stat stat_buf;
+  const int BUF_SIZE = 1024 * 1024;
+  int buf_len = MYMIN(BUF_SIZE, size);
+
+  fprintf(stderr, "preparing file %s\n", fname);
+  fd = open(fname, O_CREAT|O_WRONLY, 0644);
+  assert(fd >= 0);
+
+  if (fstat(fd, &stat_buf)) {
+    perror("fstat failed");
+    printf("cannot prepare %s\n", fname);
+    exit(-1);
+  }
+
+  if (stat_buf.st_size < size) {
+    longlong offset = 0;
+    char* buf = (char*) malloc(buf_len);
+
+    assert(buf);
+    memset(buf, 105, buf_len);
+
+    fprintf(stderr, "...must extend %s from %llu to %llu bytes\n",
+            fname, (longlong) stat_buf.st_size, size);
+    while (offset < size) {
+      assert(write(fd, buf, buf_len) == buf_len);
+      offset += buf_len;
+    }
+    free(buf);
+  } else {
+    fprintf(stderr, "...%s is %llu bytes\n", fname, (longlong) stat_buf.st_size);
+  }
+
+  fsync(fd);
+  close(fd);
+}
+
+void prepare_data_file() {
   int fd;
   int page_num;
   char* buf;
@@ -769,18 +845,6 @@ void prepare_files() {
     assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
   }
 
-  fsync(fd);
-  close(fd);
-  fd = -1;
-
-  fprintf(stderr, "preparing trxlog file %s\n", trxlog_fname);
-  fd = open(trxlog_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
-  assert(fd >= 0);
-  offset = 0;
-  while (offset < trxlog_file_size) {
-    assert(write(fd, buf, BUF_SIZE) == BUF_SIZE);
-    offset += BUF_SIZE;
-  }
   fsync(fd);
   close(fd);
   free(buf);
@@ -818,6 +882,7 @@ void print_help() {
 "  --binlog-file-name s  -- pathname for binlog file\n"
 "  --trxlog-file-name s  -- pathname for transaction log file\n"
 "  --data-file-name s    -- pathname for database file\n"
+"  --doublewrite-file-name s -- pathname for doublewrite file, when not set use first 2MB of data file\n"
 "  --binlog 1|0          -- 1: write to binlog, 0: don't write to it\n"
 "  --trxlog 1|0          -- 1: write to transaction log, 0: don't write to it\n"
 "  --binlog-write-size n -- size of binlog writes in bytes\n"
@@ -870,6 +935,10 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--data-file-name")) {
       if (x == (argc - 1)) { printf("--data-file-name needs an arg\n"); exit(-1); }
       data_fname = argv[++x];
+
+    } else if (!strcmp(argv[x], "--doublewrite-file-name")) {
+      if (x == (argc - 1)) { printf("--doublewrite-file-name needs an arg\n"); exit(-1); }
+      doublewrite_fname = argv[++x];
 
     } else if (!strcmp(argv[x], "--binlog")) {
       if (x == (argc - 1)) { printf("--binlog needs an arg\n"); exit(-1); }
@@ -997,6 +1066,7 @@ void process_options(int argc, char **argv) {
   printf("Binlog file name: %s\n", binlog_fname);
   printf("Transaction log file name: %s\n", trxlog_fname);
   printf("Database file name: %s\n", data_fname);
+  printf("Doublewrite file name: %s\n", doublewrite_fname ? doublewrite_fname : "<not set>");
   printf("Binlog enabled: %d\n", binlog);
   printf("Transaction log enabled: %d\n", trxlog);
   printf("Binlog write size: %d\n", binlog_write_size);
@@ -1066,7 +1136,7 @@ int main(int argc, char **argv) {
   buffer_pool_init(&buffer_pool);
 
   if (prepare)
-    prepare_files();
+    prepare_data_file();
 
   max_loops = test_duration / stats_interval;
   reads_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
@@ -1092,24 +1162,38 @@ int main(int argc, char **argv) {
     binlog_fd = open(binlog_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
     assert(binlog_fd >= 0);
     binlog_buf = (char*) malloc(binlog_write_size);
+    fprintf(stderr, "binlog %s uses file descriptor %d\n", binlog_fname, binlog_fd);
   }
 
   if (trxlog) { 
+    prepare_file(trxlog_fname, trxlog_file_size);
     trxlog_fd = open(trxlog_fname, O_CREAT|O_WRONLY, 0644);
     assert(trxlog_fd >= 0);
     lseek(trxlog_fd, 0, SEEK_SET);
     trxlog_buf = (char*) malloc(trxlog_write_size);
+    fprintf(stderr, "trxlog %s uses file descriptor %d\n", trxlog_fname, trxlog_fd);
   }
 
   data_fd = open(data_fname, O_CREAT|O_RDWR|O_DIRECT|O_LARGEFILE, 0644);
   assert(data_fd >= 0);
   lseek(data_fd, 0, SEEK_SET);
+  fprintf(stderr, "data %s uses file descriptor %d\n", data_fname, data_fd);
 
-  i = fstat(data_fd, &stat_buf);
-  if (i) {
+  if (fstat(data_fd, &stat_buf)) {
     perror("stat for --data-file-name failed");
     printf("Do you need to prepare files? (use --prepare 1)\n");
     exit(-1);
+  }
+
+  if (doublewrite_fname) {
+    prepare_file(doublewrite_fname, DOUBLEWRITE_SIZE * data_block_size);
+    doublewrite_fd = open(doublewrite_fname, O_CREAT|O_WRONLY|O_DIRECT, 0644);
+    assert(doublewrite_fd >= 0);
+    lseek(doublewrite_fd, 0, SEEK_SET);
+    fprintf(stderr, "doublewrite %s uses file descriptor %d\n", doublewrite_fname, doublewrite_fd);
+  } else {
+    doublewrite_fd = data_fd;
+    fprintf(stderr, "doublewrite uses the data file\n");
   }
 
   printf("Filesystem block size for %s is %d\n", data_fname, (int) stat_buf.st_blksize);
@@ -1134,14 +1218,14 @@ int main(int argc, char **argv) {
     pthread_create(&user_threads[i], NULL, user_func, &user_stats[i]);
   }
 
-  pthread_create(&write_scheduler, NULL, write_scheduler_func, &scheduler_stats);
-
   writer_threads = (pthread_t*) malloc(sizeof(pthread_t) * num_writers);
   writer_stats = (operation_stats*) malloc(sizeof(operation_stats) * num_writers);
   for (i = 0; i < num_writers; ++i) {
     stats_init(&writer_stats[i]);
     pthread_create(&writer_threads[i], NULL, writer, &writer_stats[i]);
   }
+
+  pthread_create(&write_scheduler, NULL, write_scheduler_func, &scheduler_stats);
 
   for (test_loop = 1; test_loop <= max_loops; ++test_loop) {
     sleep(stats_interval);
@@ -1160,7 +1244,11 @@ int main(int argc, char **argv) {
     process_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop, 0);
     process_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop, 0);
     process_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop, 0);
-    printf("other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
+    printf("other: %d dirty, %d pending, %.1f avg pages per doublewrite write\n",
+           buffer_pool.dirty_pages, buffer_pool.list_count,
+           doublewrite_pages / MYMAX((double) doublewrite_writes, 1.0));
+    doublewrite_pages = 0;
+    doublewrite_writes = 0;
  
     pthread_mutex_unlock(&stats_mutex);
   }
@@ -1190,7 +1278,9 @@ int main(int argc, char **argv) {
   process_stats(&binlog_fsync_stats, 1, "binlog_fsync", test_loop - stats_interval, 1);
   process_stats(&trxlog_write_stats, 1, "trxlog_write", test_loop - stats_interval, 1);
   process_stats(&trxlog_fsync_stats, 1, "trxlog_fsync", test_loop - stats_interval, 1);
-  printf("final other: %d dirty, %d pending\n", buffer_pool.dirty_pages, buffer_pool.list_count);
+  printf("final other: %d dirty, %d pending, %.1f avg pages per doublewrite write\n",
+         buffer_pool.dirty_pages, buffer_pool.list_count,
+         total_doublewrite_pages / MYMAX(total_doublewrite_writes, 1.0));
 
   qsort(reads_per_interval, max_loops, sizeof(int), icompare);
   qsort(writes_per_interval, max_loops, sizeof(int), icompare);
