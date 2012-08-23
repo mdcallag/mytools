@@ -1,5 +1,4 @@
-/* Copyright (C) 2011 Facebook Inc.
-
+/* Copyright (C) 2011 Facebook Inc.  
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -36,6 +35,19 @@ typedef unsigned int uint;
 
 /* Configurable */
 
+volatile int shutdown = 0;
+
+/* zero means no compression */
+int compress_level = 0;
+
+/* Percentage of writes that require recompressing a page */
+int recompress_on_write_hit_pct = 5;
+
+/* Percentage of reads that hit in the buffer pool that require
+   uncompressing a page.
+*/
+int uncompress_on_read_hit_pct = 5;
+
 int scheduler_sleep_usecs = 100000;
 
 int test_duration = 60;
@@ -57,6 +69,9 @@ longlong data_block_size = 16L*1024;
 longlong buffer_pool_bytes = 1024 * 1024 * 100;
 longlong buffer_pool_pages = (1024 * 1024 * 100) / (16 * 1024);
 char* buffer_pool_mem = NULL;
+
+char* compressed_page = NULL;
+unsigned int compressed_page_len = 0;
 
 int num_writers = 8;
 int num_users = 8;
@@ -115,6 +130,7 @@ typedef struct {
   long interval_max;
   long interval_latencies[INTERVAL_MAX];
   unsigned long adler;
+  char* compress_buf;
 } operation_stats;
 
 operation_stats* writer_stats;
@@ -158,7 +174,8 @@ double rand_double(struct drand48_data* ctx) {
 }
 
 longlong rand_block(struct drand48_data* ctx) {
-  longlong block_no = rand_double(ctx) * n_blocks;
+  longlong block_no = (rand_double(ctx) * (n_blocks - DOUBLEWRITE_SIZE)) +
+                      DOUBLEWRITE_SIZE;
   return MYMIN(block_no, (n_blocks-1));
 }
 
@@ -187,6 +204,103 @@ long now_minus_then_usecs(struct timeval const* now,
   else
     return -1;
 }
+
+void serialize_int(char* dest, unsigned int source) {
+  dest[3] = source & 0xff;
+  source >>= 8;
+  dest[2] = source & 0xff;
+  source >>= 8;
+  dest[1] = source & 0xff;
+  source >>= 8;
+  dest[0] = source & 0xff;
+}
+
+unsigned int deserialize_int(char* dest) {
+  unsigned int result = (unsigned int) dest[0] & 0xff;
+  result <<= 8;
+  result |= (unsigned int) dest[1] & 0xff;
+  result <<= 8;
+  result |= (unsigned int) dest[2] & 0xff;
+  result <<= 8;
+  result |= (unsigned int) dest[3] & 0xff;
+  return result;
+}
+
+#define PAGE_NUM_OFFSET 0
+#define PAGE_CHECKSUM_OFFSET 4
+#define PAGE_DATA_OFFSET 8
+#define PAGE_DATA_BYTES (data_block_size - PAGE_DATA_OFFSET)
+
+void page_fill(char* page, unsigned int page_num) {
+  memset(page + PAGE_DATA_OFFSET, page_num, PAGE_DATA_BYTES);
+}
+
+void page_check_checksum(char* page, unsigned int page_num) {
+    int computed_cs = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+    int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
+    int stored_page_num = (int) deserialize_int(page + PAGE_NUM_OFFSET);
+
+    if (computed_cs != stored_cs || page_num != stored_page_num) {
+      fprintf(stderr,
+              "Cannot validate page, checksum stored(%d) and computed(%d), "
+              "page# stored(%d) and expected(%d)\n",
+              stored_cs, computed_cs, stored_page_num, page_num);
+      exit(-1);
+    }
+}
+
+void page_write_checksum(char* page, unsigned int page_num) {
+    int checksum = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+    serialize_int(page + PAGE_CHECKSUM_OFFSET, checksum);
+    serialize_int(page + PAGE_NUM_OFFSET, page_num);
+    page_check_checksum(page, page_num); /* TODO remove this */
+}
+
+
+void decompress_page(char* decomp_buf, unsigned int decomp_buf_len) {
+  z_stream stream;
+  int err;
+
+  stream.next_in = compressed_page;
+  stream.avail_in = compressed_page_len;
+  stream.next_out = decomp_buf;
+  stream.avail_out = decomp_buf_len;
+
+  stream.zalloc = (alloc_func) 0;
+  stream.zfree = (free_func) 0;
+
+  err = inflateInit(&stream);
+  assert(err == Z_OK);
+  err = inflate(&stream, Z_FINISH);
+  assert(err == Z_STREAM_END);
+  err = inflateEnd(&stream);
+}
+
+unsigned int
+compress_page(char* source, unsigned int source_len,
+              char* dest, unsigned int dest_len) {
+  z_stream stream;
+  int err;
+  unsigned int compressed_size;
+
+  stream.next_in = source;
+  stream.avail_in = source_len;
+  stream.next_out = dest;
+  stream.avail_out = dest_len;
+  stream.zalloc = (alloc_func) 0;
+  stream.zfree = (free_func) 0;
+  stream.opaque = NULL;
+
+  err = deflateInit(&stream, compress_level);
+  assert(err == Z_OK);
+
+  err = deflate(&stream, Z_FINISH);
+  assert(err == Z_STREAM_END);
+  compressed_size = stream.total_out;
+  err = deflateEnd(&stream);
+  return compressed_size;
+}
+
 
 void stats_report_with_latency(operation_stats* stats,
                                long latency,
@@ -243,6 +357,8 @@ void stats_init(operation_stats* stats) {
   stats->interval_requests = 0;
   stats->interval_latency = 0;
   stats->interval_max = 0;
+  stats->adler = 0;
+  stats->compress_buf = 0;
 }
 
 int lcompare(const void* a, const void* b) {
@@ -327,8 +443,12 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
                operation_stats* write_stats, operation_stats* fsync_stats, struct drand48_data* ctx) {
 
     struct timeval start;
+    int x;
 
     pthread_mutex_lock(mux);
+ 
+    for (x=0; x < write_size; ++x)
+      buf[x] = (char) x;
 
     if (*offset >= file_size) {
       if (truncate_if_max)
@@ -394,14 +514,18 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
     page_array[x] = rand_block(ctx);
 
   if (doublewrite) {
-    now(&start);
-    pwrite64(data_fd, doublewrite_buf, pages * data_block_size, 0);
-    stats_report(&doublewrite_stats, &start, ctx);
-  }
+    for (x = 0; x < pages; ++x) {
+      char *page = rand_buffer_pool_page(ctx);
 
-  for (x = 0; x < pages; ++x) {
-    /* Compute checkum for pages to be written */
-    doublewrite_stats.adler = adler32(0, rand_buffer_pool_page(ctx), data_block_size);
+      memcpy(doublewrite_buf + (x * data_block_size),
+             page,
+             data_block_size);
+    }
+
+    now(&start);
+    assert(pwrite64(data_fd, doublewrite_buf, pages * data_block_size, 0) ==
+           (pages * data_block_size));
+    stats_report(&doublewrite_stats, &start, ctx);
   }
 
   pthread_mutex_lock(&buffer_pool_mutex);
@@ -426,21 +550,31 @@ void* user_func(void* arg) {
   off_t offset;
   char* data;
   struct timeval start;
+  char *decomp_buf = malloc(data_block_size);
 
   init_rand_ctx(&ctx);
 
   assert(!posix_memalign((void**) &data, data_block_size, data_block_size));
 
-  while (1) {
+  while (!shutdown) {
     block_num = rand_block(&ctx);
     offset = block_num * data_block_size;
 
     if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
       /* Do the read when it misses the pretend cache */
       now(&start);
-      pread64(data_fd, data, data_block_size, offset);
+      assert(pread64(data_fd, data, data_block_size, offset) == data_block_size);
+      page_check_checksum(data, (unsigned int) block_num);
 
+      if (compress_level)
+        decompress_page(decomp_buf, data_block_size);
+
+      /* Note the FB patch fixed this to prevent zlib from computing an
+         internal checksum which is redundant with the innodb page
+         checksum.
+      */
       stats->adler = adler32(0, data, data_block_size);
+   
 
       stats_report(stats, &start, &ctx);
     } else {
@@ -450,13 +584,26 @@ void* user_func(void* arg) {
 
       for (x=0; x < 100; ++x, ++ptr)
         stats->adler += *ptr;
+
+      if (compress_level &&
+          (rand_double(&ctx) * 100) <= (double) uncompress_on_read_hit_pct)
+        decompress_page(decomp_buf, data_block_size);
     }
 
-    if ((rand_double(&ctx) * 100) <= (double) dirty_pct)
+    if ((rand_double(&ctx) * 100) <= (double) dirty_pct) {
       buffer_pool_dirty_page(&buffer_pool, &ctx);
+
+      if (compress_level &&
+          (rand_double(&ctx) * 100) <= (double) recompress_on_write_hit_pct) {
+        char *page = rand_buffer_pool_page(&ctx);
+        compress_page(page, data_block_size, stats->compress_buf, data_block_size+100);
+      }
+    }
   }
 
+  free(decomp_buf);
   free(data);
+  return NULL;
 }
 
 void* write_scheduler_func(void* arg) {
@@ -466,9 +613,9 @@ void* write_scheduler_func(void* arg) {
   struct drand48_data ctx;
 
   init_rand_ctx(&ctx);
-  assert(!posix_memalign((void**) &data, 128 * data_block_size, data_block_size));
+  assert(!posix_memalign((void**) &data, data_block_size, DOUBLEWRITE_SIZE * data_block_size));
 
-  while (1) {
+  while (!shutdown) {
     
     now(&start);
     while (buffer_pool_schedule_writes(&buffer_pool, &ctx, data)) {
@@ -480,6 +627,7 @@ void* write_scheduler_func(void* arg) {
   }
 
   free(data);
+  return NULL;
 }
 
 void* writer(void* arg) {
@@ -493,22 +641,31 @@ void* writer(void* arg) {
   init_rand_ctx(&ctx);
   assert(!posix_memalign((void**) &data, data_block_size, data_block_size));
 
-  while (1) {
+  while (!shutdown) {
 
     pthread_mutex_lock(&buffer_pool_mutex);
-    while (-1 == buffer_pool_list_pop(&buffer_pool, &block_num)) {
+    while (!shutdown &&
+           -1 == buffer_pool_list_pop(&buffer_pool, &block_num)) {
         pthread_cond_wait(&buffer_pool_list_not_empty, &buffer_pool_mutex);
     }
     pthread_mutex_unlock(&buffer_pool_mutex);
 
+    if (shutdown)
+      goto end;
+
     offset = block_num * data_block_size;
 
+    memcpy(data, rand_buffer_pool_page(&ctx), data_block_size);
+    page_write_checksum(data, (unsigned int) block_num);
+
     now(&start);
-    pwrite64(data_fd, data, data_block_size, offset);
+    assert(pwrite64(data_fd, data, data_block_size, offset) == data_block_size);
     stats_report(stats, &start, &ctx);
   }
 
+end:
   free(data);
+  return NULL;
 }
 
 int process_stats(operation_stats* const stats, int num, const char* msg, int loop, int final) {
@@ -575,27 +732,46 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   return sum_requests;
 }
 
-#define BUF_SIZE (1024 * 1024 * 8)
+void buffer_pool_fill() {
+  int x;
+  int page_num = 0;
+
+  for (x=0; x < buffer_pool_pages; ++x) {
+    char* page = buffer_pool_mem + (x * data_block_size);
+    page_fill(page, page_num);
+    page_write_checksum(page, page_num);
+    ++page_num;
+    if (page_num >= n_blocks)
+      page_num = 0;
+  }
+
+  compressed_page_len =
+      compress_page(buffer_pool_mem, data_block_size,
+                    compressed_page, data_block_size+100);
+}
 
 void prepare_files() {
   int fd;
+  int page_num;
   char* buf;
   longlong offset;
+  const int BUF_SIZE = 1024 * 1024;
 
   buf = (char*) malloc(BUF_SIZE);
-  assert(buf);
-  memset(buf, 105, BUF_SIZE);
 
   fprintf(stderr, "preparing data file %s\n", data_fname);
-  fd = open(data_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
+  fd = open(data_fname, O_CREAT|O_RDWR|O_TRUNC, 0644);
   assert (fd >= 0);
-  offset = 0;
-  while (offset < data_file_size) {
-    assert(write(fd, buf, BUF_SIZE) == BUF_SIZE);
-    offset += BUF_SIZE;
+
+  for (page_num=0; page_num < n_blocks; ++page_num) {
+    page_fill(buf, page_num);
+    page_write_checksum(buf, page_num);
+    assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
   }
+
   fsync(fd);
   close(fd);
+  fd = -1;
 
   fprintf(stderr, "preparing trxlog file %s\n", trxlog_fname);
   fd = open(trxlog_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
@@ -608,17 +784,6 @@ void prepare_files() {
   fsync(fd);
   close(fd);
   free(buf);
-}
-
-void buffer_pool_fill() {
-  char buf[1024];
-  long long x;
-  int i;
-
-  for (i=0; i < 1024; ++i) buf[i] = (char) i;
-  for (x=0; x < buffer_pool_bytes; x += 1024) {
-    memcpy(buffer_pool_mem + x, buf, 1024);
-  }
 }
 
 void print_help() {
@@ -669,6 +834,10 @@ void print_help() {
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
 "  --test-duration n     -- number of seconds to run the test\n"
 "  --scheduler-sleep-usecs n -- page writes are scheduled every n microseconds\n"
+"  --buffer-pool-mb n    -- size of DBMS buffer pool in MB\n"
+"  --compress-level n    -- zlib compression level, when 0 no compression is used\n"
+"  --recompress-on-write-pct n -- when compression is used, pct of page writes that require recompression\n"
+"  --uncompress-on-read-hit-pct n -- when compression is used, pct of page reads that need decompression after buffer pool hit\n"
 );
 
   exit(0);
@@ -792,8 +961,34 @@ void process_options(int argc, char **argv) {
         exit(-1);
       }
       buffer_pool_bytes = 1024LL * 1024LL * buffer_pool_mb;
+
+    } else if (!strcmp(argv[x], "--compress-level")) {
+      compress_level = atoi(argv[++x]);
+      if (compress_level < 0 || compress_level > 9) {
+        printf("--compress-level set to %d and should be between 0 and 9\n",
+               compress_level);
+        exit(-1);
+      }
+
+    } else if (!strcmp(argv[x], "--recompress-on-write")) {
+      recompress_on_write_hit_pct = atoi(argv[++x]);
+      if (recompress_on_write_hit_pct < 0 || recompress_on_write_hit_pct > 99) {
+        printf("--recompress-on-write set to %d and should be between 0 and 99\n",
+               recompress_on_write_hit_pct);
+        exit(-1);
+      }
+
+    } else if (!strcmp(argv[x], "--uncompress-on-read-hit")) {
+      uncompress_on_read_hit_pct = atoi(argv[++x]);
+      if (uncompress_on_read_hit_pct < 0 || uncompress_on_read_hit_pct > 99) {
+        printf("--uncompress-on-read-hit set to %d and should be between 0 and 99\n",
+               uncompress_on_read_hit_pct);
+        exit(-1);
+      }
     }
   }
+
+  compressed_page = malloc(data_block_size+100);
 
   buffer_pool_pages = buffer_pool_bytes / data_block_size;
 
@@ -818,7 +1013,12 @@ void process_options(int argc, char **argv) {
   printf("Stats interval: %d\n", stats_interval);
   printf("Test duration: %d\n", test_duration);
   printf("Scheduler sleep microseconds: %d\n", scheduler_sleep_usecs);
-  printf("Buffer pool MB: %d, pages %lld\n", buffer_pool_mb, buffer_pool_pages);
+  printf("Buffer pool MB: %lld, pages %lld\n",
+         buffer_pool_bytes / (1024 * 1024), buffer_pool_pages);
+  printf("Use compression=%s with level %d\n",
+         compress_level > 0 ? "yes" : "no", compress_level);
+  printf("recompress-on-write-pct: %d, uncompress-on-read-hit-pct: %d\n",
+         recompress_on_write_hit_pct, uncompress_on_read_hit_pct);
 }
 
 void print_percentiles(int *per_interval, const char* msg, int max_loops)
@@ -844,10 +1044,16 @@ int main(int argc, char **argv) {
   int *reads_per_interval;
   int *writes_per_interval;
   int max_loops;
+  void* retval;
 
   process_options(argc, argv);
 
   n_blocks = data_file_size / data_block_size;
+  if (n_blocks >= 0xffffffff) {
+    fprintf(stderr, "data-file-size/data-block-size must be "
+            "less than 0xffffffff\n");
+    exit(-1);
+  }
 
   stats_init(&scheduler_stats);
   stats_init(&doublewrite_stats);
@@ -924,6 +1130,7 @@ int main(int argc, char **argv) {
   user_stats = (operation_stats*) malloc(sizeof(operation_stats) * num_users);
   for (i = 0; i < num_users; ++i) {
     stats_init(&user_stats[i]);
+    user_stats[i].compress_buf = malloc(data_block_size+100);
     pthread_create(&user_threads[i], NULL, user_func, &user_stats[i]);
   }
 
@@ -958,6 +1165,22 @@ int main(int argc, char **argv) {
     pthread_mutex_unlock(&stats_mutex);
   }
 
+  pthread_mutex_lock(&buffer_pool_mutex);
+  shutdown = 1;
+  pthread_cond_broadcast(&buffer_pool_list_not_empty);
+  pthread_mutex_unlock(&buffer_pool_mutex);
+
+  fprintf(stderr, "waiting for user threads to stop\n");
+  for (i = 0; i < num_users; ++i)
+    pthread_join(user_threads[i], &retval);
+
+  fprintf(stderr, "waiting for writer threads to stop\n");
+  for (i = 0; i < num_writers; ++i)
+    pthread_join(writer_threads[i], &retval);
+
+  fprintf(stderr, "waiting for write scheduler to stop\n");
+  pthread_join(write_scheduler, &retval);
+
   pthread_mutex_lock(&stats_mutex);
   process_stats(user_stats, num_users, "read", test_loop - stats_interval, 1);
   process_stats(writer_stats, num_writers, "write", test_loop - stats_interval, 1);
@@ -982,7 +1205,17 @@ int main(int argc, char **argv) {
   if (trxlog)
     free(trxlog_buf);
 
+  free(compressed_page);
   free(buffer_pool_mem);
+  for (i = 0; i < num_users; ++i) 
+    free(user_stats[i].compress_buf);
+
+  free(user_stats);
+  free(user_threads);
+  free(writer_threads);
+  free(writer_stats);
+  free(reads_per_interval);
+  free(writes_per_interval);
 
   return 0;
 }
