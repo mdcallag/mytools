@@ -229,7 +229,7 @@ def generate_row(datetime, max_pk):
         datetime,cashregisterid,customerid,productid,price,data)
   else:
     return '(%d,"%s",%d,%d,%d,%.2f,"%s")' % (
-        random.randrange(0, max_pk),
+        random.randrange(1, max_pk+1),
         datetime,cashregisterid,customerid,productid,price,data)
 
 def generate_pdc_query(row_count, start_time):
