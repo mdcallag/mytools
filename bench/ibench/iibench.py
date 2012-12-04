@@ -139,7 +139,8 @@ DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('insert_only', False,
                'When True, only run the insert thread. Otherwise, '
                'start 4 threads to do queries.')
-DEFINE_boolean('no_inserts', False, 'When False don''t do inserts')
+DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
+DEFINE_boolean('query_pk_only', False, 'When True only query PK index')
 DEFINE_string('table_name', 'purchases_index',
               'Name of table to use')
 DEFINE_boolean('setup', False,
@@ -255,8 +256,8 @@ def generate_pk_query(row_count, start_time):
   else:
     pk_txid = random.randrange(max(row_count,1))
 
-  sql = 'SELECT transactionid FROM %s WHERE '\
-        '(transactionid >= %d) LIMIT %d' % (
+  sql = 'SELECT * FROM %s WHERE '\
+        '(transactionid >= %d) ORDER BY transactionid LIMIT %d' % (
       FLAGS.table_name, pk_txid, FLAGS.rows_per_query)
   return sql
 
@@ -452,12 +453,13 @@ def run_benchmark():
   register_count = Array('i', [0,0])
 
   if not FLAGS.insert_only:
-    query_pdc = Process(target=Query, args=(max_pk, generate_pdc_query, pdc_count))
     query_pk = Process(target=Query, args=(max_pk, generate_pk_query, pk_count))
-    query_market = Process(target=Query, args=(max_pk, generate_market_query,
-                                                market_count))
-    query_register = Process(target=Query,
-                             args=(max_pk, generate_register_query, register_count))
+
+    if not FLAGS.query_pk_only:
+      query_pdc = Process(target=Query, args=(max_pk, generate_pdc_query, pdc_count))
+      query_market = Process(target=Query, args=(max_pk, generate_market_query, market_count))
+      query_register = Process(target=Query,
+                               args=(max_pk, generate_register_query, register_count))
 
   # set up a queue that will be shared across the insert generation / insert
   # execution processes
@@ -480,10 +482,11 @@ def run_benchmark():
 
   # start up the query processes
   if not FLAGS.insert_only:
-    query_pdc.start()
     query_pk.start()
-    query_market.start()
-    query_register.start()
+    if not FLAGS.query_pk_only:
+      query_pdc.start()
+      query_market.start()
+      query_register.start()
 
   if not FLAGS.no_inserts:
     # block until the inserter is done
@@ -511,13 +514,17 @@ def run_benchmark():
 
     while True:
       time.sleep(10)
-      print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size)
+      prev_time, prev_sum = \
+          print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size)
+      if prev_sum >= FLAGS.max_rows:
+        break
 
   if not FLAGS.insert_only:
-    query_pdc.terminate()
     query_pk.terminate()
-    query_market.terminate()
-    query_register.terminate()
+    if not FLAGS.query_pk_only:
+      query_pdc.terminate()
+      query_market.terminate()
+      query_register.terminate()
 
   print 'Done'
 
