@@ -256,9 +256,12 @@ def generate_pk_query(row_count, start_time):
   else:
     pk_txid = random.randrange(max(row_count,1))
 
-  sql = 'SELECT * FROM %s WHERE '\
-        '(transactionid >= %d) ORDER BY transactionid LIMIT %d' % (
+  if FLAGS.rows_per_query > 1:
+    sql = 'SELECT * FROM %s WHERE transactionid >= %d ORDER BY transactionid LIMIT %d' % (
       FLAGS.table_name, pk_txid, FLAGS.rows_per_query)
+  else:
+    sql = 'SELECT * FROM %s WHERE transactionid = %d' % (FLAGS.table_name, pk_txid)
+
   return sql
 
 def generate_market_query(row_count, start_time):
