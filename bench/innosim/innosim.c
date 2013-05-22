@@ -711,7 +711,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   longlong sum_latency = 0;
   int sx, rx;
   struct drand48_data randctx;
-  long requests, p95, p99, maxv;
+  long requests, p95=0, p99=0, maxv=0;
   longlong latency;
   double avg;
   int sum_requests = 0;
