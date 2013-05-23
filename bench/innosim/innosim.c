@@ -35,6 +35,7 @@ typedef unsigned int uint;
 
 /* Configurable */
 
+volatile int shutdown_user = 0;
 volatile int shutdown = 0;
 
 /* zero means no compression */
@@ -47,6 +48,11 @@ int recompress_on_write_hit_pct = 5;
    uncompressing a page.
 */
 int uncompress_on_read_hit_pct = 5;
+
+/* When > 0 this is the max number of random disk reads + writes
+   a thread will do per second.
+*/
+int io_per_thr_per_sec = 0;
 
 int scheduler_sleep_usecs = 100000;
 
@@ -206,9 +212,10 @@ longlong rand_block(struct drand48_data* ctx) {
 }
 
 char* rand_buffer_pool_ptr(long long bytes_from_end, struct drand48_data* ctx) {
- return (buffer_pool_mem +
-         (longlong) (rand_double(ctx) * buffer_pool_bytes) -
-         bytes_from_end);
+ long long offset = (long long) (rand_double(ctx) * (buffer_pool_bytes - 1));
+ offset -= bytes_from_end;
+ if (offset < 0) offset = 0;
+ return (buffer_pool_mem + offset);
 }
 
 char* rand_buffer_pool_page(struct drand48_data* ctx) {
@@ -404,14 +411,20 @@ void stats_summarize_interval(operation_stats* stats,
                               long* maxv, long* requests, longlong* latency) {
   int nsamples = MYMIN(stats->interval_requests, INTERVAL_MAX);
 
-  qsort(&(stats->interval_latencies[0]), nsamples, sizeof(long), lcompare);
+   *p95 = *p99 = *maxv = *requests = 0;
+   *latency = 0;
+   *avg = 0;
 
-  *requests = stats->interval_requests;
-  *latency = stats->interval_latency;
-  *maxv = stats->interval_max;
-  *p95 = stats->interval_latencies[(int) (nsamples * 0.95)];
-  *p99 = stats->interval_latencies[(int) (nsamples * 0.99)];
-  *avg = (double) stats->interval_latency / (double) stats->interval_requests;
+  if (nsamples) {
+    qsort(&(stats->interval_latencies[0]), nsamples, sizeof(long), lcompare);
+
+    *requests = stats->interval_requests;
+    *latency = stats->interval_latency;
+    *maxv = stats->interval_max;
+    *p95 = stats->interval_latencies[(int) (nsamples * 0.95)];
+    *p99 = stats->interval_latencies[(int) (nsamples * 0.99)];
+    *avg = (double) stats->interval_latency / (double) stats->interval_requests;
+  }
 
   stats->interval_requests = 0;
   stats->interval_latency = 0;
@@ -423,14 +436,20 @@ void stats_summarize_total(operation_stats* stats,
                            long* maxv, long* requests, longlong* latency) {
   int nsamples = MYMIN(stats->total_requests, TOTAL_MAX);
 
-  qsort(&(stats->total_latencies[0]), nsamples, sizeof(long), lcompare);
+  *p95 = *p99 = *maxv = *requests = 0;
+  *latency = 0;
+  *avg = 0;
 
-  *requests = stats->total_requests;
-  *latency = stats->total_latency;
-  *maxv = stats->total_max;
-  *p95 = stats->total_latencies[(int) (nsamples * 0.95)];
-  *p99 = stats->total_latencies[(int) (nsamples * 0.99)];
-  *avg = (double) stats->total_latency / (double) stats->total_requests;
+  if (nsamples) {
+    qsort(&(stats->total_latencies[0]), nsamples, sizeof(long), lcompare);
+
+    *requests = stats->total_requests;
+    *latency = stats->total_latency;
+    *maxv = stats->total_max;
+    *p95 = stats->total_latencies[(int) (nsamples * 0.95)];
+    *p99 = stats->total_latencies[(int) (nsamples * 0.99)];
+    *avg = (double) stats->total_latency / (double) stats->total_requests;
+  }
 }
 
 void buffer_pool_init(buffer_pool_t* pool) {
@@ -589,19 +608,31 @@ void* user_func(void* arg) {
   char* data;
   struct timeval start;
   char *decomp_buf = malloc(data_block_size);
+  struct timeval io_start;
+  int io_per_interval = 0;
 
   init_rand_ctx(&ctx);
 
   assert(!posix_memalign((void**) &data, data_block_size, data_block_size));
 
-  while (!shutdown) {
+  if (io_per_thr_per_sec) {
+    /* Enforce the limit per 1/10th of a second */
+    io_per_interval = io_per_thr_per_sec / 10;
+    now(&io_start);
+  }
+
+  while (!shutdown_user) {
+    int io_ops = 0;
+
     block_num = rand_block(&ctx);
     offset = block_num * data_block_size;
 
     if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
       /* Do the read when it misses the pretend cache */
       now(&start);
+      ++io_ops;
       assert(pread64(data_fd, data, data_block_size, offset) == data_block_size);
+      
       page_check_checksum(data, (unsigned int) block_num);
 
       if (compress_level)
@@ -629,6 +660,7 @@ void* user_func(void* arg) {
     }
 
     if ((rand_double(&ctx) * 100) <= (double) dirty_pct) {
+      ++io_ops;
       buffer_pool_dirty_page(&buffer_pool, &ctx);
 
       if (compress_level &&
@@ -636,6 +668,28 @@ void* user_func(void* arg) {
         char *page = rand_buffer_pool_page(&ctx);
         compress_page(page, data_block_size, stats->compress_buf, data_block_size+100);
       }
+    }
+
+    if (io_per_thr_per_sec) {
+      io_per_interval -= io_ops;
+      if (io_per_interval <= 0) {
+        struct timeval io_cur;
+        long usecs_elapsed;
+
+        now(&io_cur);
+
+        usecs_elapsed = now_minus_then_usecs(&io_cur, &io_start);
+        if (usecs_elapsed < 90000 && usecs_elapsed != -1) {
+          /* Limit was IO per 100,000 usecs. If this took at least 90,000 usecs
+             then do not wait.
+          */
+          usleep(100000 - usecs_elapsed);
+          now(&io_start);
+        } else {
+          io_start = io_cur;
+        }
+        io_per_interval = io_per_thr_per_sec / 10;
+      }      
     }
   }
 
@@ -751,19 +805,23 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
   }
 
-  stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency);
+  if (sum_requests)
+    stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency);
+
   free(combined);
 
   if (!final) {
     printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
            msg, loop, sum_requests,
-           ((double) sum_latency / sum_requests) / 1000.0,
+           sum_requests ?
+             ((double) sum_latency / sum_requests) / 1000.0 : 0.0,
            p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
   } else {
     printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
            msg, sum_requests,
            (double) sum_requests / (loop * stats_interval),
-           ((double) sum_latency / sum_requests) / 1000.0,
+           sum_requests ?
+             ((double) sum_latency / sum_requests) / 1000.0 : 0.0,
            p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
   }
 
@@ -902,6 +960,7 @@ void print_help() {
 "  --compress-level n    -- zlib compression level, when 0 no compression is used\n"
 "  --recompress-on-write-pct n -- when compression is used, pct of page writes that require recompression\n"
 "  --uncompress-on-read-hit-pct n -- when compression is used, pct of page reads that need decompression after buffer pool hit\n"
+"  --io-per-thread-per-second n -- when > 0, the max number of random disk reads + writes each thread will do per second. Note that storage might be to slow for the limit to be reached. This is enforced per 100 millisecond interval.\n"
 );
 
   exit(0);
@@ -1053,6 +1112,14 @@ void process_options(int argc, char **argv) {
                uncompress_on_read_hit_pct);
         exit(-1);
       }
+
+    } else if (!strcmp(argv[x], "--io-per-thread-per-second")) {
+      io_per_thr_per_sec = atoi(argv[++x]);
+      if (io_per_thr_per_sec < 0) {
+        printf("--io--per-thr-per-sec set to %d and should be >= 0\n",
+               io_per_thr_per_sec);
+        exit(-1);
+      }
     }
   }
 
@@ -1088,6 +1155,7 @@ void process_options(int argc, char **argv) {
          compress_level > 0 ? "yes" : "no", compress_level);
   printf("recompress-on-write-pct: %d, uncompress-on-read-hit-pct: %d\n",
          recompress_on_write_hit_pct, uncompress_on_read_hit_pct);
+  printf("IO per thread per second: %d\n", io_per_thr_per_sec);
 }
 
 void print_percentiles(int *per_interval, const char* msg, int max_loops)
@@ -1252,14 +1320,16 @@ int main(int argc, char **argv) {
     pthread_mutex_unlock(&stats_mutex);
   }
 
-  pthread_mutex_lock(&buffer_pool_mutex);
-  shutdown = 1;
-  pthread_cond_broadcast(&buffer_pool_list_not_empty);
-  pthread_mutex_unlock(&buffer_pool_mutex);
-
+  shutdown_user = 1;
   fprintf(stderr, "waiting for user threads to stop\n");
   for (i = 0; i < num_users; ++i)
     pthread_join(user_threads[i], &retval);
+
+  pthread_mutex_lock(&buffer_pool_mutex);
+  shutdown = 1;
+  /* Wake the writer threads */
+  pthread_cond_broadcast(&buffer_pool_list_not_empty);
+  pthread_mutex_unlock(&buffer_pool_mutex);
 
   fprintf(stderr, "waiting for writer threads to stop\n");
   for (i = 0; i < num_writers; ++i)
