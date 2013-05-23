@@ -52,8 +52,9 @@ done
 
 concur=1
 while [ $concur -le $max_concur ]; do
-  echo write-only $concur concur
-  bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0 $dfs $comp $write_limit ; sleep $sleep_secs
+  wl=$(( $write_limit / $concur ))
+  echo write-only $concur concur with $wl write limit
+  bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0 $dfs $comp $wl ; sleep $sleep_secs
   concur=$(( $concur * 2 ))
 done
 
