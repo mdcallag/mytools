@@ -74,8 +74,10 @@ int trxlog_write_size = 512;
 
 longlong binlog_file_size = 10L * 1024 * 1024;
 longlong trxlog_file_size = 10L * 1024 * 1024;
-longlong data_file_size = 10L * 1024 * 1024;
+longlong database_size = 10L * 1024 * 1024;
+longlong data_file_size = -1;
 longlong data_block_size = 16L*1024;
+int data_file_number = 1;
 
 longlong buffer_pool_bytes = 1024 * 1024 * 100;
 longlong buffer_pool_pages = (1024 * 1024 * 100) / (16 * 1024);
@@ -105,7 +107,7 @@ const char* trxlog_fname = "TRXLOG";
 
 #define DOUBLEWRITE_SIZE 64
 
-int data_fd;
+int* data_fd;
 int doublewrite_fd = -1;
 int binlog_fd;
 int trxlog_fd;
@@ -117,6 +119,7 @@ char* binlog_buf = NULL;
 char* trxlog_buf = NULL;
 
 size_t n_blocks = 0;
+size_t n_blocks_per_file = 0;
 
 #define MYMIN(x,y) ((x) < (y) ? (x) : (y))
 #define MYMAX(x,y) ((x) > (y) ? (x) : (y))
@@ -205,10 +208,21 @@ double rand_double(struct drand48_data* ctx) {
   return r;
 }
 
+void block_to_file(longlong block_num, int* file_num, longlong* block_in_file) {
+  *file_num = block_num / n_blocks_per_file;
+  *block_in_file = block_num % n_blocks_per_file;
+
+  assert(*file_num < data_file_number);
+  assert(*block_in_file < n_blocks_per_file);
+}
+
 longlong rand_block(struct drand48_data* ctx) {
-  longlong block_no = (rand_double(ctx) * (n_blocks - DOUBLEWRITE_SIZE)) +
-                      DOUBLEWRITE_SIZE;
-  return MYMIN(block_no, (n_blocks-1));
+  longlong b;
+
+  /* Don't generate page# from doublewrite space in file 0 */
+  b = (rand_double(ctx) * (n_blocks - DOUBLEWRITE_SIZE)) + DOUBLEWRITE_SIZE;
+  b = MYMIN(b, (n_blocks-1));
+  return b;
 }
 
 char* rand_buffer_pool_ptr(long long bytes_from_end, struct drand48_data* ctx) {
@@ -269,7 +283,7 @@ void page_fill(char* page, unsigned int page_num) {
 }
 
 void page_check_checksum(char* page, unsigned int page_num) {
-    int computed_cs = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+    int computed_cs = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
     int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
     int stored_page_num = (int) deserialize_int(page + PAGE_NUM_OFFSET);
 
@@ -283,7 +297,7 @@ void page_check_checksum(char* page, unsigned int page_num) {
 }
 
 void page_write_checksum(char* page, unsigned int page_num) {
-    int checksum = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+    int checksum = adler32(0, (unsigned char*) (page + PAGE_DATA_OFFSET), PAGE_DATA_BYTES);
     serialize_int(page + PAGE_CHECKSUM_OFFSET, checksum);
     serialize_int(page + PAGE_NUM_OFFSET, page_num);
     page_check_checksum(page, page_num); /* TODO remove this */
@@ -294,9 +308,9 @@ void decompress_page(char* decomp_buf, unsigned int decomp_buf_len) {
   z_stream stream;
   int err;
 
-  stream.next_in = compressed_page;
+  stream.next_in = (unsigned char*) compressed_page;
   stream.avail_in = compressed_page_len;
-  stream.next_out = decomp_buf;
+  stream.next_out = (unsigned char*) decomp_buf;
   stream.avail_out = decomp_buf_len;
 
   stream.zalloc = (alloc_func) 0;
@@ -316,9 +330,9 @@ compress_page(char* source, unsigned int source_len,
   int err;
   unsigned int compressed_size;
 
-  stream.next_in = source;
+  stream.next_in = (unsigned char*) source;
   stream.avail_in = source_len;
-  stream.next_out = dest;
+  stream.next_out = (unsigned char*) dest;
   stream.avail_out = dest_len;
   stream.zalloc = (alloc_func) 0;
   stream.zfree = (free_func) 0;
@@ -505,7 +519,7 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
 
     now(&start);
 
-    write_stats->adler = adler32(0, buf, write_size);
+    write_stats->adler = adler32(0, (unsigned char*) buf, write_size);
     if (!truncate_if_max)
       check_pwrite(fd, buf, write_size, *offset, "write_log for trxlog");
     else
@@ -603,8 +617,6 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
 void* user_func(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
   struct drand48_data ctx;
-  size_t block_num;
-  off_t offset;
   char* data;
   struct timeval start;
   char *decomp_buf = malloc(data_block_size);
@@ -623,15 +635,19 @@ void* user_func(void* arg) {
 
   while (!shutdown_user) {
     int io_ops = 0;
+    longlong block_num;
+    int file_num;
+    off_t offset;
 
     block_num = rand_block(&ctx);
+    block_to_file(block_num, &file_num, &block_num);
     offset = block_num * data_block_size;
 
     if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
       /* Do the read when it misses the pretend cache */
       now(&start);
       ++io_ops;
-      assert(pread64(data_fd, data, data_block_size, offset) == data_block_size);
+      assert(pread64(data_fd[file_num], data, data_block_size, offset) == data_block_size);
       
       page_check_checksum(data, (unsigned int) block_num);
 
@@ -642,8 +658,7 @@ void* user_func(void* arg) {
          internal checksum which is redundant with the innodb page
          checksum.
       */
-      stats->adler = adler32(0, data, data_block_size);
-   
+      stats->adler = adler32(0, (unsigned char*)data, data_block_size);
 
       stats_report(stats, &start, &ctx);
     } else {
@@ -725,6 +740,7 @@ void* write_scheduler_func(void* arg) {
 void* writer(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
   longlong block_num;
+  int file_num;
   off_t offset;
   char* data;
   struct timeval start;
@@ -745,13 +761,14 @@ void* writer(void* arg) {
     if (shutdown)
       goto end;
 
+    block_to_file(block_num, &file_num, &block_num);
     offset = block_num * data_block_size;
 
     memcpy(data, rand_buffer_pool_page(&ctx), data_block_size);
     page_write_checksum(data, (unsigned int) block_num);
 
     now(&start);
-    check_pwrite(data_fd, data, data_block_size, offset, "writer thread");
+    check_pwrite(data_fd[file_num], data, data_block_size, offset, "writer thread");
     stats_report(stats, &start, &ctx);
   }
 
@@ -884,26 +901,33 @@ void prepare_file(const char* fname, longlong size) {
   close(fd);
 }
 
-void prepare_data_file() {
+void prepare_data_files() {
   int fd;
   int page_num;
   char* buf;
   const int BUF_SIZE = 1024 * 1024;
+  char fname_buf[1000];
+  int i;
 
   buf = (char*) malloc(BUF_SIZE);
 
-  fprintf(stderr, "preparing data file %s\n", data_fname);
-  fd = open(data_fname, O_CREAT|O_RDWR|O_TRUNC, 0644);
-  assert (fd >= 0);
+  for (i = 0; i < data_file_number; ++i) {
+    snprintf(fname_buf, 1000-1, "%s.%d", data_fname, i);
 
-  for (page_num=0; page_num < n_blocks; ++page_num) {
-    page_fill(buf, page_num);
-    page_write_checksum(buf, page_num);
-    assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
+    fprintf(stderr, "preparing data file [%d] %s\n", i, fname_buf);
+    fd = open(fname_buf, O_CREAT|O_RDWR|O_TRUNC, 0644);
+    assert (fd >= 0);
+
+    for (page_num=0; page_num < n_blocks_per_file; ++page_num) {
+      page_fill(buf, page_num);
+      page_write_checksum(buf, page_num);
+      assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
+    }
+
+    fsync(fd);
+    close(fd);
   }
 
-  fsync(fd);
-  close(fd);
   free(buf);
 }
 
@@ -939,6 +963,9 @@ void print_help() {
 "  --binlog-file-name s  -- pathname for binlog file\n"
 "  --trxlog-file-name s  -- pathname for transaction log file\n"
 "  --data-file-name s    -- pathname for database file\n"
+"  --data-file-number x  -- number of database files\n"
+"  --data-file-size n    -- size of all database file(s) in bytes\n"
+"  --data-block-size n   -- size of database blocks in bytes\n"
 "  --doublewrite-file-name s -- pathname for doublewrite file, when not set use first 2MB of data file\n"
 "  --binlog 1|0          -- 1: write to binlog, 0: don't write to it\n"
 "  --trxlog 1|0          -- 1: write to transaction log, 0: don't write to it\n"
@@ -946,8 +973,6 @@ void print_help() {
 "  --trxlog-write-size n -- size of transaction log writes in bytes\n"
 "  --binlog-file-size n  -- size of binlog file in bytes\n"
 "  --trxlog-file-size n  -- size of transaction log file in bytes\n"
-"  --data-file-size n    -- size of database file in bytes\n"
-"  --data-block-size n   -- size of database blocks in bytes\n"
 "  --num-writers n       -- number of writer threads\n"
 "  --num-users n         -- number of user threads\n"
 "  --max-dirty-pages n   -- maximum number of dirty pages, used to rate limit write-mostly workloads\n"
@@ -1022,13 +1047,17 @@ void process_options(int argc, char **argv) {
       if (x == (argc - 1)) { printf("--trxlog-file-size needs an arg\n"); exit(-1); }
       trxlog_file_size = atoll(argv[++x]);
 
-    } else if (!strcmp(argv[x], "--data-file-size")) {
-      if (x == (argc - 1)) { printf("--data-file-size needs an arg\n"); exit(-1); }
-      data_file_size = atoll(argv[++x]);
+    } else if (!strcmp(argv[x], "--database-size")) {
+      if (x == (argc - 1)) { printf("--database-size needs an arg\n"); exit(-1); }
+      database_size = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--data-block-size")) {
       if (x == (argc - 1)) { printf("--data-block-size needs an arg\n"); exit(-1); }
       data_block_size = atoll(argv[++x]);
+
+    } else if (!strcmp(argv[x], "--data-file-number")) {
+      if (x == (argc - 1)) { printf("--data-file-number needs an arg\n"); exit(-1); }
+      data_file_number = atoi(argv[++x]);
 
     } else if (!strcmp(argv[x], "--num-writers")) {
       if (x == (argc - 1)) { printf("--num-writers needs an arg\n"); exit(-1); }
@@ -1131,7 +1160,7 @@ void process_options(int argc, char **argv) {
   printf("Doublewrite buffer enabled: %d\n", doublewrite);
   printf("Binlog file name: %s\n", binlog_fname);
   printf("Transaction log file name: %s\n", trxlog_fname);
-  printf("Database file name: %s\n", data_fname);
+  printf("Database base file name: %s\n", data_fname);
   printf("Doublewrite file name: %s\n", doublewrite_fname ? doublewrite_fname : "<not set>");
   printf("Binlog enabled: %d\n", binlog);
   printf("Transaction log enabled: %d\n", trxlog);
@@ -1139,8 +1168,9 @@ void process_options(int argc, char **argv) {
   printf("Transaction log write size: %d\n", trxlog_write_size);
   printf("Binlog file size: %llu\n", binlog_file_size);
   printf("Transaction log file size: %llu\n", trxlog_file_size);
-  printf("Database file size: %llu\n", data_file_size);
+  printf("Database size: %llu\n", database_size);
   printf("Database block size: %llu\n", data_block_size);
+  printf("Database file number: %d\n", data_file_number);
   printf("Number of writer threads: %d\n", num_writers);
   printf("Number of user threads: %d\n", num_users);
   printf("Dirty percent: %d\n", dirty_pct);
@@ -1185,12 +1215,14 @@ int main(int argc, char **argv) {
 
   process_options(argc, argv);
 
-  n_blocks = data_file_size / data_block_size;
+  n_blocks = database_size / data_block_size;
   if (n_blocks >= 0xffffffff) {
-    fprintf(stderr, "data-file-size/data-block-size must be "
+    fprintf(stderr, "database-size/data-block-size must be "
             "less than 0xffffffff\n");
     exit(-1);
   }
+  n_blocks_per_file = n_blocks / data_file_number;
+  data_file_size = n_blocks_per_file * data_block_size;
 
   stats_init(&scheduler_stats);
   stats_init(&doublewrite_stats);
@@ -1203,7 +1235,7 @@ int main(int argc, char **argv) {
   buffer_pool_init(&buffer_pool);
 
   if (prepare)
-    prepare_data_file();
+    prepare_data_files();
 
   max_loops = test_duration / stats_interval;
   reads_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
@@ -1241,15 +1273,37 @@ int main(int argc, char **argv) {
     fprintf(stderr, "trxlog %s uses file descriptor %d\n", trxlog_fname, trxlog_fd);
   }
 
-  data_fd = open(data_fname, O_CREAT|O_RDWR|O_DIRECT|O_LARGEFILE, 0644);
-  assert(data_fd >= 0);
-  lseek(data_fd, 0, SEEK_SET);
-  fprintf(stderr, "data %s uses file descriptor %d\n", data_fname, data_fd);
+  data_fd = (int*) malloc(sizeof(int) * data_file_number);
+  for (i = 0; i < data_file_number; ++i) {
+    char fname_buf[1000];
 
-  if (fstat(data_fd, &stat_buf)) {
-    perror("stat for --data-file-name failed");
-    printf("Do you need to prepare files? (use --prepare 1)\n");
-    exit(-1);
+    snprintf(fname_buf, 1000-1, "%s.%d", data_fname, i);
+    data_fd[i] = open(fname_buf, O_CREAT|O_RDWR|O_DIRECT|O_LARGEFILE, 0644);
+    assert(data_fd[i] >= 0);
+    lseek(data_fd[i], 0, SEEK_SET);
+    fprintf(stderr, "data[%d] %s uses file descriptor %d\n", i, fname_buf, data_fd[i]);
+
+    if (fstat(data_fd[i], &stat_buf)) {
+      perror("stat for --data-file-name failed");
+      printf("Do you need to prepare files? (use --prepare 1)\n");
+      exit(-1);
+    }
+
+    if (i == 0)
+      printf("Filesystem block size for %s is %d\n", fname_buf, (int) stat_buf.st_blksize);
+
+    if (stat_buf.st_size < data_file_size) {
+      printf("Datafile %s is too small (%llu) and must be at least %llu bytes\n",
+             fname_buf, (ulonglong) stat_buf.st_size, (ulonglong) data_file_size);
+      printf("Do you need to prepare files? (use --prepare 1)\n");
+      exit(-1);
+    }
+    if ((stat_buf.st_blocks * 512LL) < stat_buf.st_size) {
+      printf("Datafile %s has holes. It has %llu blocks and requires %llu blocks with no holes\n",
+             fname_buf, (ulonglong) stat_buf.st_blocks, (ulonglong) stat_buf.st_size / 512ULL);
+      printf("Do you need to prepare files? (use --prepare 1)\n");
+      exit(-1);
+    }
   }
 
   if (doublewrite_fname) {
@@ -1259,22 +1313,8 @@ int main(int argc, char **argv) {
     lseek(doublewrite_fd, 0, SEEK_SET);
     fprintf(stderr, "doublewrite %s uses file descriptor %d\n", doublewrite_fname, doublewrite_fd);
   } else {
-    doublewrite_fd = data_fd;
+    doublewrite_fd = data_fd[0];
     fprintf(stderr, "doublewrite uses the data file\n");
-  }
-
-  printf("Filesystem block size for %s is %d\n", data_fname, (int) stat_buf.st_blksize);
-  if (stat_buf.st_size < data_file_size) {
-    printf("Datafile %s is too small (%llu) and must be at least %llu bytes\n",
-           data_fname, (ulonglong) stat_buf.st_size, (ulonglong) data_file_size);
-    printf("Do you need to prepare files? (use --prepare 1)\n");
-    exit(-1);
-  }
-  if ((stat_buf.st_blocks * 512LL) < stat_buf.st_size) {
-    printf("Datafile %s has holes. It has %llu blocks and requires %llu blocks with no holes\n",
-           data_fname, (ulonglong) stat_buf.st_blocks, (ulonglong) stat_buf.st_size / 512ULL);
-    printf("Do you need to prepare files? (use --prepare 1)\n");
-    exit(-1);
   }
 
   user_threads = (pthread_t*) malloc(sizeof(pthread_t) * num_users);
@@ -1369,6 +1409,7 @@ int main(int argc, char **argv) {
   for (i = 0; i < num_users; ++i) 
     free(user_stats[i].compress_buf);
 
+  free(data_fd);
   free(user_stats);
   free(user_threads);
   free(writer_threads);

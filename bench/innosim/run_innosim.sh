@@ -20,6 +20,8 @@ comp=${10}
 
 write_limit=${11}
 
+dfn=${12}
+
 dfs_by=$( echo "1024 * 1024 * 1024 * ${dfs}" | bc )
 
 killall vmstat
@@ -30,7 +32,7 @@ G1=1073741824
 bls=$G1
 tls=$G1
 
-suffix=bl_${binlog}.trx_${trxlog}.dblwr_${doublewrite}.wthr_${writers}.uthr_${users}.dirty_${dirty_pct}.rh_${read_hit_pct}.tls_${tls}.bls_${bls}.dfs_${dfs}.comp_${comp}.wlim_${write_limit}
+suffix=bl_${binlog}.trx_${trxlog}.dblwr_${doublewrite}.wthr_${writers}.uthr_${users}.dirty_${dirty_pct}.rh_${read_hit_pct}.tls_${tls}.bls_${bls}.dfs_${dfs}.comp_${comp}.wlim_${write_limit}.dfn_${dfn}
 
 vmstat 1 > v.${suffix} &
 iostat -x 1 > i.${suffix} &
@@ -40,7 +42,8 @@ echo ./innosim \
   --max-dirty-pages 10000 \
   --binlog-file-size $bls \
   --trxlog-file-size $tls \
-  --data-file-size ${dfs_by} \
+  --database-size ${dfs_by} \
+  --data-file-number ${dfn} \
   --trxlog $trxlog \
   --binlog $binlog \
   --doublewrite $doublewrite \
@@ -57,7 +60,8 @@ echo ./innosim \
   --max-dirty-pages 10000 \
   --binlog-file-size $bls \
   --trxlog-file-size $tls \
-  --data-file-size ${dfs_by} \
+  --database-size ${dfs_by} \
+  --data-file-number ${dfn} \
   --trxlog $trxlog \
   --binlog $binlog \
   --doublewrite $doublewrite \

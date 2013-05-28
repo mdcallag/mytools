@@ -1,5 +1,12 @@
 max_concur=$1
 
+# 1 means use binlog & trxlog
+use_bltl=$2
+
+# 1 means use doublewrite buffer
+use_dblw=$3
+
+
 for d in 0 6 17 25 100 ; do rm -f dr.$d dw.$d p.$d percentile_iops.$d report.$d ; done
 rm -f r 
 
@@ -7,8 +14,10 @@ u=1
 while [ $u -le $max_concur ]; do
 for d in 0 6 17 25 100 ; do
 
-grep final o.bl_1.trx_1.dblwr_1.wthr_8.uthr_${u}.dirty_$d* | grep read: | awk '{ printf "%.0f\t%s\t%s\t\n", $5, $7, $11 }' >> dr.$d 
-grep final o.bl_1.trx_1.dblwr_1.wthr_8.uthr_${u}.dirty_$d* | grep ^write: | awk '{ printf "%.0f\t%s\t%s\t\n", $5, $7, $11 }' >> dw.$d 
+suffix=o.bl_${use_bltl}.trx_${use_bltl}.dblwr_${use_dblw}.wthr_8.uthr_${u}.dirty_$d
+
+grep final ${suffix}* | grep read: | awk '{ printf "%.0f\t%s\t%s\t\n", $5, $7, $11 }' >> dr.$d 
+grep final ${suffix}* | grep ^write: | awk '{ printf "%.0f\t%s\t%s\t\n", $5, $7, $11 }' >> dw.$d 
 
 done
 u=$(( $u * 2 ))
@@ -16,7 +25,7 @@ done
 
 u=1
 while [ $u -le $max_concur ]; do
-grep final o.bl_1.trx_1.dblwr_1.wthr_8.uthr_${u}.dirty_0* | grep read:
+grep final ${suffix}* | grep read:
 u=$(( $u * 2 ))
 done | awk '{ printf "%.0f\n", $5 }' > r
 
@@ -48,7 +57,7 @@ echo p50 p75 p90 p95 p96 p97 p98 p99 | \
 u=1
 while [ $u -le $max_concur ]; do
 
-grep "^final percentile rd IOPs" o.bl_1.trx_1.dblwr_1.wthr_8.uthr_$u.dirty_$d.* | \
+grep "^final percentile rd IOPs" ${suffix}* | \
     awk '{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $5, $7, $9, $11, $13, $15, $17, $19 }'
 
 u=$(( $u * 2 ))

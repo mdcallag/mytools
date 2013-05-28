@@ -25,6 +25,15 @@ write_limit=$6
 # Max concurrency for which test is run. Should be a power of 2.
 max_concur=$7
 
+# 1 means use binlog & trxlog
+use_bltl=$8
+
+# 1 means use doublewrite buffer
+use_dblw=$9
+
+# number of database files
+dfn=${10}
+
 # Args for run_innosim are:
 #   binlog&trxlog
 #   doublewrite
@@ -37,24 +46,24 @@ max_concur=$7
 #   database_size_in_GB
 #   use_compression
 #   write_limit
+#   number of database files
 
 if [ $prepare -gt 0 ] ; then
 echo Prepare
-bash run_innosim.sh  1 1 8  1   0   0 10 1 $dfs $comp 0
+bash run_innosim.sh  1 1 8  1   0   0 10 1 $dfs $comp 0 $dfn
 fi
 
 concur=1
 while [ $concur -le $max_concur ]; do
   echo read-only $concur concur
-  bash run_innosim.sh  1 1 8  $concur   0   0 $secs 0 $dfs $comp 0; sleep $sleep_secs
+  bash run_innosim.sh  $use_bltl $use_dblw 8  $concur   0   0 $secs 0 $dfs $comp 0 $dfn ; sleep $sleep_secs
   concur=$(( $concur * 2 ))
 done
 
 concur=1
 while [ $concur -le $max_concur ]; do
-  wl=$(( $write_limit / $concur ))
-  echo write-only $concur concur with $wl write limit
-  bash run_innosim.sh  1 1 8  $concur 100 100 $secs 0 $dfs $comp $wl ; sleep $sleep_secs
+  echo write-only $concur concur
+  bash run_innosim.sh  $use_bltl $use_dblw 8  $concur 100 100 $secs 0 $dfs $comp $write_limit $dfn ; sleep $sleep_secs
   concur=$(( $concur * 2 ))
 done
 
@@ -62,13 +71,13 @@ concur=1
 while [ $concur -le $max_concur ]; do
 
 echo read-write $concur concur dirty=25  100 page reads to 50 page writes
-bash run_innosim.sh  1 1 8  $concur  25   0 $secs 0 $dfs $comp 0 ; sleep $sleep_secs
+bash run_innosim.sh  $use_bltl $use_dblw 8  $concur  25   0 $secs 0 $dfs $comp 0 $dfn ; sleep $sleep_secs
 
 echo read-write $concur concur dirty=17 100 page reads to 34 page writes
-bash run_innosim.sh  1 1 8  $concur  17   0 $secs 0 $dfs $comp 0 ; sleep $sleep_secs
+bash run_innosim.sh  $use_bltl $use_dblw 8  $concur  17   0 $secs 0 $dfs $comp 0 $dfn ; sleep $sleep_secs
 
 echo read-write $concur concur dirty=6  100 page reads to 12 page writes
-bash run_innosim.sh  1 1 8  $concur  6   0 $secs 0 $dfs $comp 0 ; sleep $sleep_secs
+bash run_innosim.sh  $use_bltl $use_dblw 8  $concur  6   0 $secs 0 $dfs $comp 0 $dfn ; sleep $sleep_secs
 
 concur=$(( $concur * 2 ))
 done
