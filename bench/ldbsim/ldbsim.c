@@ -72,6 +72,8 @@ int data_file_counter = 0;
 int num_compact = 1;
 int num_users = 1;
 
+int compact_read_miss_pct = 100;
+
 int checksum_write = 1;
 int checksum_verify = 1;
 int checksum_assert = 1;
@@ -114,18 +116,20 @@ int uncompressed_page_len;
 #define SYNC_ODIRECT       2
 #define SYNC_ODIRECT_FSYNC 3
 #define SYNC_ODIRECT_SYNC  4
-#define SYNC_NO_FADVISE    5
 
 char* sync_names[] = {
   "no",
   "fsync",
   "odirect",
   "odirect_fsync",
-  "odirect_sync",
-  "no_fadvise"
+  "odirect_sync"
 };
 
 int sync_type = SYNC_NO;
+int advise_user = 0;
+int advise_compact = 0;
+longlong write_bytes_per_second = 0;
+double secs_per_loop_per_thr = 0.0;
 
 /* Statistics */
 pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -140,19 +144,22 @@ typedef struct {
   longlong total_latency;
   long total_max;
   long total_latencies[TOTAL_MAX];
-  longlong total_bytes;
+  longlong total_bytes_read;
+  longlong total_bytes_written;
   long interval_requests;
   long interval_latency;
   long interval_max;
   long interval_latencies[INTERVAL_MAX];
-  longlong interval_bytes;
+  longlong interval_bytes_read;
+  longlong interval_bytes_written;
   unsigned long adler;
 } operation_stats;
 
 operation_stats redolog_write_stats;
 operation_stats redolog_sync_stats;
 
-int sync_open_options() {
+int open_options() {
+
   switch (sync_type) {
   case SYNC_ODIRECT:
   case SYNC_ODIRECT_FSYNC:
@@ -162,6 +169,23 @@ int sync_open_options() {
   default:
     return 0;
   }
+}
+
+void set_user_options(int fd) {
+  if (advise_user) {
+    assert(!posix_fadvise(fd, 0, 0, POSIX_FADV_RANDOM));
+  }
+}
+
+void set_compact_options(int fd) {
+  int flags;
+
+  if (advise_compact)
+    flags = POSIX_FADV_SEQUENTIAL;
+  else
+    flags = POSIX_FADV_NORMAL;
+
+  assert(!posix_fadvise(fd, 0, 0, flags));
 }
 
 void sync_after_writes(int fd) {
@@ -215,12 +239,14 @@ double rand_double(struct drand48_data* ctx) {
 /* Return value from 0 to max-1 */
 int rand_choose(struct drand48_data* ctx, int max) {
   double r = rand_double(ctx);
-  return (int) (r * max);
+  int ir = (int) (r * max);
+  assert(ir < max);
+  return ir;
 }
 
 longlong rand_block(struct drand48_data* ctx, longlong len) {
-  longlong block_no = (longlong) (rand_double(ctx) * len) / data_block_size;
-  assert((block_no * data_block_size) < (len - data_block_size));
+  longlong block_no = (longlong) (rand_double(ctx) * (len-1)) / data_block_size;
+  assert((block_no * data_block_size) <= (len - data_block_size));
   return block_no;
 }
 
@@ -273,9 +299,9 @@ void page_check_checksum(char* page) {
     if (!checksum_verify)
       return;
     else {
-      int computed_cs = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+      int computed_cs = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
       int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
-      int stored_page_num = (int) deserialize_int(page + PAGE_NUM_OFFSET);
+      /* int stored_page_num = (int) deserialize_int(page + PAGE_NUM_OFFSET); */
 
       if (checksum_assert && computed_cs != stored_cs) {
         fprintf(stderr,
@@ -290,7 +316,7 @@ void page_write_checksum(char* page, unsigned int page_num) {
     if (!checksum_write)
         return;
     else {
-        int checksum = adler32(0, page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
+        int checksum = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
         serialize_int(page + PAGE_CHECKSUM_OFFSET, checksum);
         serialize_int(page + PAGE_NUM_OFFSET, page_num);
     }
@@ -300,9 +326,9 @@ void decompress_page(char* decomp_buf, unsigned int decomp_buf_len) {
   z_stream stream;
   int err;
 
-  stream.next_in = compressed_page;
+  stream.next_in = (unsigned char*) compressed_page;
   stream.avail_in = compressed_page_len;
-  stream.next_out = decomp_buf;
+  stream.next_out = (unsigned char*) decomp_buf;
   stream.avail_out = decomp_buf_len;
 
   stream.zalloc = (alloc_func) 0;
@@ -322,9 +348,9 @@ compress_page(char* source, unsigned int source_len,
   int err;
   unsigned int compressed_size;
 
-  stream.next_in = source;
+  stream.next_in = (unsigned char*) source;
   stream.avail_in = source_len;
-  stream.next_out = dest;
+  stream.next_out = (unsigned char*) dest;
   stream.avail_out = dest_len;
   stream.zalloc = (alloc_func) 0;
   stream.zfree = (free_func) 0;
@@ -344,16 +370,19 @@ compress_page(char* source, unsigned int source_len,
 void stats_report_with_latency(operation_stats* stats,
                                long latency,
        		               struct drand48_data* randctx,
-			       longlong bytes) {
+			       longlong bytes_read,
+			       longlong bytes_written) {
   int sample_index;
 
   stats->total_requests++;
   stats->total_latency += latency;
-  stats->total_bytes += bytes;
+  stats->total_bytes_read += bytes_read;
+  stats->total_bytes_written += bytes_written;
 
   stats->interval_requests++;
   stats->interval_latency += latency;
-  stats->interval_bytes += bytes;
+  stats->interval_bytes_read += bytes_read;
+  stats->interval_bytes_written += bytes_written;
 
   if (latency > stats->interval_max)
     stats->interval_max = latency;
@@ -381,7 +410,8 @@ void stats_report_with_latency(operation_stats* stats,
 void stats_report(operation_stats* stats,
                   struct timeval *start,
 		  struct drand48_data* randctx,
-		  longlong bytes) {
+		  longlong bytes_read,
+		  longlong bytes_written) {
   long latency;
   struct timeval stop;
 
@@ -389,7 +419,8 @@ void stats_report(operation_stats* stats,
   latency = now_minus_then_usecs(&stop, start);
 
   pthread_mutex_lock(&stats_mutex);
-  stats_report_with_latency(stats, latency, randctx, bytes);
+  stats_report_with_latency(stats, latency, randctx,
+                            bytes_read, bytes_written);
   pthread_mutex_unlock(&stats_mutex);
 }
 
@@ -397,11 +428,13 @@ void stats_init(operation_stats* stats) {
   stats->total_requests = 0;
   stats->total_latency = 0;
   stats->total_max = 0;
-  stats->total_bytes = 0;
+  stats->total_bytes_read = 0;
+  stats->total_bytes_written = 0;
   stats->interval_requests = 0;
   stats->interval_latency = 0;
   stats->interval_max = 0;
-  stats->interval_bytes = 0;
+  stats->interval_bytes_read = 0;
+  stats->interval_bytes_written = 0;
   stats->adler = 0;
 }
 
@@ -420,7 +453,9 @@ int icompare(const void* a, const void* b) {
 void stats_summarize_interval(operation_stats* stats,
                               long* p95, long* p99, double* avg,
                               long* maxv, long* requests, longlong* latency,
-			      longlong* bytes) {
+			      longlong* bytes_read,
+			      longlong* bytes_written,
+                              longlong* bytes_total) {
   int nsamples = MYMIN(stats->interval_requests, INTERVAL_MAX);
 
   qsort(&(stats->interval_latencies[0]), nsamples, sizeof(long), lcompare);
@@ -431,9 +466,12 @@ void stats_summarize_interval(operation_stats* stats,
   *p95 = stats->interval_latencies[(int) (nsamples * 0.95)];
   *p99 = stats->interval_latencies[(int) (nsamples * 0.99)];
   *avg = (double) stats->interval_latency / (double) stats->interval_requests;
-  *bytes = stats->interval_bytes;
+  *bytes_read = stats->interval_bytes_read;
+  *bytes_written = stats->interval_bytes_written;
+  *bytes_total = *bytes_read + *bytes_written;
 
-  stats->interval_bytes = 0;
+  stats->interval_bytes_read = 0;
+  stats->interval_bytes_written = 0;
   stats->interval_requests = 0;
   stats->interval_latency = 0;
   stats->interval_max = 0;
@@ -482,7 +520,7 @@ void open_file(int truncate, DFILE* dfile, char* existing_name) {
     pthread_mutex_unlock(&dfiles_mutex);
   }
 
-  options = sync_open_options();
+  options = open_options();
 
   if (truncate) {
     fd = open(fname, O_CREAT|O_RDWR|O_TRUNC|options, 0644);
@@ -491,6 +529,8 @@ void open_file(int truncate, DFILE* dfile, char* existing_name) {
   }
 
   assert(fd >= 0);
+  set_user_options(fd);
+
   dfile->dfile_fd = fd;
   dfile->dfile_locked = 0;
   dfile->dfile_len = 0;
@@ -518,10 +558,12 @@ void* user_func(void* arg) {
   struct timeval start;
   struct drand48_data ctx;
   char* buf;
+  void* vbuf;
   char* zbuf = (char*) malloc(data_block_size*3);
   int zbuf_len = data_block_size*3;
 
-  assert(!posix_memalign((void**) &buf, data_block_size, data_block_size));
+  assert(!posix_memalign(&vbuf, data_block_size, data_block_size));
+  buf = vbuf;
 
   init_rand_ctx(&ctx);
 
@@ -540,7 +582,7 @@ void* user_func(void* arg) {
     if (compress_level)
       decompress_page(zbuf, zbuf_len);
 
-    stats_report(stats, &start, &ctx, data_block_size);
+    stats_report(stats, &start, &ctx, data_block_size, 0);
 
     pthread_mutex_lock(&dfiles_mutex);
     assert(dfiles[x].dfile_locked == 1);
@@ -550,16 +592,30 @@ void* user_func(void* arg) {
 
   free(buf);
   free(zbuf);
+  return arg;
+}
+
+void handle_old_files(int count, int* fds, char** fnames) {
+  int i;
+
+  for (i=0; i < count; ++i) {
+    assert(!close(fds[i]));
+
+    if (unlink(fnames[i])) {
+      fprintf(stderr, "unlink failed for %s\n", fnames[i]);
+      perror("Unlink failed");
+      assert(0);
+    }
+    free(fnames[i]);
+  }
 }
 
 void* compact_func(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  longlong block_num;
   char** data;
   struct timeval start;
   struct drand48_data ctx;
   int* input_x;
-  int* new_fds;
   DFILE* new_dfiles;
   char** old_fnames;
   int* old_fds;
@@ -567,6 +623,10 @@ void* compact_func(void* arg) {
   long long read_size = data_block_size * compact_read_blocks;
   char* zbuf = (char*) malloc(data_block_size*3);
   int zbuf_len = data_block_size*3;
+  double usecs_per_loop = 1000000.0 * secs_per_loop_per_thr;
+  struct timeval rate_start;
+
+  now(&rate_start);
 
   old_fds = (int*) malloc(sizeof(int) * (fanout+1));
   old_fnames = (char**) malloc(sizeof(char*) * (fanout+1));
@@ -584,12 +644,19 @@ void* compact_func(void* arg) {
     longlong read_offset = 0;
     longlong output_offset = 0;
     int output_x = 0;
-    longlong bytes = 0;
+    longlong bytes_read = 0;
+    longlong bytes_written = 0;
+    /* When a compaction uses "cached reads" all of the compaction reads
+       use the same input file to simulate most of the reads hitting
+       in the OS filesystem cache.
+    */
+    int uncached_reads = rand_choose(&ctx, 100) < compact_read_miss_pct;
 
     for (i=0; i < (fanout+1); ++i) {
       int x = lock_random_file(&ctx);
 
       input_x[i] = x;
+      set_compact_options(dfiles[x].dfile_fd);
     }
 
     now(&start);
@@ -601,9 +668,13 @@ void* compact_func(void* arg) {
 
       for (i=0; i < (fanout+1); ++i) {
 	int b;
-        check_pread(dfiles[input_x[i]].dfile_fd, data[i], read_size,
-		    read_offset, "compact", dfiles[input_x[i]].dfile_fname);
-	bytes += read_size;
+        int read_fd_idx = uncached_reads ? input_x[i] : 0;
+
+        check_pread(dfiles[read_fd_idx].dfile_fd, data[i],
+                    read_size, read_offset, "compact",
+                    dfiles[read_fd_idx].dfile_fname);
+        if (uncached_reads)
+	  bytes_read += read_size;
 
 	for (b=0; b < compact_read_blocks; ++b) {
 	  page_check_checksum(data[i] + (b * data_block_size));
@@ -625,7 +696,7 @@ void* compact_func(void* arg) {
 
         check_write(new_dfiles[output_x].dfile_fd, data[i], read_size,
 		    "compaction write");
-	bytes += read_size;
+	bytes_written += read_size;
 
         output_offset += read_size;
         if (output_offset >= data_file_size) {
@@ -637,7 +708,7 @@ void* compact_func(void* arg) {
       }
     }
 
-    stats_report(stats, &start, &ctx, bytes);
+    stats_report(stats, &start, &ctx, bytes_read, bytes_written);
 
     assert(output_x == (fanout+1));
 
@@ -653,18 +724,23 @@ void* compact_func(void* arg) {
     }
     pthread_mutex_unlock(&dfiles_mutex);
 
-    for (i=0; i < (fanout+1); ++i) {
-      assert(!close(old_fds[i]));
-      if (unlink(old_fnames[i])) {
-	fprintf(stderr, "unlink failed for %s\n", old_fnames[i]);
-	perror("Unlink failed");
-	assert(0);
+    handle_old_files(fanout+1, old_fds, old_fnames);
+
+    if (write_bytes_per_second) {
+      struct timeval rate_cur;
+      long usecs_elapsed;
+
+      now(&rate_cur);
+      usecs_elapsed = now_minus_then_usecs(&rate_cur, &rate_start);
+
+      if (usecs_elapsed > 0 && usecs_elapsed < usecs_per_loop) {
+        usleep(usecs_per_loop - usecs_elapsed);
+        now(&rate_start);
+      } else {
+        rate_start = rate_cur;
       }
-      free(old_fnames[i]);
     }
   }
-
-end:
 
   for (i=0; i < (fanout+2); ++i)
     free(data[i]);
@@ -684,7 +760,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   struct drand48_data randctx;
   long requests, p95, p99, maxv;
   longlong latency;
-  longlong bytes;
+  longlong bytes_read, bytes_written, bytes_total;
   double avg;
   int sum_requests = 0;
   operation_stats* curstats;
@@ -696,16 +772,21 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   if (!final) {
     /* Merge into combined before interval_latencies are cleared */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
-      combined->interval_bytes += curstats->interval_bytes;
-      combined->total_bytes += curstats->total_bytes;
+      combined->interval_bytes_read += curstats->interval_bytes_read;
+      combined->interval_bytes_written += curstats->interval_bytes_written;
+      combined->total_bytes_read += curstats->total_bytes_read;
+      combined->total_bytes_written += curstats->total_bytes_written;
+
       for (rx = 0; rx < MYMIN(INTERVAL_MAX, curstats->interval_requests); ++rx)
-        stats_report_with_latency(combined, curstats->interval_latencies[rx], &randctx, 0);
+        stats_report_with_latency(combined, curstats->interval_latencies[rx],
+                                  &randctx, 0, 0);
     }
 
     /* And then summarize */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
       stats_summarize_interval(curstats, &p95, &p99, &avg, &maxv, &requests,
-			       &latency, &bytes);
+			       &latency, &bytes_read, &bytes_written,
+                               &bytes_total);
       sum_requests += requests;
       sum_latency += latency;
       if (maxv > max_maxv) max_maxv = maxv;
@@ -714,10 +795,14 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   } else {
     /* Merge into combined */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
-      combined->interval_bytes += curstats->interval_bytes;
-      combined->total_bytes += curstats->total_bytes;
+      combined->interval_bytes_read += curstats->interval_bytes_read;
+      combined->interval_bytes_written += curstats->interval_bytes_written;
+      combined->total_bytes_read += curstats->total_bytes_read;
+      combined->total_bytes_written += curstats->total_bytes_written;
+
       for (rx = 0; rx < MYMIN(TOTAL_MAX, curstats->total_requests); ++rx)
-        stats_report_with_latency(combined, curstats->total_latencies[rx], &randctx, 0);
+        stats_report_with_latency(combined, curstats->total_latencies[rx],
+                                  &randctx, 0, 0);
     }
 
     /* And then summarize  */
@@ -730,22 +815,30 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
   }
 
-  stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency, &bytes);
+  stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency,
+                           &bytes_read, &bytes_written, &bytes_total);
 
   if (!final) {
-    printf("%s: %d loop, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max, %.1f MB/sec\n",
+    printf("%s: %d loop, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, "
+           "%.3f max, MB/sec %.1f read, %.1f write, %.1f r+w\n",
            msg, loop, sum_requests,
            (double) sum_requests / stats_interval,
            ((double) sum_latency / sum_requests) / 1000.0,
            p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0,
-	   bytes / (1024.0 * 1024) / stats_interval);
+	   bytes_read / (1024.0 * 1024) / stats_interval,
+	   bytes_written / (1024.0 * 1024) / stats_interval,
+	   bytes_total / (1024.0 * 1024) / stats_interval);
   } else {
-    printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max, %.1f MB/sec\n",
+    printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, "
+           "%.3f max, MB/sec %.1f read, %.1f write, %.1f r+w\n",
            msg, sum_requests,
            (double) sum_requests / test_duration,
            ((double) sum_latency / sum_requests) / 1000.0,
            p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0,
-	   combined->total_bytes / (1024.0 * 1024) / test_duration);
+	   combined->total_bytes_read / (1024.0 * 1024) / test_duration,
+	   combined->total_bytes_written / (1024.0 * 1024) / test_duration,
+	   (combined->total_bytes_read + combined->total_bytes_written)
+               / (1024.0 * 1024) / test_duration);
   }
   free(combined);
 
@@ -755,12 +848,12 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 void open_data_files(int prepare) {
   int page_num;
   char* buf;
+  void* vbuf;
   int i;
   struct stat stat_buf;
 
-  // TODO -- O_DIRECT, O_SYNC?
-
-  buf = (char*) malloc(data_block_size);
+  assert(!posix_memalign(&vbuf, data_block_size, data_block_size));
+  buf = vbuf;
   dfiles = (DFILE*) malloc(num_data_files * sizeof(DFILE));
 
   if (prepare) {
@@ -848,12 +941,16 @@ void print_help() {
 "  --num-data-files n    -- number of database files\n"
 "  --num-compact n       -- number of compaction threads\n"
 "  --num-users n         -- number of user threads\n"
+"  --compact-read-miss-percent n -- pct of compaction reads that do disk IO\n"
+"  --write-bytes-per-second -- rate limit for compaction writes\n"
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
 "  --test-duration n     -- number of seconds to run the test\n"
 "  --scheduler-sleep-usecs n -- page writes are scheduled every n microseconds\n"
 "  --buffer-pool-mb n    -- size of DBMS buffer pool in MB\n"
 "  --compress-level n    -- zlib compression level, when 0 no compression is used\n"
-"  --sync [no|fsync|odirect|odirect_fsync|odirect_osync|no_fadvise]\n"
+"  --sync [no|fsync|odirect|odirect_fsync|odirect_osync]\n"
+"  --advise_user 1|0     -- when 1 use POSIX_FADV_RANDOM for random reads\n"
+"  --advise_compact 1|0  -- when 1 use POSIX_FADV_SEQUENTIAL for compact reads\n"
 "  --checksum-write 1|0  -- write checksums\n"
 "  --checksum-verify 1|0 -- verify checksums\n"
 "  --update-pct n        -- percentage of user requests that are updates\n"
@@ -873,8 +970,6 @@ void process_options(int argc, char **argv) {
 
     } else if (!strcmp(argv[x], "--sync")) {
       if (x == (argc - 1)) { printf("--sync needs an arg\n"); exit(-1); }
-      int sx;
-
       ++x;
 
       if (!strcmp(argv[x], "fsync")) {
@@ -885,11 +980,21 @@ void process_options(int argc, char **argv) {
 	sync_type = SYNC_ODIRECT_FSYNC;
       } else if (!strcmp(argv[x], "odirect_sync")) {
 	sync_type = SYNC_ODIRECT_SYNC;
-      } else if (!strcmp(argv[x], "no_fadvise")) {
-	sync_type = SYNC_NO_FADVISE;
       } else {
 	sync_type = SYNC_NO;
       }
+
+    } else if (!strcmp(argv[x], "--advise-user")) {
+      if (x == (argc - 1)) { printf("--advise-user needs an arg\n"); exit(-1); }
+      advise_user = atoi(argv[++x]);
+
+    } else if (!strcmp(argv[x], "--advise-compact")) {
+      if (x == (argc - 1)) { printf("--advise-compact needs an arg\n"); exit(-1); }
+      advise_compact = atoi(argv[++x]);
+
+    } else if (!strcmp(argv[x], "--write-bytes-per-second")) {
+      if (x == (argc - 1)) { printf("--write-bytes-per-second needs an arg\n"); exit(-1); }
+      write_bytes_per_second = atoll(argv[++x]);
 
     } else if (!strcmp(argv[x], "--prepare")) {
       if (x == (argc - 1)) { printf("--prepare needs an arg\n"); exit(-1); }
@@ -954,6 +1059,15 @@ void process_options(int argc, char **argv) {
       if (x == (argc - 1)) { printf("--num-users needs an arg\n"); exit(-1); }
       num_users = atoi(argv[++x]);
 
+    } else if (!strcmp(argv[x], "--compact-read-miss-percent")) {
+      if (x == (argc - 1)) { printf("--compact-read-miss-percent needs an arg\n"); exit(-1); }
+      compact_read_miss_pct = atoi(argv[++x]);
+      if (compact_read_miss_pct > 100 || compact_read_miss_pct < 0) {
+        printf("--compact-miss-read-percent is %d and must be between 0 and 100\n",
+               compact_read_miss_pct);
+        exit(-1);
+      }
+
     } else if (!strcmp(argv[x], "--stats-interval")) {
       if (x == (argc - 1)) { printf("--stats-interval needs an arg\n"); exit(-1); }
       stats_interval = atoi(argv[++x]);
@@ -977,8 +1091,18 @@ void process_options(int argc, char **argv) {
     exit(-1);
   }
 
+  /* Compute seconds per loop as:
+     1 / (bytes/second * loops/byte)
+  */
+  if (write_bytes_per_second) {
+    secs_per_loop_per_thr = 1 /
+      ((write_bytes_per_second / num_compact) *
+      (1.0 / ((fanout+1) * data_file_size)));
+  }
+
   printf("Prepare files: %d\n", prepare);
   printf("Sync type: %s\n", sync_names[sync_type]);
+  printf("Advise user: %d, compact: %d\n", advise_user, advise_compact);
   printf("Database directory: %s\n", data_dir);
   printf("Database file name: %s\n", data_fname);
   printf("Database file size: %llu\n", data_file_size);
@@ -987,13 +1111,17 @@ void process_options(int argc, char **argv) {
   printf("Number of database files: %d\n", num_data_files);
   printf("Number of compaction threads: %d\n", num_compact);
   printf("Number of user threads: %d\n", num_users);
+  printf("Compact read miss percent: %d\n", compact_read_miss_pct);
+  printf("Write bytes per second: %lld\n", write_bytes_per_second);
+  printf("Seconds per loop per compact thread: %0.3f\n", secs_per_loop_per_thr);
+  printf("Loops per second per compact thread: %0.3f\n", 1 / secs_per_loop_per_thr);
   printf("Stats interval: %d\n", stats_interval);
   printf("Test duration: %d\n", test_duration);
   printf("Use compression=%s with level %d\n",
          compress_level > 0 ? "yes" : "no", compress_level);
   printf("Sync redolog: %d\n", redolog_sync);
   printf("Sync redolog wait milliseconds: %d\n", redolog_sync_wait_millis);
-!  printf("Update percent: %d\n", update_pct);
+  printf("Update percent: %d\n", update_pct);
   printf("Checksums: %d verify, %d write, %d assert\n",
          checksum_verify, checksum_write, checksum_assert);
 }
