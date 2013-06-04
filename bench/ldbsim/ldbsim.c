@@ -111,15 +111,17 @@ int uncompressed_page_len;
 #define MYMIN(x,y) ((x) < (y) ? (x) : (y))
 #define MYMAX(x,y) ((x) > (y) ? (x) : (y))
 
-#define SYNC_NO            0
-#define SYNC_FSYNC         1
-#define SYNC_ODIRECT       2
-#define SYNC_ODIRECT_FSYNC 3
-#define SYNC_ODIRECT_SYNC  4
+#define SYNC_NO                0
+#define SYNC_FSYNC             1
+#define SYNC_FDATASYNC         2
+#define SYNC_ODIRECT           3
+#define SYNC_ODIRECT_FSYNC     4
+#define SYNC_ODIRECT_SYNC      5
 
 char* sync_names[] = {
   "no",
   "fsync",
+  "fdatasync",
   "odirect",
   "odirect_fsync",
   "odirect_sync"
@@ -191,7 +193,9 @@ void set_compact_options(int fd) {
 void sync_after_writes(int fd) {
   if (sync_type == SYNC_FSYNC ||
       sync_type == SYNC_ODIRECT_FSYNC)
-    fsync(fd);
+    assert(!fsync(fd));
+  else if (sync_type == SYNC_FDATASYNC)
+    assert(!fdatasync(fd));
 }
 
 void check_write(int fd, void* buf, size_t size, const char* msg) {
@@ -948,7 +952,7 @@ void print_help() {
 "  --scheduler-sleep-usecs n -- page writes are scheduled every n microseconds\n"
 "  --buffer-pool-mb n    -- size of DBMS buffer pool in MB\n"
 "  --compress-level n    -- zlib compression level, when 0 no compression is used\n"
-"  --sync [no|fsync|odirect|odirect_fsync|odirect_osync]\n"
+"  --sync [no|fsync|fdatasync|odirect|odirect_fsync|odirect_osync]\n"
 "  --advise_user 1|0     -- when 1 use POSIX_FADV_RANDOM for random reads\n"
 "  --advise_compact 1|0  -- when 1 use POSIX_FADV_SEQUENTIAL for compact reads\n"
 "  --checksum-write 1|0  -- write checksums\n"
@@ -974,6 +978,8 @@ void process_options(int argc, char **argv) {
 
       if (!strcmp(argv[x], "fsync")) {
 	sync_type = SYNC_FSYNC;
+      } else if (!strcmp(argv[x], "fdatasync")) {
+	sync_type = SYNC_FDATASYNC;
       } else if (!strcmp(argv[x], "odirect")) {
 	sync_type = SYNC_ODIRECT;
       } else if (!strcmp(argv[x], "odirect_fsync")) {
