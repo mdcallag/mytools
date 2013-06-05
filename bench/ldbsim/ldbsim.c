@@ -95,6 +95,13 @@ typedef struct {
 } DFILE;
 
 DFILE* dfiles = NULL;
+DFILE* recycle_dfiles = NULL;
+
+int file_recycle_limit = 0;
+int file_recycle_count = 0;
+int file_recycle_truncate = 0;
+
+int use_sync_file_range = 0;
 
 int redolog_fd;
 longlong redolog_offset = 0;
@@ -137,6 +144,7 @@ double secs_per_loop_per_thr = 0.0;
 pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t redolog_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t dfiles_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t recycle_dfiles_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define INTERVAL_MAX  100000
 #define TOTAL_MAX    1000000
@@ -599,10 +607,63 @@ void* user_func(void* arg) {
   return arg;
 }
 
+int get_recycled_files(DFILE* new_dfiles, int limit) {
+  int i, found = 0;
+
+  if (!file_recycle_limit)
+    return 0;
+
+  pthread_mutex_lock(&recycle_dfiles_mutex);
+  for (i = 0; i < limit && file_recycle_count; ++i, --file_recycle_count) {
+    assert(file_recycle_count >= 0 && file_recycle_count < file_recycle_limit);
+    new_dfiles[i] = recycle_dfiles[file_recycle_count - 1];
+  }
+  pthread_mutex_unlock(&recycle_dfiles_mutex);
+  found = i;
+
+  /* This isn't done in handle_old_files to avoid mutex waits */
+  if (file_recycle_truncate)
+    for (i = 0; i < found; ++i) {
+      assert(!lseek(new_dfiles[i].dfile_fd, 0, SEEK_SET));
+      assert(!ftruncate(new_dfiles[i].dfile_fd, 0));
+    }
+
+  return found;
+}
+
+void delete_files() {
+  int i;
+  pthread_mutex_lock(&recycle_dfiles_mutex);
+  for (i = 0; i < file_recycle_count; ++i) {
+    assert(!close(recycle_dfiles[i].dfile_fd));
+    assert(!unlink(recycle_dfiles[i].dfile_fname));
+    free(recycle_dfiles[i].dfile_fname);
+  }
+  file_recycle_count = 0;
+  pthread_mutex_unlock(&recycle_dfiles_mutex);
+
+  if (recycle_dfiles)
+    free(recycle_dfiles);
+
+  for (i = 0; i < num_data_files; ++i)
+    free(dfiles[i].dfile_fname);
+  free(dfiles);
+}
+
 void handle_old_files(int count, int* fds, char** fnames) {
   int i;
 
-  for (i=0; i < count; ++i) {
+  pthread_mutex_lock(&recycle_dfiles_mutex);
+  for (i = 0; i < count && file_recycle_count < (file_recycle_limit-1); ++i, ++file_recycle_count) {
+    assert(file_recycle_count >= 0 && file_recycle_count < (file_recycle_limit-1));
+    recycle_dfiles[file_recycle_count].dfile_fd = fds[i];
+    recycle_dfiles[file_recycle_count].dfile_len = 0;
+    recycle_dfiles[file_recycle_count].dfile_locked = 0;
+    recycle_dfiles[file_recycle_count].dfile_fname = fnames[i];
+  }
+  pthread_mutex_unlock(&recycle_dfiles_mutex);
+
+  for (; i < count; ++i) {
     assert(!close(fds[i]));
 
     if (unlink(fnames[i])) {
@@ -613,6 +674,7 @@ void handle_old_files(int count, int* fds, char** fnames) {
     free(fnames[i]);
   }
 }
+
 
 void* compact_func(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
@@ -665,7 +727,9 @@ void* compact_func(void* arg) {
 
     now(&start);
 
-    for (i=0; i < (fanout+1); ++i)
+    i = get_recycled_files(new_dfiles, fanout+1);
+
+    for (; i < (fanout+1); ++i)
       open_file(1, &new_dfiles[i], NULL);
 
     while (read_offset < data_file_size) {
@@ -705,12 +769,21 @@ void* compact_func(void* arg) {
         output_offset += read_size;
         if (output_offset >= data_file_size) {
           new_dfiles[output_x].dfile_len = output_offset;
-	  sync_after_writes(new_dfiles[output_x].dfile_fd);
+          if (use_sync_file_range) {
+            sync_file_range(new_dfiles[output_x].dfile_fd, 0, 0,
+                            SYNC_FILE_RANGE_WRITE);
+          } else {
+  	    sync_after_writes(new_dfiles[output_x].dfile_fd);
+          }
           ++output_x;
           output_offset = 0;
         }
       }
     }
+
+    if (use_sync_file_range)
+      for (i=0; i < (fanout+1); ++i)
+        sync_after_writes(new_dfiles[i].dfile_fd);
 
     stats_report(stats, &start, &ctx, bytes_read, bytes_written);
 
@@ -859,6 +932,9 @@ void open_data_files(int prepare) {
   assert(!posix_memalign(&vbuf, data_block_size, data_block_size));
   buf = vbuf;
   dfiles = (DFILE*) malloc(num_data_files * sizeof(DFILE));
+  if (file_recycle_limit) {
+    recycle_dfiles = (DFILE*) malloc(file_recycle_limit * sizeof(DFILE));
+  }
 
   if (prepare) {
 
@@ -945,6 +1021,9 @@ void print_help() {
 "  --num-data-files n    -- number of database files\n"
 "  --num-compact n       -- number of compaction threads\n"
 "  --num-users n         -- number of user threads\n"
+"  --file-recycle-limit 1|0 -- when > 0 reuse old files instead of deleting\n"
+"  --file-recycle-truncate 1|0 -- when > 0 truncate files before reusing them\n"
+"  --sync-file-range 1|0 -- when 1 then use sync_file_range to start syncs faster during compaction\n"
 "  --compact-read-miss-percent n -- pct of compaction reads that do disk IO\n"
 "  --write-bytes-per-second -- rate limit for compaction writes\n"
 "  --stats-interval n    -- interval in seconds at which stats are reported\n"
@@ -989,6 +1068,22 @@ void process_options(int argc, char **argv) {
       } else {
 	sync_type = SYNC_NO;
       }
+
+    } else if (!strcmp(argv[x], "--sync-file-range")) {
+      if (x == (argc - 1)) { printf("--sync-file-range needs an arg\n"); exit(-1); }
+      use_sync_file_range = atoi(argv[++x]);
+
+    } else if (!strcmp(argv[x], "--file-recycle-limit")) {
+      if (x == (argc - 1)) { printf("--file-recycle-limit needs an arg\n"); exit(-1); }
+      file_recycle_limit = atoi(argv[++x]);
+      if (file_recycle_limit < 0) {
+        printf("file-recycle-limit is %d and must be >= 0\n", file_recycle_limit);
+        exit(-1);
+      }
+
+    } else if (!strcmp(argv[x], "--file-recycle-truncate")) {
+      if (x == (argc - 1)) { printf("--file-recycle-truncate needs an arg\n"); exit(-1); }
+      file_recycle_truncate = atoi(argv[++x]);
 
     } else if (!strcmp(argv[x], "--advise-user")) {
       if (x == (argc - 1)) { printf("--advise-user needs an arg\n"); exit(-1); }
@@ -1117,6 +1212,9 @@ void process_options(int argc, char **argv) {
   printf("Number of database files: %d\n", num_data_files);
   printf("Number of compaction threads: %d\n", num_compact);
   printf("Number of user threads: %d\n", num_users);
+  printf("Use sync_file_range(): %d\n", use_sync_file_range);
+  printf("File recycle limit: %d\n", file_recycle_limit);
+  printf("File recycle truncate: %d\n", file_recycle_truncate);
   printf("Compact read miss percent: %d\n", compact_read_miss_pct);
   printf("Write bytes per second: %lld\n", write_bytes_per_second);
   printf("Seconds per loop per compact thread: %0.3f\n", secs_per_loop_per_thr);
@@ -1259,6 +1357,8 @@ int main(int argc, char **argv) {
   print_percentiles(user_per_interval, "user", max_loops);
 
   pthread_mutex_unlock(&stats_mutex);
+
+  delete_files();
 
   free(compact_threads);
   free(compact_stats);
