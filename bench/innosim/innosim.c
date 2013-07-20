@@ -1222,6 +1222,8 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   n_blocks_per_file = n_blocks / data_file_number;
+  /* Avoid rounding errors */
+  n_blocks = n_blocks_per_file * data_file_number;
   data_file_size = n_blocks_per_file * data_block_size;
 
   stats_init(&scheduler_stats);
