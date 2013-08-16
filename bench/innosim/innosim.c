@@ -964,7 +964,7 @@ void print_help() {
 "  --trxlog-file-name s  -- pathname for transaction log file\n"
 "  --data-file-name s    -- pathname for database file\n"
 "  --data-file-number x  -- number of database files\n"
-"  --data-file-size n    -- size of all database file(s) in bytes\n"
+"  --database-size n     -- size of all database file(s) in bytes\n"
 "  --data-block-size n   -- size of database blocks in bytes\n"
 "  --doublewrite-file-name s -- pathname for doublewrite file, when not set use first 2MB of data file\n"
 "  --binlog 1|0          -- 1: write to binlog, 0: don't write to it\n"
