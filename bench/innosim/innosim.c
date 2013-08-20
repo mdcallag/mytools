@@ -285,12 +285,12 @@ void page_fill(char* page, unsigned int page_num) {
 void page_check_checksum(char* page, unsigned int page_num) {
     int computed_cs = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
     int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
-    int stored_page_num = (int) deserialize_int(page + PAGE_NUM_OFFSET);
+    unsigned int stored_page_num = deserialize_int(page + PAGE_NUM_OFFSET);
 
     if (computed_cs != stored_cs || page_num != stored_page_num) {
       fprintf(stderr,
               "Cannot validate page, checksum stored(%d) and computed(%d), "
-              "page# stored(%d) and expected(%d)\n",
+              "page# stored(%u) and expected(%u)\n",
               stored_cs, computed_cs, stored_page_num, page_num);
       exit(-1);
     }
@@ -847,7 +847,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
 void buffer_pool_fill() {
   int x;
-  int page_num = 0;
+  unsigned int page_num = 0;
 
   for (x=0; x < buffer_pool_pages; ++x) {
     char* page = buffer_pool_mem + (x * data_block_size);
@@ -903,13 +903,12 @@ void prepare_file(const char* fname, longlong size) {
 
 void prepare_data_files() {
   int fd;
-  int page_num;
+  unsigned int page_num;
   char* buf;
-  const int BUF_SIZE = 1024 * 1024;
   char fname_buf[1000];
   int i;
 
-  buf = (char*) malloc(BUF_SIZE);
+  buf = (char*) malloc(data_block_size);
 
   for (i = 0; i < data_file_number; ++i) {
     snprintf(fname_buf, 1000-1, "%s.%d", data_fname, i);
@@ -1216,15 +1215,23 @@ int main(int argc, char **argv) {
   process_options(argc, argv);
 
   n_blocks = database_size / data_block_size;
-  if (n_blocks >= 0xffffffff) {
-    fprintf(stderr, "database-size/data-block-size must be "
-            "less than 0xffffffff\n");
+  if (n_blocks > 0xffffffff) {
+    fprintf(stderr,
+            "database-size/data-block-size must be <= 0xffffffff\n");
     exit(-1);
   }
   n_blocks_per_file = n_blocks / data_file_number;
   /* Avoid rounding errors */
   n_blocks = n_blocks_per_file * data_file_number;
   data_file_size = n_blocks_per_file * data_block_size;
+
+  printf("After adjustments\n"
+         "  blocks-per-file %lld\n"
+         "  blocks-total    %lld\n"
+         "  data-file-size  %lld\n",
+         (long long) n_blocks_per_file,
+         (long long) n_blocks,
+         (long long) data_file_size);
 
   stats_init(&scheduler_stats);
   stats_init(&doublewrite_stats);
