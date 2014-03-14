@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 Facebook Inc.  
+/* Copyright (C) 2011 Facebook Inc.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <zlib.h>
+#include <math.h>
 
 typedef unsigned long long ulonglong;
 typedef long long longlong;
@@ -59,6 +60,12 @@ int scheduler_sleep_usecs = 100000;
 int test_duration = 60;
 
 int prepare = 0;
+
+enum {
+  DISTRIBUTION_UNIFORM = 0,
+  DISTRIBUTION_LATEST = 1,
+  DISTRIBUTION_ZIPFIAN = 2,
+} distribution = DISTRIBUTION_UNIFORM;
 
 int doublewrite = 1;
 int binlog = 1;
@@ -120,6 +127,9 @@ char* trxlog_buf = NULL;
 
 size_t n_blocks = 0;
 size_t n_blocks_per_file = 0;
+
+longlong zipfian_items;
+double zetan, eta;
 
 #define MYMIN(x,y) ((x) < (y) ? (x) : (y))
 #define MYMAX(x,y) ((x) > (y) ? (x) : (y))
@@ -216,13 +226,65 @@ void block_to_file(longlong block_num, int* file_num, longlong* block_in_file) {
   assert(*block_in_file < n_blocks_per_file);
 }
 
+double zeta(longlong n, double theta) {
+  double sum = 0.0;
+  longlong i;
+  for (i = 1; i <= n; i++)
+    sum += 1.0/pow(i, theta);
+  return sum;
+}
+
+void init_zipfian(longlong items, double _zetan) {
+  zipfian_items = items;
+  zetan = _zetan != 0.0 ? _zetan : zeta(items, 0.99);
+  eta = (1.0 - pow(2.0/items, 0.01))/(1.0 - 1.5/zetan);
+}
+
+longlong next_zipfian(double randval) {
+  double uz = randval * zetan;
+
+  if (uz < 1.0)
+    return 0;
+  if (uz < 1.50348)
+    return 1;
+
+  return (longlong)(zipfian_items * pow(eta * randval - eta + 1.0, 100));
+}
+
+longlong fnv_hash64(longlong val) {
+  //from http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
+  longlong hashval = 0xCBF29CE484222325L;
+  int i;
+
+  for (i = 0; i < 8; ++i) {
+    longlong octet = val & 0xff;
+    val >>= 8;
+
+    hashval = hashval ^ octet;
+    hashval = hashval * 1099511628211L;
+  }
+
+  return (hashval > 0) ? hashval : -hashval;
+}
+
 longlong rand_block(struct drand48_data* ctx) {
   longlong b;
+  double r = rand_double(ctx);
 
-  /* Don't generate page# from doublewrite space in file 0 */
-  b = (rand_double(ctx) * (n_blocks - DOUBLEWRITE_SIZE)) + DOUBLEWRITE_SIZE;
-  b = MYMIN(b, (n_blocks-1));
-  return b;
+  switch (distribution) {
+
+    case DISTRIBUTION_LATEST:
+      return DOUBLEWRITE_SIZE + next_zipfian(r);
+
+    case DISTRIBUTION_ZIPFIAN:
+      return DOUBLEWRITE_SIZE + fnv_hash64(next_zipfian(r)) % (n_blocks - DOUBLEWRITE_SIZE);
+
+    case DISTRIBUTION_UNIFORM:
+    default:
+      b = (r * (n_blocks - DOUBLEWRITE_SIZE)) + DOUBLEWRITE_SIZE;
+      return MYMIN(b, (n_blocks-1));
+
+  }
 }
 
 char* rand_buffer_pool_ptr(long long bytes_from_end, struct drand48_data* ctx) {
@@ -373,14 +435,14 @@ void stats_report_with_latency(operation_stats* stats,
   else
     sample_index = rand_double(randctx) * stats->interval_requests;
   if (sample_index < INTERVAL_MAX)
-    stats->interval_latencies[sample_index] = latency; 
+    stats->interval_latencies[sample_index] = latency;
 
   if (stats->total_requests <= TOTAL_MAX)
     sample_index = stats->total_requests - 1;
   else
     sample_index = rand_double(randctx) * stats->total_requests;
   if (sample_index < TOTAL_MAX)
-    stats->total_latencies[sample_index] = latency; 
+    stats->total_latencies[sample_index] = latency;
 }
 
 void stats_report(operation_stats* stats,
@@ -490,14 +552,14 @@ int buffer_pool_list_pop(buffer_pool_t* pool, longlong* page_id) {
 
   *page_id = pool->list[pool->list_head];
   pool->list_count--;
-  pool->list_head = (pool->list_head + 1) % BUFFER_POOL_MAX; 
+  pool->list_head = (pool->list_head + 1) % BUFFER_POOL_MAX;
 
   pthread_cond_broadcast(&buffer_pool_list_not_full);
 
   return 0;
 }
 
-void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int write_size, 
+void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int write_size,
                int truncate_if_max, int fd, char* buf,
                operation_stats* write_stats, operation_stats* fsync_stats, struct drand48_data* ctx) {
 
@@ -505,7 +567,7 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     int x;
 
     pthread_mutex_lock(mux);
- 
+
     for (x=0; x < write_size; ++x)
       buf[x] = (char) x;
 
@@ -542,7 +604,7 @@ void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
   pthread_mutex_lock(&buffer_pool_mutex);
 
   while ((pool->dirty_pages + pool->list_count) >= max_dirty_pages)
-    pthread_cond_wait(&buffer_pool_list_not_full, &buffer_pool_mutex);    
+    pthread_cond_wait(&buffer_pool_list_not_full, &buffer_pool_mutex);
 
   pool->dirty_pages++;
   pthread_mutex_unlock(&buffer_pool_mutex);
@@ -566,7 +628,7 @@ int buffer_pool_schedule_writes(buffer_pool_t* pool, struct drand48_data* ctx, c
   int pages = 0, x;
   struct timeval start;
   longlong page_array[DOUBLEWRITE_SIZE];
- 
+
   pthread_mutex_lock(&buffer_pool_mutex);
   if (pool->dirty_pages) {
     pages = MYMIN(pool->dirty_pages, DOUBLEWRITE_SIZE);
@@ -648,7 +710,7 @@ void* user_func(void* arg) {
       now(&start);
       ++io_ops;
       assert(pread64(data_fd[file_num], data, data_block_size, offset) == data_block_size);
-      
+
       page_check_checksum(data, (unsigned int) block_num);
 
       if (compress_level)
@@ -704,7 +766,7 @@ void* user_func(void* arg) {
           io_start = io_cur;
         }
         io_per_interval = io_per_thr_per_sec / 10;
-      }      
+      }
     }
   }
 
@@ -723,7 +785,7 @@ void* write_scheduler_func(void* arg) {
   assert(!posix_memalign((void**) &data, data_block_size, DOUBLEWRITE_SIZE * data_block_size));
 
   while (!shutdown) {
-    
+
     now(&start);
     while (buffer_pool_schedule_writes(&buffer_pool, &ctx, data)) {
       stats_report(stats, &start, &ctx);
@@ -805,7 +867,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
       sum_latency += latency;
       if (maxv > max_maxv) max_maxv = maxv;
     }
-   
+
   } else {
     /* Merge into combined */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats)
@@ -966,6 +1028,7 @@ void print_help() {
 "  --database-size n     -- size of all database file(s) in bytes\n"
 "  --data-block-size n   -- size of database blocks in bytes\n"
 "  --doublewrite-file-name s -- pathname for doublewrite file, when not set use first 2MB of data file\n"
+"  --distribution u|l|z  -- distribution pattern: [u]niform, [l]atest, [z]ipfian\n"
 "  --binlog 1|0          -- 1: write to binlog, 0: don't write to it\n"
 "  --trxlog 1|0          -- 1: write to transaction log, 0: don't write to it\n"
 "  --binlog-write-size n -- size of binlog writes in bytes\n"
@@ -1021,6 +1084,18 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--doublewrite-file-name")) {
       if (x == (argc - 1)) { printf("--doublewrite-file-name needs an arg\n"); exit(-1); }
       doublewrite_fname = argv[++x];
+
+    } else if (!strcmp(argv[x], "--distribution")) {
+      if (x == (argc - 1)) { printf("--distribution needs an arg\n"); exit(-1); }
+      char c = argv[++x][0];
+      switch (c) {
+        case 'u': distribution = DISTRIBUTION_UNIFORM; break;
+        case 'l': distribution = DISTRIBUTION_LATEST; break;
+        case 'z': distribution = DISTRIBUTION_ZIPFIAN; break;
+        default:
+          printf("invalid arg for --distribution: %s\n", argv[x]);
+          break;
+      }
 
     } else if (!strcmp(argv[x], "--binlog")) {
       if (x == (argc - 1)) { printf("--binlog needs an arg\n"); exit(-1); }
@@ -1107,7 +1182,7 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--test-duration")) {
       if (x == (argc - 1)) { printf("--test-duration needs an arg\n"); exit(-1); }
       test_duration = atoi(argv[++x]);
-  
+
     } else if (!strcmp(argv[x], "--buffer-pool-mb")) {
       buffer_pool_mb = atoi(argv[++x]);
       if (buffer_pool_mb < 1 || buffer_pool_mb > 1000000) {
@@ -1200,7 +1275,7 @@ void print_percentiles(int *per_interval, const char* msg, int max_loops)
          per_interval[(int) (max_loops * 0.02)],
          per_interval[(int) (max_loops * 0.01)]);
 }
- 
+
 int main(int argc, char **argv) {
   pthread_t *writer_threads;
   pthread_t *user_threads;
@@ -1240,8 +1315,14 @@ int main(int argc, char **argv) {
 
   stats_init(&trxlog_write_stats);
   stats_init(&trxlog_fsync_stats);
- 
+
   buffer_pool_init(&buffer_pool);
+
+  if (distribution == DISTRIBUTION_LATEST) {
+    init_zipfian(n_blocks - DOUBLEWRITE_SIZE, 0.0);
+  } else if (distribution == DISTRIBUTION_ZIPFIAN) {
+    init_zipfian(10000000000L, 26.46902820178302);
+  }
 
   if (prepare)
     prepare_data_files();
@@ -1266,14 +1347,14 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  if (binlog) { 
+  if (binlog) {
     binlog_fd = open(binlog_fname, O_CREAT|O_WRONLY|O_TRUNC, 0644);
     assert(binlog_fd >= 0);
     binlog_buf = (char*) malloc(binlog_write_size);
     fprintf(stderr, "binlog %s uses file descriptor %d\n", binlog_fname, binlog_fd);
   }
 
-  if (trxlog) { 
+  if (trxlog) {
     prepare_file(trxlog_fname, trxlog_file_size);
     trxlog_fd = open(trxlog_fname, O_CREAT|O_WRONLY, 0644);
     assert(trxlog_fd >= 0);
@@ -1365,7 +1446,7 @@ int main(int argc, char **argv) {
            doublewrite_pages / MYMAX((double) doublewrite_writes, 1.0));
     doublewrite_pages = 0;
     doublewrite_writes = 0;
- 
+
     pthread_mutex_unlock(&stats_mutex);
   }
 
@@ -1415,7 +1496,7 @@ int main(int argc, char **argv) {
 
   free(compressed_page);
   free(buffer_pool_mem);
-  for (i = 0; i < num_users; ++i) 
+  for (i = 0; i < num_users; ++i)
     free(user_stats[i].compress_buf);
 
   free(data_fd);
@@ -1428,3 +1509,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
