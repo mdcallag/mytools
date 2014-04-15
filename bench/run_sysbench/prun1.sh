@@ -25,11 +25,21 @@ case $strx in
     xa="--oltp-read-only --oltp-skip-trx --oltp-test-mode=simplejoin " ;;
   "incupd")
     xa="--oltp-skip-trx --oltp-test-mode=incupdate " ;;
+  "incupd2")
+    xa="--oltp-skip-trx --oltp-test-mode=incupdate2 " ;;
   "incins")
     xa="--oltp-skip-trx --oltp-test-mode=incinsert " ;;
+  "updnokey")
+    xa="--oltp-test-mode=nontrx --oltp-nontrx-mode=update_nokey " ;;
+  "siro")
+    xa="--oltp-read-only --oltp-point-selects=0 --oltp-simple-ranges=0 --oltp-order-ranges=0 --oltp-distinct-ranges=0 --oltp-sum-ranges=1 " ;;
   "sirw")
     # xa="--oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-simple-update " ;;
     xa="--oltp-test-mode=simple --oltp-point-select-all-cols --oltp-simple-update " ;;
+  "sirolist")
+    xa="--oltp-read-only --oltp-point-selects=0 --oltp-simple-ranges=0 --oltp-order-ranges=0 --oltp-distinct-ranges=0 --oltp-sum-ranges=0 --oltp-inlist-sum=1 " ;;
+  "range")
+    xa="--oltp-test-mode=complex --oltp-point-selects=0 --oltp-sum-ranges=0 --oltp-order-ranges=0 --oltp-distinct-ranges=0 --oltp-index-updates=0 --oltp-non-index-updates=0 --oltp-skip-trx --oltp-read-only " ;;
   "rw"|*)
     xa="" ;;
 esac
@@ -81,15 +91,18 @@ fi
 
 run_mysql="$mysql -u$myu -p$myp -h$dbh $myd -A"
 
-sb="/data/bench/sysbench4 "
+sb="./sysbench "
 
 if [[ $e == "heap" ]]; then
   xa="$xa --oltp-auto-inc=off"
 fi
 
+xa="$xa --oltp-connect-delay=0 --percentile=99"
+# xa="$xa --oltp-reconnect-mode=query"
+
 def_args=" --mysql-host=$dbh --mysql-user=$myu --mysql-password=$myp --mysql-db=$myd "
 sb_args=" --test=oltp ${def_args} --oltp-table-size=$nr --max-time=$t --max-requests=0 --mysql-table-engine=$e --db-ps-mode=disable --mysql-engine-trx=$etrx --oltp-table-name=sbtest${id} "
-sb_args=" --batch --batch-delay=60 $sb_args"
+sb_args=" --batch --batch-delay=10 $sb_args "
 
 if [[ $prepare == "yes" ]]; then
   echo Setup for $id using database $myd
@@ -143,31 +156,34 @@ while [[ $dop -le $maxdop ]]; do
 
     lag=1000000
     lag_sleep=1
-    while [[ $lag -gt 1000 ]]; do
+    while [[ $lag -gt 10000 ]]; do
       sleep $lag_sleep
       lag=$( $run_mysql -e "show engine innodb status\G" | grep History | awk '{ print $4 }' )
       echo Wait for purge lag to drop from $lag to 1000 with dop $dop
       lag_sleep=10
     done
 
-    echo Touch go.${dop} at $( date )
-    touch go.${dop}
+    rngSeed=$( date +%s )
+    echo Touch go.${dop} at $( date ) using $rngSeed
+    echo $rngSeed > go.${dop}
   else
     while [[ ! -f go.${dop} ]] ; do
       echo Wait for go.${dop} from $id
       sleep 1
     done
-    echo Done wait for go.${dop}
+    rngSeed=$( cat go.${dop} )
+    echo Done wait for go.${dop} got $rngSeed
   fi
 
   echo Run $dop at $( date )
-  echo $sb $sb_args $xa --num-threads=$dop --seed-rng=$(( $dop * $id )) run
-  $sb $sb_args $xa --num-threads=$dop --seed-rng=$(( $dop * $id )) run
+  echo $sb $sb_args $xa --num-threads=$dop --seed-rng=$(( $id + $rngSeed )) run
+  $sb $sb_args $xa --num-threads=$dop --seed-rng=$(( $id + $rngSeed )) run
 
   echo
   $run_mysql -e "show table status like \"sbtest${id}\""
   $run_mysql -e "select * from sbtest${id} order by id asc limit 2"
 
+#  dop=$(( $dop * 4 ))
   dop=$(( $dop * 2 ))
 #  dop=$(( $dop + 1 ))
 

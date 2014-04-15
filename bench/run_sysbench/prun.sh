@@ -12,17 +12,14 @@ myu=$4
 myp=$5
 myd=$6
 
-# if yes then enable oprofile else ignore
-use_oprofile=$7
-
 # name of storage engine
-engine=$8
+engine=$7
 
 # number of rows
-nr=$9
+nr=$8
 
 # Test duration
-t=${10}
+t=${9}
 
 # rw : (default, no extra params)
 # ro   : --oltp-read-only --oltp-skip-trx
@@ -33,41 +30,48 @@ t=${10}
 # siac : --oltp-read-only --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols
 # sij : --oltp-read-only --oltp-skip-trx --oltp-test-mode=simplejoin 
 # incupd : --oltp-skip-trx --oltp-test-mode=incupdate
+# incupd2 : --oltp-skip-trx --oltp-test-mode=incupdate2
+# updnokey : --oltp-test-mode=nontrx --oltp-nontrx-mode=update_nokey
 # incins : --oltp-skip-trx --oltp-test-mode=incinsert
 # sirw : --oltp-skip-trx --oltp-test-mode=simple --oltp-point-select-all-cols --oltp-simple-update
+# siro : --oltp-read-only --oltp-point-selects=0 --oltp-simple-ranges=0 --oltp-order-ranges=0 --oltp-distinct-ranges=0 --oltp-sum-ranges=1
+# sirolist : --oltp-read-only --oltp-point-selects=0 --oltp-simple-ranges=0 --oltp-order-ranges=0 --oltp-distinct-ranges=0 --oltp-sum-ranges=0 --oltp-inlist-values=1
+# range : 1 range query per trx
 
-strx=${11}
+strx=${10}
 
 # if yes then prepare the sbtest table else ignore
-prepare=${12}
+prepare=${11}
 
 # if yes then drop the sbtest table at test end else ignore
-drop=${13}
+drop=${12}
 
 # --mysql-engine-trx=[yes,no]
-etrx=${14}
+etrx=${13}
 
-dbh=${15}
+dbh=${14}
 
 # when 'no' --oltp-secondary
-usepk=${16}
+usepk=${15}
 
 # distribution u==uniform, s==special
-dist=${17}
+dist=${16}
 
 # yes -> warmup the buffer cache
-warmup=${18}
+warmup=${17}
 
 # value for --oltp-range-size
-range=${19}
+range=${18}
 
-nclients=${20}
+nclients=${19}
 
-use_compress=${21}
+use_compress=${20}
+
+restart=${21}
 
 shift 21
 
-echo use $nclients clients and $nr rows and $t secs
+echo use $nclients clients and $nr rows and $t secs and host $dbh
 
 while (( "$#" )) ; do
   b=$1
@@ -77,29 +81,32 @@ while (( "$#" )) ; do
   mysock=$mybase/var/mysql.sock
   echo Running $b from $mybase
 
-  ssh $dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
+  ssh root@$dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
 
   mysql=$mybase/bin/mysql
   run_mysql="$mysql -u$myu -p$myp -h$dbh -A "
 
-  echo Run ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
-  ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
+  if [[ $restart = "yes" ]]; then
+    echo Run ssh root@$dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
+    ssh root@$dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
 
-  if [[ $runasroot == "yes" ]] ; then
-    echo ssh $dbh "$mybase/bin/mysqld_safe --user=root > /dev/null 2>&1 &"
-    ssh $dbh "$mybase/bin/mysqld_safe --user=root > /dev/null 2>&1 &"
-  else
-    echo ssh start
-    ssh $dbh "$mybase/bin/mysqld_safe > /dev/null 2>&1 &"
+    if [[ $runasroot == "yes" ]] ; then
+      echo ssh root@$dbh "cd $mybase; bin/mysqld_safe --user=root > /dev/null 2>&1 &"
+      ssh root@$dbh "cd $mybase; bin/mysqld_safe --user=root > /tmp/so 2>&1 &"
+    else
+      echo ssh start
+      ssh root@$dbh "$mybase/bin/mysqld_safe > /dev/null 2>&1 &"
+    fi
+    sleep 1 
+    ssh root@$dbh "ls -l $mysock"
+    echo Sleep after startup  
+    sleep 40
+
   fi
-  sleep 1 
-  ssh $dbh "ls -l $mysock"
-  echo Sleep after startup  
-  sleep 40
 
-  echo ssh $dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
-  ssh $dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
-  ssh $dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock mysql -e \"delete from user where length(Password) = 0; flush privileges;\""
+  echo ssh root@$dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
+  ssh root@$dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock -e \"grant all on *.* to root@'%' identified by '$myp' \" "
+  ssh root@$dbh "$mybase/bin/mysql -u$myu -p$myp -S$mysock mysql -e \"delete from user where length(Password) = 0; flush privileges;\""
 
   rm -f ready.* go.*
 
@@ -122,31 +129,14 @@ while (( "$#" )) ; do
   # for i in $( seq 0 18 ) ; do $mybase/bin/mysql -u$myu -p$myp -h$dbh -e "show engine innodb status\G"; sleep 60 ; done > \
   #      sb.sis.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
 
-  if [[ $use_oprofile == "yes" ]]; then
-    ssh $dbh which opcontrol
-    ssh $dbh opcontrol --shutdown
-    # if ! ssh $dbh opcontrol --setup --no-vmlinux --event=CPU_CLK_UNHALTED:100000:0:0:1 --image=all --separate=library ; then
-      echo "try oprofile in timer mode"
-      if ! ssh $dbh opcontrol --setup --no-vmlinux --image=all --separate=library ; then
-        echo "cannot start oprofile"
-        # exit 1
-      fi
-#     fi
-    ssh $dbh opcontrol --no-vmlinux --start
-    ssh $dbh opcontrol --reset
-    ssh $dbh opcontrol --status
-  fi
+  ssh root@$dbh killall vmstat
+  ssh root@$dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
 
-  ssh $dbh killall vmstat
-  ssh $dbh "vmstat 10 100000" > sb.v.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
+  ssh root@$dbh killall iostat
+  ssh root@$dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
 
-  ssh $dbh killall iostat
-  ssh $dbh "iostat -x 10 100000" > sb.i.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
-
-  ssh $dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
-  ssh $dbh "sysctl dev.flashcache.zero_stats=1"
-  ssh $dbh "cat /proc/flashcache_stats" > sb.fc0.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist 
-  ssh $dbh "python /data/mstat.py --loops 1000000 --interval 10 --db_user=$myu --db_password=$myp --db_host=$dbh" \
+  ssh root@$dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
+  ssh root@$dbh "python ${mybase}/mstat.py --loops 1000000 --interval 10 --db_user=$myu --db_password=$myp --db_host=$dbh" \
                  > sb.mstat.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist &
  
   for c in $( seq 1 $nclients ); do
@@ -183,18 +173,9 @@ while (( "$#" )) ; do
   awk '{ x=0; for (i=1; i <= NF; i += 1) { if ($1 > x) { x = $1 } }; printf "%s ", x }' /tmp/pres >> sb.p99.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
   echo >> sb.p99.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
 
-  ssh $dbh killall vmstat
-  ssh $dbh killall iostat
-  ssh $dbh "cat /proc/flashcache_stats" > sb.fc1.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist 
-  ssh $dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
-
-  if [[ $use_oprofile == "yes" ]]; then
-    echo Get oprofile data
-    ssh $dbh opcontrol --dump
-    sleep 5
-    ssh $dbh opreport --demangle=smart --symbols > sb.p.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
-    ssh $dbh opcontrol --shutdown
-  fi
+  ssh root@$dbh killall vmstat
+  ssh root@$dbh killall iostat
+  ssh root@$dbh "ps aux | grep mstat\.py | grep -v grep | awk '{ print \$2 }' | xargs kill -9"
 
   #
   # Innodb mutex stats
@@ -225,16 +206,10 @@ while (( "$#" )) ; do
   # General mutex stats
   #
   echo Get global mutex stats
-  $run_mysql -e 'show global mutex status' > sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  $run_mysql -e 'show engine innodb mutex' > sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
   # By mutex
-  $run_mysql -B -e 'show global mutex status' | head -1 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
-  sort -r -n -k 3,3 sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist | grep -v Sleeps | head -20 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
-  # By caller
-  $run_mysql -B -e 'show global mutex status' | head -1 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
-  grep -v Sleeps sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist | \
-    awk '{ if ($3 < 0) { $3 = -$3; print $0 } }' | \
-    sort -r -n -k 3,3 | \
-    head -20 > sb.cgs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  # $run_mysql -B -e 'show global mutex status' | head -1 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  # sort -r -n -k 3,3 sb.gs.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist | grep -v Sleeps | head -20 > sb.gs20.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
 
   $run_mysql -e 'select * from information_schema.user_statistics\G' > sb.us.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
   $run_mysql -e 'select * from information_schema.table_statistics\G' > sb.ts.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
@@ -246,11 +221,14 @@ while (( "$#" )) ; do
     done
   fi
 
-  echo Running $b shutdown at $( date )
-  ssh $dbh "ls -l $mysock"
-  ssh $dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
-  echo Shutdown done
-  sleep 5
+  if [[ $restart = "yes" ]]; then
+    echo Running $b shutdown at $( date )
+    ssh root@$dbh "ls -l $mysock"
+    ssh root@$dbh "$mybase/bin/mysqladmin -u$myu -p$myp -S$mysock shutdown"
+    echo Shutdown done
+    sleep 5
+  fi
+
   echo Sleep done
 done
 
