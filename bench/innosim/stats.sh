@@ -57,6 +57,7 @@ echo p50 p75 p90 p95 p96 p97 p98 p99 | \
 u=1
 while [ $u -le $max_concur ]; do
 
+suffix=o.bl_${use_bltl}.trx_${use_bltl}.dblwr_${use_dblw}.wthr_8.uthr_${u}.dirty_$d
 grep "^final percentile rd IOPs" ${suffix}* | \
     awk '{ printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $5, $7, $9, $11, $13, $15, $17, $19 }'
 
