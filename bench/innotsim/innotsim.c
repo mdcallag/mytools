@@ -365,6 +365,30 @@ ut_delay(
         return(j);
 }
 
+/*************************************************************//**
+Like ut_delay, but doesn't use UT_RELAX_CPU. Purpose is to simulate
+work done while holding a lock.
+@return dummy value */
+ulint
+ut_busy(
+/*=====*/
+        ulint   delay)  /*!< in: delay in microseconds on 100 MHz Pentium */
+{
+        ulint   i, j;
+
+        j = 0;
+
+        for (i = 0; i < delay * 50; i++) {
+                j += i;
+        }
+
+        if (ut_always_false) {
+                ut_always_false = (ibool) j;
+        }
+
+        return(j);
+}
+
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
 void
@@ -499,7 +523,7 @@ os_event_wait_low(
 
 			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
 
-				os_thread_exit(NULL);
+				exit(-1);
 			}
 			/* Ok, we may return */
 
@@ -1070,7 +1094,7 @@ void usecs_sleep(int duration)
 typedef struct {
 	void*	mutex;
 	int	nloops;
-	int	think_usecs;
+	int	think_delay;
 	ulong	counter;
 } thread_args;
 
@@ -1083,9 +1107,10 @@ void* inno_worker(void* a)
 	for (x=0; x < args->nloops; ++x) {
 		mutex_enter_func(mutex);
 		++(args->counter);
-		usecs_sleep(args->think_usecs);
+		ut_busy(args->think_delay);
 		mutex_exit(mutex);
 	}
+	return NULL;
 }
 
 void* pthr_worker(void* a)
@@ -1100,9 +1125,10 @@ void* pthr_worker(void* a)
 	for (x=0; x < args->nloops; ++x) {
 		pthread_mutex_lock(mutex);
 		++(args->counter);
-		usecs_sleep(args->think_usecs);
+		ut_busy(args->think_delay);
 		pthread_mutex_unlock(mutex);
 	}
+	return NULL;
 }
 
 double timeval_to_secs(struct timeval* start, struct timeval* stop)
@@ -1113,7 +1139,7 @@ double timeval_to_secs(struct timeval* start, struct timeval* stop)
 }
 
 void print_results(struct timeval* start, int nthreads, int nloops,
-		ulong counter, const char* msg, int think_usecs)
+		ulong counter, const char* msg, int think_delay)
 {
 	struct timeval	stop;
 	double		secs;
@@ -1135,25 +1161,25 @@ main(int argc, char **argv)
 	pthread_mutex_t	pslow;
 	int		nthreads;
 	int		nloops;
-	int		think_usecs;
+	int		think_delay;
 	int		i;
 	pthread_t*	tids;
 	thread_args	args;
 	struct timeval	start, stop;
 	
 	if (argc != 6) {
-		printf("need 5 args <nthreads> <nloops> <think_usecs> <spin_rounds> <spin_delay>\n");
+		printf("need 5 args <nthreads> <nloops> <think_delay> <spin_rounds> <spin_delay>\n");
 		exit(-1);
 	}
 
 	nthreads = atoi(argv[1]);
 	nloops = atoi(argv[2]);
-	think_usecs = atoi(argv[3]);
+	think_delay = atoi(argv[3]);
 	srv_n_spin_wait_rounds = atoi(argv[4]);
 	srv_spin_wait_delay = atoi(argv[5]);
 
 	args.nloops = nloops;
-	args.think_usecs = think_usecs;
+	args.think_delay = think_delay;
 
 	tids = (pthread_t*) malloc(nthreads * sizeof(pthread_t));
 
@@ -1164,10 +1190,17 @@ main(int argc, char **argv)
 	mutex_enter_func(&m1);
 	mutex_exit(&m1);
 
-	printf("%d think time usecs\n", think_usecs);
+	printf("%d think delay\n", think_delay);
 	printf("%d threads\n", nthreads);
 	printf("%d loops per thread\n", nloops);
 	printf("%d total loops\n", nloops * nthreads);
+
+	gettimeofday(&start, NULL);
+	ut_busy(think_delay);
+	gettimeofday(&stop, NULL);
+	printf("%d think_delay is %.1f usecs\n",
+		think_delay,
+		timeval_to_secs(&start, &stop) * 1000000.0);
 
 	gettimeofday(&start, NULL);
 	ut_delay(srv_spin_wait_delay);
@@ -1194,7 +1227,7 @@ main(int argc, char **argv)
 		void* retval;
 		assert(pthread_join(tids[i], &retval) == 0);
 	}
-	print_results(&start, nthreads, nloops, args.counter, "inno", think_usecs);
+	print_results(&start, nthreads, nloops, args.counter, "inno", think_delay);
 
 	ut_a(0 == pthread_mutex_init(&pfast, MY_MUTEX_INIT_FAST));
 	args.mutex = &pfast;
@@ -1208,7 +1241,7 @@ main(int argc, char **argv)
 		void* retval;
 		assert(pthread_join(tids[i], &retval) == 0);
 	}
-	print_results(&start, nthreads, nloops, args.counter, "pfast", think_usecs);
+	print_results(&start, nthreads, nloops, args.counter, "pfast", think_delay);
 
 	ut_a(0 == pthread_mutex_init(&pslow, NULL));
 	args.mutex = &pslow;
@@ -1222,5 +1255,7 @@ main(int argc, char **argv)
 		void* retval;
 		assert(pthread_join(tids[i], &retval) == 0);
 	}
-	print_results(&start, nthreads, nloops, args.counter, "pslow", think_usecs);
+	print_results(&start, nthreads, nloops, args.counter, "pslow", think_delay);
+
+	return 0;
 }
