@@ -1095,7 +1095,7 @@ typedef struct {
 	void*	mutex;
 	int	nloops;
 	int	think_delay;
-	ulong	counter;
+	ulong*	counter;
 } thread_args;
 
 void* inno_worker(void* a)
@@ -1106,8 +1106,9 @@ void* inno_worker(void* a)
 
 	for (x=0; x < args->nloops; ++x) {
 		mutex_enter_func(mutex);
-		++(args->counter);
-		ut_busy(args->think_delay);
+		++(*(args->counter));
+		if (args->think_delay)
+			ut_busy(args->think_delay);
 		mutex_exit(mutex);
 	}
 	return NULL;
@@ -1124,8 +1125,9 @@ void* pthr_worker(void* a)
 
 	for (x=0; x < args->nloops; ++x) {
 		pthread_mutex_lock(mutex);
-		++(args->counter);
-		ut_busy(args->think_delay);
+		++(*(args->counter));
+		if (args->think_delay)
+			ut_busy(args->think_delay);
 		pthread_mutex_unlock(mutex);
 	}
 	return NULL;
@@ -1139,36 +1141,43 @@ double timeval_to_secs(struct timeval* start, struct timeval* stop)
 }
 
 void print_results(struct timeval* start, int nthreads, int nloops,
-		ulong counter, const char* msg, int think_delay)
+		ulong* counter, int nmutex, const char* msg, int think_delay)
 {
 	struct timeval	stop;
 	double		secs;
+	int		i;
+	ulong		sum = 0;
+
+	for (i = 0; i < nmutex; ++i)
+		sum += counter[i];
 
 	gettimeofday(&stop, NULL);
 	secs = timeval_to_secs(start, &stop);
-	assert(counter == (nthreads * nloops));
-	printf("%s: %.1f usecs/loop, %.3f seconds\n",
+	assert(sum == (nthreads * nloops));
+	printf("%s: %.0f nsecs/loop, %.3f seconds\n",
 		msg,
-		(secs * 1000000) / (nthreads * nloops),
+		(secs * 1000000000) / (nthreads * nloops),
 		secs);
 }
 
 int
 main(int argc, char **argv)
 {
-	mutex_t		m1;
-	pthread_mutex_t	pfast;
-	pthread_mutex_t	pslow;
-	int		nthreads;
+	mutex_t*		imux = NULL;
+	pthread_mutex_t*	pfast = NULL;
+	pthread_mutex_t*	pslow = NULL;
+	int		nthreads, nthreads_per_mutex;
 	int		nloops;
 	int		think_delay;
-	int		i;
+	int		i, j;
 	pthread_t*	tids;
-	thread_args	args;
+	thread_args*	args;
 	struct timeval	start, stop;
+	int		nmutex;
+	ulong*		counter;
 	
-	if (argc != 6) {
-		printf("need 5 args <nthreads> <nloops> <think_delay> <spin_rounds> <spin_delay>\n");
+	if (argc != 8) {
+		printf("need 7 args <nthreads> <nloops> <think_delay> <spin_rounds> <spin_delay> <all|inno|posixfast|posixslow> <nmutex>\n");
 		exit(-1);
 	}
 
@@ -1177,85 +1186,140 @@ main(int argc, char **argv)
 	think_delay = atoi(argv[3]);
 	srv_n_spin_wait_rounds = atoi(argv[4]);
 	srv_spin_wait_delay = atoi(argv[5]);
+	nmutex = atoi(argv[7]);
 
-	args.nloops = nloops;
-	args.think_delay = think_delay;
+	nthreads_per_mutex = nthreads / nmutex;
+	if (nthreads_per_mutex < 1) {
+		printf("nthreads / nmutex must be >= 1\n");
+		exit(-1);
+	}
+	nthreads = nthreads_per_mutex * nmutex;
+
+	args = (thread_args*) malloc(nthreads * sizeof(thread_args));
+	counter = (ulong*) malloc(nmutex * sizeof(ulong));
+
+	for (i = 0; i < nthreads; ++i) {
+		args[i].nloops = nloops;
+		args[i].think_delay = think_delay;
+	}
 
 	tids = (pthread_t*) malloc(nthreads * sizeof(pthread_t));
 
 	sync_init();
 
-	/* Sanity check */
-	mutex_create_func(&m1);
-	mutex_enter_func(&m1);
-	mutex_exit(&m1);
-
 	printf("%d think delay\n", think_delay);
-	printf("%d threads\n", nthreads);
 	printf("%d loops per thread\n", nloops);
-	printf("%d total loops\n", nloops * nthreads);
+	printf("%d threads\n", nthreads);
+	printf("%d mutexes\n", nmutex);
+	printf("%d threads per mutex\n", nthreads_per_mutex);
+	printf("%d total loops\n", nthreads * nloops);
 
 	gettimeofday(&start, NULL);
 	ut_busy(think_delay);
 	gettimeofday(&stop, NULL);
-	printf("%d think_delay is %.1f usecs\n",
+	printf("%d think_delay is %.0f nsecs\n",
 		think_delay,
-		timeval_to_secs(&start, &stop) * 1000000.0);
+		timeval_to_secs(&start, &stop) * 1000000000.0);
 
 	gettimeofday(&start, NULL);
 	ut_delay(srv_spin_wait_delay);
 	gettimeofday(&stop, NULL);
-	printf("%ld spin_wait_delay is %.1f delay usecs\n",
+	printf("%ld spin_wait_delay is %.0f delay nsecs\n",
 		srv_spin_wait_delay,
-		timeval_to_secs(&start, &stop) * 1000000.0);
+		timeval_to_secs(&start, &stop) * 1000000000.0);
 
 	gettimeofday(&start, NULL);
 	for (i=0; i < srv_n_spin_wait_rounds; ++i) ut_delay(srv_spin_wait_delay);
 	gettimeofday(&stop, NULL);
-	printf("%ld spin_wait_rounds is %.1f delay usecs\n",
+	printf("%ld spin_wait_rounds is %.0f delay nsecs\n",
 		srv_n_spin_wait_rounds,
-		timeval_to_secs(&start, &stop) * 1000000.0);
+		timeval_to_secs(&start, &stop) * 1000000000.0);
 
-	args.mutex = &m1;
-	args.counter = 0;
-	gettimeofday(&start, NULL);
+	if (!strcmp("all", argv[6]) || !strcmp("inno", argv[6])) {
 
-	for (i = 0; i < nthreads; ++i) {
-		pthread_create(&tids[i], NULL, inno_worker, &args);
-	}
-	for (i = 0; i < nthreads; ++i) {
-		void* retval;
-		assert(pthread_join(tids[i], &retval) == 0);
-	}
-	print_results(&start, nthreads, nloops, args.counter, "inno", think_delay);
+		imux = (mutex_t*) malloc(nmutex * sizeof(mutex_t));
+		for (i = 0; i < nmutex; ++i) {
+			mutex_create_func(&imux[i]);
+			/* Sanity check */
+			mutex_enter_func(&imux[i]);
+			mutex_exit(&imux[i]);
+			counter[i] = 0;
+		}
 
-	ut_a(0 == pthread_mutex_init(&pfast, MY_MUTEX_INIT_FAST));
-	args.mutex = &pfast;
-	args.counter = 0;
-	gettimeofday(&start, NULL);
+		gettimeofday(&start, NULL);
 
-	for (i = 0; i < nthreads; ++i) {
-		pthread_create(&tids[i], NULL, pthr_worker, &args);
-	}
-	for (i = 0; i < nthreads; ++i) {
-		void* retval;
-		assert(pthread_join(tids[i], &retval) == 0);
-	}
-	print_results(&start, nthreads, nloops, args.counter, "pfast", think_delay);
+		for (j = 0; j < nmutex; ++j) {		
+			for (i = 0; i < nthreads_per_mutex; ++i) {
+				int x = (j * nthreads_per_mutex) + i;
+				args[x].mutex = &imux[j];
+				args[x].counter = &counter[j];
+				pthread_create(&tids[x], NULL, inno_worker, &args[x]);
+			}
+		}
 
-	ut_a(0 == pthread_mutex_init(&pslow, NULL));
-	args.mutex = &pslow;
-	args.counter = 0;
-	gettimeofday(&start, NULL);
+		for (i = 0; i < nthreads; ++i) {
+			void* retval;
+			assert(pthread_join(tids[i], &retval) == 0);
+		}
+		print_results(&start, nthreads, nloops, counter, nmutex, "inno", think_delay);
+	}
 
-	for (i = 0; i < nthreads; ++i) {
-		pthread_create(&tids[i], NULL, pthr_worker, &args);
+	if (!strcmp("all", argv[6]) || !strcmp("posixfast", argv[6])) {
+		pfast = (pthread_mutex_t*) malloc(nmutex * sizeof(pthread_mutex_t));
+		for (i = 0; i < nmutex; ++i) {
+			ut_a(0 == pthread_mutex_init(&pfast[i], MY_MUTEX_INIT_FAST));
+			counter[i] = 0;
+		}
+
+		gettimeofday(&start, NULL);
+
+		for (j = 0; j < nmutex; ++j) {		
+			for (i = 0; i < nthreads_per_mutex; ++i) {
+				int x = (j * nthreads_per_mutex) + i;
+				args[x].mutex = &pfast[j];
+				args[x].counter = &counter[j];
+				pthread_create(&tids[x], NULL, pthr_worker, &args[x]);
+			}
+		}
+
+		for (i = 0; i < nthreads; ++i) {
+			void* retval;
+			assert(pthread_join(tids[i], &retval) == 0);
+		}
+		print_results(&start, nthreads, nloops, counter, nmutex, "pfast", think_delay);
 	}
-	for (i = 0; i < nthreads; ++i) {
-		void* retval;
-		assert(pthread_join(tids[i], &retval) == 0);
+
+	if (!strcmp("all", argv[6]) || !strcmp("posixslow", argv[6])) {
+		pslow = (pthread_mutex_t*) malloc(nmutex * sizeof(pthread_mutex_t));
+		for (i = 0; i < nmutex; ++i) {
+			ut_a(0 == pthread_mutex_init(&pslow[i], NULL));
+			counter[i] = 0;
+		}
+
+		gettimeofday(&start, NULL);
+
+		for (j = 0; j < nmutex; ++j) {		
+			for (i = 0; i < nthreads_per_mutex; ++i) {
+				int x = (j * nthreads_per_mutex) + i;
+				args[x].mutex = &pslow[j];
+				args[x].counter = &counter[j];
+				pthread_create(&tids[x], NULL, pthr_worker, &args[x]);
+			}
+		}
+
+		for (i = 0; i < nthreads; ++i) {
+			void* retval;
+			assert(pthread_join(tids[i], &retval) == 0);
+		}
+		print_results(&start, nthreads, nloops, counter, nmutex, "pslow", think_delay);
 	}
-	print_results(&start, nthreads, nloops, args.counter, "pslow", think_delay);
+
+	free(tids);
+	free(args);
+        free(counter);
+	if (imux) free(imux);
+	if (pfast) free(pfast);
+	if (pslow) free(pslow);
 
 	return 0;
 }
