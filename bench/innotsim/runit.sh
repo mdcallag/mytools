@@ -9,7 +9,7 @@ function runme {
   tloops=${2}
   nmux=${3}
 
-  for y in inno posixadapt posixtimed posixspin posixgnspin posixlnspin ; do
+  for y in futex inno posixadapt posixtimed posixspin posixgnspin posixlnspin futex ; do
     vmstat 1 >& o.vm.t${thinkd}.$y.mux${nmux} &
     vpid=$!
     for nthr in 1 2 4 8 16 20 24 32 40 48 80 128 256 512 1024 ; do
@@ -31,7 +31,7 @@ function printme {
   rm -f all.t${thinkd}.mux${nmux}
   for nthr in 1 2 4 8 16 20 24 32 40 48 80 128 256 512 1024 ; do
     echo $nthr | tee -a all.t${thinkd}.mux${nmux}
-    for y in inno posixadapt posixtimed posixspin posixgnspin posixlnspin ; do
+    for y in futex inno posixadapt posixtimed posixspin posixgnspin posixlnspin futex ; do
       tail -1 o.t${thinkd}.thr${nthr}.$y.mux${nmux} | tee -a all.t${thinkd}.mux${nmux}
     done
   done

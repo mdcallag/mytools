@@ -25,14 +25,16 @@
 typedef unsigned long		ulong;
 typedef unsigned long		ulint;
 typedef char			byte;
-typedef byte			lock_word_t;
+typedef byte			old_lock_word_t;
+typedef int			new_lock_word_t;
+
 typedef unsigned char		ibool;
 typedef unsigned long long	ib_int64_t;
 
 ulong	srv_n_spin_wait_rounds	= 30;
 ulong	srv_spin_wait_delay	= 6;
 const ulint	srv_max_n_threads	= 5000;
-int	srv_retry_after_reserve = 4;
+ulint	srv_retry_after_reserve = 4;
 int	max_spinners = 0;
 int	pad1[64];
 volatile int	 gnspinners = 0;
@@ -46,11 +48,21 @@ pthread_cond_t	start_cv	= PTHREAD_COND_INITIALIZER;
 # define os_atomic_test_and_set_byte(ptr, new_val) \
         __sync_lock_test_and_set(ptr, (byte) new_val)
 
+# define os_atomic_test_and_set_ulint(ptr, new_val) \
+        __sync_lock_test_and_set(ptr, new_val)
+
 # define os_atomic_increment(ptr, amount) \
         __sync_add_and_fetch(ptr, amount)
 
 # define os_atomic_increment_ulint(ptr, amount) \
         os_atomic_increment(ptr, amount)
+
+# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
+        __sync_val_compare_and_swap(ptr, old_val, new_val)
+
+#define TAS(l, n)                     os_atomic_test_and_set_ulint((l), (n))
+
+#define CAS(l, o, n)           os_val_compare_and_swap_ulint((l), (o), (n))
 
 #define ut_a(x)		assert(x)
 #define ut_ad(x)	assert(x)
@@ -116,7 +128,7 @@ ib_int64_t os_event_reset(os_event_t event);
  */
 typedef struct mutex_struct {
 	os_event_t	event;	/*!< Used by sync0arr.c for the wait queue */
-	volatile lock_word_t	lock_word;
+	volatile old_lock_word_t	lock_word;
 				/*!< lock_word is the target
 				of the atomic test-and-set instruction when
 				atomic operations are enabled. */
@@ -153,7 +165,7 @@ void mutex_create_func(mutex_t* mutex);
 byte mutex_test_and_set(mutex_t* mutex);
 
 /* Returns the value of mutex->lock_word */
-inline lock_word_t mutex_get_lock_word(const mutex_t* mutex);
+inline old_lock_word_t mutex_get_lock_word(const mutex_t* mutex);
 
 /* Wakes all threads waiting on this mutex */
 void mutex_signal_object(mutex_t* mutex);
@@ -504,7 +516,7 @@ os_event_create(
 {
 	os_event_t	event;
 
-	event = ut_malloc(sizeof(struct os_event_struct));
+	event = (os_event_t) ut_malloc(sizeof(struct os_event_struct));
 
 	os_fast_mutex_init(&(event->os_mutex), TRUE);
 
@@ -691,7 +703,7 @@ mutex_test_and_set(
 /******************************************************************//**
 Gets the value of the lock word. */
 inline
-lock_word_t
+old_lock_word_t
 mutex_get_lock_word(
 /*================*/
         const mutex_t*  mutex)  /*!< in: mutex */
@@ -1217,7 +1229,7 @@ sync_array_reserve_cell(
 			cell->wait_object = object;
 
 			if (type == SYNC_MUTEX) {
-				cell->old_wait_mutex = object;
+				cell->old_wait_mutex = (mutex_t*) object;
 			} else {
 				assert(0);
 			}
@@ -1311,11 +1323,11 @@ sync_array_create(
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
-	arr = ut_malloc(sizeof(sync_array_t));
+	arr = (sync_array_t*) ut_malloc(sizeof(sync_array_t));
 	memset(arr, 0x0, sizeof(*arr));
 
 	sz = sizeof(sync_cell_t) * n_cells;
-	arr->array = ut_malloc(sz);
+	arr->array = (sync_cell_t*) ut_malloc(sz);
 	memset(arr->array, 0x0, sz);
 
 	arr->n_cells = n_cells;
@@ -1327,6 +1339,214 @@ sync_array_create(
 
 	return(arr);
 }
+
+#ifdef FUTEX_ON
+
+/** Mutex states. */
+enum mute_state_t {
+        /** Mutex is free */
+        MUTEX_STATE_UNLOCKED = 0,
+
+        /** Mutex is acquired by some thread. */
+        MUTEX_STATE_LOCKED = 1,
+
+        /** Mutex is contended and there are threads waiting on the lock. */
+        MUTEX_STATE_WAITERS = 2
+};
+
+#define UNIV_NOTHROW 
+#include <linux/futex.h>
+#include <sys/syscall.h>
+
+/** Mutex implementation that used the Linux futex. */
+struct TTASFutexMutex {
+
+	TTASFutexMutex() UNIV_NOTHROW
+		:
+		m_lock_word(MUTEX_STATE_UNLOCKED)
+	{
+		/* Check that lock_word is aligned. */
+		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
+	}
+
+	~TTASFutexMutex()
+	{
+		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+	}
+
+	/** Initialise the mutex. */
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
+	{
+		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+		// m_policy.init(*this, name, filename, line);
+	}
+
+	/** Destroy the mutex. */
+	void destroy() UNIV_NOTHROW
+	{
+		/* The destructor can be called at shutdown. */
+		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+		// m_policy.destroy();
+	}
+
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
+	{
+		new_lock_word_t	lock = ttas(max_spins, max_delay);
+
+		/* If there were no waiters when this thread tried
+		to acquire the mutex then set the waiters flag now.
+		Additionally, when this thread set the waiters flag it is
+		possible that the mutex had already been released
+		by then. In this case the thread can assume it
+		was granted the mutex. */
+
+		if (lock != MUTEX_STATE_UNLOCKED
+		    && (lock != MUTEX_STATE_LOCKED || !set_waiters())) {
+
+			wait();
+		}
+	}
+
+	/** Release the mutex. */
+	void exit() UNIV_NOTHROW
+	{
+		/* If there are threads waiting then we have to wake
+		them up. Reset the lock state to unlocked so that waiting
+		threads can test for success. */
+
+		if (state() == MUTEX_STATE_WAITERS) {
+
+			m_lock_word = MUTEX_STATE_UNLOCKED;
+
+		} else if (unlock() == MUTEX_STATE_LOCKED) {
+			/* No threads waiting, no need to signal a wakeup. */
+			return;
+		}
+
+		signal();
+	}
+
+	/** Try and lock the mutex.
+	@return the old state of the mutex */
+	new_lock_word_t trylock() UNIV_NOTHROW
+	{
+		return(CAS(&m_lock_word,
+			    MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED));
+	}
+
+	/** Try and lock the mutex.
+	@return true if successful */
+	bool try_lock() UNIV_NOTHROW
+	{
+		return(trylock() == MUTEX_STATE_UNLOCKED);
+	}
+
+	/** @return true if mutex is unlocked */
+	bool is_locked() const UNIV_NOTHROW
+	{
+		return(state() != MUTEX_STATE_UNLOCKED);
+	}
+
+private:
+	/**
+	@return the lock state. */
+	new_lock_word_t state() const UNIV_NOTHROW
+	{
+		/** Try and force a memory read. */
+		const volatile void*	p = &m_lock_word;
+
+		return(*(new_lock_word_t*) p);
+	}
+
+	/** Release the mutex.
+	@return the new state of the mutex */
+	new_lock_word_t unlock() UNIV_NOTHROW
+	{
+		return(TAS(&m_lock_word, MUTEX_STATE_UNLOCKED));
+	}
+
+	/** Note that there are threads waiting and need to be woken up.
+	@return true if state was MUTEX_STATE_UNLOCKED (ie. granted) */
+	bool set_waiters() UNIV_NOTHROW
+	{
+		return(TAS(&m_lock_word, MUTEX_STATE_WAITERS)
+		       == MUTEX_STATE_UNLOCKED);
+	}
+
+	/** Set the waiters flag, only if the mutex is locked
+	@return true if succesful. */
+	bool try_set_waiters() UNIV_NOTHROW
+	{
+		return(CAS(&m_lock_word,
+			   MUTEX_STATE_LOCKED, MUTEX_STATE_WAITERS)
+		       != MUTEX_STATE_UNLOCKED);
+	}
+
+	/** Wait if the lock is contended. */
+	void wait() UNIV_NOTHROW
+	{
+		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
+		not shared between processes. */
+
+		do {
+			syscall(SYS_futex, &m_lock_word,
+				FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
+				0, 0, 0);
+
+			// Since we are retrying the operation the return
+			// value doesn't matter.
+
+		} while (!set_waiters());
+	}
+
+	/** Wakeup a waiting thread */
+	void signal () UNIV_NOTHROW
+	{
+		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE,
+			MUTEX_STATE_LOCKED, 0, 0, 0);
+	}
+
+	/** Poll waiting for mutex to be unlocked.
+	@param max_spins	max spins
+	@param max_delay	max delay per spin
+	@return value of lock word before locking. */
+	new_lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
+	{
+		for (ulint i = 0; i < max_spins; ++i) {
+
+			if (!is_locked()) {
+				new_lock_word_t	lock = trylock();
+
+				if (lock == MUTEX_STATE_UNLOCKED) {
+					/* Lock successful */
+					return(lock);
+				}
+			}
+
+			ut_delay(ut_rnd_interval(0, max_delay));
+		}
+
+		return(trylock());
+	}
+
+private:
+
+	volatile new_lock_word_t	m_lock_word;
+};
+
+#endif /* FUTEX_ON */
 
 void
 posix_spin_then_wait(
@@ -1524,8 +1744,8 @@ void wait_for_signal()
 
 void* inno_worker(void* a)
 {
-	thread_args*	args = a;
-	mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	mutex_t* mutex = (mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1551,8 +1771,8 @@ void* inno_worker(void* a)
 
 void* inno_worker2(void* a)
 {
-	thread_args*	args = a;
-	mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	mutex_t* mutex = (mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1578,8 +1798,8 @@ void* inno_worker2(void* a)
 
 void* inno_worker3(void* a)
 {
-	thread_args*	args = a;
-	mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	mutex_t* mutex = (mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1605,8 +1825,8 @@ void* inno_worker3(void* a)
 
 void* irelease_worker(void* a)
 {
-	thread_args*	args = a;
-	mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	mutex_t* mutex = (mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1630,10 +1850,10 @@ void* irelease_worker(void* a)
 	return NULL;
 }
 
-void* pthr_worker(void* a)
+void* futex_worker(void* a)
 {
-	thread_args*	args = a;
-	pthread_mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	struct TTASFutexMutex *futex = (struct TTASFutexMutex*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1645,7 +1865,33 @@ void* pthr_worker(void* a)
 	gettimeofday(&s, NULL);
 
 	for (x=0; x < nloops; ++x) {
-		/* int coreid = sched_getcpu(); */
+		futex->enter(srv_n_spin_wait_rounds, srv_spin_wait_delay, NULL, 0);
+		++(*counter);
+		if (think_delay)
+			ut_busy(think_delay);
+		futex->exit();
+	}
+	gettimeofday(&e, NULL);
+	secs = timeval_to_secs(&s, &e);
+	printf("loops %d, secs %.6f\n", nloops, secs);
+	return NULL;
+}
+
+void* pthr_worker(void* a)
+{
+	thread_args*	args = (thread_args*) a;
+	pthread_mutex_t* mutex = (pthread_mutex_t*) args->mutex;
+	ulong* counter = args->counter;
+	int nloops = args->nloops;
+	int think_delay = args->think_delay;
+	int x;
+	struct timeval s, e;
+	double secs;
+
+	wait_for_signal();
+	gettimeofday(&s, NULL);
+
+	for (x=0; x < nloops; ++x) {
 		pthread_mutex_lock(mutex);
 		++(*counter);
 		if (think_delay)
@@ -1660,8 +1906,8 @@ void* pthr_worker(void* a)
 
 void* pthr_worker_spin(void* a)
 {
-	thread_args*	args = a;
-	pthread_mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	pthread_mutex_t* mutex = (pthread_mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1687,8 +1933,8 @@ void* pthr_worker_spin(void* a)
 
 void* pthr_worker_global_nspin(void* a)
 {
-	thread_args*	args = a;
-	pthread_mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	pthread_mutex_t* mutex = (pthread_mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1720,8 +1966,8 @@ void* pthr_worker_global_nspin(void* a)
 
 void* pthr_worker_local_nspin(void* a)
 {
-	thread_args*	args = a;
-	pthread_mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	pthread_mutex_t* mutex = (pthread_mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1752,8 +1998,8 @@ void* pthr_worker_local_nspin(void* a)
 
 void* pthr_worker_local_nspin2(void* a)
 {
-	thread_args*	args = a;
-	pthread_mutex_t* mutex = args->mutex;
+	thread_args*	args = (thread_args*) a;
+	pthread_mutex_t* mutex = (pthread_mutex_t*) args->mutex;
 	ulong* counter = args->counter;
 	int nloops = args->nloops;
 	int think_delay = args->think_delay;
@@ -1794,7 +2040,7 @@ void print_results(struct timeval* start, int nthreads, int nloops,
 		sum += counter[i*CACHE_PADDING];
 
 	secs = timeval_to_secs(start, &stop);
-	assert(sum == (nthreads * nloops));
+	assert(sum == (ulong) (nthreads * nloops));
 	printf("%s: %.0f nsecs/loop, %.3f seconds\n",
 		msg,
 		(secs * 1000000000) / (nthreads * nloops),
@@ -1820,7 +2066,7 @@ main(int argc, char **argv)
 	int*		nspinners;
 	
 	if (argc != 10) {
-		printf("need 9 args <nthreads> <nloops> <think_delay> <spin_rounds> <spin_delay> <all|inno|inno2|ispin|irelease|posixadapt|posixtimed|posixspin|posixgnspin|posixlnspin> <nmutex> <retry> <max_spinners>\n");
+		printf("need 9 args <nthreads> <nloops> <think_delay> <spin_rounds> <spin_delay> <all|inno|inno2|ispin|irelease|posixadapt|posixtimed|posixspin|posixgnspin|posixlnspin|futex> <nmutex> <retry> <max_spinners>\n");
 		exit(-1);
 	}
 
@@ -1860,7 +2106,7 @@ main(int argc, char **argv)
 	printf("%d mutexes\n", nmutex);
 	printf("%d threads per mutex\n", nthreads_per_mutex);
 	printf("%d total loops\n", nthreads * nloops);
-	printf("%d retry after reserve\n", srv_retry_after_reserve);
+	printf("%ld retry after reserve\n", srv_retry_after_reserve);
 	printf("%d max spinners, %d per mutex\n", max_spinners, max_spinners_per_mutex);
 
 	gettimeofday(&start, NULL);
@@ -1878,7 +2124,7 @@ main(int argc, char **argv)
 		timeval_to_secs(&start, &stop) * 1000000000.0);
 
 	gettimeofday(&start, NULL);
-	for (i=0; i < srv_n_spin_wait_rounds; ++i) ut_delay(srv_spin_wait_delay);
+	for (i=0; i < (int) srv_n_spin_wait_rounds; ++i) ut_delay(srv_spin_wait_delay);
 	gettimeofday(&stop, NULL);
 	printf("%ld spin_wait_rounds is %.0f delay nsecs\n",
 		srv_n_spin_wait_rounds,
@@ -1896,9 +2142,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -1907,6 +2150,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, inno_worker, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -1927,9 +2173,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -1938,6 +2181,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, inno_worker2, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -1958,9 +2204,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -1969,6 +2212,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, inno_worker3, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -1989,9 +2235,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2000,6 +2243,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, irelease_worker, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2016,9 +2262,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2027,6 +2270,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, pthr_worker, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2043,9 +2289,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2054,6 +2297,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, pthr_worker, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2075,9 +2321,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2086,6 +2329,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, pthr_worker_spin, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2107,9 +2353,6 @@ main(int argc, char **argv)
 			counter[i*CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2118,6 +2361,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, pthr_worker_global_nspin, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2140,9 +2386,6 @@ main(int argc, char **argv)
 			nspinners[i * CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
-
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
 				int x = (j * nthreads_per_mutex) + i;
@@ -2152,6 +2395,9 @@ main(int argc, char **argv)
 				pthread_create(&tids[x], NULL, pthr_worker_local_nspin, &args[x]);
 			}
 		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
 
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
@@ -2174,8 +2420,6 @@ main(int argc, char **argv)
 			nspinners[i * CACHE_PADDING] = 0;
 		}
 
-		send_signal();
-		gettimeofday(&start, NULL);
 
 		for (j = 0; j < nmutex; ++j) {		
 			for (i = 0; i < nthreads_per_mutex; ++i) {
@@ -2187,12 +2431,51 @@ main(int argc, char **argv)
 			}
 		}
 
+		gettimeofday(&start, NULL);
+		send_signal();
+
 		for (i = 0; i < nthreads; ++i) {
 			void* retval;
 			assert(pthread_join(tids[i], &retval) == 0);
 		}
 		print_results(&start, nthreads, nloops, counter, nmutex, "posixlnspin2", think_delay);
 	}
+
+#ifdef FUTEX_ON
+	if (!strcmp("all", argv[6]) || !strcmp("futex", argv[6])) {
+		start_running = 0;
+		struct TTASFutexMutex *farr = new TTASFutexMutex[nmutex];
+
+		for (i = 0; i < nmutex; ++i) {
+			farr[i].init(NULL, NULL, 0);
+		}
+
+		for (i = 0; i < nmutex; ++i) {
+			counter[i * CACHE_PADDING] = 0;
+			nspinners[i * CACHE_PADDING] = 0;
+		}
+
+		for (j = 0; j < nmutex; ++j) {		
+			for (i = 0; i < nthreads_per_mutex; ++i) {
+				int x = (j * nthreads_per_mutex) + i;
+				args[x].mutex = &farr[j];
+				args[x].counter = &counter[j*CACHE_PADDING];
+				args[x].nspinners = &nspinners[j*CACHE_PADDING];
+				pthread_create(&tids[x], NULL, futex_worker, &args[x]);
+			}
+		}
+
+		gettimeofday(&start, NULL);
+		send_signal();
+
+		for (i = 0; i < nthreads; ++i) {
+			void* retval;
+			assert(pthread_join(tids[i], &retval) == 0);
+		}
+		print_results(&start, nthreads, nloops, counter, nmutex, "futex", think_delay);
+		delete[](farr);
+	}
+#endif /* FUTEX_ON */
 
 	free(tids);
 	free(args);
