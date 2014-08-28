@@ -1543,7 +1543,7 @@ private:
 
 private:
 
-	volatile new_lock_word_t	m_lock_word;
+	volatile new_lock_word_t	m_lock_word __attribute__ ((aligned (8)));
 };
 
 #endif /* FUTEX_ON */
