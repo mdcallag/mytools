@@ -22,6 +22,8 @@ write_limit=${11}
 
 dfn=${12}
 
+ufd=${13}
+
 dfs_by=$( echo "1024 * 1024 * 1024 * ${dfs}" | bc )
 
 killall vmstat
@@ -52,6 +54,7 @@ echo ./innosim \
   --dirty-pct $dirty_pct \
   --read-hit-pct $read_hit_pct \
   --compress-level $comp \
+  --use-fdatasync $ufd \
   --io-per-thread-per-second $write_limit \
   --test-duration $test_duration > c.${suffix}
 
@@ -70,6 +73,7 @@ echo ./innosim \
   --dirty-pct $dirty_pct \
   --read-hit-pct $read_hit_pct \
   --compress-level $comp \
+  --use-fdatasync $ufd \
   --io-per-thread-per-second $write_limit \
   --test-duration $test_duration > o.${suffix} 2> e.${suffix} 
 

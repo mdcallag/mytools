@@ -61,6 +61,8 @@ int test_duration = 60;
 
 int prepare = 0;
 
+int use_fdatasync = 0;
+
 enum {
   DISTRIBUTION_UNIFORM = 0,
   DISTRIBUTION_LATEST = 1,
@@ -606,7 +608,12 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     if (sync_rate == 1 ||
 	(1.0 / sync_rate) >= rand_double(ctx)) {
       now(&start);
-      assert(!fsync(fd));
+
+      if (use_fdatasync)
+        assert(!fdatasync(fd));
+      else
+        assert(!fsync(fd));
+
       stats_report(fsync_stats, &start, ctx);
     }
 
@@ -1066,6 +1073,7 @@ void print_help() {
 "  --recompress-on-write-pct n -- when compression is used, pct of page writes that require recompression\n"
 "  --uncompress-on-read-hit-pct n -- when compression is used, pct of page reads that need decompression after buffer pool hit\n"
 "  --io-per-thread-per-second n -- when > 0, the max number of random disk reads + writes each thread will do per second. Note that storage might be to slow for the limit to be reached. This is enforced per 100 millisecond interval.\n"
+"  --use-fdatasync 0|1   -- 0: use fsync, 1: use fdatasync\n"
 );
 
   exit(0);
@@ -1130,6 +1138,10 @@ void process_options(int argc, char **argv) {
 	printf("--trxlog was %d and must be >= 0\n", trxlog);
 	exit(-1);
       }
+
+    } else if (!strcmp(argv[x], "--use-fdatasync")) {
+      if (x == (argc - 1)) { printf("--use-fdatasync needs an arg\n"); exit(-1); }
+      use_fdatasync = atoi(argv[++x]);
 
     } else if (!strcmp(argv[x], "--binlog-write-size")) {
       if (x == (argc - 1)) { printf("--binlog-write-size needs an arg\n"); exit(-1); }
@@ -1264,6 +1276,7 @@ void process_options(int argc, char **argv) {
   printf("Doublewrite file name: %s\n", doublewrite_fname ? doublewrite_fname : "<not set>");
   printf("Binlog enabled: %d\n", binlog);
   printf("Transaction log enabled: %d\n", trxlog);
+  printf("Use fdatasync: %d\n", use_fdatasync);
   printf("Binlog write size: %d\n", binlog_write_size);
   printf("Transaction log write size: %d\n", trxlog_write_size);
   printf("Binlog file size: %llu\n", binlog_file_size);
