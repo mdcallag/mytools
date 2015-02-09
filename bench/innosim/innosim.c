@@ -68,6 +68,12 @@ enum {
 } distribution = DISTRIBUTION_UNIFORM;
 
 int doublewrite = 1;
+
+/* Valid values are:
+ * 2: write log but no sync
+ * 1: write log and sync
+ * 0: do not write log
+ */
 int binlog = 1;
 int trxlog = 1;
 
@@ -561,7 +567,8 @@ int buffer_pool_list_pop(buffer_pool_t* pool, longlong* page_id) {
 
 void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int write_size,
                int truncate_if_max, int fd, char* buf,
-               operation_stats* write_stats, operation_stats* fsync_stats, struct drand48_data* ctx) {
+               operation_stats* write_stats, operation_stats* fsync_stats,
+	       struct drand48_data* ctx, int sync_rate) {
 
     struct timeval start;
     int x;
@@ -590,9 +597,18 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
     *offset += write_size;
     stats_report(write_stats, &start, ctx);
 
-    now(&start);
-    assert(!fsync(fd));
-    stats_report(fsync_stats, &start, ctx);
+    assert(sync_rate >= 1);
+
+    /* This is a simple but imperfect way to simulate either group commit or
+     * running InnoDB in non-durable mode where foreground threads don't stall
+     * on log sync.
+     */
+    if (sync_rate == 1 ||
+	(1.0 / sync_rate) >= rand_double(ctx)) {
+      now(&start);
+      assert(!fsync(fd));
+      stats_report(fsync_stats, &start, ctx);
+    }
 
     pthread_mutex_unlock(mux);
 }
@@ -615,12 +631,14 @@ void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
 
   if (trxlog) {
     write_log(&trxlog_mutex, &trxlog_offset, trxlog_file_size, trxlog_write_size, 0,
-              trxlog_fd, trxlog_buf, &trxlog_write_stats, &trxlog_fsync_stats, ctx);
+              trxlog_fd, trxlog_buf, &trxlog_write_stats, &trxlog_fsync_stats, ctx,
+	      trxlog);
   }
 
   if (binlog) {
     write_log(&binlog_mutex, &binlog_offset, binlog_file_size, binlog_write_size, 1,
-              binlog_fd, binlog_buf, &binlog_write_stats, &binlog_fsync_stats, ctx);
+              binlog_fd, binlog_buf, &binlog_write_stats, &binlog_fsync_stats, ctx,
+	      binlog);
   }
 }
 
@@ -1029,8 +1047,8 @@ void print_help() {
 "  --data-block-size n   -- size of database blocks in bytes\n"
 "  --doublewrite-file-name s -- pathname for doublewrite file, when not set use first 2MB of data file\n"
 "  --distribution u|l|z  -- distribution pattern: [u]niform, [l]atest, [z]ipfian\n"
-"  --binlog 1|0          -- 1: write to binlog, 0: don't write to it\n"
-"  --trxlog 1|0          -- 1: write to transaction log, 0: don't write to it\n"
+"  --binlog >= 0         -- 0: don't write to binlog, n: write to binlog and sync every nth time\n"
+"  --trxlog >= 0         -- 0: don't write to trxlog, n: write to trxlog and sync every nth time\n"
 "  --binlog-write-size n -- size of binlog writes in bytes\n"
 "  --trxlog-write-size n -- size of transaction log writes in bytes\n"
 "  --binlog-file-size n  -- size of binlog file in bytes\n"
@@ -1100,10 +1118,18 @@ void process_options(int argc, char **argv) {
     } else if (!strcmp(argv[x], "--binlog")) {
       if (x == (argc - 1)) { printf("--binlog needs an arg\n"); exit(-1); }
       binlog = atoi(argv[++x]);
+      if (binlog < 0) {
+	printf("--binlog was %d and must be >= 0\n", binlog);
+	exit(-1);
+      }
 
     } else if (!strcmp(argv[x], "--trxlog")) {
       if (x == (argc - 1)) { printf("--trxlog needs an arg\n"); exit(-1); }
       trxlog = atoi(argv[++x]);
+      if (trxlog < 0) {
+	printf("--trxlog was %d and must be >= 0\n", trxlog);
+	exit(-1);
+      }
 
     } else if (!strcmp(argv[x], "--binlog-write-size")) {
       if (x == (argc - 1)) { printf("--binlog-write-size needs an arg\n"); exit(-1); }

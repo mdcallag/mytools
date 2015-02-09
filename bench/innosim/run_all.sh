@@ -25,7 +25,7 @@ write_limit=$6
 # Max concurrency for which test is run. Should be a power of 2.
 max_concur=$7
 
-# 1 means use binlog & trxlog
+# 0 means don't use binlog & trxlog, n>0 means use them and sync on every nth write
 use_bltl=$8
 
 # 1 means use doublewrite buffer
