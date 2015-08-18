@@ -39,7 +39,7 @@ tls=$G1
 suffix=bl_${binlog}.trx_${trxlog}.dblwr_${doublewrite}.wthr_${writers}.uthr_${users}.dirty_${dirty_pct}.rh_${read_hit_pct}.tls_${tls}.bls_${bls}.dfs_${dfs}.comp_${comp}.wlim_${write_limit}.dfn_${dfn}
 
 vmstat 1 > v.${suffix} &
-iostat -x 1 > i.${suffix} &
+iostat -kx 1 > i.${suffix} &
 
 echo ./innosim \
   --prepare $prepare \

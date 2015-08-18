@@ -40,6 +40,9 @@ ufd=${11}
 # size of database page, use 16384 as default and 8192 for compression
 dbs=${12}
 
+# multiplier for max_concur, 2, 4, 8 etc
+concur_mult=${13}
+
 # Args for run_innosim are:
 #   binlog&trxlog
 #   doublewrite
@@ -63,14 +66,14 @@ concur=1
 while [ $concur -le $max_concur ]; do
   echo read-only $concur concur
   bash run_innosim.sh  $use_bltl $use_dblw 8  $concur   0   0 $secs 0 $dfs $comp 0 $dfn $ufd $dbs ; sleep $sleep_secs
-  concur=$(( $concur * 2 ))
+  concur=$(( $concur * $concur_mult ))
 done
 
 concur=1
 while [ $concur -le $max_concur ]; do
   echo write-only $concur concur
   bash run_innosim.sh  $use_bltl $use_dblw 8  $concur 100 100 $secs 0 $dfs $comp $write_limit $dfn $ufd $dbs ; sleep $sleep_secs
-  concur=$(( $concur * 2 ))
+  concur=$(( $concur * $concur_mult ))
 done
 
 concur=1
@@ -85,5 +88,5 @@ bash run_innosim.sh  $use_bltl $use_dblw 8  $concur  17   0 $secs 0 $dfs $comp 0
 echo read-write $concur concur dirty=6  100 page reads to 12 page writes
 bash run_innosim.sh  $use_bltl $use_dblw 8  $concur  6   0 $secs 0 $dfs $comp 0 $dfn $ufd $dbs ; sleep $sleep_secs
 
-concur=$(( $concur * 2 ))
+concur=$(( $concur * $concur_mult ))
 done

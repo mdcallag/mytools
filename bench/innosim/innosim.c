@@ -491,11 +491,12 @@ int icompare(const void* a, const void* b) {
 }
 
 void stats_summarize_interval(operation_stats* stats,
-                              long* p95, long* p99, double* avg,
+                              long* p95, long* p99, long* p999, long* p9999,
+                              double* avg,
                               long* maxv, long* requests, longlong* latency) {
   int nsamples = MYMIN(stats->interval_requests, INTERVAL_MAX);
 
-   *p95 = *p99 = *maxv = *requests = 0;
+   *p95 = *p99 = *p999 = *p9999 = *maxv = *requests = 0;
    *latency = 0;
    *avg = 0;
 
@@ -507,6 +508,8 @@ void stats_summarize_interval(operation_stats* stats,
     *maxv = stats->interval_max;
     *p95 = stats->interval_latencies[(int) (nsamples * 0.95)];
     *p99 = stats->interval_latencies[(int) (nsamples * 0.99)];
+    *p999 = stats->interval_latencies[(int) (nsamples * 0.999)];
+    *p9999 = stats->interval_latencies[(int) (nsamples * 0.9999)];
     *avg = (double) stats->interval_latency / (double) stats->interval_requests;
   }
 
@@ -516,11 +519,12 @@ void stats_summarize_interval(operation_stats* stats,
 }
 
 void stats_summarize_total(operation_stats* stats,
-                           long* p95, long* p99, double* avg,
+                           long* p95, long* p99, long* p999, long* p9999,
+                           double* avg,
                            long* maxv, long* requests, longlong* latency) {
   int nsamples = MYMIN(stats->total_requests, TOTAL_MAX);
 
-  *p95 = *p99 = *maxv = *requests = 0;
+  *p95 = *p99 = *p999 = *p9999 = *maxv = *requests = 0;
   *latency = 0;
   *avg = 0;
 
@@ -532,6 +536,8 @@ void stats_summarize_total(operation_stats* stats,
     *maxv = stats->total_max;
     *p95 = stats->total_latencies[(int) (nsamples * 0.95)];
     *p99 = stats->total_latencies[(int) (nsamples * 0.99)];
+    *p999 = stats->total_latencies[(int) (nsamples * 0.999)];
+    *p9999 = stats->total_latencies[(int) (nsamples * 0.9999)];
     *avg = (double) stats->total_latency / (double) stats->total_requests;
   }
 }
@@ -869,7 +875,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   longlong sum_latency = 0;
   int sx, rx;
   struct drand48_data randctx;
-  long requests, p95=0, p99=0, maxv=0;
+  long requests, p95=0, p99=0, p999=0, p9999=0, maxv=0;
   longlong latency;
   double avg;
   int sum_requests = 0;
@@ -887,7 +893,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
     /* And then summarize */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
-      stats_summarize_interval(curstats, &p95, &p99, &avg, &maxv, &requests, &latency);
+      stats_summarize_interval(curstats, &p95, &p99, &p999, &p9999, &avg, &maxv, &requests, &latency);
       sum_requests += requests;
       sum_latency += latency;
       if (maxv > max_maxv) max_maxv = maxv;
@@ -901,7 +907,7 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
 
     /* And then summarize  */
     for (sx = 0, curstats=stats; sx < num; ++sx, ++curstats) {
-      stats_summarize_total(curstats, &p95, &p99, &avg, &maxv, &requests, &latency);
+      stats_summarize_total(curstats, &p95, &p99, &p999, &p9999, &avg, &maxv, &requests, &latency);
       sum_requests += requests;
       sum_latency += latency;
       if (maxv > max_maxv) max_maxv = maxv;
@@ -910,23 +916,23 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   }
 
   if (sum_requests)
-    stats_summarize_interval(combined, &p95, &p99, &avg, &maxv, &requests, &latency);
+    stats_summarize_interval(combined, &p95, &p99, &p999, &p9999, &avg, &maxv, &requests, &latency);
 
   free(combined);
 
   if (!final) {
-    printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+    printf("%s: %d loop, %u ops, %.3f millis/op, %.3f p95, %.3f p99, %.3f p99.9, %.3f p99.99, %.3f max\n",
            msg, loop, sum_requests,
            sum_requests ?
              ((double) sum_latency / sum_requests) / 1000.0 : 0.0,
-           p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
+           p95 / 1000.0, p99 / 1000.0, p999 / 1000.0, p9999 / 1000.0, max_maxv / 1000.0);
   } else {
-    printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f max\n",
+    printf("%s: final, %u ops, %.1f ops/sec, %.3f millis/op, %.3f p95, %.3f p99, %.3f p99.9, %.3f p99.99, %.3f max\n",
            msg, sum_requests,
            (double) sum_requests / (loop * stats_interval),
            sum_requests ?
              ((double) sum_latency / sum_requests) / 1000.0 : 0.0,
-           p95 / 1000.0, p99 / 1000.0, max_maxv / 1000.0);
+           p95 / 1000.0, p99 / 1000.0, p999 / 1000.0, p9999 / 1000.0, max_maxv / 1000.0);
   }
 
   return sum_requests;
