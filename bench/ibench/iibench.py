@@ -155,7 +155,7 @@ DEFINE_boolean('read_uncommitted', False, 'Set cursor isolation level to read un
 DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('tokudb_commit_sync', 1, 'Sync on commit for TokuDB')
 DEFINE_integer('sequential', 1, 'Insert in sequential order')
-DEFINE_integer('secondary_indexes', 1, 'Use secondary indexes')
+DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 
 
 #
@@ -183,10 +183,15 @@ def create_table():
             'data varchar(4000), '\
             'primary key (transactionid) '
 
-  if FLAGS.secondary_indexes:
+  if FLAGS.num_secondary_indexes >= 3:
     ddl_index = ', key marketsegment (price, customerid), '\
                 'key registersegment (cashregisterid, price, customerid), '\
                 'key pdc (price, dateandtime, customerid) '
+  elif FLAGS.num_secondary_indexes == 2:
+    ddl_index = ', key marketsegment (price, customerid), '\
+                'key registersegment (cashregisterid, price, customerid) '
+  elif FLAGS.num_secondary_indexes == 1:
+    ddl_index = ', key marketsegment (price, customerid) '
   else:
     ddl_index = ''
 
@@ -209,7 +214,7 @@ def get_max_pk(conn):
   cursor.close()
   return max_pk
 
-def generate_cols():
+def generate_cols(rand_data_buf):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
   productid = random.randrange(0, FLAGS.products)
   customerid = random.randrange(0, FLAGS.customers)
@@ -217,14 +222,15 @@ def generate_cols():
   data_len = random.randrange(FLAGS.data_length_min, FLAGS.data_length_max+1)
   # multiply by 0.75 to account of base64 overhead
   rand_data_len = int(data_len * 0.75 * (float(FLAGS.data_random_pct) / 100))
-  rand_data = base64.b64encode(os.urandom(rand_data_len))
-  nonrand_data_len = data_len - len(rand_data)
+  rand_data_off = random.randrange(0, len(rand_data_buf) - rand_data_len)
+  nonrand_data_len = data_len - rand_data_len
 
-  data = '%s%s' % ('a' * nonrand_data_len, rand_data)
+  data = '%s%s' % ('a' * nonrand_data_len,
+      rand_data_buf[rand_data_off:(rand_data_off+rand_data_len)])
   return cashregisterid, productid, customerid, price, data
 
-def generate_row(datetime, max_pk):
-  cashregisterid, productid, customerid, price, data = generate_cols()
+def generate_row(datetime, max_pk, rand_data_buf):
+  cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
   if not max_pk:
     return '("%s",%d,%d,%d,%.2f,"%s")' % (
         datetime,cashregisterid,customerid,productid,price,data)
@@ -288,17 +294,19 @@ def generate_register_query(row_count, start_time):
       cashregisterid, price, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_insert_rows_sequential(row_count):
+def generate_insert_rows_sequential(row_count, rand_data_buf):
   when = time.time() + (row_count / 100000.0)
   datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(when))
 #  rows = [generate_row(datetime) for i in xrange(FLAGS.rows_per_commit)]
-  rows = [generate_row(datetime, 0) for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
+  rows = [generate_row(datetime, 0, rand_data_buf) \
+      for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
   return ',\n'.join(rows)
 
-def generate_insert_rows_random(row_count):
+def generate_insert_rows_random(row_count, rand_data_buf):
   when = time.time() + (row_count / 100000.0)
   datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(when))
-  rows = [generate_row(datetime, FLAGS.max_table_rows) for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
+  rows = [generate_row(datetime, FLAGS.max_table_rows, rand_data_buf) \
+      for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
   return ',\n'.join(rows)
 
 
@@ -377,14 +385,16 @@ def Insert(rounds, max_pk, insert_q, pdc_arr, pk_arr, market_arr, register_arr):
   tail = 0
   sum_queries = 0
 
+  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4))
+
   for r in xrange(rounds):
     if FLAGS.sequential:
-      rows = generate_insert_rows_sequential(max_pk + inserted)
+      rows = generate_insert_rows_sequential(max_pk + inserted, rand_data_buf)
       sql = 'insert into %s '\
             '(dateandtime,cashregisterid,customerid,productid,price,data) '\
             'values %s' % (FLAGS.table_name, rows)
     else:
-      rows = generate_insert_rows_random(FLAGS.max_table_rows)
+      rows = generate_insert_rows_random(FLAGS.max_table_rows, rand_data_buf)
       sql = 'replace into %s '\
             '(transactionid,dateandtime,cashregisterid,customerid,productid,price,data) '\
             'values %s' % (FLAGS.table_name, rows)
