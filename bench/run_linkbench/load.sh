@@ -1,0 +1,75 @@
+fn=$1
+client=$2
+ddir=$3
+maxid=$4
+dname=$5
+dop=$6
+gennodes=$7
+myORmo=$8
+ddl=$9
+
+if [[ $myORmo = "mysql" ]]; then
+  $client -uroot -ppw -h127.0.0.1 < $ddl
+  echo Skip mstat
+  # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
+  # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=127.0.0.1 >& l.mstat.$fn &
+  # mpid=$!
+fi
+
+iostat -kx 5 >& l.io.$fn &
+ipid=$!
+
+vmstat 5 >& l.vm.$fn &
+vpid=$!
+
+echo "before $ddir" > l.sz.$fn
+du -hs $ddir >> l.sz.$fn
+
+if [[ $myORmo = "mongo" ]]; then
+  while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& l.ps.$fn &
+  spid=$!
+  props=LinkConfigMongoDBv2.properties
+else
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& l.ps.$fn &
+  spid=$!
+  props=LinkConfigMysql.properties
+fi
+
+echo "background jobs: $ipid $vpid $spid" > l.o.$fn
+
+time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=10000 -l  >> l.o.$fn 2>&1
+
+kill $ipid
+kill $vpid
+kill $spid
+# kill $mpid
+
+if [[ $myORmo = "mongo" ]]; then
+  echo "db.serverStatus()" | $client > l.stat.$fn
+else
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > l.esi.$fn
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > l.esr.$fn
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > l.est.$fn
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > l.gs.$fn
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > l.gv.$fn
+fi
+
+echo "after $ddir" >> l.sz.$fn
+du -hs $ddir >> l.sz.$fn
+du -hs $ddir/* >> l.sz.$fn
+
+ips=$( grep "LOAD PHASE COMPLETED" l.o.$fn | awk '{ print $NF }' )
+grep "LOAD PHASE COMPLETED" l.o.$fn  > l.r.$fn
+
+printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> l.r.$fn
+grep $dname l.io.$fn | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.r.$fn
+
+printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> l.r.$fn
+grep -v swpd l.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.r.$fn
+
+echo >> l.r.$fn
+head -4 l.sz.$fn >> l.r.$fn
+
+echo >> l.r.$fn
+head -1 l.ps.$fn >> l.r.$fn
+tail -1 l.ps.$fn >> l.r.$fn
