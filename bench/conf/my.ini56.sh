@@ -7,7 +7,7 @@ mkdir -p /data/m/my/txlogs
 
 scripts/mysql_install_db --defaults-file=etc/my.cnf >& o.init; cat o.init
 
-bin/mysqld_safe --user=root &
+bin/mysqld_safe &
 sleep 30
 bin/mysqladmin -uroot --password="" password pw
 

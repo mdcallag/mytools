@@ -481,7 +481,12 @@ def run_benchmark():
   cursor = db_conn.cursor()
   if not FLAGS.tokudb_commit_sync:
     cursor.execute('set tokudb_commit_sync=0')
-  cursor.execute('set unique_checks=%d' % (FLAGS.unique_checks))
+
+  if not FLAGS.unique_checks:
+    if FLAGS.engine.lower() == 'rocksdb':
+      cursor.execute('set rocksdb_skip_unique_check=1')
+    elif FLAGS.engine.lower() == 'tokudb':
+      cursor.execute('set unique_checks=0')
 
   if not FLAGS.no_inserts:
     stmt_q = Queue(1)

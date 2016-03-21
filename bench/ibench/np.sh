@@ -10,6 +10,7 @@ dlmax=$9
 dokill=${10}
 dname=${11}
 only1t=${12}
+unique=${13}
 
 sfx=dop${dop}.ns${ns}
 rm -f o.res.$sfx
@@ -23,8 +24,8 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
 killall vmstat
 killall iostat
 
-python mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=15 2> /dev/null > o.mstat.$sfx &
-mpid=$!
+# python mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=15 2> /dev/null > o.mstat.$sfx &
+# mpid=$!
 
 vmstat 10 >& o.vm.$sfx &
 vpid=$!
@@ -48,7 +49,7 @@ for n in $( seq 1 $dop ) ; do
     tn="pi${n}"
   fi
 
-  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --insert_only --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax >& o.ib.dop${dop}.ns${ns}.${n} &
+  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --insert_only --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} >& o.ib.dop${dop}.ns${ns}.${n} &
   pids[${n}]=$!
   
   if [[ $only1t = "yes" ]]; then
@@ -69,7 +70,7 @@ insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
 echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user > o.res.$sfx
 
-kill $mpid >& /dev/null
+# kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
