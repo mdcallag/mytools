@@ -11,6 +11,9 @@ dokill=${10}
 dname=${11}
 only1t=${12}
 unique=${13}
+rpc=${14}
+ips=${15}
+nqt=${16}
 
 sfx=dop${dop}.ns${ns}
 rm -f o.res.$sfx
@@ -49,7 +52,8 @@ for n in $( seq 1 $dop ) ; do
     tn="pi${n}"
   fi
 
-  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --insert_only --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} >& o.ib.dop${dop}.ns${ns}.${n} &
+  echo iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} > o.ib.dop${dop}.ns${ns}.${n} 
+  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
   pids[${n}]=$!
   
   if [[ $only1t = "yes" ]]; then
