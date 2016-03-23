@@ -71,8 +71,12 @@ stop_secs=$( date +%s )
 tot_secs=$(( $stop_secs - $start_secs ))
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
 insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
+
+total_query=$( for n in $( seq 1 $dop ); do tail -2 o.ib.dop${dop}.ns${ns}.$n | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
+query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
+
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
-echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user > o.res.$sfx
+echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
 
 # kill $mpid >& /dev/null
 kill $vpid >& /dev/null
@@ -91,13 +95,19 @@ du -hs --apparent-size $ddir >> o.sz.$sfx
 echo "all" >> o.sz.$sfx
 du -hs ${ddir}/* > o.sz.$sfx
 
-# echo >> o.res.$sfx
-printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> o.res.$sfx
+printf "\niostat, vmstat normalized by insert rate\n" >> o.res.$sfx
+printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> o.res.$sfx
 grep $dname o.io.$sfx | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=${insert_rate} >> o.res.$sfx
 
-# echo >> o.res.$sfx
 printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
 grep -v swpd o.vm.$sfx | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${insert_rate} >> o.res.$sfx
+
+printf "\niostat, vmstat normalized by query rate\n" >> o.res.$sfx
+printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> o.res.$sfx
+grep $dname o.io.$sfx | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=${query_rate} >> o.res.$sfx
+
+printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
+grep -v swpd o.vm.$sfx | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${query_rate} >> o.res.$sfx
 
 echo >> o.res.$sfx
 du -hs $ddir >> o.res.$sfx
