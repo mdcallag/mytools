@@ -108,7 +108,7 @@ ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
   lines=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | wc -l )
-  for x in 50 75 90 95 ; do
+  for x in 50 75 90 95 99 ; do
     off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
     i_nth=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
     q_nth=$( awk '{ if (NF == 9) { print $9 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
