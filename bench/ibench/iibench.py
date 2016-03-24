@@ -242,7 +242,9 @@ def generate_pdc_query(row_count, start_time):
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   sql = 'SELECT price,dateandtime,customerid FROM %s FORCE INDEX (pdc) WHERE '\
-        '(price>=%.2f) LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
+        '(price>=%.2f) '\
+        'ORDER BY price,dateandtime,customerid '\
+        'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
 def generate_pk_query(row_count, start_time):
@@ -264,8 +266,9 @@ def generate_market_query(row_count, start_time):
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   sql = 'SELECT price,customerid FROM %s FORCE INDEX (marketsegment) WHERE '\
-        '(price>=%.2f) LIMIT %d' % (
-      FLAGS.table_name, price, FLAGS.rows_per_query)
+        '(price>=%.2f) '\
+        'ORDER BY price,customerid '\
+        'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
 def generate_register_query(row_count, start_time):
@@ -273,8 +276,9 @@ def generate_register_query(row_count, start_time):
 
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
         'FORCE INDEX (registersegment) WHERE '\
-        '(cashregisterid>%d) LIMIT %d' % (
-      FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
+        '(cashregisterid>%d) '\
+        'ORDER BY cashregisterid,price,customerid '\
+        'LIMIT %d' % (FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
   return sql
 
 def generate_insert_rows_sequential(row_count, rand_data_buf):
@@ -291,7 +295,6 @@ def generate_insert_rows_random(row_count, rand_data_buf):
   rows = [generate_row(datetime, FLAGS.max_table_rows, rand_data_buf) \
       for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
   return ',\n'.join(rows)
-
 
 def Query(max_pk, query_args, shared_arr):
 
