@@ -37,7 +37,7 @@ fi
 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
 
-time bash bin/linkbench -c config/${props} -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=10000 -r >> r.o.$fn 2>&1
+time bash bin/linkbench -c config/${props} -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -r >> r.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
@@ -52,6 +52,8 @@ else
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > r.est.$fn
   $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > r.gs.$fn
   $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > r.gv.$fn
+  $client -uroot -ppw -A -h127.0.0.1 linkdb -e 'show table status' > r.ts.$fn
+  $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > r.mem.$fn
 fi
 
 echo "after $ddir" >> r.sz.$fn
