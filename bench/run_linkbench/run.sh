@@ -76,3 +76,5 @@ echo >> r.r.$fn
 head -1 r.ps.$fn >> r.r.$fn
 tail -1 r.ps.$fn >> r.r.$fn
 
+for op in UPDATE_NODE GET_NODE UPDATE_LINK GET_LINKS_LIST ; do tail -20 r.o.$fn | grep $op | grep main ; done >> r.r.$fn
+
