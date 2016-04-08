@@ -46,6 +46,9 @@ kill $spid
 
 if [[ $myORmo = "mongo" ]]; then
   echo "db.serverStatus()" | $client > l.stat.$fn
+  echo "db.link.stats()" | $client graph-linkbench > l.link.$fn
+  echo "db.node.stats()" | $client graph-linkbench > l.node.$fn
+  echo "db.count.stats()" | $client graph-linkbench > l.count.$fn
 else
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > l.esi.$fn
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > l.esr.$fn
