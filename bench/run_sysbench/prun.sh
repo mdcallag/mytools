@@ -213,6 +213,8 @@ while (( "$#" )) ; do
 
   $run_mysql -e 'select * from information_schema.user_statistics\G' > sb.us.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
   $run_mysql -e 'select * from information_schema.table_statistics\G' > sb.ts.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  $run_mysql -e 'show engine innodb status\G' > sb.esi.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
+  $run_mysql -e 'show engine rocksdb status\G' > sb.esi.$engine.$b.t_$t.r_$nr.tx_$strx.pk_$usepk.dist_$dist
 
   if [[ $drop != "no" ]]; then
     echo Drop tables
