@@ -14,15 +14,20 @@ unique=${13}
 rpc=${14}
 ips=${15}
 nqt=${16}
+setup=${17}
 
 sfx=dop${dop}.ns${ns}
 rm -f o.res.$sfx
 
 maxr=$(( $nr / $dop ))
 
-$client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
-sleep 5
-$client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
+$client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+
+if [[ $setup = "yes" ]] ; then
+  $client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
+  sleep 5
+  $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
+fi
 
 killall vmstat
 killall iostat
@@ -41,7 +46,12 @@ start_secs=$( date +%s )
 
 for n in $( seq 1 $dop ) ; do
 
-  setstr="--setup"
+  if [[ $setup = "yes" ]]; then
+    setstr="--setup"
+  else
+    setstr=""
+  fi
+
   if [[ $only1t = "yes" && $n -gt 1 ]]; then
     setstr=""
   fi  
@@ -90,6 +100,7 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
+$client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 
 du -hs $ddir > o.sz.$sfx
 echo "with apparent size " >> o.sz.$sfx
