@@ -51,7 +51,6 @@ __author__ = 'Mark Callaghan'
 import os
 import base64
 import string
-import MySQLdb
 from multiprocessing import Queue, Process, Pipe, Array
 import optparse
 from datetime import datetime
@@ -106,6 +105,12 @@ def ParseArgs(argv):
   usage = sys.modules["__main__"].__doc__
   parser.set_usage(usage)
   unused_flags, new_argv = parser.parse_args(args=argv, values=FLAGS)
+
+  if FLAGS.mongo:
+    globals()['pymongo'] = __import__('pymongo')
+  else:
+    globals()['MySQLdb'] = __import__('MySQLdb')
+
   return new_argv
 
 def ShowUsage():
@@ -115,15 +120,9 @@ def ShowUsage():
 # options
 #
 
-DEFINE_string('engine', 'innodb', 'Storage engine for the table')
-DEFINE_string('engine_options', '', 'Options for create table')
 DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
 DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
 DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
-DEFINE_string('db_name', 'test', 'Name of database for the test')
-DEFINE_string('db_user', 'root', 'DB user for the test')
-DEFINE_string('db_password', '', 'DB password for the test')
-DEFINE_string('db_host', 'localhost', 'Hostname for the test')
 DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
 DEFINE_integer('rows_per_report', 1000000,
                '#rows per progress report printed to stdout. If this '
@@ -139,22 +138,35 @@ DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
 DEFINE_boolean('query_pk_only', False, 'When True only query PK index')
 DEFINE_integer('query_threads', 0, 'Number of query threads')
-DEFINE_string('table_name', 'purchases_index',
-              'Name of table to use')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
 DEFINE_integer('warmup', 0, 'TODO')
-DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
-DEFINE_string('db_config_file', '', 'MySQL configuration file')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
 DEFINE_boolean('with_max_table_rows', False,
                'When True, allow table to grow to max_table_rows, then delete oldest')
-DEFINE_boolean('read_uncommitted', False, 'Set cursor isolation level to read uncommitted')
-DEFINE_integer('unique_checks', 1, 'Set unique_checks')
-DEFINE_integer('tokudb_commit_sync', 1, 'Sync on commit for TokuDB')
-DEFINE_integer('sequential', 1, 'Insert in sequential order')
+DEFINE_integer('sequential', 1, 'Insert in sequential PK order')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
+
+# MySQL & MongoDB flags
+DEFINE_string('db_host', 'localhost', 'Hostname for the test')
+DEFINE_string('db_name', 'test', 'Name of database for the test')
+DEFINE_string('table_name', 'purchases_index', 'Name of table to use')
+
+# MySQL flags
+DEFINE_string('engine', 'innodb', 'Storage engine for the table')
+DEFINE_string('engine_options', '', 'Options for create table')
+DEFINE_string('db_user', 'root', 'DB user for the test')
+DEFINE_string('db_password', '', 'DB password for the test')
+DEFINE_string('db_config_file', '', 'MySQL configuration file')
+DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
+DEFINE_integer('unique_checks', 1, 'Set unique_checks')
+
+# MongoDB flags
+DEFINE_boolean('mongo', False, 'if True then for MongoDB, else for MySQL')
+DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
+DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
+DEFINE_boolean('mongo_fsync', False, 'Value for MongoDB write concern: fsync')
 
 #
 # iibench
@@ -163,11 +175,31 @@ DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
 insert_done='insert_done'
 
 def get_conn():
-  return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
-                         db=FLAGS.db_name, passwd=FLAGS.db_password,
-                         unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file)
+  if FLAGS.mongo:
+    return pymongo.MongoClient("mongodb://%s:27017" % FLAGS.db_host)
+  else:
+    return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
+                           db=FLAGS.db_name, passwd=FLAGS.db_password,
+                           unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file)
 
-def create_table():
+def create_table_mongo():
+  conn = get_conn()
+  db = conn[FLAGS.db_name]
+  db.drop_collection(FLAGS.table_name)
+
+  if FLAGS.num_secondary_indexes >= 1:
+    db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
+                                       ("customerid", pymongo.ASCENDING)])
+  if FLAGS.num_secondary_indexes >= 2:
+    db[FLAGS.table_name].create_index([("cashregisterid", pymongo.ASCENDING),
+                                       ("price", pymongo.ASCENDING),
+                                         ("customerid", pymongo.ASCENDING)])
+  if FLAGS.num_secondary_indexes >= 3:
+    db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
+                                       ("dateandtime", pymongo.ASCENDING),
+                                       ("customerid", pymongo.ASCENDING)])
+
+def create_table_mysql():
   conn = get_conn()
   cursor = conn.cursor()
   cursor.execute('drop table if exists %s' % FLAGS.table_name)
@@ -181,27 +213,34 @@ def create_table():
             'data varchar(4000), '\
             'primary key (transactionid) '
 
-  if FLAGS.num_secondary_indexes >= 3:
-    ddl_index = ', key marketsegment (price, customerid), '\
-                'key registersegment (cashregisterid, price, customerid), '\
-                'key pdc (price, dateandtime, customerid) '
-  elif FLAGS.num_secondary_indexes == 2:
-    ddl_index = ', key marketsegment (price, customerid), '\
-                'key registersegment (cashregisterid, price, customerid) '
-  elif FLAGS.num_secondary_indexes == 1:
-    ddl_index = ', key marketsegment (price, customerid) '
-  else:
-    ddl_index = ''
-
-  ddl_sql = 'create table %s ( %s %s ) engine=%s %s' % (
-      FLAGS.table_name, ddl_sql, ddl_index, FLAGS.engine, FLAGS.engine_options)
-
+  ddl_sql = 'create table %s ( %s ) engine=%s %s' % (
+      FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options)
   print ddl_sql
   cursor.execute(ddl_sql)
+
+  if FLAGS.num_secondary_indexes >= 1:
+    cursor.execute("alter table %s add index marketsegment (price, customerid) "
+                   % FLAGS.table_name)
+  if FLAGS.num_secondary_indexes >= 2:
+    cursor.execute("alter table %s add index registersegment (cashregisterid, price, customerid) "
+                   % FLAGS.table_name)
+  if FLAGS.num_secondary_indexes >= 3:
+    cursor.execute("alter table %s add index pdc (price, dateandtime, customerid) "
+                   % FLAGS.table_name)
+
   cursor.close()
   conn.close()
 
-def get_max_pk(conn):
+def create_table():
+  if FLAGS.mongo:
+    create_table_mongo()
+  else:
+    create_table_mysql()
+
+def get_max_pk_mongo(conn):
+  return conn[FLAGS.table_name].find_one({}, sort=[('_id', pymongo.DESCENDING)])[[_id]]
+
+def get_max_pk_mysql(conn):
   cursor = conn.cursor()
   cursor.execute('select max(transactionid) from %s' % FLAGS.table_name)
   # catch empty database
@@ -211,6 +250,12 @@ def get_max_pk(conn):
     max_pk = 0
   cursor.close()
   return max_pk
+
+def get_max_pk(conn):
+  if FLAGS.mongo:
+    get_max_pk_mongo(conn)
+  else:
+    get_max_pk_mysql(conn)
 
 def generate_cols(rand_data_buf):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
@@ -227,17 +272,37 @@ def generate_cols(rand_data_buf):
       rand_data_buf[rand_data_off:(rand_data_off+rand_data_len)])
   return cashregisterid, productid, customerid, price, data
 
-def generate_row(datetime, max_pk, rand_data_buf):
+def generate_row_mongo(when, max_pk, is_sequential, rand_data_buf):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
-  if not max_pk:
+  if is_sequential:
+    pk = max_pk + 1
+  else:
+    pk = random.randrange(1, max_pk+1)
+
+  return {'_id' : pk, 'datetime' : when, 'cashregisterid' : cashregisterid,
+          'customerid' : customerid, 'productid' : productid, 'price' : price,
+          'data' : data }
+
+def generate_row_mysql(when, max_pk, is_sequential, rand_data_buf):
+  cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
+  if is_sequential:
     return '("%s",%d,%d,%d,%.2f,"%s")' % (
-        datetime,cashregisterid,customerid,productid,price,data)
+        when,cashregisterid,customerid,productid,price,data)
   else:
     return '(%d,"%s",%d,%d,%d,%.2f,"%s")' % (
         random.randrange(1, max_pk+1),
-        datetime,cashregisterid,customerid,productid,price,data)
+        when,cashregisterid,customerid,productid,price,data)
 
-def generate_pdc_query(row_count, start_time):
+def generate_row(when, max_pk, is_sequential, rand_data_buf):
+  if FLAGS.mongo:
+    return generate_row_mongo(when, max_pk, is_sequential, rand_data_buf)
+  else:
+    return generate_row_mysql(when, max_pk, is_sequential, rand_data_buf)
+
+def generate_pdc_query_mongo(row_count):
+  assert False
+ 
+def generate_pdc_query_mysql(row_count):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
@@ -247,7 +312,16 @@ def generate_pdc_query(row_count, start_time):
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pk_query(row_count, start_time):
+def generate_pdc_query(row_count):
+  if FLAGS.mongo:
+    return generate_pdc_query_mongo(row_count)
+  else:
+    return generate_pdc_query_mysql(row_count)
+
+def generate_pk_query_mongo(row_count):
+  assert False
+ 
+def generate_pk_query_mysql(row_count):
   if FLAGS.with_max_table_rows and row_count > FLAGS.max_table_rows :
     pk_txid = row_count - FLAGS.max_table_rows + random.randrange(FLAGS.max_table_rows)
   else:
@@ -261,7 +335,16 @@ def generate_pk_query(row_count, start_time):
 
   return sql
 
-def generate_market_query(row_count, start_time):
+def generate_pk_query(row_count):
+  if FLAGS.mongo:
+    return generate_pk_query_mongo(row_count)
+  else:
+    return generate_pk_query_mysql(row_count)
+
+def generate_market_query_mongo(row_count):
+  assert False
+ 
+def generate_market_query_mysql(row_count):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
@@ -271,7 +354,16 @@ def generate_market_query(row_count, start_time):
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(row_count, start_time):
+def generate_market_query(row_count):
+  if FLAGS.mongo:
+    return generate_market_query_mongo(row_count)
+  else:
+    return generate_market_query_mysql(row_count)
+
+def generate_register_query_mongo(row_count):
+  assert False
+ 
+def generate_register_query_mysql(row_count):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
@@ -281,20 +373,45 @@ def generate_register_query(row_count, start_time):
         'LIMIT %d' % (FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
   return sql
 
+def generate_register_query(row_count):
+  if FLAGS.mongo:
+    return generate_register_query_mongo(row_count)
+  else:
+    return generate_register_query_mysql(row_count)
+
 def generate_insert_rows_sequential(row_count, rand_data_buf):
-  when = time.time() + (row_count / 100000.0)
-  datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(when))
-#  rows = [generate_row(datetime) for i in xrange(FLAGS.rows_per_commit)]
-  rows = [generate_row(datetime, 0, rand_data_buf) \
+  if FLAGS.mongo:
+    when = datetime.utcnow()
+  else:
+    when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+
+  rows = [generate_row(when, row_count + i, True, rand_data_buf) \
       for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
-  return ',\n'.join(rows)
+
+  if FLAGS.mongo:
+    return rows
+  else:
+    sql_data = ',\n'.join(rows)
+    return 'insert into %s '\
+           '(dateandtime,cashregisterid,customerid,productid,price,data) '\
+           'values %s' % (FLAGS.table_name, sql_data)
 
 def generate_insert_rows_random(row_count, rand_data_buf):
-  when = time.time() + (row_count / 100000.0)
-  datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(when))
-  rows = [generate_row(datetime, FLAGS.max_table_rows, rand_data_buf) \
+  if FLAGS.mongo:
+    when = datetime.utcnow()
+  else:
+    when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+
+  rows = [generate_row(when, FLAGS.max_table_rows, False, rand_data_buf) \
       for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
-  return ',\n'.join(rows)
+
+  if FLAGS.mongo:
+    assert 0
+  else:
+    sql_data = ',\n'.join(rows)
+    return 'replace into %s '\
+           '(transactionid,dateandtime,cashregisterid,customerid,productid,price,data) '\
+           'values %s' % (FLAGS.table_name, sql_data)
 
 def Query(max_pk, query_args, shared_arr):
 
@@ -305,7 +422,6 @@ def Query(max_pk, query_args, shared_arr):
   loops = 0
 
   cursor = db_conn.cursor()
-  if FLAGS.read_uncommitted:  cursor.execute('set transaction isolation level read uncommitted')
 
   while True:
     query_func = random.choice(query_args)
@@ -317,8 +433,6 @@ def Query(max_pk, query_args, shared_arr):
       if not FLAGS.no_inserts:
         row_count = shared_arr[0]
       shared_arr[1] = loops
-      if not FLAGS.read_uncommitted:
-        cursor.execute('commit')
 
   cursor.close()
   db_conn.close()
@@ -385,17 +499,10 @@ def Insert(rounds, max_pk, insert_q, counters):
   for r in xrange(rounds):
     if FLAGS.sequential:
       rows = generate_insert_rows_sequential(max_pk + inserted, rand_data_buf)
-      sql = 'insert into %s '\
-            '(dateandtime,cashregisterid,customerid,productid,price,data) '\
-            'values %s' % (FLAGS.table_name, rows)
     else:
       rows = generate_insert_rows_random(FLAGS.max_table_rows, rand_data_buf)
-      sql = 'replace into %s '\
-            '(transactionid,dateandtime,cashregisterid,customerid,productid,price,data) '\
-            'values %s' % (FLAGS.table_name, rows)
-      # print sql
 
-    insert_q.put(sql)
+    insert_q.put(rows)
     inserted += FLAGS.rows_per_commit
     table_size += FLAGS.rows_per_commit
 
@@ -407,8 +514,11 @@ def Insert(rounds, max_pk, insert_q, counters):
     # deletes
     if FLAGS.with_max_table_rows:
       if table_size > FLAGS.max_table_rows:
-        sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
-               % (FLAGS.table_name, tail, tail + FLAGS.rows_per_commit))
+        if FLAGS.mongo:
+          assert False
+        else:
+          sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
+                 % (FLAGS.table_name, tail, tail + FLAGS.rows_per_commit))
         insert_q.put(sql)
         table_size -= FLAGS.rows_per_commit
         tail += FLAGS.rows_per_commit
@@ -427,28 +537,49 @@ def Insert(rounds, max_pk, insert_q, counters):
   insert_q.put(insert_done)
   insert_q.close()
 
-def statement_executor(stmt_q, db_conn, cursor):
+def statement_executor(stmt_q, db_conn):
+
+  if FLAGS.mongo:
+    collection = db_conn[FLAGS.db_name][FLAGS.table_name]
+    # db_conn.write_concern['w'] = FLAGS.mongo_w
+    # db_conn.write_concern['j'] = FLAGS.mongo_j
+    # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
+    print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
+  else:
+    cursor = db_conn.cursor()
 
   while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
-    if stmt == insert_done: break
-    # execute statement and commit
-    try:
-      cursor.execute(stmt)
-      db_conn.commit()
-    except MySQLdb.Error, e:
-      if e[0] != 2006:
-        print "Ignoring MySQL exception"
+    if stmt == insert_done:
+      break
+
+    if FLAGS.mongo:
+      try:
+        # TODO options for these
+        res = collection.insert(stmt, w=FLAGS.mongo_w, j=FLAGS.mongo_j, fsync=FLAGS.mongo_fsync)
+        assert len(res) == len(stmt)
+      except pymongo.errors.PyMongoError, e:
+        print "Mongo error on insert"
         print e
-        try:
-          db_conn.rollback()
-          print "Rollback done"
-        except MySQLdb.Error, e:
-          print "Error on rollback"
-          print e
-      else:
         raise e
+
+    else:
+      try:
+        cursor.execute(stmt)
+        db_conn.commit()
+      except MySQLdb.Error, e:
+        if e[0] != 2006:
+          print "Ignoring MySQL exception"
+          print e
+          try:
+            db_conn.rollback()
+            print "Rollback done"
+          except MySQLdb.Error, e:
+            print "Error on rollback"
+            print e
+        else:
+          raise e
     
   stmt_q.close()
 
@@ -489,19 +620,18 @@ def run_benchmark():
   # execution processes
 
   db_conn = get_conn()
-  cursor = db_conn.cursor()
-  if not FLAGS.tokudb_commit_sync:
-    cursor.execute('set tokudb_commit_sync=0')
 
-  if not FLAGS.unique_checks:
+  if not FLAGS.mongo and not FLAGS.unique_checks:
+    cursor = db_conn.cursor()
     if FLAGS.engine.lower() == 'rocksdb':
       cursor.execute('set rocksdb_skip_unique_check=1')
     elif FLAGS.engine.lower() == 'tokudb':
       cursor.execute('set unique_checks=0')
+    cursor.close()
 
   if not FLAGS.no_inserts:
     stmt_q = Queue(1)
-    insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn, cursor))
+    insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn))
     inserter = Process(target=Insert, args=(rounds,max_pk,stmt_q, counters))
 
     # start up the insert execution process with this queue
@@ -518,7 +648,6 @@ def run_benchmark():
     insert_delete.join()
 
   # close the connection and then terminate the insert / delete process
-  cursor.close()
   db_conn.close()
 
   if not FLAGS.no_inserts:
