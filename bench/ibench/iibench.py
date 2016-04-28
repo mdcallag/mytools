@@ -544,7 +544,7 @@ def statement_executor(stmt_q, db_conn):
     # db_conn.write_concern['w'] = FLAGS.mongo_w
     # db_conn.write_concern['j'] = FLAGS.mongo_j
     # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
-    print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
+    # print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
   else:
     cursor = db_conn.cursor()
 

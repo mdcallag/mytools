@@ -102,7 +102,7 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
 
-if [[ $mongo = "yes" ]]; then
+if [[ $mongo = "no" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
