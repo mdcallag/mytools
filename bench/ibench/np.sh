@@ -153,4 +153,6 @@ for n in $( seq 1 $dop ) ; do
   done
 done
 
+ps aux | grep mongod | grep -v grep >> o.res.$sfx
+
 cat o.res.$sfx
