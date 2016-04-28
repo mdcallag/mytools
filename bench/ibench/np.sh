@@ -15,18 +15,20 @@ rpc=${14}
 ips=${15}
 nqt=${16}
 setup=${17}
+mongo=${18}
 
 sfx=dop${dop}.ns${ns}
 rm -f o.res.$sfx
 
 maxr=$(( $nr / $dop ))
 
+if [[ $mongo != "yes" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-
 if [[ $setup = "yes" ]] ; then
   $client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
   sleep 5
   $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
+fi
 fi
 
 killall vmstat
@@ -62,8 +64,15 @@ for n in $( seq 1 $dop ) ; do
     tn="pi${n}"
   fi
 
-  echo iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} > o.ib.dop${dop}.ns${ns}.${n} 
-  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 --db_user=root --db_password=pw --max_rows=${maxr} --engine=$e --engine_options=$eo --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --unique_checks=${unique} --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  if [[ $mongo = "yes" ]]; then
+    db_args="--mongo --mongo_w=1"
+  else
+    db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique}"
+  fi
+
+  echo iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} > o.ib.dop${dop}.ns${ns}.${n} 
+  python iibench.py --db_name=ib --rows_per_report=100000 --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+
   pids[${n}]=$!
   
   if [[ $only1t = "yes" ]]; then
@@ -93,6 +102,7 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
 
+if [[ $mongo = "yes" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
@@ -101,6 +111,10 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+else
+echo "db.serverStatus()" | $client > o.es.$fn
+echo "db.${table_name}.stats()" | $client ${db_name} > o.tab.$fn
+fi
 
 du -hs $ddir > o.sz.$sfx
 echo "with apparent size " >> o.sz.$sfx
