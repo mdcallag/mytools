@@ -238,7 +238,10 @@ def create_table():
     create_table_mysql()
 
 def get_max_pk_mongo(conn):
-  return conn[FLAGS.table_name].find_one({}).sort([('_id', pymongo.DESCENDING)])[[_id]]
+  docs = conn[FLAGS.db_name][FLAGS.table_name].find({}).sort([('_id', pymongo.DESCENDING)]).limit(1)
+  for d in docs:
+    return d['_id']
+  return 0
 
 def get_max_pk_mysql(conn):
   cursor = conn.cursor()
@@ -253,7 +256,9 @@ def get_max_pk_mysql(conn):
 
 def get_max_pk(conn):
   if FLAGS.mongo:
-    get_max_pk_mongo(conn)
+    r = get_max_pk_mongo(conn)
+    # print 'max pk is %s, type is %s' % (r, type(r))
+    return r
   else:
     get_max_pk_mysql(conn)
 
