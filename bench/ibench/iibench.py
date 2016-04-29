@@ -189,15 +189,15 @@ def create_table_mongo():
 
   if FLAGS.num_secondary_indexes >= 1:
     db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
-                                       ("customerid", pymongo.ASCENDING)])
+                                       ("customerid", pymongo.ASCENDING)], name="pc")
   if FLAGS.num_secondary_indexes >= 2:
     db[FLAGS.table_name].create_index([("cashregisterid", pymongo.ASCENDING),
                                        ("price", pymongo.ASCENDING),
-                                         ("customerid", pymongo.ASCENDING)])
+                                         ("customerid", pymongo.ASCENDING)], name="cpc")
   if FLAGS.num_secondary_indexes >= 3:
     db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
                                        ("dateandtime", pymongo.ASCENDING),
-                                       ("customerid", pymongo.ASCENDING)])
+                                       ("customerid", pymongo.ASCENDING)], name="pdc")
 
 def create_table_mysql():
   conn = get_conn()
@@ -238,7 +238,7 @@ def create_table():
     create_table_mysql()
 
 def get_max_pk_mongo(conn):
-  return conn[FLAGS.table_name].find_one({}, sort=[('_id', pymongo.DESCENDING)])[[_id]]
+  return conn[FLAGS.table_name].find_one({}).sort([('_id', pymongo.DESCENDING)])[[_id]]
 
 def get_max_pk_mysql(conn):
   cursor = conn.cursor()
@@ -299,34 +299,48 @@ def generate_row(when, max_pk, is_sequential, rand_data_buf):
   else:
     return generate_row_mysql(when, max_pk, is_sequential, rand_data_buf)
 
-def generate_pdc_query_mongo(row_count):
-  assert False
- 
-def generate_pdc_query_mysql(row_count):
-  customerid = random.randrange(0, FLAGS.customers)
-  price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
+def generate_pdc_query_mongo(row_count, conn, price):
+  # print "query pdc"
+  return (
+           conn.find({'price': {'$gte' : price }},
+                     fields = {'price':1, 'dateandtime':1, 'customerid':1, '_id':0})
+               .sort([('price', pymongo.ASCENDING),
+                      ('dateandtime', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+               .limit(FLAGS.rows_per_query)
+               .hint([('price', pymongo.ASCENDING),
+                      ('dateandtime', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+         )
 
+def generate_pdc_query_mysql(row_count, conn, price):
   sql = 'SELECT price,dateandtime,customerid FROM %s FORCE INDEX (pdc) WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,dateandtime,customerid '\
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(row_count):
+def generate_pdc_query(row_count, conn):
+  customerid = random.randrange(0, FLAGS.customers)
+  price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
+
   if FLAGS.mongo:
-    return generate_pdc_query_mongo(row_count)
+    return generate_pdc_query_mongo(row_count, conn, price)
   else:
-    return generate_pdc_query_mysql(row_count)
+    return generate_pdc_query_mysql(row_count, conn, price)
 
-def generate_pk_query_mongo(row_count):
-  assert False
+def generate_pk_query_mongo(row_count, conn, pk_txid):
+  # print "query pk"
+  if FLAGS.rows_per_query > 1:
+    return (
+             conn.find({'_id': {'$gte' : pk_txid}})
+                 .sort('_id')
+                 .limit(FLAGS.rows_per_query)
+           )
+  else:
+    return conn.find_one({'_id': pk_txid})
  
-def generate_pk_query_mysql(row_count):
-  if FLAGS.with_max_table_rows and row_count > FLAGS.max_table_rows :
-    pk_txid = row_count - FLAGS.max_table_rows + random.randrange(FLAGS.max_table_rows)
-  else:
-    pk_txid = random.randrange(max(row_count,1))
-
+def generate_pk_query_mysql(row_count, conn, pk_txid):
   if FLAGS.rows_per_query > 1:
     sql = 'SELECT * FROM %s WHERE transactionid >= %d ORDER BY transactionid LIMIT %d' % (
       FLAGS.table_name, pk_txid, FLAGS.rows_per_query)
@@ -335,37 +349,60 @@ def generate_pk_query_mysql(row_count):
 
   return sql
 
-def generate_pk_query(row_count):
-  if FLAGS.mongo:
-    return generate_pk_query_mongo(row_count)
+def generate_pk_query(row_count, conn):
+  if FLAGS.with_max_table_rows and row_count > FLAGS.max_table_rows :
+    pk_txid = row_count - FLAGS.max_table_rows + random.randrange(FLAGS.max_table_rows)
   else:
-    return generate_pk_query_mysql(row_count)
+    pk_txid = random.randrange(max(row_count,1))
 
-def generate_market_query_mongo(row_count):
-  assert False
+  if FLAGS.mongo:
+    return generate_pk_query_mongo(row_count, conn, pk_txid)
+  else:
+    return generate_pk_query_mysql(row_count, conn, pk_txid)
+
+def generate_market_query_mongo(row_count, conn, price):
+  # print "query market"
+  return (
+           conn.find({'price': {'$gte' : price}}, 
+                     fields = {'price':1, 'customerid':1, '_id':0})
+               .sort([('price', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+               .limit(FLAGS.rows_per_query)
+               .hint([('price', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+         )
  
-def generate_market_query_mysql(row_count):
-  customerid = random.randrange(0, FLAGS.customers)
-  price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
-
+def generate_market_query_mysql(row_count, conn, price):
   sql = 'SELECT price,customerid FROM %s FORCE INDEX (marketsegment) WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,customerid '\
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(row_count):
+def generate_market_query(row_count, conn):
+  customerid = random.randrange(0, FLAGS.customers)
+  price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
+
   if FLAGS.mongo:
-    return generate_market_query_mongo(row_count)
+    return generate_market_query_mongo(row_count, conn, price)
   else:
-    return generate_market_query_mysql(row_count)
+    return generate_market_query_mysql(row_count, conn, price)
 
-def generate_register_query_mongo(row_count):
-  assert False
+def generate_register_query_mongo(row_count, conn, cashregisterid):
+  # print "query register"
+  return (
+           conn.find({'cashregisterid': {'$gte' : cashregisterid}}, 
+                     fields = {'cashregister':1, 'price':1, 'customerid':1, '_id':0})
+               .sort([('cashregisterid', pymongo.ASCENDING),
+                      ('price', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+               .limit(FLAGS.rows_per_query)
+               .hint([('cashregisterid', pymongo.ASCENDING),
+                      ('price', pymongo.ASCENDING),
+                      ('customerid', pymongo.ASCENDING)])
+         )
  
-def generate_register_query_mysql(row_count):
-  cashregisterid = random.randrange(0, FLAGS.cashregisters)
-
+def generate_register_query_mysql(row_count, conn, cashregisterid):
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
         'FORCE INDEX (registersegment) WHERE '\
         '(cashregisterid>%d) '\
@@ -373,11 +410,13 @@ def generate_register_query_mysql(row_count):
         'LIMIT %d' % (FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(row_count):
+def generate_register_query(row_count, conn):
+  cashregisterid = random.randrange(0, FLAGS.cashregisters)
+
   if FLAGS.mongo:
-    return generate_register_query_mongo(row_count)
+    return generate_register_query_mongo(row_count, conn, cashregisterid)
   else:
-    return generate_register_query_mysql(row_count)
+    return generate_register_query_mysql(row_count, conn, cashregisterid)
 
 def generate_insert_rows_sequential(row_count, rand_data_buf):
   if FLAGS.mongo:
@@ -421,13 +460,32 @@ def Query(max_pk, query_args, shared_arr):
   start_time = time.time()
   loops = 0
 
-  cursor = db_conn.cursor()
+  if FLAGS.mongo:
+    collection = db_conn[FLAGS.db_name][FLAGS.table_name]
+  else:
+    cursor = db_conn.cursor()
 
   while True:
     query_func = random.choice(query_args)
-    query = query_func(row_count, start_time)
-    cursor.execute(query)
-    count = len(cursor.fetchall())
+
+    try:
+      query = query_func(row_count, collection)
+
+      if FLAGS.mongo:
+        count = 0
+        for r in query:
+          count += 1
+        # print query
+        # if count: print 'fetched %d' % count
+        # print 'fetched %d' % count
+      else:
+        cursor.execute(query)
+        count = len(cursor.fetchall())
+    except:
+      e = sys.exc_info()[0]
+      print "Query exception"
+      print e  
+
     loops += 1
     if (loops % 4) == 0:
       if not FLAGS.no_inserts:
