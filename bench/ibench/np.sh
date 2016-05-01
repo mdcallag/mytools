@@ -119,7 +119,7 @@ $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
 echo "db.serverStatus()" | $client > o.es.$sfx
-echo "db.${table_name}.stats()" | $client ${db_name} > o.tab.$sfx
+echo "db.pi1.stats()" | $client ib > o.tab.$sfx
 fi
 
 du -hs $ddir > o.sz.$sfx
