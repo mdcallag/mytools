@@ -118,8 +118,8 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
-echo "db.serverStatus()" | $client > o.es.$fn
-echo "db.${table_name}.stats()" | $client ${db_name} > o.tab.$fn
+echo "db.serverStatus()" | $client > o.es.$sfx
+echo "db.${table_name}.stats()" | $client ${db_name} > o.tab.$sfx
 fi
 
 du -hs $ddir > o.sz.$sfx
