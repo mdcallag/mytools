@@ -256,11 +256,9 @@ def get_max_pk_mysql(conn):
 
 def get_max_pk(conn):
   if FLAGS.mongo:
-    r = get_max_pk_mongo(conn)
-    # print 'max pk is %s, type is %s' % (r, type(r))
-    return r
+    return get_max_pk_mongo(conn)
   else:
-    get_max_pk_mysql(conn)
+    return get_max_pk_mysql(conn)
 
 def generate_cols(rand_data_buf):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
@@ -466,26 +464,26 @@ def Query(max_pk, query_args, shared_arr):
   loops = 0
 
   if FLAGS.mongo:
-    collection = db_conn[FLAGS.db_name][FLAGS.table_name]
+    db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
   else:
-    cursor = db_conn.cursor()
+    db_thing = db_conn.cursor()
 
   while True:
     query_func = random.choice(query_args)
 
     try:
-      query = query_func(row_count, collection)
+      query = query_func(row_count, db_thing)
 
       if FLAGS.mongo:
         count = 0
         for r in query:
           count += 1
-        # print query
         # if count: print 'fetched %d' % count
         # print 'fetched %d' % count
       else:
-        cursor.execute(query)
-        count = len(cursor.fetchall())
+        # print "Query is:", query
+        db_thing.execute(query)
+        count = len(db_thing.fetchall())
     except:
       e = sys.exc_info()[0]
       print "Query exception"
@@ -497,7 +495,8 @@ def Query(max_pk, query_args, shared_arr):
         row_count = shared_arr[0]
       shared_arr[1] = loops
 
-  cursor.close()
+  if not FLAGS.mongo:
+    db_thing.close()
   db_conn.close()
 
 def get_latest(counters, row_count):
