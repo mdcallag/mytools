@@ -147,6 +147,7 @@ DEFINE_boolean('with_max_table_rows', False,
 DEFINE_integer('sequential', 1, 'Insert in sequential PK order')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
+DEFINE_integer('seed', 3221223452, 'RNG seed')
 
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
@@ -466,6 +467,7 @@ def Query(max_pk, query_args, shared_arr):
   if FLAGS.mongo:
     db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
   else:
+    db_conn.autocommit(True)
     db_thing = db_conn.cursor()
 
   while True:
@@ -608,6 +610,7 @@ def statement_executor(stmt_q, db_conn):
     # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
     # print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
   else:
+    db_conn.autocommit(True)
     cursor = db_conn.cursor()
 
   while True:
@@ -629,24 +632,17 @@ def statement_executor(stmt_q, db_conn):
     else:
       try:
         cursor.execute(stmt)
-        db_conn.commit()
       except MySQLdb.Error, e:
         if e[0] != 2006:
           print "Ignoring MySQL exception"
           print e
-          try:
-            db_conn.rollback()
-            print "Rollback done"
-          except MySQLdb.Error, e:
-            print "Error on rollback"
-            print e
         else:
           raise e
     
   stmt_q.close()
 
 def run_benchmark():
-  random.seed(3221223452)
+  random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
   if FLAGS.setup:
