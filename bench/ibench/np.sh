@@ -147,6 +147,7 @@ du -hs $ddir >> o.res.$sfx
 
 echo >> o.res.$sfx
 ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
+ps auxww | grep mongod | grep -v grep >> o.res.$sfx
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
@@ -158,7 +159,5 @@ for n in $( seq 1 $dop ) ; do
     echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
   done
 done
-
-ps aux | grep mongod | grep -v grep >> o.res.$sfx
 
 cat o.res.$sfx
