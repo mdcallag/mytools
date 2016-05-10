@@ -33,6 +33,7 @@ else
   while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& l.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
+  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 fi
 
 echo "background jobs: $ipid $vpid $spid" > l.o.$fn
@@ -50,6 +51,7 @@ if [[ $myORmo = "mongo" ]]; then
   echo "db.node.stats()" | $client graph-linkbench > l.node.$fn
   echo "db.count.stats()" | $client graph-linkbench > l.count.$fn
 else
+  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > l.esi.$fn
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > l.esr.$fn
   $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > l.est.$fn
