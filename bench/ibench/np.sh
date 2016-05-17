@@ -16,6 +16,13 @@ ips=${15}
 nqt=${16}
 setup=${17}
 mongo=${18}
+short=${19}
+
+if [[ $short == "yes" ]]; then
+names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
+else
+names=""
+fi
 
 sfx=dop${dop}.ns${ns}
 rm -f o.res.$sfx
@@ -76,8 +83,8 @@ for n in $( seq 1 $dop ) ; do
     rpr=$(( ips * 10 ))
   fi
 
-  echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} > o.ib.dop${dop}.ns${ns}.${n} 
-  python iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} $names > o.ib.dop${dop}.ns${ns}.${n} 
+  python iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
 
   pids[${n}]=$!
   
@@ -147,7 +154,7 @@ du -hs $ddir >> o.res.$sfx
 
 echo >> o.res.$sfx
 ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
-ps auxww | grep mongod | grep -v grep >> o.res.$sfx
+ps aux | grep mongod | grep -v grep >> o.res.$sfx
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do

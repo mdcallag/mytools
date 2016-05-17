@@ -168,6 +168,12 @@ DEFINE_boolean('mongo', False, 'if True then for MongoDB, else for MySQL')
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
 DEFINE_boolean('mongo_fsync', False, 'Value for MongoDB write concern: fsync')
+DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
+DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
+DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
+DEFINE_string('name_price', 'price', 'Name for price attribute')
+DEFINE_string('name_prod', 'product', 'Name for product attribute')
+DEFINE_string('name_data', 'data', 'Name for data attribute')
 
 #
 # iibench
@@ -189,16 +195,16 @@ def create_table_mongo():
   db.drop_collection(FLAGS.table_name)
 
   if FLAGS.num_secondary_indexes >= 1:
-    db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
-                                       ("customerid", pymongo.ASCENDING)], name="pc")
+    db[FLAGS.table_name].create_index([(FLAGS.name_price, pymongo.ASCENDING),
+                                       (FLAGS.name_cust, pymongo.ASCENDING)], name="pc")
   if FLAGS.num_secondary_indexes >= 2:
-    db[FLAGS.table_name].create_index([("cashregisterid", pymongo.ASCENDING),
-                                       ("price", pymongo.ASCENDING),
-                                         ("customerid", pymongo.ASCENDING)], name="cpc")
+    db[FLAGS.table_name].create_index([(FLAGS.name_cash, pymongo.ASCENDING),
+                                       (FLAGS.name_price, pymongo.ASCENDING),
+                                       (FLAGS.name_cust, pymongo.ASCENDING)], name="cpc")
   if FLAGS.num_secondary_indexes >= 3:
-    db[FLAGS.table_name].create_index([("price", pymongo.ASCENDING),
-                                       ("dateandtime", pymongo.ASCENDING),
-                                       ("customerid", pymongo.ASCENDING)], name="pdc")
+    db[FLAGS.table_name].create_index([(FLAGS.name_price, pymongo.ASCENDING),
+                                       (FLAGS.name_ts, pymongo.ASCENDING),
+                                       (FLAGS.name_cust, pymongo.ASCENDING)], name="pdc")
 
 def create_table_mysql():
   conn = get_conn()
@@ -283,9 +289,9 @@ def generate_row_mongo(when, max_pk, is_sequential, rand_data_buf):
   else:
     pk = random.randrange(1, max_pk+1)
 
-  return {'_id' : pk, 'datetime' : when, 'cashregisterid' : cashregisterid,
-          'customerid' : customerid, 'productid' : productid, 'price' : price,
-          'data' : data }
+  return {'_id' : pk, FLAGS.name_ts : when, FLAGS.name_cash : cashregisterid,
+          FLAGS.name_cust : customerid, FLAGS.name_prod : productid,
+          FLAGS.name_price : price, FLAGS.name_data : data }
 
 def generate_row_mysql(when, max_pk, is_sequential, rand_data_buf):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
@@ -306,15 +312,15 @@ def generate_row(when, max_pk, is_sequential, rand_data_buf):
 def generate_pdc_query_mongo(row_count, conn, price):
   # print "query pdc"
   return (
-           conn.find({'price': {'$gte' : price }},
-                     fields = {'price':1, 'dateandtime':1, 'customerid':1, '_id':0})
-               .sort([('price', pymongo.ASCENDING),
-                      ('dateandtime', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+           conn.find({FLAGS.name_price: {'$gte' : price }},
+                     fields = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
+               .sort([(FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_ts, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
                .limit(FLAGS.rows_per_query)
-               .hint([('price', pymongo.ASCENDING),
-                      ('dateandtime', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+               .hint([(FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_ts, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
          )
 
 def generate_pdc_query_mysql(row_count, conn, price):
@@ -367,13 +373,13 @@ def generate_pk_query(row_count, conn):
 def generate_market_query_mongo(row_count, conn, price):
   # print "query market"
   return (
-           conn.find({'price': {'$gte' : price}}, 
-                     fields = {'price':1, 'customerid':1, '_id':0})
-               .sort([('price', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+           conn.find({FLAGS.name_price: {'$gte' : price}}, 
+                     fields = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
+               .sort([(FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
                .limit(FLAGS.rows_per_query)
-               .hint([('price', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+               .hint([(FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
 def generate_market_query_mysql(row_count, conn, price):
@@ -395,15 +401,15 @@ def generate_market_query(row_count, conn):
 def generate_register_query_mongo(row_count, conn, cashregisterid):
   # print "query register"
   return (
-           conn.find({'cashregisterid': {'$gte' : cashregisterid}}, 
-                     fields = {'cashregister':1, 'price':1, 'customerid':1, '_id':0})
-               .sort([('cashregisterid', pymongo.ASCENDING),
-                      ('price', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+           conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
+                     fields = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
+               .sort([(FLAGS.name_cash, pymongo.ASCENDING),
+                      (FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
                .limit(FLAGS.rows_per_query)
-               .hint([('cashregisterid', pymongo.ASCENDING),
-                      ('price', pymongo.ASCENDING),
-                      ('customerid', pymongo.ASCENDING)])
+               .hint([(FLAGS.name_cash, pymongo.ASCENDING),
+                      (FLAGS.name_price, pymongo.ASCENDING),
+                      (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
 def generate_register_query_mysql(row_count, conn, cashregisterid):
