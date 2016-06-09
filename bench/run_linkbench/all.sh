@@ -15,7 +15,7 @@ echo Load
 bash load.sh $fn $client $ddir $maxid $dname 1 true $myORmo $ddl
 
 for loop in $( seq 1 $loops ); do
-bash run.sh $fn.$loop.$dop $client $ddir $maxid $dname $dop $secs $myORmo
+bash run.sh $fn.L${loop}.P${dop} $client $ddir $maxid $dname $dop $secs $myORmo
 done
 
 shift 10
@@ -25,7 +25,7 @@ if [[ $# -gt 0 ]]; then
 
   for mydop in "${doparr[@]}" ; do
     loop=$(( $loop + 1 ))
-    bash run.sh $fn.$loop.$mydop $client $ddir $maxid $dname $mydop $secs $myORmo
+    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $myORmo
   done
 fi
 
