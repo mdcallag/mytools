@@ -37,8 +37,9 @@ else
 fi
 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
+echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -r" >> r.o.$fn
 
-time bash bin/linkbench -c config/${props} -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -r >> r.o.$fn 2>&1
+time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -r >> r.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
