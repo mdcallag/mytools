@@ -7,6 +7,7 @@ dop=$6
 gennodes=$7
 myORmo=$8
 ddl=$9
+dbhost=${10}
 
 if [[ $myORmo = "mysql" ]]; then
   $client -uroot -ppw -h127.0.0.1 < $ddl
@@ -38,7 +39,9 @@ fi
 
 echo "background jobs: $ipid $vpid $spid" > l.o.$fn
 
-time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -l  >> l.o.$fn 2>&1
+echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} -Duser=root -Dpassword=pw -Ddbid=linkdb -l" >> l.o.$fn
+
+time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} -Duser=root -Dpassword=pw -Ddbid=linkdb -l  >> l.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
