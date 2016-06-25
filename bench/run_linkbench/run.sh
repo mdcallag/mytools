@@ -30,17 +30,18 @@ if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMongoDBv2.properties
+  logarg=""
 else
   while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+  logarg="-Duser=root -Dpassword=pw"
 fi
 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
-echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} -Duser=root -Dpassword=pw -Ddbid=linkdb -r" >> r.o.$fn
-
-time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} -Duser=root -Dpassword=pw -Ddbid=linkdb -r >> r.o.$fn 2>&1
+echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r" >> r.o.$fn
+time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r >> r.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
