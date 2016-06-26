@@ -11,7 +11,7 @@ dbhost=$9
 if [[ $myORmo = "mysql" ]]; then
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
-  # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=127.0.0.1 >& r.mstat.$fn &
+  # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& r.mstat.$fn &
   # mpid=$!
 fi
 
@@ -35,12 +35,13 @@ else
   while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
-  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+  $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   logarg="-Duser=root -Dpassword=pw"
 fi
 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r" >> r.o.$fn
+
 time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r >> r.o.$fn 2>&1
 
 kill $ipid
@@ -54,14 +55,14 @@ if [[ $myORmo = "mongo" ]]; then
   echo "db.node.stats()" | $client graph-linkbench > r.node.$fn
   echo "db.count.stats()" | $client graph-linkbench > r.count.$fn
 else
-  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > r.esi.$fn
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > r.esr.$fn
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > r.est.$fn
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > r.gs.$fn
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > r.gv.$fn
-  $client -uroot -ppw -A -h127.0.0.1 linkdb -e 'show table status' > r.ts.$fn
-  $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > r.mem.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'reset master'
+  $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > r.esi.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'show engine rocksdb status\G' > r.esr.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'show engine tokudb status\G' > r.est.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'show global status' > r.gs.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'show global variables' > r.gv.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show table status' > r.ts.$fn
+  $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > r.mem.$fn
 fi
 
 echo "after $ddir" >> r.sz.$fn
