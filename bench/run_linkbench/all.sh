@@ -26,7 +26,7 @@ if [[ $# -gt 0 ]]; then
 
   for mydop in "${doparr[@]}" ; do
     loop=$(( $loop + 1 ))
-    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $myORmoa $dbhost
+    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $myORmo $dbhost
   done
 fi
 
