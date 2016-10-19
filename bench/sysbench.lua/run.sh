@@ -9,14 +9,25 @@ range=$8
 
 if [[ $testType == "read-only" ]]; then
   testArgs="--oltp-read-only=on"
+  lua="oltp.lua"
 elif [[ $testType == "read-write" ]]; then
   testArgs="--oltp-read-only=off --oltp-index-updates=1 --oltp-non-index-updates=1 --oltp-delete-inserts=1"
+  lua="oltp.lua"
 elif [[ $testType == "update-nonindex" ]]; then
   testArgs="--oltp-write-only=on --oltp-index-updates=0 --oltp-non-index-updates=1 --oltp-delete-inserts=0"
+  lua="oltp.lua"
 elif [[ $testType == "update-index" ]]; then
   testArgs="--oltp-write-only=on --oltp-index-updates=1 --oltp-non-index-updates=0 --oltp-delete-inserts=0"
+  lua="oltp.lua"
 elif [[ $testType == "point-query" ]]; then
   testArgs="--oltp-read-only=on --oltp-point-selects=1 --oltp-range-selects=off --oltp-skip-trx=on"
+  lua="oltp.lua"
+elif [[ $testType == "select" ]]; then
+  testArgs=""
+  lua="select.lua"
+elif [[ $testType == "insert" ]]; then
+  testArgs=""
+  lua="insert.lua"
 else
 echo Did not recognize testType $testType
 exit 1
@@ -46,8 +57,8 @@ iostat -kx 10 10000 >& sb.io.nt${nt}.$sfx &
 iopid=$!
 
 #LD_PRELOAD=/usr/lib64/libjemalloc.so.1
-echo sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run > sb.o.nt${nt}.${sfx}
-./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run >> sb.o.nt${nt}.${sfx} 2>&1
+echo sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run > sb.o.nt${nt}.${sfx}
+./sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
 kill $iopid

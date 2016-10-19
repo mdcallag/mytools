@@ -23,4 +23,10 @@ bash run.sh $ntabs $nrows $readsecs  $engine 0      0        read-only       $ra
 done
 
 echo point-query
-bash run.sh $ntabs $nrows $readsecs  $engine 0      $cleanup point-query     100    $concurrency
+bash run.sh $ntabs $nrows $readsecs  $engine 0      0        point-query     100    $concurrency
+
+echo select
+bash run.sh $ntabs $nrows $readsecs  $engine 0      0        select          100    $concurrency
+
+echo insert
+bash run.sh $ntabs $nrows $writesecs $engine 0      $cleanup insert          100    $concurrency
