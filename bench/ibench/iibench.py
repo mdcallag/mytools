@@ -310,10 +310,10 @@ def generate_row(when, max_pk, is_sequential, rand_data_buf):
     return generate_row_mysql(when, max_pk, is_sequential, rand_data_buf)
 
 def generate_pdc_query_mongo(row_count, conn, price):
-  # print "query pdc"
+  #print "query pdc"
   return (
            conn.find({FLAGS.name_price: {'$gte' : price }},
-                     fields = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
+                     projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
                .sort([(FLAGS.name_price, pymongo.ASCENDING),
                       (FLAGS.name_ts, pymongo.ASCENDING),
                       (FLAGS.name_cust, pymongo.ASCENDING)])
@@ -374,7 +374,7 @@ def generate_market_query_mongo(row_count, conn, price):
   # print "query market"
   return (
            conn.find({FLAGS.name_price: {'$gte' : price}}, 
-                     fields = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
+                     projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
                .sort([(FLAGS.name_price, pymongo.ASCENDING),
                       (FLAGS.name_cust, pymongo.ASCENDING)])
                .limit(FLAGS.rows_per_query)
@@ -402,7 +402,7 @@ def generate_register_query_mongo(row_count, conn, cashregisterid):
   # print "query register"
   return (
            conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
-                     fields = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
+                     projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
                .sort([(FLAGS.name_cash, pymongo.ASCENDING),
                       (FLAGS.name_price, pymongo.ASCENDING),
                       (FLAGS.name_cust, pymongo.ASCENDING)])
@@ -468,6 +468,7 @@ def Query(query_args, shared_arr, lock):
   lock.acquire()
   lock.release()
 
+  # print 'Query thread running'
   db_conn = get_conn()
 
   # assume it is 0, row_count will soon be corrected
@@ -554,6 +555,7 @@ def Insert(rounds, insert_q, counters, lock):
   else:
     conn = get_conn()
     max_pk = get_max_pk(conn)
+    # print 'max_pk in insert is %d' % max_pk
     conn.close()
 
   for c in counters:
@@ -722,10 +724,12 @@ def run_benchmark():
 
   if FLAGS.setup:
     create_table()
+    # print 'created table'
     max_pk = 0
   else:
     conn = get_conn()
     max_pk = get_max_pk(conn)
+    # print 'in main max_pk is %d' % max_pk
     conn.close()
 
   # After the insert and query processes lock/unlock this they can run
