@@ -33,12 +33,18 @@ echo Did not recognize testType $testType
 exit 1
 fi
 
+if [[ $engine == "myisam" ]]; then
+  etrx="no"
+else
+  etrx="yes"
+fi
+
 dbcreds="--mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test"
 sfx="nr${nr}.range${range}.${engine}.${testType}"
 
 if [[ $setup == 1 ]]; then
 echo Setup
-time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >& sb.prepare.$sfx
+time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >& sb.prepare.$sfx
 fi
 
 shift 8
@@ -57,8 +63,8 @@ iostat -kx 10 10000 >& sb.io.nt${nt}.$sfx &
 iopid=$!
 
 #LD_PRELOAD=/usr/lib64/libjemalloc.so.1
-echo sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run > sb.o.nt${nt}.${sfx}
-./sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run >> sb.o.nt${nt}.${sfx} 2>&1
+echo sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run > sb.o.nt${nt}.${sfx}
+./sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
 kill $iopid
@@ -67,7 +73,7 @@ done
 
 if [[ $cleanup == 1 ]]; then
 echo Cleanup
-./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=yes $dbcreds --mysql-table-engine=$engine --oltp-table-size=$nr --oltp-tables-count=$ntabs cleanup
+./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-table-size=$nr --oltp-tables-count=$ntabs cleanup
 fi
 
 for nt in "$@"; do
