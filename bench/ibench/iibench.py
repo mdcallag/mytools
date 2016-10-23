@@ -51,7 +51,7 @@ __author__ = 'Mark Callaghan'
 import os
 import base64
 import string
-from multiprocessing import Queue, Process, Pipe, Array
+from multiprocessing import Queue, Process, Pipe, Array, Lock
 import optparse
 from datetime import datetime
 import time
@@ -462,11 +462,16 @@ def generate_insert_rows_random(row_count, rand_data_buf):
            '(transactionid,dateandtime,cashregisterid,customerid,productid,price,data) '\
            'values %s' % (FLAGS.table_name, sql_data)
 
-def Query(max_pk, query_args, shared_arr):
+def Query(query_args, shared_arr, lock):
+
+  # block on this until main thread wants all processes to run
+  lock.acquire()
+  lock.release()
 
   db_conn = get_conn()
 
-  row_count = max_pk
+  # assume it is 0, row_count will soon be corrected
+  row_count = 0
   start_time = time.time()
   loops = 0
 
@@ -539,15 +544,26 @@ def print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, tab
   sys.stdout.flush()
   return now, sum_queries
 
-def Insert(rounds, max_pk, insert_q, counters):
+def Insert(rounds, insert_q, counters, lock):
+  # block on this until main thread wants all processes to run
+  lock.acquire()
+  lock.release()
+
+  if FLAGS.setup:
+    max_pk = 0
+  else:
+    conn = get_conn()
+    max_pk = get_max_pk(conn)
+    conn.close()
+
+  for c in counters:
+    c[0] = max_pk
+
   # generate insert rows in this loop and place into queue as they're
   # generated.  The execution process will pull them off from here.
   start_time = time.time()
   prev_time = start_time
   inserted = 0
-
-  for c in counters:
-    c[0] = max_pk
 
   prev_sum = 0
   table_size = 0
@@ -607,7 +623,19 @@ def Insert(rounds, max_pk, insert_q, counters):
   insert_q.put(insert_done)
   insert_q.close()
 
-def statement_executor(stmt_q, db_conn):
+def statement_executor(stmt_q, lock):
+  # block on this until main thread wants all processes to run
+  lock.acquire()
+  lock.release()
+
+  db_conn = get_conn()
+  if not FLAGS.mongo and not FLAGS.unique_checks:
+    cursor = db_conn.cursor()
+    if FLAGS.engine.lower() == 'rocksdb':
+      cursor.execute('set rocksdb_skip_unique_check=1')
+    elif FLAGS.engine.lower() == 'tokudb':
+      cursor.execute('set unique_checks=0')
+    cursor.close()
 
   if FLAGS.mongo:
     collection = db_conn[FLAGS.db_name][FLAGS.table_name]
@@ -646,18 +674,16 @@ def statement_executor(stmt_q, db_conn):
           raise e
     
   stmt_q.close()
+  db_conn.close()
+
 
 def run_benchmark():
   random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
-  if FLAGS.setup:
-    create_table()
-    max_pk = 0
-  else:
-    conn = get_conn()
-    max_pk = get_max_pk(conn)
-    conn.close()
+  # Lock is held until processes can start running
+  lock = Lock()
+  lock.acquire()
 
   # Array of tuples, each tuple is (max_pk, num_queries)
   #   max_pk passes max value of PK to query process
@@ -678,25 +704,12 @@ def run_benchmark():
 
     query_thr = []
     for i in xrange(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(max_pk, query_args, counters[i])))
-
-  # set up a queue that will be shared across the insert generation / insert
-  # execution processes
-
-  db_conn = get_conn()
-
-  if not FLAGS.mongo and not FLAGS.unique_checks:
-    cursor = db_conn.cursor()
-    if FLAGS.engine.lower() == 'rocksdb':
-      cursor.execute('set rocksdb_skip_unique_check=1')
-    elif FLAGS.engine.lower() == 'tokudb':
-      cursor.execute('set unique_checks=0')
-    cursor.close()
+      query_thr.append(Process(target=Query, args=(query_args, counters[i], lock)))
 
   if not FLAGS.no_inserts:
     stmt_q = Queue(1)
-    insert_delete = Process(target=statement_executor, args=(stmt_q, db_conn))
-    inserter = Process(target=Insert, args=(rounds,max_pk,stmt_q, counters))
+    insert_delete = Process(target=statement_executor, args=(stmt_q, lock))
+    inserter = Process(target=Insert, args=(rounds, stmt_q, counters, lock))
 
     # start up the insert execution process with this queue
     insert_delete.start()
@@ -707,12 +720,20 @@ def run_benchmark():
     for qthr in query_thr:
       qthr.start()
 
+  if FLAGS.setup:
+    create_table()
+    max_pk = 0
+  else:
+    conn = get_conn()
+    max_pk = get_max_pk(conn)
+    conn.close()
+
+  # After the insert and query processes lock/unlock this they can run
+  lock.release()
+
   if not FLAGS.no_inserts:
     # block until the inserter is done
     insert_delete.join()
-
-  # close the connection and then terminate the insert / delete process
-  db_conn.close()
 
   if not FLAGS.no_inserts:
     inserter.terminate()
