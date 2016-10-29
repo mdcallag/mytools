@@ -6,6 +6,7 @@ setup=$5
 cleanup=$6
 testType=$7
 range=$8
+client=$9
 
 if [[ $testType == "read-only" ]]; then
   testArgs="--oltp-read-only=on"
@@ -47,7 +48,7 @@ echo Setup
 time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >& sb.prepare.$sfx
 fi
 
-shift 8
+shift 9
 
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
@@ -68,6 +69,9 @@ echo sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=$etrx 
 
 kill $vmpid
 kill $iopid
+
+$client -uroot -ppw test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
+$client -uroot -ppw test -e "show table status" > sb.ts.nt${nt}.$sfx
 
 done
 
@@ -100,3 +104,4 @@ for nt in "$@"; do
   grep percentile: sb.o.nt${nt}.$sfx | awk '{ print $4 }' | tr 'ms' ' ' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rt95.$sfx
 echo "$engine $testType range=$range" >> sb.r.rt95.$sfx
+
