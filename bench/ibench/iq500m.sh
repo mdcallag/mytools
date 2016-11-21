@@ -8,7 +8,7 @@ dop=$7
 mongo=$8
 short=$9
 
-bash np.sh 2000000000 $e "$eo" 3 $client $data  $dop 10 20 0 $dname no $checku 100 0 0 yes $mongo $short
+bash np.sh 500000000 $e "$eo" 3 $client $data  $dop 10 20 0 $dname no $checku 100 0 0 yes $mongo $short
 mkdir l
 mv o.* l
 

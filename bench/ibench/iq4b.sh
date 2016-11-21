@@ -12,15 +12,11 @@ bash np.sh 4000000000 $e "$eo" 3 $client $data  $dop 10 20 0 $dname no $checku 1
 mkdir l
 mv o.* l
 
-bash np.sh 100000000 $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 2000 1 no $mongo $short
-mkdir q2000
-mv o.* q2000
-
-bash np.sh  50000000 $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 1000 1 no $mongo $short
+bash np.sh   5000000 $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 1000 1 no $mongo $short
 mkdir q1000
 mv o.* q1000
 
-bash np.sh   5000000 $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 100 1 no $mongo $short
+bash np.sh    500000 $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 100 1 no $mongo $short
 mkdir q100
 mv o.* q100
 
