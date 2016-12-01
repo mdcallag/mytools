@@ -7,7 +7,7 @@ setup=$6
 cleanup=$7
 client=$8
 
-concurrency="1 2 4 8"
+concurrency="1 2 4"
 
 echo update-index
 bash run.sh $ntabs $nrows $writesecs $engine $setup 0        update-index    100    $client $concurrency
