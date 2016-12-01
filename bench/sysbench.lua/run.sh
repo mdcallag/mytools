@@ -71,7 +71,8 @@ kill $vmpid
 kill $iopid
 
 $client -uroot -ppw test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
-$client -uroot -ppw test -e "show table status" > sb.ts.nt${nt}.$sfx
+$client -uroot -ppw test -e "show table status\G" > sb.ts.nt${nt}.$sfx
+$client -uroot -ppw test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
 $client -uroot -ppw test -e "show global variables" > sb.gv.nt${nt}.$sfx
 $client -uroot -ppw test -e "show global status" > sb.gs.nt${nt}.$sfx
 
