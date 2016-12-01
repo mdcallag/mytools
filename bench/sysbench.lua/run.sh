@@ -55,6 +55,8 @@ rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 for nt in "$@"; do
 echo Run for $nt threads
 
+$client -uroot -ppw -e 'reset master' 2> /dev/null
+
 echo Run for nt $nt at $( date )
 killall vmstat
 killall iostat
@@ -75,6 +77,7 @@ $client -uroot -ppw test -e "show table status\G" > sb.ts.nt${nt}.$sfx
 $client -uroot -ppw test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
 $client -uroot -ppw test -e "show global variables" > sb.gv.nt${nt}.$sfx
 $client -uroot -ppw test -e "show global status" > sb.gs.nt${nt}.$sfx
+$client -uroot -ppw -e 'reset master' 2> /dev/null
 
 done
 
