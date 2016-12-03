@@ -7,6 +7,7 @@ cleanup=$6
 testType=$7
 range=$8
 client=$9
+tableoptions=${10}
 
 if [[ $testType == "read-only" ]]; then
   testArgs="--oltp-read-only=on"
@@ -45,7 +46,14 @@ sfx="nr${nr}.range${range}.${engine}.${testType}"
 
 if [[ $setup == 1 ]]; then
 echo Setup
-time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >& sb.prepare.$sfx
+
+topt=""
+if [[ $tableoptions != none ]]; then
+topt="--mysql-table-options=$tableoptions"
+fi
+
+echo sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare > sb.prepare.$sfx
+time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >> sb.prepare.$sfx 2>&1
 fi
 
 shift 9
