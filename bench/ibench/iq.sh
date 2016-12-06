@@ -7,19 +7,20 @@ checku=$6
 dop=$7
 mongo=$8
 short=$9
-nr=${10}
+only1t=${10}
+nr=${11}
 
-bash np.sh $nr $e "$eo" 3 $client $data  $dop 10 20 0 $dname no $checku 100 0 0 yes $mongo $short
+bash np.sh $nr $e "$eo" 3 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $mongo $short
 mkdir l
 mv o.* l
 
 # Run for 5000 seconds regardless of concurrency
-bash np.sh $(( 5000000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 1000 1 no $mongo $short
+bash np.sh $(( 5000000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $mongo $short
 mkdir q1000
 mv o.* q1000
 
 # Run for 5000 seconds regardless of concurrency
-bash np.sh $(( 500000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname no 1 100 100 1 no $mongo $short
+bash np.sh $(( 500000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $mongo $short
 mkdir q100
 mv o.* q100
 

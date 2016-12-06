@@ -123,6 +123,7 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
+$client -uroot -ppw -A -h127.0.0.1 ib -e 'show indexes from pi1' > o.is.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
 echo "db.serverStatus()" | $client > o.es.$sfx
