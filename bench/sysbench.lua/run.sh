@@ -44,6 +44,8 @@ fi
 dbcreds="--mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test"
 sfx="nr${nr}.range${range}.${engine}.${testType}"
 
+$client -uroot -ppw -e 'reset master' 2> /dev/null
+
 if [[ $setup == 1 ]]; then
 echo Setup
 
@@ -54,6 +56,7 @@ fi
 
 echo sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare > sb.prepare.$sfx
 time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >> sb.prepare.$sfx 2>&1
+$client -uroot -ppw -e 'reset master' 2> /dev/null
 fi
 
 shift 9
@@ -62,8 +65,6 @@ rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
 for nt in "$@"; do
 echo Run for $nt threads
-
-$client -uroot -ppw -e 'reset master' 2> /dev/null
 
 echo Run for nt $nt at $( date )
 killall vmstat
