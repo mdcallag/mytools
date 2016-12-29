@@ -62,6 +62,9 @@ else
   $client -uroot -ppw -A -h${dbhost} -e 'show global status' > r.gs.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show global variables' > r.gv.$fn
   $client -uroot -ppw -A -h${dbhost} linkdb -e 'show table status' > r.ts.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from linktable' > r.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from nodetable' >> r.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from counttable' >> r.is.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > r.mem.$fn
 fi
 
