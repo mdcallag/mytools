@@ -146,6 +146,7 @@ DEFINE_boolean('with_max_table_rows', False,
                'When True, allow table to grow to max_table_rows, then delete oldest')
 DEFINE_integer('sequential', 1, 'Insert in sequential PK order')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
+DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
 DEFINE_integer('seed', 3221223452, 'RNG seed')
 
@@ -162,6 +163,7 @@ DEFINE_string('db_password', '', 'DB password for the test')
 DEFINE_string('db_config_file', '', 'MySQL configuration file')
 DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
 DEFINE_integer('unique_checks', 1, 'Set unique_checks')
+DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
 # MongoDB flags
 DEFINE_boolean('mongo', False, 'if True then for MongoDB, else for MySQL')
@@ -189,10 +191,9 @@ def get_conn():
                            db=FLAGS.db_name, passwd=FLAGS.db_password,
                            unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file)
 
-def create_table_mongo():
+def create_index_mongo():
   conn = get_conn()
   db = conn[FLAGS.db_name]
-  db.drop_collection(FLAGS.table_name)
 
   if FLAGS.num_secondary_indexes >= 1:
     db[FLAGS.table_name].create_index([(FLAGS.name_price, pymongo.ASCENDING),
@@ -205,6 +206,29 @@ def create_table_mongo():
     db[FLAGS.table_name].create_index([(FLAGS.name_price, pymongo.ASCENDING),
                                        (FLAGS.name_ts, pymongo.ASCENDING),
                                        (FLAGS.name_cust, pymongo.ASCENDING)], name="pdc")
+
+def create_table_mongo():
+  conn = get_conn()
+  db = conn[FLAGS.db_name]
+  db.drop_collection(FLAGS.table_name)
+
+def create_index_mysql():
+  if FLAGS.num_secondary_indexes >= 1:
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    index_ddl = "alter table %s add index marketsegment (price, customerid) " % (
+                   FLAGS.table_name)
+
+    if FLAGS.num_secondary_indexes >= 2:
+      index_ddl += ", add index registersegment (cashregisterid, price, customerid) "
+
+    if FLAGS.num_secondary_indexes >= 3:
+      index_ddl += ", add index pdc (price, dateandtime, customerid) "
+
+    cursor.execute(index_ddl)
+    cursor.close()
+    conn.close()
 
 def create_table_mysql():
   conn = get_conn()
@@ -225,16 +249,6 @@ def create_table_mysql():
   print ddl_sql
   cursor.execute(ddl_sql)
 
-  if FLAGS.num_secondary_indexes >= 1:
-    cursor.execute("alter table %s add index marketsegment (price, customerid) "
-                   % FLAGS.table_name)
-  if FLAGS.num_secondary_indexes >= 2:
-    cursor.execute("alter table %s add index registersegment (cashregisterid, price, customerid) "
-                   % FLAGS.table_name)
-  if FLAGS.num_secondary_indexes >= 3:
-    cursor.execute("alter table %s add index pdc (price, dateandtime, customerid) "
-                   % FLAGS.table_name)
-
   cursor.close()
   conn.close()
 
@@ -243,6 +257,12 @@ def create_table():
     create_table_mongo()
   else:
     create_table_mysql()
+
+def create_index():
+  if FLAGS.mongo:
+    create_index_mongo()
+  else:
+    create_index_mysql()
 
 def get_max_pk_mongo(conn):
   docs = conn[FLAGS.db_name][FLAGS.table_name].find({}).sort([('_id', pymongo.DESCENDING)]).limit(1)
@@ -631,12 +651,19 @@ def statement_executor(stmt_q, lock):
   lock.release()
 
   db_conn = get_conn()
-  if not FLAGS.mongo and not FLAGS.unique_checks:
+  if not FLAGS.mongo:
     cursor = db_conn.cursor()
-    if FLAGS.engine.lower() == 'rocksdb':
-      cursor.execute('set rocksdb_skip_unique_check=1')
-    elif FLAGS.engine.lower() == 'tokudb':
-      cursor.execute('set unique_checks=0')
+
+    if not FLAGS.unique_checks:
+      if FLAGS.engine.lower() == 'rocksdb':
+        cursor.execute('set rocksdb_skip_unique_check=1')
+      elif FLAGS.engine.lower() == 'tokudb':
+        cursor.execute('set unique_checks=0')
+
+    if FLAGS.bulk_load:
+      if FLAGS.engine.lower() == 'rocksdb':
+        cursor.execute('set rocksdb_bulk_load=1')
+
     cursor.close()
 
   if FLAGS.mongo:
@@ -724,6 +751,8 @@ def run_benchmark():
 
   if FLAGS.setup:
     create_table()
+    if not FLAGS.secondary_at_end:
+      create_index()
     # print 'created table'
     max_pk = 0
   else:
@@ -734,6 +763,7 @@ def run_benchmark():
 
   # After the insert and query processes lock/unlock this they can run
   lock.release()
+  test_start = time.time()
 
   if not FLAGS.no_inserts:
     # block until the inserter is done
@@ -765,6 +795,17 @@ def run_benchmark():
     for qthr in query_thr:
       qthr.terminate()
 
+  if FLAGS.secondary_at_end:
+    x_start = time.time()
+    create_index()
+    x_end = time.time()
+    print 'Created secondary indexes in %.1f seconds' % (x_end - x_start)
+
+  test_end = time.time()
+  print 'Totals: %.1f secs, %.1f rows/sec, %s rows' % (
+      test_end - test_start,
+      FLAGS.max_rows / (test_end - test_start),
+      FLAGS.max_rows)
   print 'Done'
 
 def main(argv):

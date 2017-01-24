@@ -17,6 +17,8 @@ nqt=${16}
 setup=${17}
 mongo=${18}
 short=${19}
+bulk=${20}
+secatend=${21}
 
 if [[ $short == "yes" ]]; then
 names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
@@ -41,8 +43,8 @@ fi
 killall vmstat
 killall iostat
 
-# python mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=15 2> /dev/null > o.mstat.$sfx &
-# mpid=$!
+python mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
+mpid=$!
 
 vmstat 10 >& o.vm.$sfx &
 vpid=$!
@@ -74,7 +76,11 @@ for n in $( seq 1 $dop ) ; do
   if [[ $mongo == "yes" ]]; then
     db_args="--mongo --mongo_w=1"
   else
-    db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique}"
+    db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
+  fi
+
+  if [[ $secatend == "yes" ]]; then
+    db_args+=" --secondary_at_end"
   fi
 
   if [[ $ips = 0 ]] ; then
@@ -110,7 +116,7 @@ query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
 echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
 
-# kill $mpid >& /dev/null
+kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
@@ -123,7 +129,6 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
-$client -uroot -ppw -A -h127.0.0.1 ib -e 'show indexes from pi1' > o.is.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
 echo "db.serverStatus()" | $client > o.es.$sfx
