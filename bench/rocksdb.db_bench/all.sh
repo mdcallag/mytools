@@ -17,6 +17,29 @@ bg_io_mb=${13}
 secs_debt=${14}
 dbversion=${15}
 
+# Comments on the command line options
+# arg 7 - this sets the size of the write buffer (memtable). I usually use 32mb or 64mb for the write buffer
+# arg 8 - this sets the number of background compaction threads. Start with number-real-cores / 4. Compaction
+#         needs CPU but if there are too many then some will get starved and you all need CPU for the
+#         application and request handling.
+# arg 9 - the target size for level 1 of the LSM tree. I usually use 256mb, 512mb or 1024mb. Note that I
+#         configured compaction to start when there are 4 files in level 0
+#         (--level0_file_num_compaction_trigger=4) and I want sizeof(L0) ~= sizeof(L1) when compaction occurs.
+#         The size of L0 files is determined by the size of the write buffer (see arg7). So if you adjust
+#         arg 7 then adjust this arg.
+# arg 10 - first level in the LSM tree to compress. I usually start compression on level 3 and leave levels 0,
+#         1 and 2 uncompressed. I don't compress small levels because the CPU cost is high, but the space
+#         savings are small. Compressing L0, L1 and L2 would reduce the total write-rate & write-amplification
+#         from compaction, but I don't think it is worth it. Compaction stalls usually happen from L0->L1
+#         compaction or from L1->L2 compaction and compression makes that slower, so it increases stalls.
+# arg 11 - compression type. This is your choice but when choosing between zstd and zlib I prefer zstd.
+#         See http://smalldatum.blogspot.com/2016/09/zlib-vs-zstd-for-myrocks-running.html
+# arg 12 - size of the RocksDB block cache. My advice is at
+#         http://smalldatum.blogspot.com/2016/09/tuning-rocksdb-block-cache.html
+# arg 13 - an estimate of the IO rate that storage & RocksDB supports
+# arg 14 - used for compaction throttling. The number of seconds of "IO debt" I allow RocksDB to have before
+#         throttling writes. Used with arg 13.
+
 xkeys=$(( $keys * 1000 ))
 
 if [[ $dbversion = "4.1" ]] ; then
