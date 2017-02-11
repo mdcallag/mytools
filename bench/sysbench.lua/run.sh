@@ -33,7 +33,7 @@ elif [[ $testType == "point-query" ]]; then
   lua="oltp_point_select.lua"
 elif [[ $testType == "insert" ]]; then
   testArgs=""
-  lua="insert.lua"
+  lua="oltp_insert.lua"
 else
 echo Did not recognize testType $testType
 exit 1

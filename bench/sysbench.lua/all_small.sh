@@ -17,8 +17,9 @@ bash run.sh $ntabs $nrows $writesecs $engine $setup 0        update-index    100
 echo update-nonindex
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-nonindex 100    $client $tableoptions $sysbdir $concurrency
 
+# TODO no concurrency until it uses transactions
 echo delete
-bash run.sh $ntabs $nrows $writesecs $engine 0      0        delete          100    $client $tableoptions $sysbdir $concurrency
+bash run.sh $ntabs $nrows $writesecs $engine 0      0        delete          100    $client $tableoptions $sysbdir 1
 
 echo write-only
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        write-only      100    $client $tableoptions $sysbdir $concurrency
