@@ -65,7 +65,7 @@ time $ex >> sb.prepare.$sfx 2>&1
 $client -uroot -ppw -e 'reset master' 2> /dev/null
 fi
 
-shift 9
+shift 11
 
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
@@ -108,22 +108,22 @@ done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-  grep read\/write sb.o.nt${nt}.$sfx | awk '{ print $4 }' | tr '(' ' ' | awk '{ printf "%.0f\t", $1 }' 
+  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%.0f\t", $1 }' 
 done > sb.r.qps.$sfx
 echo "$engine $testType range=$range" >> sb.r.qps.$sfx
 
 for nt in "$@"; do
-  grep avg: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | tr 'ms' ' ' | awk '{ printf "%s\t", $1 }' 
+  grep avg: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rtavg.$sfx
 echo "$engine $testType range=$range" >> sb.r.rtavg.$sfx
 
 for nt in "$@"; do
-  grep max: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | tr 'ms' ' ' | awk '{ printf "%s\t", $1 }' 
+  grep max: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rtmax.$sfx
 echo "$engine $testType range=$range" >> sb.r.rtmax.$sfx
 
 for nt in "$@"; do
-  grep percentile: sb.o.nt${nt}.$sfx | awk '{ print $4 }' | tr 'ms' ' ' | awk '{ printf "%s\t", $1 }' 
+  grep percentile: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rt95.$sfx
 echo "$engine $testType range=$range" >> sb.r.rt95.$sfx
 
