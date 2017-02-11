@@ -2,12 +2,13 @@ ntabs=$1
 nrows=$2
 readsecs=$3
 writesecs=$4
-engine=$5
-setup=$6
-cleanup=$7
-client=$8
-tableoptions=$9
-sysbdir=${10}
+insertsecs=$5
+engine=$6
+setup=$7
+cleanup=$8
+client=$9
+tableoptions=${10}
+sysbdir=${11}
 
 concurrency="1 2 4"
 
@@ -36,4 +37,4 @@ echo point-query
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        point-query     100    $client $tableoptions $sysbdir $concurrency
 
 echo insert
-bash run.sh $ntabs $nrows $writesecs $engine 0      $cleanup insert          100    $client $tableoptions $sysbdir $concurrency
+bash run.sh $ntabs $nrows $insertsecs $engine 0      $cleanup insert          100    $client $tableoptions $sysbdir $concurrency
