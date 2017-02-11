@@ -8,25 +8,29 @@ testType=$7
 range=$8
 client=$9
 tableoptions=${10}
+sysbdir=${11}
 
 if [[ $testType == "read-only" ]]; then
-  testArgs="--oltp-read-only=on"
-  lua="oltp.lua"
-elif [[ $testType == "read-write" ]]; then
-  testArgs="--oltp-read-only=off --oltp-index-updates=1 --oltp-non-index-updates=1 --oltp-delete-inserts=1"
-  lua="oltp.lua"
-elif [[ $testType == "update-nonindex" ]]; then
-  testArgs="--oltp-write-only=on --oltp-index-updates=0 --oltp-non-index-updates=1 --oltp-delete-inserts=0"
-  lua="oltp.lua"
-elif [[ $testType == "update-index" ]]; then
-  testArgs="--oltp-write-only=on --oltp-index-updates=1 --oltp-non-index-updates=0 --oltp-delete-inserts=0"
-  lua="oltp.lua"
-elif [[ $testType == "point-query" ]]; then
-  testArgs="--oltp-read-only=on --oltp-point-selects=1 --oltp-range-selects=off --oltp-skip-trx=on"
-  lua="oltp.lua"
-elif [[ $testType == "select" ]]; then
   testArgs=""
-  lua="select.lua"
+  lua="oltp_read_only.lua"
+elif [[ $testType == "read-write" ]]; then
+  testArgs=""
+  lua="oltp_read_write.lua"
+elif [[ $testType == "write-only" ]]; then
+  testArgs=""
+  lua="oltp_write_only.lua"
+elif [[ $testType == "delete" ]]; then
+  testArgs=""
+  lua="oltp_delete.lua"
+elif [[ $testType == "update-nonindex" ]]; then
+  testArgs=""
+  lua="oltp_update_non_index.lua"
+elif [[ $testType == "update-index" ]]; then
+  testArgs=""
+  lua="oltp_update_index.lua"
+elif [[ $testType == "point-query" ]]; then
+  testArgs=""
+  lua="oltp_point_select.lua"
 elif [[ $testType == "insert" ]]; then
   testArgs=""
   lua="insert.lua"
@@ -54,8 +58,10 @@ if [[ $tableoptions != none ]]; then
 topt="--mysql-table-options=$tableoptions"
 fi
 
-echo sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare > sb.prepare.$sfx
-time ./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine $topt --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --max-requests=0 --max-time=$secs prepare >> sb.prepare.$sfx 2>&1
+ex="./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs prepare"
+echo $ex > sb.prepare.$sfx
+time $ex >> sb.prepare.$sfx 2>&1
+
 $client -uroot -ppw -e 'reset master' 2> /dev/null
 fi
 
@@ -75,8 +81,9 @@ iostat -kx 10 10000 >& sb.io.nt${nt}.$sfx &
 iopid=$!
 
 #LD_PRELOAD=/usr/lib64/libjemalloc.so.1
-echo sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run > sb.o.nt${nt}.${sfx}
-./sysbench --test=tests/db/${lua} --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-range-size=$range --oltp-table-size=$nr --oltp-tables-count=$ntabs --num-threads=$nt --max-requests=0 --max-time=$secs $testArgs run >> sb.o.nt${nt}.${sfx} 2>&1
+ex="./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs run"
+echo $ex > sb.o.nt${nt}.${sfx}
+$ex >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
 kill $iopid
@@ -92,7 +99,7 @@ done
 
 if [[ $cleanup == 1 ]]; then
 echo Cleanup
-./sysbench --test=tests/db/oltp.lua --db-driver=mysql --mysql-engine-trx=$etrx $dbcreds --mysql-table-engine=$engine --oltp-table-size=$nr --oltp-tables-count=$ntabs cleanup
+./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --table-size=$nr --tables=$ntabs cleanup
 fi
 
 for nt in "$@"; do
