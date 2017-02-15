@@ -22,8 +22,11 @@ bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-nonindex 100
 echo delete
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        delete          100    $client $tableoptions $sysbdir 1
 
-echo write-only
+echo write-only 100
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        write-only      100    $client $tableoptions $sysbdir $concurrency
+
+echo write-only 10000
+bash run.sh $ntabs $nrows $writesecs $engine 0      0        write-only    10000    $client $tableoptions $sysbdir $concurrency
 
 echo read-write
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        read-write      100    $client $tableoptions $sysbdir $concurrency
