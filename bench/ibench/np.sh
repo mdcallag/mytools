@@ -110,7 +110,7 @@ tot_secs=$(( $stop_secs - $start_secs ))
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
 insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
 
-total_query=$( for n in $( seq 1 $dop ); do tail -2 o.ib.dop${dop}.ns${ns}.$n | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
+total_query=$( for n in $( seq 1 $dop ); do tail -3 o.ib.dop${dop}.ns${ns}.$n | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
