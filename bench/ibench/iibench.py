@@ -656,7 +656,8 @@ def statement_executor(stmt_q, lock):
 
     if not FLAGS.unique_checks:
       if FLAGS.engine.lower() == 'rocksdb':
-        cursor.execute('set rocksdb_skip_unique_check=1')
+        #cursor.execute('set rocksdb_skip_unique_check=1')
+        cursor.execute('set unique_checks=0')
       elif FLAGS.engine.lower() == 'tokudb':
         cursor.execute('set unique_checks=0')
 
