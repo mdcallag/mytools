@@ -94,9 +94,7 @@ for n in $( seq 1 $dop ) ; do
 
   pids[${n}]=$!
   
-  if [[ $only1t == "yes" ]]; then
-    sleep 5
-  fi
+  sleep 3
  
 done
 
