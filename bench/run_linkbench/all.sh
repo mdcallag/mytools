@@ -3,20 +3,21 @@ client=$2
 ddir=$3
 maxid=$4
 dname=$5
-dop=$6
+qdop=$6
 secs=$7
 myORmo=$8
 ddl=$9
 loops=${10}
 dbhost=${11}
+ldop=${12}
 
 benchdir=$PWD
 
 echo Load
-bash load.sh $fn $client $ddir $maxid $dname 1 true $myORmo $ddl $dbhost
+bash load.sh $fn $client $ddir $maxid $dname $ldop true $myORmo $ddl $dbhost
 
 for loop in $( seq 1 $loops ); do
-bash run.sh $fn.L${loop}.P${dop} $client $ddir $maxid $dname $dop $secs $myORmo $dbhost
+bash run.sh $fn.L${loop}.P${qdop} $client $ddir $maxid $dname $qdop $secs $myORmo $dbhost
 done
 
 shift 11
