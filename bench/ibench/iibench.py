@@ -41,9 +41,6 @@
   For procesess are started and each is assigned one of the indexes. Each
   process then runs index-only queries in a loop that scan and fetch data
   from rows_per_query index entries.
-
-  This depends on multiprocessing which is only in Python 2.6. Backports to
-  2.4 and 2.5 are at http://code.google.com/p/python-multiprocessing
 """
 
 __author__ = 'Mark Callaghan'
@@ -58,6 +55,7 @@ import time
 import random
 import sys
 import math
+import timeit
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -136,7 +134,6 @@ DEFINE_integer('customers', 100000, '# customers')
 DEFINE_integer('max_price', 500, 'Maximum value for price column')
 DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
-DEFINE_boolean('query_pk_only', False, 'When True only query PK index')
 DEFINE_integer('query_threads', 0, 'Number of query threads')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
@@ -144,7 +141,6 @@ DEFINE_integer('warmup', 0, 'TODO')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
 DEFINE_boolean('with_max_table_rows', False,
                'When True, allow table to grow to max_table_rows, then delete oldest')
-DEFINE_integer('sequential', 1, 'Insert in sequential PK order')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
@@ -182,6 +178,54 @@ DEFINE_string('name_data', 'data', 'Name for data attribute')
 #
 
 insert_done='insert_done'
+
+def rthist_new():
+  obj = {}
+  hist = [0,0,0,0,0,0,0,0,0,0]
+  obj['hist'] = hist
+  obj['max'] = 0
+  return obj
+
+def rthist_start(obj):
+  return timeit.default_timer()
+
+def rthist_finish(obj, start):
+  now = timeit.default_timer()
+  elapsed = now - start
+  # Linear search assuming the first few buckets get the most responses
+  # And when not, then the overhead of this isn't relevant
+
+  if elapsed >= obj['max']:
+    obj['max'] = elapsed
+
+  rt = obj['hist']
+
+  if elapsed <= 0.000256:
+    rt[0] += 1
+  elif elapsed <= 0.001:
+    rt[1] += 1
+  elif elapsed <= 0.004:
+    rt[2] += 1
+  elif elapsed <= 0.016:
+    rt[3] += 1
+  elif elapsed <= 0.064:
+    rt[4] += 1
+  elif elapsed <= 0.256:
+    rt[5] += 1
+  elif elapsed <= 1:
+    rt[6] += 1
+  elif elapsed <= 4:
+    rt[7] += 1
+  elif elapsed <= 16:
+    rt[8] += 1
+  else:
+    rt[9] += 1
+
+def rthist_result(obj):
+  rt = obj['hist']
+  res = '256us:%d\t1ms:%d\t4ms:%d\t16ms:%d\t64ms:%d\t256ms:%d\t1s:%d\t4s:%d\t16s:%d\tgt:%d\tmax=%6f' % (
+         rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
+  return res
 
 def get_conn():
   if FLAGS.mongo:
@@ -235,7 +279,7 @@ def create_table_mysql():
   cursor = conn.cursor()
   cursor.execute('drop table if exists %s' % FLAGS.table_name)
 
-  ddl_sql = 'transactionid int not null auto_increment, '\
+  ddl_sql = 'transactionid bigint not null auto_increment, '\
             'dateandtime datetime, '\
             'cashregisterid int not null, '\
             'customerid int not null, '\
@@ -264,29 +308,6 @@ def create_index():
   else:
     create_index_mysql()
 
-def get_max_pk_mongo(conn):
-  docs = conn[FLAGS.db_name][FLAGS.table_name].find({}).sort([('_id', pymongo.DESCENDING)]).limit(1)
-  for d in docs:
-    return d['_id']
-  return 0
-
-def get_max_pk_mysql(conn):
-  cursor = conn.cursor()
-  cursor.execute('select max(transactionid) from %s' % FLAGS.table_name)
-  # catch empty database
-  try:
-    max_pk = int(cursor.fetchall()[0][0])
-  except:
-    max_pk = 0
-  cursor.close()
-  return max_pk
-
-def get_max_pk(conn):
-  if FLAGS.mongo:
-    return get_max_pk_mongo(conn)
-  else:
-    return get_max_pk_mysql(conn)
-
 def generate_cols(rand_data_buf):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
   productid = random.randrange(0, FLAGS.products)
@@ -302,35 +323,24 @@ def generate_cols(rand_data_buf):
       rand_data_buf[rand_data_off:(rand_data_off+rand_data_len)])
   return cashregisterid, productid, customerid, price, data
 
-def generate_row_mongo(when, max_pk, is_sequential, rand_data_buf):
+def generate_row_mongo(when, rand_data_buf):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
-  if is_sequential:
-    pk = max_pk + 1
-  else:
-    pk = random.randrange(1, max_pk+1)
-
-  return {'_id' : pk, FLAGS.name_ts : when, FLAGS.name_cash : cashregisterid,
+  return {FLAGS.name_ts : when, FLAGS.name_cash : cashregisterid,
           FLAGS.name_cust : customerid, FLAGS.name_prod : productid,
           FLAGS.name_price : price, FLAGS.name_data : data }
 
-def generate_row_mysql(when, max_pk, is_sequential, rand_data_buf):
+def generate_row_mysql(when, rand_data_buf):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
-  if is_sequential:
-    return '("%s",%d,%d,%d,%.2f,"%s")' % (
-        when,cashregisterid,customerid,productid,price,data)
-  else:
-    return '(%d,"%s",%d,%d,%d,%.2f,"%s")' % (
-        random.randrange(1, max_pk+1),
-        when,cashregisterid,customerid,productid,price,data)
+  return '("%s",%d,%d,%d,%.2f,"%s")' % (
+      when,cashregisterid,customerid,productid,price,data)
 
-def generate_row(when, max_pk, is_sequential, rand_data_buf):
+def generate_row(when, rand_data_buf):
   if FLAGS.mongo:
-    return generate_row_mongo(when, max_pk, is_sequential, rand_data_buf)
+    return generate_row_mongo(when, rand_data_buf)
   else:
-    return generate_row_mysql(when, max_pk, is_sequential, rand_data_buf)
+    return generate_row_mysql(when, rand_data_buf)
 
-def generate_pdc_query_mongo(row_count, conn, price):
-  #print "query pdc"
+def generate_pdc_query_mongo(conn, price):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price }},
                      projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
@@ -343,55 +353,23 @@ def generate_pdc_query_mongo(row_count, conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
 
-def generate_pdc_query_mysql(row_count, conn, price):
+def generate_pdc_query_mysql(conn, price):
   sql = 'SELECT price,dateandtime,customerid FROM %s FORCE INDEX (pdc) WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,dateandtime,customerid '\
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(row_count, conn):
+def generate_pdc_query(conn):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.mongo:
-    return generate_pdc_query_mongo(row_count, conn, price)
+    return generate_pdc_query_mongo(conn, price)
   else:
-    return generate_pdc_query_mysql(row_count, conn, price)
+    return generate_pdc_query_mysql(conn, price)
 
-def generate_pk_query_mongo(row_count, conn, pk_txid):
-  # print "query pk"
-  if FLAGS.rows_per_query > 1:
-    return (
-             conn.find({'_id': {'$gte' : pk_txid}})
-                 .sort('_id')
-                 .limit(FLAGS.rows_per_query)
-           )
-  else:
-    return conn.find_one({'_id': pk_txid})
- 
-def generate_pk_query_mysql(row_count, conn, pk_txid):
-  if FLAGS.rows_per_query > 1:
-    sql = 'SELECT * FROM %s WHERE transactionid >= %d ORDER BY transactionid LIMIT %d' % (
-      FLAGS.table_name, pk_txid, FLAGS.rows_per_query)
-  else:
-    sql = 'SELECT * FROM %s WHERE transactionid = %d' % (FLAGS.table_name, pk_txid)
-
-  return sql
-
-def generate_pk_query(row_count, conn):
-  if FLAGS.with_max_table_rows and row_count > FLAGS.max_table_rows :
-    pk_txid = row_count - FLAGS.max_table_rows + random.randrange(FLAGS.max_table_rows)
-  else:
-    pk_txid = random.randrange(max(row_count,1))
-
-  if FLAGS.mongo:
-    return generate_pk_query_mongo(row_count, conn, pk_txid)
-  else:
-    return generate_pk_query_mysql(row_count, conn, pk_txid)
-
-def generate_market_query_mongo(row_count, conn, price):
-  # print "query market"
+def generate_market_query_mongo(conn, price):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price}}, 
                      projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
@@ -402,24 +380,23 @@ def generate_market_query_mongo(row_count, conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_market_query_mysql(row_count, conn, price):
+def generate_market_query_mysql(conn, price):
   sql = 'SELECT price,customerid FROM %s FORCE INDEX (marketsegment) WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,customerid '\
         'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(row_count, conn):
+def generate_market_query(conn):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.mongo:
-    return generate_market_query_mongo(row_count, conn, price)
+    return generate_market_query_mongo(conn, price)
   else:
-    return generate_market_query_mysql(row_count, conn, price)
+    return generate_market_query_mysql(conn, price)
 
-def generate_register_query_mongo(row_count, conn, cashregisterid):
-  # print "query register"
+def generate_register_query_mongo(conn, cashregisterid):
   return (
            conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
                      projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
@@ -432,7 +409,7 @@ def generate_register_query_mongo(row_count, conn, cashregisterid):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_register_query_mysql(row_count, conn, cashregisterid):
+def generate_register_query_mysql(conn, cashregisterid):
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
         'FORCE INDEX (registersegment) WHERE '\
         '(cashregisterid>%d) '\
@@ -440,21 +417,21 @@ def generate_register_query_mysql(row_count, conn, cashregisterid):
         'LIMIT %d' % (FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(row_count, conn):
+def generate_register_query(conn):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.mongo:
-    return generate_register_query_mongo(row_count, conn, cashregisterid)
+    return generate_register_query_mongo(conn, cashregisterid)
   else:
-    return generate_register_query_mysql(row_count, conn, cashregisterid)
+    return generate_register_query_mysql(conn, cashregisterid)
 
-def generate_insert_rows_sequential(row_count, rand_data_buf):
+def generate_insert_rows(rand_data_buf):
   if FLAGS.mongo:
     when = datetime.utcnow()
   else:
     when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
 
-  rows = [generate_row(when, row_count + i, True, rand_data_buf) \
+  rows = [generate_row(when, rand_data_buf) \
       for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
 
   if FLAGS.mongo:
@@ -465,24 +442,7 @@ def generate_insert_rows_sequential(row_count, rand_data_buf):
            '(dateandtime,cashregisterid,customerid,productid,price,data) '\
            'values %s' % (FLAGS.table_name, sql_data)
 
-def generate_insert_rows_random(row_count, rand_data_buf):
-  if FLAGS.mongo:
-    when = datetime.utcnow()
-  else:
-    when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-
-  rows = [generate_row(when, FLAGS.max_table_rows, False, rand_data_buf) \
-      for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
-
-  if FLAGS.mongo:
-    assert 0
-  else:
-    sql_data = ',\n'.join(rows)
-    return 'replace into %s '\
-           '(transactionid,dateandtime,cashregisterid,customerid,productid,price,data) '\
-           'values %s' % (FLAGS.table_name, sql_data)
-
-def Query(query_args, shared_arr, lock):
+def Query(query_args, shared_arr, lock, result_q):
 
   # block on this until main thread wants all processes to run
   lock.acquire()
@@ -491,8 +451,6 @@ def Query(query_args, shared_arr, lock):
   # print 'Query thread running'
   db_conn = get_conn()
 
-  # assume it is 0, row_count will soon be corrected
-  row_count = 0
   start_time = time.time()
   loops = 0
 
@@ -502,11 +460,16 @@ def Query(query_args, shared_arr, lock):
     db_conn.autocommit(True)
     db_thing = db_conn.cursor()
 
-  while True:
+  rthist = rthist_new()
+
+  done = False  
+  while not done:
     query_func = random.choice(query_args)
 
     try:
-      query = query_func(row_count, db_thing)
+      query = query_func(db_thing)
+
+      ts = rthist_start(rthist)
 
       if FLAGS.mongo:
         count = 0
@@ -518,39 +481,40 @@ def Query(query_args, shared_arr, lock):
         # print "Query is:", query
         db_thing.execute(query)
         count = len(db_thing.fetchall())
+
+      rthist_finish(rthist, ts)
+
     except:
       e = sys.exc_info()[0]
       print "Query exception"
       print e  
 
     loops += 1
-    if (loops % 4) == 0:
-      if not FLAGS.no_inserts:
-        row_count = shared_arr[0]
+    if (loops % 16) == 0:
       shared_arr[1] = loops
+      if shared_arr[2] == 1:
+        done = True
 
   if not FLAGS.mongo:
     db_thing.close()
   db_conn.close()
+  result_q.put(rthist_result(rthist))
 
-def get_latest(counters, row_count):
+def get_latest(counters, inserted):
   total = 0
   for c in counters:
     total += c[1]
-    c[0] = row_count
+    c[0] = inserted
   return total
 
-def print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size):
+def print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size):
   now = time.time()
   sum_queries = 0
 
   if FLAGS.query_threads:
-    sum_queries = get_latest(counters, max_pk + inserted)
+    sum_queries = get_latest(counters, inserted)
 
-  if FLAGS.sequential:
-    nrows = inserted + max_pk
-  else:
-    nrows = inserted
+  nrows = inserted
 
   print '%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
       nrows,
@@ -570,22 +534,14 @@ def Insert(rounds, insert_q, counters, lock):
   lock.acquire()
   lock.release()
 
-  if FLAGS.setup:
-    max_pk = 0
-  else:
-    conn = get_conn()
-    max_pk = get_max_pk(conn)
-    # print 'max_pk in insert is %d' % max_pk
-    conn.close()
-
-  for c in counters:
-    c[0] = max_pk
-
   # generate insert rows in this loop and place into queue as they're
   # generated.  The execution process will pull them off from here.
   start_time = time.time()
   prev_time = start_time
   inserted = 0
+  
+  for c in counters:
+    c[0] = inserted
 
   prev_sum = 0
   table_size = 0
@@ -605,21 +561,17 @@ def Insert(rounds, insert_q, counters, lock):
     # print "rounds per second = %d" % rounds_per_second
 
   for r in xrange(rounds):
-    if FLAGS.sequential:
-      rows = generate_insert_rows_sequential(max_pk + inserted, rand_data_buf)
-    else:
-      rows = generate_insert_rows_random(FLAGS.max_table_rows, rand_data_buf)
+    rows = generate_insert_rows(rand_data_buf)
 
     insert_q.put(rows)
     inserted += FLAGS.rows_per_commit
     table_size += FLAGS.rows_per_commit
 
     if (inserted % FLAGS.rows_per_report) == 0:
-      prev_time, prev_sum = \
-          print_stats(counters, max_pk, inserted, prev_time, prev_sum,
-                      start_time, table_size)
+      prev_time, prev_sum = print_stats(counters, inserted, prev_time, prev_sum,
+                                        start_time, table_size)
 
-    # deletes
+    # deletes - TODO support for MongoDB
     if FLAGS.with_max_table_rows:
       if table_size > FLAGS.max_table_rows:
         if FLAGS.mongo:
@@ -645,7 +597,7 @@ def Insert(rounds, insert_q, counters, lock):
   insert_q.put(insert_done)
   insert_q.close()
 
-def statement_executor(stmt_q, lock):
+def statement_executor(stmt_q, lock, result_q):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
@@ -677,11 +629,15 @@ def statement_executor(stmt_q, lock):
     db_conn.autocommit(True)
     cursor = db_conn.cursor()
 
+  rthist = rthist_new()
+
   while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
     if stmt == insert_done:
       break
+
+    ts = rthist_start(rthist)
 
     if FLAGS.mongo:
       try:
@@ -703,9 +659,11 @@ def statement_executor(stmt_q, lock):
         else:
           raise e
     
+    rthist_finish(rthist, ts)
+    
   stmt_q.close()
   db_conn.close()
-
+  result_q.put(rthist_result(rthist))
 
 def run_benchmark():
   random.seed(FLAGS.seed)
@@ -715,30 +673,30 @@ def run_benchmark():
   lock = Lock()
   lock.acquire()
 
-  # Array of tuples, each tuple is (max_pk, num_queries)
-  #   max_pk passes max value of PK to query process
+  # Array of tuples, each tuple is (0, num_queries, shutdown flag)
+  #   0 might be changed to track number of inserts
   #   num_queries returns number of queries done by query process
+  #   shutdown flag is set to 1 when Query process should stop
   counters = []
+  query_args = []
 
   if FLAGS.query_threads:
-    query_args = [generate_pk_query]
-    counters.append(Array('i', [0,0]))
+    query_args.append(generate_pdc_query)
+    query_args.append(generate_market_query)
+    query_args.append(generate_register_query)
 
-    if not FLAGS.query_pk_only:
-      query_args.append(generate_pdc_query)
-      query_args.append(generate_market_query)
-      query_args.append(generate_register_query)
-      counters.append(Array('i', [0,0]))
-      counters.append(Array('i', [0,0]))
-      counters.append(Array('i', [0,0]))
+    for i in xrange(FLAGS.query_threads):
+      counters.append(Array('i', [0,0,0]))
 
     query_thr = []
+    query_result = Queue()
     for i in xrange(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, counters[i], lock)))
+      query_thr.append(Process(target=Query, args=(query_args, counters[i], lock, query_result)))
 
   if not FLAGS.no_inserts:
-    stmt_q = Queue(1)
-    insert_delete = Process(target=statement_executor, args=(stmt_q, lock))
+    stmt_q = Queue(4)
+    stmt_result = Queue()
+    insert_delete = Process(target=statement_executor, args=(stmt_q, lock, stmt_result))
     inserter = Process(target=Insert, args=(rounds, stmt_q, counters, lock))
 
     # start up the insert execution process with this queue
@@ -755,11 +713,8 @@ def run_benchmark():
     if not FLAGS.secondary_at_end:
       create_index()
     # print 'created table'
-    max_pk = 0
   else:
     conn = get_conn()
-    max_pk = get_max_pk(conn)
-    # print 'in main max_pk is %d' % max_pk
     conn.close()
 
   # After the insert and query processes lock/unlock this they can run
@@ -769,17 +724,20 @@ def run_benchmark():
   if not FLAGS.no_inserts:
     # block until the inserter is done
     insert_delete.join()
+    
+    print 'Insert rt: %s' % stmt_result.get()
+    sys.stdout.flush()
 
-  if not FLAGS.no_inserts:
     inserter.terminate()
+    sys.stdout.flush()
     insert_delete.terminate()
 
-  if FLAGS.no_inserts:
+  else:
     start_time = time.time()
     prev_time = start_time
     inserted = 0
     for c in counters:
-      c[0] = max_pk
+      c[0] = 0
 
     prev_sum = 0
     table_size = 0
@@ -788,11 +746,22 @@ def run_benchmark():
     while True:
       time.sleep(10)
       prev_time, prev_sum = \
-          print_stats(counters, max_pk, inserted, prev_time, prev_sum, start_time, table_size)
+          print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size)
       if prev_sum >= FLAGS.max_rows:
         break
 
   if FLAGS.query_threads:
+    # Signal Query process to stop
+    for i in xrange(FLAGS.query_threads):
+      counters[i][2] = 1
+
+    for qthr in query_thr:
+      qthr.join()
+
+    for qthr in query_thr:
+      print 'Query rt: %s' % query_result.get()
+    sys.stdout.flush()
+
     for qthr in query_thr:
       qthr.terminate()
 
