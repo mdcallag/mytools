@@ -221,10 +221,12 @@ def rthist_finish(obj, start):
   else:
     rt[9] += 1
 
-def rthist_result(obj):
+def rthist_result(obj, prefix):
   rt = obj['hist']
-  res = '256us:%d\t1ms:%d\t4ms:%d\t16ms:%d\t64ms:%d\t256ms:%d\t1s:%d\t4s:%d\t16s:%d\tgt:%d\tmax=%6f' % (
-         rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
+  res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
+        '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % (
+         prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
+         prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
   return res
 
 def get_conn():
@@ -498,7 +500,7 @@ def Query(query_args, shared_arr, lock, result_q):
   if not FLAGS.mongo:
     db_thing.close()
   db_conn.close()
-  result_q.put(rthist_result(rthist))
+  result_q.put(rthist_result(rthist, 'Query rt:'))
 
 def get_latest(counters, inserted):
   total = 0
@@ -663,7 +665,7 @@ def statement_executor(stmt_q, lock, result_q):
     
   stmt_q.close()
   db_conn.close()
-  result_q.put(rthist_result(rthist))
+  result_q.put(rthist_result(rthist, 'Insert rt:'))
 
 def run_benchmark():
   random.seed(FLAGS.seed)
@@ -725,7 +727,7 @@ def run_benchmark():
     # block until the inserter is done
     insert_delete.join()
     
-    print 'Insert rt: %s' % stmt_result.get()
+    print stmt_result.get()
     sys.stdout.flush()
 
     inserter.terminate()
@@ -759,7 +761,7 @@ def run_benchmark():
       qthr.join()
 
     for qthr in query_thr:
-      print 'Query rt: %s' % query_result.get()
+      print query_result.get()
     sys.stdout.flush()
 
     for qthr in query_thr:

@@ -108,7 +108,7 @@ tot_secs=$(( $stop_secs - $start_secs ))
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
 insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
 
-total_query=$( for n in $( seq 1 $dop ); do grep -v "^Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "^Query rt" | tail -3 | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
+total_query=$( for n in $( seq 1 $dop ); do grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | tail -3 | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
@@ -162,12 +162,12 @@ ps aux | grep mongod | grep -v grep >> o.res.$sfx
 
 echo >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  grep "^Insert rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
+  grep "Insert rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
 done
 
 echo >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  grep "^Query rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
+  grep "Query rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
 done
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
@@ -175,8 +175,8 @@ for n in $( seq 1 $dop ) ; do
   lines=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
     off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-    i_nth=$( grep -v "^Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "^Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $6 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-    q_nth=$( grep -v "^Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "^Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $9 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+    i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $6 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+    q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $9 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
     echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
   done
 done
