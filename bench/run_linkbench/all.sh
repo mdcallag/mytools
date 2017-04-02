@@ -20,7 +20,7 @@ for loop in $( seq 1 $loops ); do
 bash run.sh $fn.L${loop}.P${qdop} $client $ddir $maxid $dname $qdop $secs $myORmo $dbhost
 done
 
-shift 11
+shift 12
 
 if [[ $# -gt 0 ]]; then
   doparr=( "$@" )
