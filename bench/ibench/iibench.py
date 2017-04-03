@@ -235,7 +235,8 @@ def get_conn():
   else:
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
                            db=FLAGS.db_name, passwd=FLAGS.db_password,
-                           unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file)
+                           unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file,
+                           autocommit=True)
 
 def create_index_mongo():
   conn = get_conn()
@@ -459,7 +460,6 @@ def Query(query_args, shared_arr, lock, result_q):
   if FLAGS.mongo:
     db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
   else:
-    db_conn.autocommit(True)
     db_thing = db_conn.cursor()
 
   rthist = rthist_new()
@@ -628,7 +628,6 @@ def statement_executor(stmt_q, lock, result_q):
     # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
     # print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
   else:
-    db_conn.autocommit(True)
     cursor = db_conn.cursor()
 
   rthist = rthist_new()
