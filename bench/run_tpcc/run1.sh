@@ -14,7 +14,7 @@ run=${11}
 dbh=${12}
 
 # extra options for create table
-create_opt=${13}
+createopt=${13}
 
 # number of concurrent clients
 dop=${14}
@@ -34,16 +34,6 @@ echo $run_mysql
 
 $run_mysql -e "reset master"
 
-killall iostat
-killall vmstat
-
-python mstat.py --loops 1000000 --interval $repint --db_user=root --db_password=pw --db_host=${dbhost} >& tpc.mstat.$sfx &
-mpid=$!
-vmstat $repint >& tpc.vm.$sfx &
-vpid=$!
-iostat -kx $repint >& tpc.io.$sfx &
-ipid=$!
-
 if [[ $prepare == "yes" ]]; then
   echo prepare: drop and create db
   $run_mysql -e "drop database ${myd}"
@@ -51,11 +41,26 @@ if [[ $prepare == "yes" ]]; then
 
   echo prepare: create tables
 
-  cat create_table.sql | sed -e "s/Engine=InnoDB/Engine=${engine} ${create_opt} DEFAULT COLLATE=latin1_bin/g" > create_table_${engine}.sql
+  if [[ $createopt == "none" ]]; then
+    copt=""
+  else
+    copt=$createopt
+  fi
+
+  cat create_table.sql | sed -e "s/Engine=InnoDB/Engine=${engine} ${copt} DEFAULT COLLATE=latin1_bin/g" > create_table_${engine}.sql
   cat add_fkey_idx.sql | grep -v "FOREIGN KEY" > add_fkey_idx_${engine}.sql
 
   $run_mysql $myd < create_table_${engine}.sql
   $run_mysql $myd < add_fkey_idx_${engine}.sql
+
+  killall iostat
+  killall vmstat
+  python mstat.py --loops 1000000 --interval $repint --db_user=root --db_password=pw --db_host=${dbhost} >& tpc.l.mstat.$sfx &
+  mpid=$!
+  vmstat $repint >& tpc.l.vm.$sfx &
+  vpid=$!
+  iostat -kx $repint >& tpc.l.io.$sfx &
+  ipid=$!
 
   echo Running tpcc_load
   echo ./tpcc_load -h $dbh -d $myd -u $myu -p $myp -w $nw
@@ -63,12 +68,26 @@ if [[ $prepare == "yes" ]]; then
     echo Load failed
     exit 1
   fi
+
+  kill $mpid
+  kill $ipid
+  kill $vpid
 fi
 
 if [[ $run == "yes" ]]; then
 
   echo "before" > tpc.r.sz.$sfx
   du -hs $ddir >> tpc.r.sz.$sfx
+
+  killall iostat
+  killall vmstat
+  python mstat.py --loops 1000000 --interval $repint --db_user=root --db_password=pw --db_host=${dbhost} >& tpc.r.mstat.$sfx &
+  mpid=$!
+  vmstat $repint >& tpc.r.vm.$sfx &
+  vpid=$!
+  iostat -kx $repint >& tpc.r.io.$sfx &
+  ipid=$!
+
 
   echo ./tpcc_start $dbh $myd $myu $myp $nw $dop $rt $mt
   echo ./tpcc_start -h $dbh -d $myd -u $myu -p $myp -w $nw -c $dop -r $rt -l $mt -0 $sla -1 $sla -2 $sla -3 $sla -4 $sla
@@ -79,21 +98,21 @@ if [[ $run == "yes" ]]; then
   awk '/^MEASURING START/,/^STOPPING THREAD/' tpc.r.o.$sfx | \
     awk '{ (if (NF == 13) { print $3 } }' | \
     sed 's/,//' > tpc.r.qps.$sfx
-fi
 
-kill $mpid
-kill $ipid
-kill $vpid
+  kill $mpid
+  kill $ipid
+  kill $vpid
+fi
 
 if [[ $run == "yes" ]]; then
 
   tpmc=$( tail -1 tpc.r.o.$sfx | awk '{ print $1 }' ) > tpc.r.res.$sfx
 
-  printf "samp\tr/s\trkb/s\twkb/s\tr/tpmc\trkb/t\twkb/t\ttpmc\t\n" >> tpc.r.res.$sfx
-  grep $dname tpc.io.$sfx | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${tpmc} p=$dop r=$rpc  >> tpc.r.res.$sfx
+  printf "samp\tr/s\trkb/s\twkb/s\tr/t\trkb/t\twkb/t\tt\t\n" >> tpc.r.res.$sfx
+  grep $dname tpc.r.io.$sfx | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${tpmc} p=$dop r=$rpc  >> tpc.r.res.$sfx
 
-  printf "\nsamp\tcs/s\tcpu/s\tcs/tpmc\tcpu/tpmc\n" >> tpc.r.res.$sfx
-  grep -v swpd tpc.vm.$sfx | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${tpmc} >> tpc.r.res.$sfx
+  printf "\nsamp\tcs/s\tcpu/s\tcs/t\tcpu/t\n" >> tpc.r.res.$sfx
+  grep -v swpd tpc.r.vm.$sfx | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${tpmc} >> tpc.r.res.$sfx
 
   cat tpc.r.sz.$sfx >> tpc.r.res.$sfx
 
