@@ -18,11 +18,17 @@ secs_debt=${14}
 dbversion=${15}
 
 # Comments on the command line options
-# arg 7 - this sets the size of the write buffer (memtable). I usually use 32mb or 64mb for the write buffer
-# arg 8 - this sets the number of background compaction threads. Start with number-real-cores / 4. Compaction
+# arg 1 - database directory. This must exist. The test won't create it.
+# arg 2 - number of keys (keys == rows) to Put into RocksDB
+# arg 3 - number of seconds for which each test is run. See below for the tests that are run.
+# arg 4 - number of user threads that will be created
+# arg 5 - number of bytes for the values that are Put into RocksDB
+# arg 6 - rate limit in MB/sec for tests that rate limit the writers
+# arg 7 - sets the size of the write buffer (memtable). I usually use 32mb or 64mb for the write buffer
+# arg 8 - sets the number of background compaction threads. Start with number-real-cores / 4. Compaction
 #         needs CPU but if there are too many then some will get starved and you all need CPU for the
 #         application and request handling.
-# arg 9 - the target size for level 1 of the LSM tree. I usually use 256mb, 512mb or 1024mb. Note that I
+# arg 9 - target size for level 1 of the LSM tree. I usually use 256mb, 512mb or 1024mb. Note that I
 #         configured compaction to start when there are 4 files in level 0
 #         (--level0_file_num_compaction_trigger=4) and I want sizeof(L0) ~= sizeof(L1) when compaction occurs.
 #         The size of L0 files is determined by the size of the write buffer (see arg7). So if you adjust
@@ -38,14 +44,27 @@ dbversion=${15}
 #         http://smalldatum.blogspot.com/2016/09/tuning-rocksdb-block-cache.html
 # arg 13 - an estimate of the IO rate that storage & RocksDB supports
 # arg 14 - used for compaction throttling. The number of seconds of "IO debt" I allow RocksDB to have before
-#         throttling writes. Used with arg 13.
+#          throttling writes. Used with arg 13.
+# arg 15 - determines which RocksDB options are used to support this script across many versions. I don't update
+#          this for every release so only a few versions are valid.
 
 xkeys=$(( $keys * 1000 ))
 
 if [[ $dbversion = "4.1" ]] ; then
   wps=$(( ( 1024 * 1024 * $wmb_per_sec) / ( $rowlen + 12 ) ))
+  ddds="--disable_data_sync=0"
+  cpri=""
 elif [[ $dbversion = "4.5" ]] ; then
   wps=$(( 1024 * 1024 * $wmb_per_sec ))
+  ddds="--disable_data_sync=0"
+  cpri=""
+  echo "using 4.5"
+elif [[ $dbversion = "5.4" ]] ; then
+  wps=$(( 1024 * 1024 * $wmb_per_sec ))
+  ddds=""
+  # enable kMinOverlappingRatio
+  cpri="--compaction_pri=3"
+  echo "using 5.4"
 else
   echo Version $dbversion not supported
   exit -1
@@ -83,7 +102,8 @@ f1="\
 --open_files=-1 \
 --sync=0 \
 --disable_wal=0 \
---disable_data_sync=0 \
+$dds \
+$cpri \
 --max_total_wal_size=$(( 1024 * 1024 * 1024 )) \
 --verify_checksum=1"
 
@@ -115,7 +135,7 @@ f2="\
 
 if [[ $dbversion = "4.1" ]] ; then
   echo Skip for 4.1
-elif [[ $dbversion = "4.5" ]] ; then
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
   f2="$f2 --soft_pending_compaction_bytes_limit=$(( 1024 * 512 * $bg_io_mb * $secs_debt ))"
 else
   echo Version $dbversion not supported
@@ -147,7 +167,7 @@ f2="\
 
 if [[ $dbversion = "4.1" ]] ; then
   echo Skip for 4.1
-elif [[ $dbversion = "4.5" ]] ; then
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
   f2="$f2 --soft_pending_compaction_bytes_limit=$(( 1024 * 512 * $bg_io_mb * $secs_debt )) \
       --allow_concurrent_memtable_write \
       --enable_write_thread_adaptive_yield"
@@ -184,7 +204,7 @@ done
 
 if [[ $dbversion = "4.1" ]] ; then
   f2="$f2 --writes_per_second=$wps"
-elif [[ $dbversion = "4.5" ]] ; then
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
   f2="$f2 --benchmark_write_rate_limit=$wps"
 else
   echo Version $dbversion not supported

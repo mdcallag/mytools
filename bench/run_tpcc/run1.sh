@@ -96,7 +96,7 @@ if [[ $run == "yes" ]]; then
   echo "after" >> tpc.r.sz.$sfx
   du -hs $ddir >> tpc.r.sz.$sfx
   awk '/^MEASURING START/,/^STOPPING THREAD/' tpc.r.o.$sfx | \
-    awk '{ (if (NF == 13) { print $3 } }' | \
+    awk '{ if (NF == 13) { print $3 } }' | \
     sed 's/,//' > tpc.r.qps.$sfx
 
   kill $mpid
