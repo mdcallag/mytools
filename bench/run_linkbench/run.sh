@@ -40,9 +40,9 @@ else
 fi
 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
-echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r" >> r.o.$fn
+echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
 
-time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -r >> r.o.$fn 2>&1
+time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
@@ -61,10 +61,10 @@ else
   $client -uroot -ppw -A -h${dbhost} -e 'show engine tokudb status\G' > r.est.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show global status' > r.gs.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show global variables' > r.gv.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show table status' > r.ts.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from linktable' > r.is.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from nodetable' >> r.is.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from counttable' >> r.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show table status' > r.ts.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from linktable' > r.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from nodetable' >> r.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from counttable' >> r.is.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > r.mem.$fn
 fi
 

@@ -44,9 +44,9 @@ fi
 
 echo "background jobs: $ipid $vpid $spid" > l.o.$fn
 
-echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -l" >> l.o.$fn
+echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.o.$fn
 
-time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb -l  >> l.o.$fn 2>&1
+time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
@@ -66,10 +66,10 @@ else
   $client -uroot -ppw -A -h${dbhost} -e 'show engine tokudb status\G' > l.est.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show global status' > l.gs.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show global variables' > l.gv.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show table status' > l.ts.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from linktable' > l.is.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from nodetable' >> l.is.$fn
-  $client -uroot -ppw -A -h${dbhost} linkdb -e 'show indexes from counttable' >> l.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show table status' > l.ts.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from linktable' > l.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from nodetable' >> l.is.$fn
+  $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from counttable' >> l.is.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > l.mem.$fn
 fi
 

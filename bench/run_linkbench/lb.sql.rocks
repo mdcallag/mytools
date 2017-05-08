@@ -1,6 +1,6 @@
-drop database if exists linkdb;
-create database linkdb;
-use linkdb;
+drop database if exists linkdb0;
+create database linkdb0;
+use linkdb0;
 
     CREATE TABLE `linktable` (
       `id1` bigint(20) unsigned NOT NULL DEFAULT '0',
