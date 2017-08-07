@@ -10,29 +10,32 @@ client=$9
 tableoptions=${10}
 sysbdir=${11}
 
+testArgs="--rand-type=uniform"
+
 if [[ $testType == "read-only" ]]; then
-  testArgs=""
   lua="oltp_read_only.lua"
 elif [[ $testType == "read-write" ]]; then
-  testArgs=""
   lua="oltp_read_write.lua"
 elif [[ $testType == "write-only" ]]; then
-  testArgs=""
   lua="oltp_write_only.lua"
 elif [[ $testType == "delete" ]]; then
-  testArgs=""
   lua="oltp_delete.lua"
 elif [[ $testType == "update-nonindex" ]]; then
-  testArgs=""
+  lua="oltp_update_non_index.lua"
+elif [[ $testType == "update-special" ]]; then
+  testArgs="--rand-type=special"
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-index" ]]; then
-  testArgs=""
   lua="oltp_update_index.lua"
 elif [[ $testType == "point-query" ]]; then
-  testArgs=""
   lua="oltp_point_select.lua"
+elif [[ $testType == "random-points" ]]; then
+  testArgs="--rand-type=uniform --random-points=$range"
+  lua="oltp_inlist_select.lua"
+elif [[ $testType == "hot-points" ]]; then
+  testArgs="--rand-type=uniform --random-points=$range --hot-points=1"
+  lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
-  testArgs=""
   lua="oltp_insert.lua"
 else
 echo Did not recognize testType $testType
@@ -58,7 +61,7 @@ if [[ $tableoptions != none ]]; then
 topt="--mysql-table-options=$tableoptions"
 fi
 
-ex="./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs prepare"
+ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua prepare"
 echo $ex > sb.prepare.$sfx
 time $ex >> sb.prepare.$sfx 2>&1
 
@@ -80,8 +83,7 @@ vmpid=$!
 iostat -kx 10 10000 >& sb.io.nt${nt}.$sfx &
 iopid=$!
 
-#LD_PRELOAD=/usr/lib64/libjemalloc.so.1
-ex="./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs run"
+ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs $sysbdir/share/sysbench/$lua run"
 echo $ex > sb.o.nt${nt}.${sfx}
 $ex >> sb.o.nt${nt}.${sfx} 2>&1
 
