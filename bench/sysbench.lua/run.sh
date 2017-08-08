@@ -33,7 +33,7 @@ elif [[ $testType == "random-points" ]]; then
   testArgs="--rand-type=uniform --random-points=$range"
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "hot-points" ]]; then
-  testArgs="--rand-type=uniform --random-points=$range --hot-points=1"
+  testArgs="--rand-type=uniform --random-points=$range --hot-points"
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
