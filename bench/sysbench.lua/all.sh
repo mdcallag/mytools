@@ -12,8 +12,15 @@ sysbdir=${11}
 
 concurrency="1 2 4 8 16 24 32 40 48 64"
 
+
+echo update-inlist
+bash run.sh $ntabs $nrows $writesecs $engine $setup 0        update-inlist   100    $client $tableoptions $sysbdir $concurrency
+
+echo update-one
+bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-one      100    $client $tableoptions $sysbdir $concurrency
+
 echo update-index
-bash run.sh $ntabs $nrows $writesecs $engine $setup 0        update-index    100    $client $tableoptions $sysbdir $concurrency
+bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-index    100    $client $tableoptions $sysbdir $concurrency
 
 echo update-nonindex
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-nonindex 100    $client $tableoptions $sysbdir $concurrency

@@ -20,6 +20,11 @@ elif [[ $testType == "write-only" ]]; then
   lua="oltp_write_only.lua"
 elif [[ $testType == "delete" ]]; then
   lua="oltp_delete.lua"
+elif [[ $testType == "update-inlist" ]]; then
+  lua="oltp_inlist_update.lua"
+elif [[ $testType == "update-one" ]]; then
+  lua="oltp_update_non_index.lua"
+  nr=1
 elif [[ $testType == "update-nonindex" ]]; then
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-special" ]]; then
