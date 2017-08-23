@@ -1,1 +1,0 @@
-/usr/bin/mongod --config mongo.conf --storageEngine PerconaFT --PerconaFTCollectionCompression zlib --PerconaFTCollectionReadPageSize 16384 --PerconaFTEngineCacheSize $(( 1024 * 1024 * 1024 * 1 )) --PerconaFTIndexCompression zlib --PerconaFTIndexReadPageSize 16384 --master
