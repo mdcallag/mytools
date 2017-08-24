@@ -48,15 +48,14 @@ exit 1
 fi
 
 if [[ $engine == "myisam" ]]; then
-  etrx="no"
-else
-  etrx="yes"
+  testArgs="$testArgs --skip-trx"
 fi
 
 dbcreds="--mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test"
 sfx="nr${nr}.range${range}.${engine}.${testType}"
 
-$client -uroot -ppw -e 'reset master' 2> /dev/null
+hp=127.0.0.1
+$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 
 if [[ $setup == 1 ]]; then
 echo Setup
@@ -70,7 +69,7 @@ ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$eng
 echo $ex > sb.prepare.$sfx
 time $ex >> sb.prepare.$sfx 2>&1
 
-$client -uroot -ppw -e 'reset master' 2> /dev/null
+$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 fi
 
 shift 11
@@ -95,12 +94,12 @@ $ex >> sb.o.nt${nt}.${sfx} 2>&1
 kill $vmpid
 kill $iopid
 
-$client -uroot -ppw test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
-$client -uroot -ppw test -e "show table status\G" > sb.ts.nt${nt}.$sfx
-$client -uroot -ppw test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
-$client -uroot -ppw test -e "show global variables" > sb.gv.nt${nt}.$sfx
-$client -uroot -ppw test -e "show global status" > sb.gs.nt${nt}.$sfx
-$client -uroot -ppw -e 'reset master' 2> /dev/null
+$client -uroot -ppw test -h$hp -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
+$client -uroot -ppw test -h$hp -e "show table status\G" > sb.ts.nt${nt}.$sfx
+$client -uroot -ppw test -h$hp -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
+$client -uroot -ppw test -h$hp -e "show global variables" > sb.gv.nt${nt}.$sfx
+$client -uroot -ppw test -h$hp -e "show global status" > sb.gs.nt${nt}.$sfx
+$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 
 done
 
