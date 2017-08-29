@@ -1,5 +1,4 @@
-# OPT="-DNDEBUG -O2" make db_bench 
-# DEBUG_LEVEL=0 make db_bench
+# OPT="-DNDEBUG -O2" make db_bench # DEBUG_LEVEL=0 make db_bench
 
 dbdir=$1
 keys=$2
@@ -59,12 +58,12 @@ elif [[ $dbversion = "4.5" ]] ; then
   ddds="--disable_data_sync=0"
   cpri=""
   echo "using 4.5"
-elif [[ $dbversion = "5.4" ]] ; then
+elif [[ $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
   wps=$(( 1024 * 1024 * $wmb_per_sec ))
   ddds=""
   # enable kMinOverlappingRatio
   cpri="--compaction_pri=3"
-  echo "using 5.4"
+  echo "using $dbversion"
 else
   echo Version $dbversion not supported
   exit -1
@@ -113,6 +112,10 @@ f2="\
 --threads=1 \
 --disable_wal=1"
 
+if [[ $dbversion = "4.5" || $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
+  f2="$f2 --noallow_concurrent_memtable_write --noenable_write_thread_adaptive_yield"
+fi
+
 echo Run fillseq $keys keys $( date )
 vmstat 10 >& o.vm.fillseq.$sfx &
 vpid=$!
@@ -135,7 +138,7 @@ f2="\
 
 if [[ $dbversion = "4.1" ]] ; then
   echo Skip for 4.1
-elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
   f2="$f2 --soft_pending_compaction_bytes_limit=$(( 1024 * 512 * $bg_io_mb * $secs_debt ))"
 else
   echo Version $dbversion not supported
@@ -166,8 +169,8 @@ f2="\
 --threads=$nthreads"
 
 if [[ $dbversion = "4.1" ]] ; then
-  echo Skip for 4.1
-elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
+  echo Skip for 4.1 and 5.8
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
   f2="$f2 --soft_pending_compaction_bytes_limit=$(( 1024 * 512 * $bg_io_mb * $secs_debt )) \
       --allow_concurrent_memtable_write \
       --enable_write_thread_adaptive_yield"
@@ -204,14 +207,14 @@ done
 
 if [[ $dbversion = "4.1" ]] ; then
   f2="$f2 --writes_per_second=$wps"
-elif [[ $dbversion = "4.5" || $dbversion = "5.4" ]] ; then
+elif [[ $dbversion = "4.5" || $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
   f2="$f2 --benchmark_write_rate_limit=$wps"
 else
   echo Version $dbversion not supported
   exit -1
 fi
 
-for t in readwhilewriting seekrandomwhilewriting ; do
+for t in readwhilewriting seekrandomwhilewriting readrandom ; do
 echo Run $t $secs seconds at $( date )
 vmstat 10 >& o.vm.$t.secs.$sfx &
 vpid=$!
@@ -225,4 +228,4 @@ kill $ipid
 done
 
 grep "^fillseq" o.fillseq.$sfx > o.res.$sfx
-for t in overwrite updaterandom readwhilewriting seekrandomwhilewriting ; do grep "^$t" o.$t.secs.$sfx; done >> o.res.$sfx
+for t in overwrite updaterandom readwhilewriting seekrandomwhilewriting readrandom ; do grep "^$t" o.$t.secs.$sfx; done >> o.res.$sfx
