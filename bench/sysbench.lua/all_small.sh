@@ -24,9 +24,6 @@ bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-index    100
 echo update-nonindex
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-nonindex 100    $client $tableoptions $sysbdir $concurrency
 
-echo update-special
-bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-special  100    $client $tableoptions $sysbdir $concurrency
-
 echo delete
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        delete          100    $client $tableoptions $sysbdir $concurrency
 
