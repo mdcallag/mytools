@@ -9,10 +9,11 @@ range=$8
 client=$9
 tableoptions=${10}
 sysbdir=${11}
+ddir=${12}
 
 testArgs="--rand-type=uniform"
 
-if [[ $testType == "read-only" ]]; then
+if [[ $testType == "read-only" || $testType == "read-only.pre" ]]; then
   lua="oltp_read_only.lua"
 elif [[ $testType == "read-write" ]]; then
   lua="oltp_read_write.lua"
@@ -32,7 +33,7 @@ elif [[ $testType == "update-special" ]]; then
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-index" ]]; then
   lua="oltp_update_index.lua"
-elif [[ $testType == "point-query" ]]; then
+elif [[ $testType == "point-query" || $testType == "point-query.pre" ]]; then
   lua="oltp_point_select.lua"
 elif [[ $testType == "random-points" ]]; then
   testArgs="--rand-type=uniform --random-points=$range"
@@ -42,6 +43,8 @@ elif [[ $testType == "hot-points" ]]; then
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
+elif [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
+  lua=none
 else
 echo Did not recognize testType $testType
 exit 1
@@ -56,6 +59,8 @@ sfx="nr${nr}.range${range}.${engine}.${testType}"
 
 hp=127.0.0.1
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
+
+# --- Setup ---
 
 if [[ $setup == 1 ]]; then
 echo Setup
@@ -72,7 +77,53 @@ time $ex >> sb.prepare.$sfx 2>&1
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 fi
 
-shift 11
+shift 12
+
+# --- Do full scan without sysbench and then finish ---
+if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
+  #for nt in "$@"; do
+  #  maxconcur=$nt
+  #done
+  #if [[ $ntabs -lt $maxconcur ]]; then maxconcur=$ntabs; fi
+
+  killall vmstat
+  killall iostat
+  vmstat 10 10000 >& sb.vm.nt${ntabs}.$sfx &
+  vmpid=$!
+  iostat -kx 10 10000 >& sb.io.nt${ntabs}.$sfx &
+  iopid=$!
+
+  for n in $( seq 1 $ntabs ); do
+    $client -uroot -ppw -h$hp test -e "select count(*) from sbtest$n where length(pad) < 0" > sb.o.nt$n.$sfx &
+    pids[${n}]=$!
+  done
+  start_secs=$( date +'%s' )
+
+  for n in $( seq 1 $ntabs ); do
+    echo Wait for ${pids[${n}]} at $( date )
+    wait ${pids[${n}]}
+  done
+  stop_secs=$( date +'%s' )
+  tot_secs=$(( $stop_secs - $start_secs ))
+  echo Scan seconds is $tot_secs for $ntabs tables > sb.r.qps.$sfx
+
+  for n in $( seq 1 $ntabs ); do
+    $client -uroot -ppw -h$hp test -e "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.nt$n.$sfx &
+    pids[${n}]=$!
+  done
+
+  kill $vmpid
+  kill $iopid
+
+  du -hs $ddir > sb.sz.$sfx
+  echo "with apparent size " >> sb.sz.$sfx
+  du -hs --apparent-size $ddir >> sb.sz.$sfx
+  echo "all" >> sb.sz.$sfx
+  du -hs ${ddir}/* > sb.sz.$sfx
+  exit 0
+fi
+
+# --- Otherwise run sysbench tests ---
 
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
@@ -94,14 +145,20 @@ $ex >> sb.o.nt${nt}.${sfx} 2>&1
 kill $vmpid
 kill $iopid
 
-$client -uroot -ppw test -h$hp -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
-$client -uroot -ppw test -h$hp -e "show table status\G" > sb.ts.nt${nt}.$sfx
-$client -uroot -ppw test -h$hp -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
-$client -uroot -ppw test -h$hp -e "show global variables" > sb.gv.nt${nt}.$sfx
-$client -uroot -ppw test -h$hp -e "show global status" > sb.gs.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show global variables" > sb.gv.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show global status" > sb.gs.nt${nt}.$sfx
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 
 done
+
+du -hs $ddir > sb.sz.$sfx
+echo "with apparent size " >> sb.sz.$sfx
+du -hs --apparent-size $ddir >> sb.sz.$sfx
+echo "all" >> sb.sz.$sfx
+du -hs ${ddir}/* > sb.sz.$sfx
 
 if [[ $cleanup == 1 ]]; then
 echo Cleanup
