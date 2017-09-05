@@ -119,7 +119,7 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   echo "with apparent size " >> sb.sz.$sfx
   du -hs --apparent-size $ddir >> sb.sz.$sfx
   echo "all" >> sb.sz.$sfx
-  du -hs ${ddir}/* > sb.sz.$sfx
+  du -hs ${ddir}/* >> sb.sz.$sfx
   exit 0
 fi
 
