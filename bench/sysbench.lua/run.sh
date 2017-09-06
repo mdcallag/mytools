@@ -158,7 +158,7 @@ du -hs $ddir > sb.sz.$sfx
 echo "with apparent size " >> sb.sz.$sfx
 du -hs --apparent-size $ddir >> sb.sz.$sfx
 echo "all" >> sb.sz.$sfx
-du -hs ${ddir}/* > sb.sz.$sfx
+du -hs ${ddir}/* >> sb.sz.$sfx
 
 if [[ $cleanup == 1 ]]; then
 echo Cleanup
