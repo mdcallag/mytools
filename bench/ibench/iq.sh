@@ -20,7 +20,7 @@ mv o.* l
 # full scan
 ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
-sfx=dop${$ntabs}.ns${ns}
+sfx=dop${ntabs}.ns${ns}
 
 killall vmstat
 killall iostat
