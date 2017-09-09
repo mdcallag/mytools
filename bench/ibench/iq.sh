@@ -29,26 +29,46 @@ vpid=$!
 iostat -kx 10 >& o.io.$sfx &
 ipid=$!
 
-start_secs=$( date +%s )
-for i in $( seq 1 $ntabs ) ; do
-  if [[ $mongo == "yes" ]] ; then 
-    echo "db.pi$i.find"'({ customerid : { $lt : 0 } }).count()' | $client ib > o.ib.scan.$i &
-  else
-    $client -h127.0.0.1 -uroot -ppw ib -e "select count(*) from pi1 where customerid < 0" > o.ib.scan.$i &
-  fi
-  pids[${i}]=$!
-done
+rm -f o.ib.scan
+for q in 1 2 3 4 ; do
+  start_secs=$( date +%s )
+  for i in $( seq 1 $ntabs ) ; do
 
-for i in $( seq 1 $ntabs ) ; do
-  wait ${pids[${i}]}
-done
+    txtmo[1]="db.pi$i.find"'({ customerid : { $lt : 0 } }, { _id:1, data:1, customerid:1})'
+    txtmo[2]="db.pi$i.find"'({ customerid : { $lt : 0 } }, { _id:-1, price:1, customerid:1}).sort({price:1, customerid:1})'
+    txtmo[3]="db.pi$i.find"'({ customerid : { $lt : 0 } }, { _id:-1, cashregisterid:1, price:1, customerid:1}).sort({cashregisterid:1, price:1, customerid:1})'
+    txtmo[4]="db.pi$i.find"'({ customerid : { $lt : 0 } }, { _id:-1, price:1, dateandtime:1, customerid:1}).sort({price:1, dateandtime:1, customerid:1})'
 
-stop_secs=$( date +%s )
-tot_secs=$(( $stop_secs - $start_secs ))
-echo "Scan $tot_secs seconds for $ntabs tables" > o.ib.scan
+    txtmy[1]="select transactionid,data,customerid from pi$i where customerid < 0"
+    txtmy[2]="select price,customerid from pi$i where customerid < 0 order by price,customerid"
+    txtmy[3]="select cashregisterid,price,customerid from pi$i where customerid < 0 order by cashregisterid,price,customerid"
+    txtmy[4]="select price,dateandtime,customerid from pi$i where customerid < 0 order by price,dateandtime,customerid"
+
+    if [[ $mongo == "yes" ]] ; then 
+      echo ${txtmo[$q]}".explain()" | $client ib > o.ib.scan.$q.$i
+      echo ${txtmo[$q]}
+      echo ${txtmo[$q]} | $client ib >> o.ib.scan.$q.$i 2>&1 &
+    else
+      $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" > o.ib.scan.$q.$i 
+      echo \"${txtmy[$q]}\"
+      $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
+    fi
+    pids[${i}]=$!
+  done
+
+  for i in $( seq 1 $ntabs ) ; do
+    wait ${pids[${i}]}
+  done
+
+  stop_secs=$( date +%s )
+  tot_secs=$(( $stop_secs - $start_secs ))
+  echo "Query $q scan $tot_secs seconds for $ntabs tables" >> o.ib.scan
+
+done
 
 kill $vpid
 kill $ipid
+
 mkdir scan
 mv o.* scan
 
