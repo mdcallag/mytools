@@ -137,7 +137,7 @@ du -hs $ddir > o.sz.$sfx
 echo "with apparent size " >> o.sz.$sfx
 du -hs --apparent-size $ddir >> o.sz.$sfx
 echo "all" >> o.sz.$sfx
-du -hs ${ddir}/* > o.sz.$sfx
+du -hs ${ddir}/* >> o.sz.$sfx
 
 printf "\niostat, vmstat normalized by insert rate\n" >> o.res.$sfx
 printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\t\tspi\n" >> o.res.$sfx
