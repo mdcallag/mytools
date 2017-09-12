@@ -34,15 +34,15 @@ for q in 1 2 3 4 ; do
   start_secs=$( date +%s )
   for i in $( seq 1 $ntabs ) ; do
 
-    txtmo[1]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:1, data:1, customerid:1})'
+    txtmo[1]="db.pi$i.find"'({ data : { $eq : "" } }, { _id:1, data:1, customerid:1})'
     txtmo[2]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, customerid:1}).sort({price:1, customerid:1})'
-    txtmo[3]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, cashregisterid:1, price:1, customerid:1}).sort({cashregisterid:1, price:1, customerid:1})'
+    txtmo[3]="db.pi$i.find"'({ cashregisterid : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, cashregisterid:1, price:1, customerid:1}).sort({cashregisterid:1, price:1, customerid:1})'
     txtmo[4]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, dateandtime:1, customerid:1}).sort({price:1, dateandtime:1, customerid:1})'
 
     txtmy[1]="select transactionid,data,customerid from pi$i where customerid < 0"
-    txtmy[2]="select price,customerid from pi$i where customerid < 0 order by price,customerid"
-    txtmy[3]="select cashregisterid,price,customerid from pi$i where customerid < 0 order by cashregisterid,price,customerid"
-    txtmy[4]="select price,dateandtime,customerid from pi$i where customerid < 0 order by price,dateandtime,customerid"
+    txtmy[2]="select price,customerid from pi$i where price >= 0 and customerid < 0 order by price,customerid"
+    txtmy[3]="select cashregisterid,price,customerid from pi$i where cashregisterid >= 0 and customerid < 0 order by cashregisterid,price,customerid"
+    txtmy[4]="select price,dateandtime,customerid from pi$i where price >= 0 and customerid < 0 order by price,dateandtime,customerid"
 
     if [[ $mongo == "yes" ]] ; then 
       echo ${txtmo[$q]}".explain()" | $client ib > o.ib.scan.$q.$i
