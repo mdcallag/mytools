@@ -11,11 +11,7 @@ only1t=${10}
 bulk=${11}
 secatend=${12}
 nr=${13}
-
-# insert only
-bash np.sh $nr $e "$eo" 3 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $mongo $short $bulk $secatend
-mkdir l
-mv o.* l
+q=${14}
 
 # full scan
 ntabs=$dop
@@ -25,8 +21,7 @@ sfx=dop${ntabs}.ns${ns}
 rm -f o.ib.scan
 rm -f o.ib.scan.*
 
-for explain in 0 1 ; do
-for q in 1 2 3 4 ; do
+explain=0
 
   killall vmstat
   killall iostat
@@ -77,9 +72,6 @@ for q in 1 2 3 4 ; do
 
   kill $vpid
   kill $ipid
-
-done
-done
 
 mkdir scan
 mv o.* scan

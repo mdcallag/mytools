@@ -22,18 +22,19 @@ ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
 sfx=dop${ntabs}.ns${ns}
 
-killall vmstat
-killall iostat
-vmstat 10 >& o.vm.$sfx &
-vpid=$!
-iostat -kx 10 >& o.io.$sfx &
-ipid=$!
-
 rm -f o.ib.scan
 rm -f o.ib.scan.*
 
 for explain in 0 1 ; do
 for q in 1 2 3 4 ; do
+
+  killall vmstat
+  killall iostat
+  vmstat 10 >& o.vm.$sfx.q$q.e${explain} &
+  vpid=$!
+  iostat -kx 10 >& o.io.$sfx.q$q.e${explain} &
+  ipid=$!
+
   start_secs=$( date +%s )
   for i in $( seq 1 $ntabs ) ; do
 
@@ -74,11 +75,12 @@ for q in 1 2 3 4 ; do
   tot_secs=$(( $stop_secs - $start_secs ))
   echo "Query $q scan $tot_secs seconds for $ntabs tables and explain $explain" >> o.ib.scan
 
+  kill $vpid
+  kill $ipid
+
 done
 done
 
-kill $vpid
-kill $ipid
 
 mkdir scan
 mv o.* scan
