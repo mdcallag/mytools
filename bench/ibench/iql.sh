@@ -30,6 +30,9 @@ iostat -kx 10 >& o.io.$sfx &
 ipid=$!
 
 rm -f o.ib.scan
+rm -f o.ib.scan.*
+
+for explain in 0 1 ; do
 for q in 1 2 3 4 ; do
   start_secs=$( date +%s )
   for i in $( seq 1 $ntabs ) ; do
@@ -44,14 +47,21 @@ for q in 1 2 3 4 ; do
     txtmy[3]="select cashregisterid,price,customerid from pi$i where cashregisterid >= 0 and customerid < 0 order by cashregisterid,price,customerid"
     txtmy[4]="select price,dateandtime,customerid from pi$i where price >= 0 and customerid < 0 order by price,dateandtime,customerid"
 
+    # Explain after running the query. Don't want explain time counted in query time.
     if [[ $mongo == "yes" ]] ; then 
-      echo ${txtmo[$q]}".explain()" | $client ib > o.ib.scan.$q.$i
-      echo ${txtmo[$q]}
-      echo ${txtmo[$q]} | $client ib >> o.ib.scan.$q.$i 2>&1 &
+      echo with explain $explain, ${txtmo[$q]}
+      if [[ $explain -eq 1 ]]; then
+        echo ${txtmo[$q]}".explain()" | $client ib >> o.ib.scan.$q.$i &
+      else
+        echo ${txtmo[$q]} | $client ib >> o.ib.scan.$q.$i 2>&1 &
+      fi
     else
-      $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" > o.ib.scan.$q.$i 
-      echo \"${txtmy[$q]}\"
-      $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
+      echo with explain $explain, \"${txtmy[$q]}\" 
+      if [[ $explain -eq 1 ]]; then
+        $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
+      else
+        $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
+      fi
     fi
     pids[${i}]=$!
   done
@@ -62,8 +72,9 @@ for q in 1 2 3 4 ; do
 
   stop_secs=$( date +%s )
   tot_secs=$(( $stop_secs - $start_secs ))
-  echo "Query $q scan $tot_secs seconds for $ntabs tables" >> o.ib.scan
+  echo "Query $q scan $tot_secs seconds for $ntabs tables and explain $explain" >> o.ib.scan
 
+done
 done
 
 kill $vpid
