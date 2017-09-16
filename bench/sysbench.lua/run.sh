@@ -35,7 +35,7 @@ elif [[ $testType == "update-index" ]]; then
   lua="oltp_update_index.lua"
 elif [[ $testType == "point-query" || $testType == "point-query.pre" ]]; then
   lua="oltp_point_select.lua"
-elif [[ $testType == "random-points" ]]; then
+elif [[ $testType == "random-points" || $testType == "random-points.pre" ]]; then
   testArgs="--rand-type=uniform --random-points=$range"
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "hot-points" ]]; then

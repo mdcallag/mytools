@@ -21,8 +21,11 @@ rm -rf sb.*.point-query.pre.*
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $concurrency
 
-echo read-only.pre range 100
-bash run.sh $ntabs $nrows $readsecs  $engine 0      0        read-only.pre   100    $client $tableoptions $sysbdir $ddir $concurrency
+echo read-only.pre range 10000
+bash run.sh $ntabs $nrows $readsecs  $engine 0      0        read-only.pre   10000  $client $tableoptions $sysbdir $ddir $concurrency
+
+echo random-points.pre
+bash run.sh $ntabs $nrows $readsecs  $engine 0      0        random-points.pre 100  $client $tableoptions $sysbdir $ddir $concurrency
 
 echo full-scan.pre
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        full-scan.pre   100    $client $tableoptions $sysbdir $ddir $concurrency
