@@ -12,7 +12,7 @@ sfx=dop_${dop}
 echo run for dop $dop
 
 cd /data/mysql/$bdir
-bash ini.sh $e >& o.$sfx
+bash ini-nm.sh $e >& o.$sfx
 
 cd /data/mysql/ibench
 echo bash iql.sh $e "" /data/mysql/$bdir/bin/mysql /data/mysql/$bdir/data md2 $checku $dop $mongo no $only1t $bulk $secatend $nr > o2.$sfx
