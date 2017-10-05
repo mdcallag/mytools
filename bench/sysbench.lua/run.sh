@@ -10,6 +10,7 @@ client=$9
 tableoptions=${10}
 sysbdir=${11}
 ddir=${12}
+dname=${13}
 
 testArgs="--rand-type=uniform"
 
@@ -77,7 +78,9 @@ time $ex >> sb.prepare.$sfx 2>&1
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 fi
 
-shift 12
+shift 13
+
+samp=2
 
 # --- Do full scan without sysbench and then finish ---
 if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
@@ -88,9 +91,9 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
 
   killall vmstat
   killall iostat
-  vmstat 10 10000 >& sb.vm.nt${ntabs}.$sfx &
+  vmstat $samp 10000 >& sb.vm.nt${ntabs}.$sfx &
   vmpid=$!
-  iostat -kx 10 10000 >& sb.io.nt${ntabs}.$sfx &
+  iostat -kx $samp 10000 >& sb.io.nt${ntabs}.$sfx &
   iopid=$!
 
   for n in $( seq 1 $ntabs ); do
@@ -107,13 +110,14 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   tot_secs=$(( $stop_secs - $start_secs ))
   echo Scan seconds is $tot_secs for $ntabs tables > sb.r.qps.$sfx
 
+  kill $vmpid
+  kill $iopid
+  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $samp $dname $nr > sb.met.nt${ntabs}.$sfx
+
   for n in $( seq 1 $ntabs ); do
     $client -uroot -ppw -h$hp test -e "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.nt$n.$sfx &
     pids[${n}]=$!
   done
-
-  kill $vmpid
-  kill $iopid
 
   du -hs $ddir > sb.sz.$sfx
   echo "with apparent size " >> sb.sz.$sfx
@@ -133,9 +137,9 @@ echo Run for $nt threads
 echo Run for nt $nt at $( date )
 killall vmstat
 killall iostat
-vmstat 10 10000 >& sb.vm.nt${nt}.$sfx &
+vmstat $samp 10000 >& sb.vm.nt${nt}.$sfx &
 vmpid=$!
-iostat -kx 10 10000 >& sb.io.nt${nt}.$sfx &
+iostat -kx $samp 10000 >& sb.io.nt${nt}.$sfx &
 iopid=$!
 
 ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs $sysbdir/share/sysbench/$lua run"
@@ -144,12 +148,14 @@ $ex >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
 kill $iopid
+queries=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $2 }' )
+bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $samp $dname $queries > sb.met.nt${nt}.$sfx
 
 $client -uroot -ppw -h$hp test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show global variables" > sb.gv.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show global status" > sb.gs.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show global status\G" > sb.gs.nt${nt}.$sfx
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 
 done
