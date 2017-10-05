@@ -12,22 +12,21 @@ bulk=${11}
 secatend=${12}
 nr=${13}
 q=${14}
+ns=3
 
 # full scan
 ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
 sfx=dop${ntabs}.ns${ns}
 
-rm -f o.ib.scan
-rm -f o.ib.scan.*
-
+samp=2
 explain=0
 
   killall vmstat
   killall iostat
-  vmstat 10 >& o.vm.$sfx.q$q.e${explain} &
+  vmstat $samp >& o.vm.$sfx.q$q.e${explain} &
   vpid=$!
-  iostat -kx 10 >& o.io.$sfx.q$q.e${explain} &
+  iostat -kx $samp >& o.io.$sfx.q$q.e${explain} &
   ipid=$!
 
   start_secs=$( date +%s )
@@ -37,11 +36,13 @@ explain=0
     txtmo[2]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, customerid:1}).sort({price:1, customerid:1})'
     txtmo[3]="db.pi$i.find"'({ cashregisterid : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, cashregisterid:1, price:1, customerid:1}).sort({cashregisterid:1, price:1, customerid:1})'
     txtmo[4]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, dateandtime:1, customerid:1}).sort({price:1, dateandtime:1, customerid:1})'
+    txtmo[5]="db.pi$i.find"'({ data : { $eq : "" } }, { _id:1, data:1, customerid:1})'
 
     txtmy[1]="select transactionid,data,customerid from pi$i where customerid < 0"
     txtmy[2]="select price,customerid from pi$i where price >= 0 and customerid < 0 order by price,customerid"
     txtmy[3]="select cashregisterid,price,customerid from pi$i where cashregisterid >= 0 and customerid < 0 order by cashregisterid,price,customerid"
     txtmy[4]="select price,dateandtime,customerid from pi$i where price >= 0 and customerid < 0 order by price,dateandtime,customerid"
+    txtmy[5]="select transactionid,data,customerid from pi$i where customerid < 0"
 
     # Explain after running the query. Don't want explain time counted in query time.
     if [[ $mongo == "yes" ]] ; then 
@@ -66,13 +67,14 @@ explain=0
     wait ${pids[${i}]}
   done
 
+  if [[ $explain -eq 0 ]]; then
+    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nr > o.ib.scan.met.q$q
+  fi
+
   stop_secs=$( date +%s )
   tot_secs=$(( $stop_secs - $start_secs ))
   echo "Query $q scan $tot_secs seconds for $ntabs tables and explain $explain" >> o.ib.scan
 
   kill $vpid
   kill $ipid
-
-mkdir scan
-mv o.* scan
 

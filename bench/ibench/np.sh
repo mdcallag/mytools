@@ -27,6 +27,7 @@ names=""
 fi
 
 sfx=dop${dop}.ns${ns}
+
 rm -f o.res.$sfx
 
 maxr=$(( $nr / $dop ))
@@ -126,7 +127,7 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
-$client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status' > o.ts.$sfx
+$client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status\G' > o.ts.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
 echo "db.serverStatus()" | $client > o.es.$sfx
