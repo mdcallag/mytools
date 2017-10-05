@@ -127,7 +127,11 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
+
 $client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status\G' > o.ts.$sfx
+cat o.ts.$sfx  | grep "Data_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
+cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
+
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
 echo "db.serverStatus()" | $client > o.es.$sfx
