@@ -152,11 +152,15 @@ queries=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $2 }' )
 bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $samp $dname $queries > sb.met.nt${nt}.$sfx
 
 $client -uroot -ppw -h$hp test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show global variables" > sb.gv.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show global status\G" > sb.gs.nt${nt}.$sfx
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
+
+$client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
+echo "sum of data and index length columns in GB" >> sb.ts.nt${nt}.$sfx
+cat sb.ts.nt${nt}.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.nt${nt}.$sfx
+cat sb.ts.nt${nt}.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.nt${nt}.$sfx
 
 done
 
