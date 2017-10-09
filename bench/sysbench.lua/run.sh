@@ -108,7 +108,8 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   done
   stop_secs=$( date +'%s' )
   tot_secs=$(( $stop_secs - $start_secs ))
-  echo Scan seconds is $tot_secs for $ntabs tables > sb.r.qps.$sfx
+  mrps=$( echo "scale=3; $nr / $tot_secs / 1000000.0" | bc )
+  echo "Scan seconds is $tot_secs for $ntabs tables, $mrps Mrps" > sb.r.qps.$sfx
 
   kill $vmpid
   kill $iopid
