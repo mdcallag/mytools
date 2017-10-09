@@ -73,7 +73,8 @@ explain=0
 
   stop_secs=$( date +%s )
   tot_secs=$(( $stop_secs - $start_secs ))
-  echo "Query $q scan $tot_secs seconds for $ntabs tables and explain $explain" >> o.ib.scan
+  mrps=$( echo "scale=3; $nr / $tot_secs / 1000000.0" | bc )
+  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $mrps Mrps" >> o.ib.scan
 
   kill $vpid
   kill $ipid
