@@ -113,7 +113,7 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
 
   kill $vmpid
   kill $iopid
-  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $samp $dname $nr > sb.met.nt${ntabs}.$sfx
+  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $samp $dname $( $ntabs * $nr ) > sb.met.nt${ntabs}.$sfx
 
   for n in $( seq 1 $ntabs ); do
     $client -uroot -ppw -h$hp test -e "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.nt$n.$sfx &
