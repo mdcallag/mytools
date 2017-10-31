@@ -1,0 +1,456 @@
+
+Notes:
+* results from IO-bound sysbench - see http://smalldatum.blogspot.com/2017/02/using-modern-sysbench-to-compare.html
+* HW is NUC7i5bnh - 2 cores, 16G RAM - see http://smalldatum.blogspot.com/2017/05/small-servers-for-database-performance.html
+* test is run for 2 tables, 160M rows/table, 1 and then 2 concurrent clients
+* typical command line is: bash all_small.sh 2 160000000 600 600 300 innodb 1 0 /orig802/bin/mysql none ~/sysbench10 /data sdb
+* all tests are run for 600 seconds each except insert only which is run for 300 seconds
+
+Binaries:
+* myrocks.$date.no_DEBUG.{none,zstd} - MyRocks compiled from HEAD on that date, using compression none or zstd
+* myrocks.$date - MyRocks compiled from HEAD on that date using compression none or zstd
+
+* myrocks.jun16.none.ra, myrocks.jun16.zstd.ra - same as myrocks.jun16.* but adds rocksdb_advise_random_on_open=1
+* inno5096, inno5172, inno5551, inno5635, inno5717, inno8* - InnoDB from upstream
+
+A few notes on my.cnf:
+* InnoDB 8.x uses latin1 charset & latin1_swedish_ci collation to match earlier releases
+* InnoDB 5.6 and newer uses innodb_purge_threads=1 to reduce mutex contention
+
+Legend for scan - results for "pre", before update tests, and "post", after update tests
+* secs - seconds for scan
+* Mrps - millions of rows scanned / second before and after update tests
+* rMB/s - iostat read MB/second
+* Mcpu/o - normalized CPU overhead per row scanned
+
+Legend for others:
+* 1, 2 - QPS for 1 and 2 concurrent clients
+
+scan
+pre     post    pre     post    pre     post    pre     post
+secs    secs    Mrps    Mrps    rMB/s   rMB/s   Mcpu/o  Mcpu/o  engine
+232	251	1.379	1.274	248.0	233.5	19.331	19.531	myrocks.feb10.none.no_NDEBUG
+238	264	1.344	1.212	240.8	227.6	20.069	21.306	myrocks.apr14.none.no_NDEBUG
+269	288	1.189	1.111	213.7	207.5	25.519	26.687	myrocks.jun16.none.no_NDEBUG
+280	304	1.142	1.052	205.2	197.9	25.269	27.037	myrocks.aug15.none.no_NDEBUG
+220	241	1.454	1.327	266.6	255.1	18.106	18.925	myrocks.feb10.none
+227	250	1.409	1.280	259.3	249.8	18.050	19.944	myrocks.apr14.none
+268	284	1.194	1.126	219.6	219.1	24.481	25.150	myrocks.jun16.none
+138	150	2.318	2.133	437.6	427.2	22.731	24.062	myrocks.jun16.none.ra
+267	296	1.198	1.081	219.4	210.1	23.312	25.368	myrocks.aug15.none
+260	282	1.230	1.134	225.3	220.9	22.031	23.906	myrocks.oct16.none
+349	361	0.916	0.886	 88.5	 88.5	38.500	39.688	myrocks.feb10.zstd
+344	363	0.930	0.881	 89.6	 90.5	37.712	40.462	myrocks.apr14.zstd
+372	392	0.860	0.816	 83.4	 84.7	42.156	44.531	myrocks.jun16.zstd
+250	264	1.280	1.212	125.5	126.3	38.938	41.381	myrocks.jun16.zstd.ra
+384	398	0.833	0.804	 80.6	 82.8	43.456	45.606	myrocks.aug15.zstd
+365	393	0.876	0.814	 85.0	 83.9	39.881	42.862	myrocks.oct16.zstd
+448	356	0.714	0.898	150.3	190.5	34.187	27.500	inno5096
+445	351	0.718	0.910	151.3	193.0	34.300	27.719	inno5172
+147	150	2.176	2.132	458.1	447.7	33.712	33.106	inno5551
+181	179	1.766	1.786	337.4	339.8	26.956	27.006	inno5635
+132	133	2.424	2.406	450.0	457.6	12.131	12.681	inno5717
+132	128	2.424	2.500	461.5	474.4	11.956	11.818	inno801
+129	127	2.480	2.518	472.9	483.3	11.443	11.281	inno802
+129	128	2.480	2.500	471.7	479.6	11.500	11.475	inno803
+
+update-inlist
+1	2	concurrency/engine
+453     682     myrocks.feb10.none.no_NDEBUG
+429     798     myrocks.apr14.none.no_NDEBUG
+398     718     myrocks.jun16.none.no_NDEBUG
+460     671     myrocks.aug15.none.no_NDEBUG
+403     734     myrocks.feb10.none
+492     849     myrocks.apr14.none
+430     814     myrocks.jun16.none
+488     823     myrocks.aug15.none
+405     829     myrocks.oct16.none
+443     684     myrocks.feb10.zstd
+466     673     myrocks.apr14.zstd
+458     645     myrocks.jun16.zstd
+437     688     myrocks.aug15.zstd
+463     633     myrocks.oct16.zstd
+359     489     inno5096
+378     481     inno5172
+342     425     inno5551
+307     519     inno5635
+392     546     inno5717
+352     539     inno801
+312     529     inno802
+335     522     inno803
+
+update-one
+1	2	concurrency/engine
+ 8731   15203   myrocks.feb10.none.no_NDEBUG
+ 8237   14326   myrocks.apr14.none.no_NDEBUG
+ 7822   13571   myrocks.jun16.none.no_NDEBUG
+ 7897   13833   myrocks.aug15.none.no_NDEBUG
+ 9287   16098   myrocks.feb10.none
+ 8972   15742   myrocks.apr14.none
+ 8508   14877   myrocks.jun16.none
+ 8377   14869   myrocks.aug15.none
+ 8655   14989   myrocks.oct16.none
+ 9180   15860   myrocks.feb10.zstd
+ 9270   15842   myrocks.apr14.zstd
+ 8749   15010   myrocks.jun16.zstd
+ 8517   14920   myrocks.aug15.zstd
+ 8712   14810   myrocks.oct16.zstd
+15488   23572   inno5096
+13224   21638   inno5172
+10431   15828   inno5551
+10988   16831   inno5635
+ 9570   14426   inno5717
+ 8813   13399   inno801
+ 8144   12332   inno802
+ 8046   12170   inno803
+
+update-index
+1	2	concurrency/engine
+2769    4532    myrocks.feb10.none.no_NDEBUG
+2898    4750    myrocks.apr14.none.no_NDEBUG
+2706    4365    myrocks.jun16.none.no_NDEBUG
+2811    4305    myrocks.aug15.none.no_NDEBUG
+3057    4662    myrocks.feb10.none
+3084    5073    myrocks.apr14.none
+3004    4649    myrocks.jun16.none
+3008    4690    myrocks.aug15.none
+3038    4913    myrocks.oct16.none
+2704    4313    myrocks.feb10.zstd
+2787    4649    myrocks.apr14.zstd
+2778    4562    myrocks.jun16.zstd
+2779    4556    myrocks.aug15.zstd
+2799    4588    myrocks.oct16.zstd
+1103    1357    inno5096
+1076    1402    inno5172
+ 585     745    inno5551
+ 850    1149    inno5635
+ 924    1150    inno5717
+ 896    1118    inno801
+ 890    1098    inno802
+ 883    1098    inno803
+
+update-nonindex
+1	2	concurrency/engine
+2819    4742    myrocks.feb10.none.no_NDEBUG
+2969    4917    myrocks.apr14.none.no_NDEBUG
+2694    4275    myrocks.jun16.none.no_NDEBUG
+2764    4603    myrocks.aug15.none.no_NDEBUG
+2987    4916    myrocks.feb10.none
+3115    5139    myrocks.apr14.none
+2888    4976    myrocks.jun16.none
+2893    4823    myrocks.aug15.none
+2938    4973    myrocks.oct16.none
+2562    4588    myrocks.feb10.zstd
+2839    4728    myrocks.apr14.zstd
+2715    4524    myrocks.jun16.zstd
+2680    4459    myrocks.aug15.zstd
+2725    4532    myrocks.oct16.zstd
+2882    4169    inno5096
+2759    4095    inno5172
+2582    3499    inno5551
+2683    4015    inno5635
+2773    3559    inno5717
+2702    3270    inno801
+2574    3454    inno802
+2541    3581    inno803
+
+delete
+1	2	concurrency/engine
+8304    13704   myrocks.feb10.none.no_NDEBUG
+8734    15660   myrocks.apr14.none.no_NDEBUG
+8075    14124   myrocks.jun16.none.no_NDEBUG
+8103    14478   myrocks.aug15.none.no_NDEBUG
+9076    14642   myrocks.feb10.none
+9602    16261   myrocks.apr14.none
+8790    14941   myrocks.jun16.none
+8806    15587   myrocks.aug15.none
+8802    15494   myrocks.oct16.none
+8079    13475   myrocks.feb10.zstd
+9002    14687   myrocks.apr14.zstd
+8268    13780   myrocks.jun16.zstd
+8313    13588   myrocks.aug15.zstd
+8397    13851   myrocks.oct16.zstd
+3527     4181   inno5096
+3551     4239   inno5172
+3334     4253   inno5551
+5068     7079   inno5635
+5115     6508   inno5717
+4966     6462   inno801
+4811     6344   inno802
+4794     6341   inno803
+
+read-write.range100
+1	2	concurrency/engine
+3307    6318    myrocks.feb10.none.no_NDEBUG
+3223    6145    myrocks.apr14.none.no_NDEBUG
+3060    5706    myrocks.jun16.none.no_NDEBUG
+2969    5681    myrocks.aug15.none.no_NDEBUG
+3360    6419    myrocks.feb10.none
+3316    6350    myrocks.apr14.none
+3126    6062    myrocks.jun16.none
+3092    5709    myrocks.aug15.none
+3105    5972    myrocks.oct16.none
+2988    5951    myrocks.feb10.zstd
+3008    5494    myrocks.apr14.zstd
+2901    5259    myrocks.jun16.zstd
+2780    5236    myrocks.aug15.zstd
+2887    5278    myrocks.oct16.zstd
+2826    4669    inno5096
+2695    4595    inno5172
+2606    3738    inno5551
+2799    5069    inno5635
+3077    5657    inno5717
+2979    5497    inno801
+2718    5552    inno802
+3038    5486    inno803
+
+read-write.range10000
+1	2	concurrency/engine
+216     355     myrocks.feb10.none.no_NDEBUG
+205     340     myrocks.apr14.none.no_NDEBUG
+191     318     myrocks.jun16.none.no_NDEBUG
+187     312     myrocks.aug15.none.no_NDEBUG
+226     368     myrocks.feb10.none
+223     361     myrocks.apr14.none
+202     330     myrocks.jun16.none
+205     334     myrocks.aug15.none
+202     331     myrocks.oct16.none
+175     297     myrocks.feb10.zstd
+170     291     myrocks.apr14.zstd
+163     280     myrocks.jun16.zstd
+161     266     myrocks.aug15.zstd
+163     278     myrocks.oct16.zstd
+219     349     inno5096
+216     343     inno5172
+214     355     inno5551
+217     349     inno5635
+335     498     inno5717
+330     500     inno801
+335     501     inno802
+328     487     inno803
+
+read-only.range100
+1	2	concurrency/engine
+3226    6299    myrocks.feb10.none.no_NDEBUG
+2911    5975    myrocks.apr14.none.no_NDEBUG
+2862    5619    myrocks.jun16.none.no_NDEBUG
+2786    5557    myrocks.aug15.none.no_NDEBUG
+3257    6589    myrocks.feb10.none
+3137    6384    myrocks.apr14.none
+3011    5879    myrocks.jun16.none
+3069    6014    myrocks.aug15.none
+3011    5975    myrocks.oct16.none
+3142    5979    myrocks.feb10.zstd
+3003    5754    myrocks.apr14.zstd
+2779    5276    myrocks.jun16.zstd
+2777    5199    myrocks.aug15.zstd
+2819    5404    myrocks.oct16.zstd
+3640    6946    inno5096
+3638    7000    inno5172
+3668    7027    inno5551
+3687    7329    inno5635
+4954    8895    inno5717
+4784    8605    inno801
+4850    8699    inno802
+4794    8608    inno803
+
+read-only.pre.range10000
+1	2	concurrency/engine
+178     303     myrocks.feb10.none.no_NDEBUG
+171     290     myrocks.apr14.none.no_NDEBUG
+157     268     myrocks.jun16.none.no_NDEBUG
+159     273     myrocks.aug15.none.no_NDEBUG
+189     311     myrocks.feb10.none
+195     317     myrocks.apr14.none
+174     286     myrocks.jun16.none
+176     289     myrocks.aug15.none
+173     286     myrocks.oct16.none
+145     244     myrocks.feb10.zstd
+143     245     myrocks.apr14.zstd
+138     238     myrocks.jun16.zstd
+136     227     myrocks.aug15.zstd
+139     240     myrocks.oct16.zstd
+182     279     inno5096
+181     277     inno5172
+178     297     inno5551
+173     296     inno5635
+273     436     inno5717
+267     426     inno801
+268     428     inno802
+264     418     inno803
+
+read-only.range10000
+1	2	concurrency/engine
+182     287     myrocks.feb10.none.no_NDEBUG
+173     275     myrocks.apr14.none.no_NDEBUG
+162     260     myrocks.jun16.none.no_NDEBUG
+157     252     myrocks.aug15.none.no_NDEBUG
+184     298     myrocks.feb10.none
+181     292     myrocks.apr14.none
+166     271     myrocks.jun16.none
+166     272     myrocks.aug15.none
+164     269     myrocks.oct16.none
+142     239     myrocks.feb10.zstd
+138     234     myrocks.apr14.zstd
+132     225     myrocks.jun16.zstd
+130     216     myrocks.aug15.zstd
+132     222     myrocks.oct16.zstd
+181     285     inno5096
+179     283     inno5172
+178     293     inno5551
+178     295     inno5635
+275     431     inno5717
+269     424     inno801
+275     434     inno802
+267     400     inno803
+
+point-query.pre
+1	2	concurrency/engine
+5112     9718   myrocks.feb10.none.no_NDEBUG
+4743     9447   myrocks.apr14.none.no_NDEBUG
+4294     8622   myrocks.jun16.none.no_NDEBUG
+4226     8450   myrocks.aug15.none.no_NDEBUG
+4900     9837   myrocks.feb10.none
+4994     9531   myrocks.apr14.none
+4370     8769   myrocks.jun16.none
+4494     8668   myrocks.aug15.none
+4438     8816   myrocks.oct16.none
+4370     8159   myrocks.feb10.zstd
+4325     8008   myrocks.apr14.zstd
+3969     7605   myrocks.jun16.zstd
+3992     7639   myrocks.aug15.zstd
+3962     7645   myrocks.oct16.zstd
+5478    10207   inno5096
+5276     9873   inno5172
+5092     9612   inno5551
+5250    10288   inno5635
+6198    11722   inno5717
+6020    11239   inno801
+5882    11071   inno802
+5873    10975   inno803
+
+point-query
+1	2	concurrency/engine
+4227     8421   myrocks.feb10.none.no_NDEBUG
+3963     8081   myrocks.apr14.none.no_NDEBUG
+3638     7386   myrocks.jun16.none.no_NDEBUG
+3702     7338   myrocks.aug15.none.no_NDEBUG
+4420     8839   myrocks.feb10.none
+4261     8735   myrocks.apr14.none
+3996     7884   myrocks.jun16.none
+3995     7896   myrocks.aug15.none
+4022     7983   myrocks.oct16.none
+4117     7755   myrocks.feb10.zstd
+3958     7573   myrocks.apr14.zstd
+3707     7127   myrocks.jun16.zstd
+3721     7103   myrocks.aug15.zstd
+3731     7173   myrocks.oct16.zstd
+5464    10185   inno5096
+5256     9988   inno5172
+5022     9621   inno5551
+5310     9738   inno5635
+6155    11557   inno5717
+5944    11275   inno801
+6115    11065   inno802
+5891    11120   inno803
+
+random-points.pre
+1	2	concurrency/engine
+ 60     130     myrocks.feb10.none.no_NDEBUG
+ 55     134     myrocks.apr14.none.no_NDEBUG
+ 51     124     myrocks.jun16.none.no_NDEBUG
+ 61     124     myrocks.aug15.none.no_NDEBUG
+ 70     137     myrocks.feb10.none
+ 65     134     myrocks.apr14.none
+ 57     131     myrocks.jun16.none
+ 65     131     myrocks.aug15.none
+ 54     132     myrocks.oct16.none
+ 65     126     myrocks.feb10.zstd
+ 65     126     myrocks.apr14.zstd
+ 61     118     myrocks.jun16.zstd
+ 60     112     myrocks.aug15.zstd
+ 61     118     myrocks.oct16.zstd
+ 70     139     inno5096
+ 64     143     inno5172
+ 51     144     inno5551
+ 50     160     inno5635
+105     180     inno5717
+101     177     inno801
+101     177     inno802
+106     179     inno803
+
+random-points
+1	2	concurrency/engine
+ 62     126     myrocks.feb10.none.no_NDEBUG
+ 53     126     myrocks.apr14.none.no_NDEBUG
+ 58     115     myrocks.jun16.none.no_NDEBUG
+ 45     113     myrocks.aug15.none.no_NDEBUG
+ 56     133     myrocks.feb10.none
+ 54     132     myrocks.apr14.none
+ 62     122     myrocks.jun16.none
+ 63     124     myrocks.aug15.none
+ 50     121     myrocks.oct16.none
+ 62     119     myrocks.feb10.zstd
+ 62     118     myrocks.apr14.zstd
+ 57     110     myrocks.jun16.zstd
+ 55     104     myrocks.aug15.zstd
+ 57     110     myrocks.oct16.zstd
+ 59     137     inno5096
+ 55     140     inno5172
+ 59     141     inno5551
+ 64     154     inno5635
+100     175     inno5717
+ 97     171     inno801
+ 97     175     inno802
+100     172     inno803
+
+hot-points
+1	2	concurrency/engine
+1004    1949    myrocks.feb10.none.no_NDEBUG
+1118    2176    myrocks.apr14.none.no_NDEBUG
+ 881    1713    myrocks.jun16.none.no_NDEBUG
+1019    2000    myrocks.aug15.none.no_NDEBUG
+1327    2508    myrocks.feb10.none
+1456    2801    myrocks.apr14.none
+1125    2178    myrocks.jun16.none
+1307    2540    myrocks.aug15.none
+1339    2609    myrocks.oct16.none
+1417    2754    myrocks.feb10.zstd
+1450    2876    myrocks.apr14.zstd
+1088    2104    myrocks.jun16.zstd
+1391    2706    myrocks.aug15.zstd
+1378    2683    myrocks.oct16.zstd
+4704    7736    inno5096
+4450    7708    inno5172
+4591    8490    inno5551
+4167    8137    inno5635
+3771    7513    inno5717
+3657    7237    inno801
+3629    7183    inno802
+3690    7276    inno803
+
+insert
+1	2	concurrency/engine
+7941    13329   myrocks.feb10.none.no_NDEBUG
+8203    13865   myrocks.apr14.none.no_NDEBUG
+7886    12855   myrocks.jun16.none.no_NDEBUG
+7807    13267   myrocks.aug15.none.no_NDEBUG
+8654    14783   myrocks.feb10.none
+9403    15653   myrocks.apr14.none
+8652    14664   myrocks.jun16.none
+8864    14447   myrocks.aug15.none
+8236    13498   myrocks.oct16.none
+8540    12846   myrocks.feb10.zstd
+8981    14601   myrocks.apr14.zstd
+8299    14051   myrocks.jun16.zstd
+8538    14032   myrocks.aug15.zstd
+8075    12983   myrocks.oct16.zstd
+7535     7839   inno5096
+7431     9626   inno5172
+6063     8514   inno5551
+7991    10928   inno5635
+7234    10117   inno5717
+6798     9718   inno801
+6490     9577   inno802
+6468     9456   inno803
+
