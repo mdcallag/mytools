@@ -1,0 +1,87 @@
+[mysqld]
+sql_mode=no_engine_substitution,no_unsigned_subtraction
+default_tmp_storage_engine=MyISAM
+tmpdir=/data/m/my/data
+query_cache_size=0
+query_cache_type=0
+# slow_query_log_file=/data/m/my/slow.log
+long_query_time=5
+# skip_log_bin
+log_bin=/data/m/my/binlogs/bl
+max_binlog_size=128M
+sync_binlog=0
+server_id=77
+datadir=/data/m/my/data
+
+rocksdb
+default-storage-engine=rocksdb
+skip-innodb
+default-tmp-storage-engine=MyISAM
+binlog_format=ROW
+collation-server=latin1_bin
+
+rocksdb_wal_dir=/data/m/my/txlogs
+
+#rocksdb_block_cache_size=512M
+rocksdb_default_cf_options=write_buffer_size=64m
+# def
+
+rocksdb_block_cache_size=2G
+# def.0
+
+transaction-isolation=READ-COMMITTED
+# def.1
+
+rocksdb_max_open_files=-1
+rocksdb_base_background_compactions=1
+rocksdb_max_background_compactions=8
+# def.2
+
+rocksdb_max_total_wal_size=4G
+rocksdb_max_background_flushes=4
+# def.3
+
+rocksdb_block_size=16384
+rocksdb_table_cache_numshardbits=6
+# def.4
+
+# rate limiter
+rocksdb_bytes_per_sync=4194304
+rocksdb_wal_bytes_per_sync=4194304
+#noooo rocksdb_rate_limiter_bytes_per_sec=104857600 #100MB/s. Increase if you're running on higher spec machines
+# def.5
+
+# triggering compaction if there are many sequential deletes
+rocksdb_compaction_sequential_deletes_count_sd=1
+rocksdb_compaction_sequential_deletes=199999
+rocksdb_compaction_sequential_deletes_window=200000
+# def.6
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4
+# def.7
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};
+# def.8
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true
+# def.9
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;compression_per_level=kNoCompression:kNoCompression:kNoCompression:kLZ4Compression:kLZ4Compression:kLZ4Compression;bottommost_compression=kZSTDNotFinalCompression;compression_opts=-14:1:0;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;compaction_pri=kMinOverlappingRatio
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;compression_per_level=kNoCompression:kNoCompression:kNoCompression:kLZ4Compression:kLZ4Compression:kLZ4Compression;bottommost_compression=kZSTDNotFinalCompression;compression_opts=-14:1:0;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=0};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;memtable_prefix_bloom_size_ratio=0.05;prefix_extractor=capped:12;compaction_pri=kMinOverlappingRatio
+
+# def.10.comp - with/without linkbench
+
+rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;compression_per_level=kNoCompression:kNoCompression:kNoCompression:kNoCompression:kNoCompression:kNoCompression;bottommost_compression=kNoCompression;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;compaction_pri=kMinOverlappingRatio
+
+#rocksdb_default_cf_options=write_buffer_size=32m;target_file_size_base=32m;max_bytes_for_level_base=256m;level0_file_num_compaction_trigger=4;level0_slowdown_writes_trigger=20;level0_stop_writes_trigger=30;max_write_buffer_number=4;compression_per_level=kNoCompression:kNoCompression:kNoCompression:kNoCompression:kNoCompression:kNoCompression;bottommost_compression=kNoCompression;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=0};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;memtable_prefix_bloom_size_ratio=0.05;prefix_extractor=capped:12;compaction_pri=kMinOverlappingRatio
+# def.10.nocomp - with/without linkbench
+
+#rocksdb_override_cf_options=cf_link_pk={prefix_extractor=capped:20};rev:cf_link_id1_type={prefix_extractor=capped:20}
+# def.10.linkbench
+
+rocksdb_block_cache_size=12G
+rocksdb_flush_log_at_trx_commit=2
+
+[mysqld_safe]
+malloc-lib=/usr/lib/x86_64-linux-gnu/libjemalloc.so
