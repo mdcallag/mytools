@@ -51,11 +51,11 @@ def runme(argv):
 
     # this is worst case write amp, assume each dirty page has only one modified row
     log_write_amp = 100 / (100.0 - r.log_percent_live)
-    print 'write amp: %.1f, log %.1f, index %.1f' % (
+    print 'write amp: %.2f, log %.2f, index %.2f' % (
         log_write_amp + fix_index_wa, log_write_amp, fix_index_wa)
 
     log_space_amp = 100 / (r.log_percent_live * 1.0)
-    print 'space amp: %.1f, log %.1f, index %.1f' % (
+    print 'space amp: %.2f, log %.2f, index %.2f' % (
         log_space_amp + fix_index_sa, log_space_amp, fix_index_sa)
 
     # Do index_point_compares search on the insert and then GC does more compares

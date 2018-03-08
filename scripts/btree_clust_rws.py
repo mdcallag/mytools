@@ -10,7 +10,7 @@ def runme(argv):
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--row_size', type=int, default=128)
     parser.add_argument('--key_size', type=int, default=8)
-    parser.add_argument('--block_kb', type=int, default=4)
+    parser.add_argument('--block_bytes', type=int, default=4096)
 
     # percentage of leaf page that has valid data, rest is empty from fragmentation
     parser.add_argument('--leaf_fill_percent', type=int, default=65)
@@ -23,7 +23,7 @@ def runme(argv):
     print 'database_gb ', r.database_gb
     print 'row_size ', r.row_size
     print 'key_size ', r.key_size
-    print 'block_kb ', r.block_kb
+    print 'block_bytes ', r.block_bytes
     print 'leaf_fill_percent ', r.leaf_fill_percent
     print 'bytes_per_block_pointer ', r.bytes_per_block_pointer
 
@@ -39,12 +39,12 @@ def runme(argv):
     print 'space amp: %.2f' % (1 / (r.leaf_fill_percent / 100.0))
 
     # this is worst case write amp, assume each dirty page has only one modified row
-    write_amp = (r.block_kb * 1024.0) / r.row_size
-    print 'write amp: %.1f' % write_amp
+    write_amp = (r.block_bytes * 1.0) / r.row_size
+    print 'write amp: %.2f' % write_amp
 
     # For each block there is one key and one block pointer in memory.
     # This only counts overhead for the level above the leaf level
-    nblocks = (r.database_gb * 1024 * 1024) / r.block_kb
+    nblocks = (r.database_gb * 1024 * 1024 * 1024) / r.block_bytes
     cache_mb = (nblocks * (r.key_size + r.bytes_per_block_pointer)) / (1024.0 * 1024)
     print 'cache amp: %.4f with %.1f cache_mb' % (cache_mb / (r.database_gb * 1024.0),
         cache_mb)

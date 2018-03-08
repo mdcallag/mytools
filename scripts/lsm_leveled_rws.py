@@ -107,13 +107,13 @@ def config_lsm_tree(args):
     level_files_cmp = []
 
     lsm = {}
-    lsm['blocks_per_file_l0'] = math.ceil((1024.0 * args.memtable_mb) / args.block_kb)
+    lsm['blocks_per_file_l0'] = math.ceil((args.memtable_mb * 1024.0 * 1024) / args.block_bytes)
     lsm['cmp_block_index_l0'] = math.ceil(math.log(lsm['blocks_per_file_l0'], 2))
 
-    lsm['blocks_per_file'] = math.ceil((1024.0 * args.file_mb) / args.block_kb)
+    lsm['blocks_per_file'] = math.ceil((args.file_mb * 1024.0 * 1024) / args.block_bytes)
     lsm['cmp_block_index'] = math.ceil(math.log(lsm['blocks_per_file'], 2))
 
-    lsm['rows_per_block'] = math.ceil((1024.0 * args.block_kb) / args.row_size)
+    lsm['rows_per_block'] = math.ceil((args.block_bytes * 1.0) / args.row_size)
     lsm['cmp_per_block'] = math.ceil(math.log(lsm['rows_per_block'], 2))
 
     print 'blocks per file l0 %d' % lsm['blocks_per_file_l0']
@@ -220,17 +220,17 @@ def config_lsm_tree(args):
 def runme(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--memtable_mb', type=int, default=32)
+    parser.add_argument('--memtable_mb', type=int, default=64)
     parser.add_argument('--l0_trigger', type=int, default=4)
-    parser.add_argument('--l1_mb', type=int, default=128)
-    parser.add_argument('--l1_fudge', type=float, default=1.1)
+    parser.add_argument('--l1_mb', type=int, default=512)
+    parser.add_argument('--l1_fudge', type=float, default=1.5)
     parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--level_fanout', type=int, default=10)
     parser.add_argument('--row_size', type=int, default=128)
     parser.add_argument('--key_size', type=int, default=8)
     parser.add_argument('--file_mb', type=int, default=32)
-    parser.add_argument('--block_kb', type=int, default=4)
+    parser.add_argument('--block_bytes', type=int, default=4096)
     parser.add_argument('--bloom_on_max', dest='bloom_on_max', action='store_true')
     parser.add_argument('--no_bloom_on_max', dest='bloom_on_max', action='store_false')
     parser.set_defaults(bloom_on_max=False)
@@ -257,7 +257,7 @@ def runme(argv):
     print 'row_size ', r.row_size
     print 'key_size ', r.key_size
     print 'file_mb ', r.file_mb
-    print 'block_kb ', r.block_kb
+    print 'block_bytes ', r.block_bytes
     print 'bloom_on_max ', r.bloom_on_max
     print 'bloom_filter_bits ', r.bloom_filter_bits
     print 'bloom_filter_compares ', r.bloom_filter_compares

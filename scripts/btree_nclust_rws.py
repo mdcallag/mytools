@@ -10,7 +10,7 @@ def runme(argv):
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--row_size', type=int, default=128)
     parser.add_argument('--key_size', type=int, default=8)
-    parser.add_argument('--block_kb', type=int, default=4)
+    parser.add_argument('--block_bytes', type=int, default=4096)
 
     # percentage of index page that has live data
     parser.add_argument('--index_fill_percent', type=int, default=65)
@@ -29,7 +29,7 @@ def runme(argv):
     print 'database_gb ', r.database_gb
     print 'row_size ', r.row_size
     print 'key_size ', r.key_size
-    print 'block_kb ', r.block_kb
+    print 'block_bytes ', r.block_bytes
     print 'index_fill_percent', r.index_fill_percent
     print 'index_dirty_percent ', r.index_dirty_percent
     print 'data_fill_percent ', r.data_fill_percent
@@ -51,10 +51,10 @@ def runme(argv):
       ((data_files_mb + index_mb) / 1024.0) / r.database_gb, data_files_mb, index_mb)
 
     # this is worst case write amp, assume each dirty data page has only one modified row
-    data_write_amp = (r.block_kb * 1024.0) / r.row_size
+    data_write_amp = (r.block_bytes * 1.0) / r.row_size
     # then add write amp for index
     index_write_amp = 1 / (1 - (r.index_dirty_percent / 100.0))
-    print 'write amp: %.1f, data %.1f, index %.1f' % (
+    print 'write amp: %.2f, data %.2f, index %.2f' % (
         data_write_amp + index_write_amp, data_write_amp, index_write_amp)
 
     # The index must be in RAM. So there is one key + block pointer per key. Compare
