@@ -15,8 +15,8 @@ def runme(argv):
     # percentage of index page that has live data
     parser.add_argument('--index_fill_percent', type=int, default=65)
 
-    # percentage of index page that is dirty when written back
-    parser.add_argument('--index_dirty_percent', type=int, default=20)
+    # average number of modified entries per dirty index page
+    parser.add_argument('--entries_dirty_index_page', type=int, default=4)
 
     # percentage of data pages that have live data
     parser.add_argument('--data_fill_percent', type=int, default=75)
@@ -31,7 +31,7 @@ def runme(argv):
     print 'key_size ', r.key_size
     print 'block_bytes ', r.block_bytes
     print 'index_fill_percent', r.index_fill_percent
-    print 'index_dirty_percent ', r.index_dirty_percent
+    print 'entries_dirty_index_page ', r.entries_dirty_index_page
     print 'data_fill_percent ', r.data_fill_percent
     print 'bytes_per_block_pointer ', r.bytes_per_block_pointer
 
@@ -52,8 +52,9 @@ def runme(argv):
 
     # this is worst case write amp, assume each dirty data page has only one modified row
     data_write_amp = (r.block_bytes * 1.0) / r.row_size
-    # then add write amp for index
-    index_write_amp = 1 / (1 - (r.index_dirty_percent / 100.0))
+    # then add write amp for index, but assume that the dirty index page might include changes
+    # for more than one row
+    index_write_amp = (r.block_bytes * (1.0/r.entries_dirty_index_page)) / r.row_size
     print 'write amp: %.2f, data %.2f, index %.2f' % (
         data_write_amp + index_write_amp, data_write_amp, index_write_amp)
 
