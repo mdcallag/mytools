@@ -152,7 +152,7 @@ def config_lsm_tree(args):
         wa = (mb + l0_mb + 0.0) / l0_mb
         write_amp.append(wa)
         # merge 1 stream from L1 with l0_trigger streams from L0
-        comp_cmp.append(math.ceil(math.log(args.l0_trigger + 1) * wa))
+        comp_cmp.append(math.ceil(math.log(args.l0_trigger + 1, 2) * wa))
       else:
         wa = args.level_fanout * args.wa_fudge
         write_amp.append(wa)
