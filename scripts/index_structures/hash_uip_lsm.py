@@ -179,7 +179,7 @@ def do_lsm(args):
       hit_cmp2 = (hit_cmp1 + cum_miss_cmp) * prob_hit
       cum_hit_cmp += hit_cmp2
       cum_miss_cmp += miss_cmp
-      print 'level %d: hit1/hit2/miss level %.3f/%.3f/%.3f and cum %.3f/%.3f' % (
+      print 'level %d: hit1/hit2/miss level %.3f/%.3f/%.3f and cum hit/miss %.3f/%.3f' % (
           x+1, hit_cmp1, hit_cmp2, miss_cmp, cum_hit_cmp, cum_miss_cmp)
 
     write_amp = comp_cmp = 0
@@ -196,7 +196,7 @@ def do_lsm(args):
         comp_cmp += level_fanout / 2.0
 
     print 'write-amp:\t%.2f' % write_amp
-    print 'compares: insert %.1f, compaction %.1f, total %.1f\n' % (
+    print 'compares: insert %.2f, compaction %.2f, total %.2f\n' % (
         cmp_memtable, comp_cmp, cmp_memtable + comp_cmp)
 
 
