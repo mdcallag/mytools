@@ -168,12 +168,12 @@ def config_lsm_tree(args):
       if x == len(mb_per_level) - 1:
         # last level
         wa = (mb_per_level[-2] + database_mb) / (mb_per_level[-2] * 1.0)
-        comp_cmp.append(math.ceil(math.log(args.tier_fanout)) * wa)
+        comp_cmp.append(math.ceil(math.log(args.tier_fanout, 2)) * wa)
         comp_read = wa
       else:
         # not last level
         wa = 1
-        comp_cmp.append(math.ceil(math.log(args.tier_fanout)))
+        comp_cmp.append(math.ceil(math.log(args.tier_fanout, 2)))
 
       print "\t%.2f" % wa,
       wa_sum += wa

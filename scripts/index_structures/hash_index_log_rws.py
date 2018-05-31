@@ -55,7 +55,7 @@ def runme(argv):
     print 'space amp: %.2f, log %.2f, index %.2f' % (
         log_space_amp + fix_index_sa, log_space_amp, fix_index_sa)
 
-    search_cmp = math.ceil(math.log(r.index_bucket_size))
+    search_cmp = math.ceil(math.log(r.index_bucket_size, 2))
     insert_gc_cmp = log_write_amp * search_cmp
     print 'compares: search %.2f, insert %.2f, insert+gc %.2f' % (
         search_cmp, search_cmp, search_cmp * (log_write_amp + 1))
