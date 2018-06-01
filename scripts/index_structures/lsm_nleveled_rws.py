@@ -28,19 +28,22 @@ def range_compares(lsm, args):
 def point_compares(lsm, args):
     # returns the number of comparisons on a point query (hit,miss)
 
+    database_mb = args.database_gb * 1024.0
+
     # first search memtable, cost is same for hit and miss
     if args.bloom_on_memtable:
-      miss_cum_cmp = args.bloom_filter_compares
+      miss_cmp = args.bloom_filter_compares
       hit_cmp = lsm['memtable_cmp'] + args.bloom_filter_compares
     else:
-      miss_cum_cmp = lsm['memtable_cmp']
-      hit_cmp = lsm['memtable_cmp']
+      miss_cmp = hit_cmp = lsm['memtable_cmp']
 
-    prob_hit =  args.memtable_mb / (1024.0 * args.database_gb)
-    hit_cum_cmp = (hit_cmp * prob_hit) + (miss_cum_cmp * (1 - prob_hit))
+    cum_prob_hit = prob_hit =  args.memtable_mb / database_mb
 
-    print '\nmemtable miss/hit/ehit %.2f/%.2f/%.2f, phit %.5f' % (
-          miss_cum_cmp, hit_cmp, hit_cum_cmp, prob_hit)
+    exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
+    miss_cum_cmp = miss_cmp
+    hit_cum_cmp = exp_cmp
+    print '\nmemtable cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     # then search each level, unlike in the write-amp case I assume each level is full 
     for x in xrange(args.max_level):
@@ -57,13 +60,18 @@ def point_compares(lsm, args):
       else:
         # no bloom
         hit_cmp = miss_cmp = lsm['level_blocks_cmp'][x] + lsm['cmp_per_block']
-   
+
+      if x == len(lsm['level_mb']) - 1:
+        prob_hit = 1 - cum_prob_hit
+      else:
+        prob_hit = lsm['level_mb'][x] / database_mb
+
+      exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
+      hit_cum_cmp += exp_cmp
       miss_cum_cmp += miss_cmp
-      prob_hit =  lsm['level_mb'][x] / (1024.0 * args.database_gb)
-      exp_hit_cmp = (hit_cmp * prob_hit) + (miss_cmp * (1 - prob_hit))
-      hit_cum_cmp += exp_hit_cmp
-      print 'L%d cum miss/hit  %.2f/%.2f, level miss/hit/ehit %.2f/%.2f/%.2f, phit %.5f' % (
-          x+1, miss_cum_cmp, hit_cum_cmp, miss_cmp, hit_cmp, exp_hit_cmp, prob_hit)
+      cum_prob_hit += prob_hit
+      print 'L%d cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+          x+1, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     return (hit_cum_cmp, miss_cum_cmp)
 
@@ -226,7 +234,7 @@ def config_lsm_tree(args):
 def runme(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--memtable_mb', type=int, default=64)
+    parser.add_argument('--memtable_mb', type=int, default=1024)
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--max_level', type=int, default=2)
     parser.add_argument('--memtable_l1_fanout', type=int, default=10)
@@ -248,7 +256,7 @@ def runme(argv):
     #
     # RocksDB does bloom_filter_bits * 0.69 probes, rounded down. With
     # bloom_filter_bits=10 there are 6 probes
-    parser.add_argument('--bloom_filter_compares', type=int, default=3)
+    parser.add_argument('--bloom_filter_compares', type=int, default=2)
 
     # The default is a 6-byte pointer
     parser.add_argument('--bytes_per_block_pointer', type=int, default=6)

@@ -127,7 +127,7 @@ def runme(argv):
     #
     # RocksDB does bloom_filter_bits * 0.69 probes, rounded down. With
     # bloom_filter_bits=10 there are 6 probes
-    parser.add_argument('--bloom_filter_compares', type=int, default=3)
+    parser.add_argument('--bloom_filter_compares', type=int, default=2)
 
     # size of pointer to location in LSM or log segment
     parser.add_argument('--bytes_per_block_pointer', type=int, default=6)
@@ -161,41 +161,39 @@ def runme(argv):
 
     d['total_fanout'] = d['nrows'] / d['l0_entries']
     d['level_fanout'] = d['total_fanout'] ** (1.0 / r.max_level)
-    print 'fanount: %.3f total, %.1f per level' % (d['total_fanout'], d['level_fanout'])
+    print 'fanout: %.3f total, %.1f per level' % (d['total_fanout'], d['level_fanout'])
 
     #
     # per-level : compute size, space-amp, write-amp
     #
 
     gb = 1024.0 * 1024 * 1024
-    level_rows = d['l0_entries'] * d['level_fanout']
+    level_rows = d['l0_entries']
     level_gb = (level_rows * r.row_size) / gb
-    d['level_rows'] = [ level_rows ]
-    d['level_gb'] = [ level_gb ]
+    d['level_rows'] = []
+    d['level_gb'] = []
     insert_cmp = d['l0_insert_cmp']
+    space_amp = d['l0_space_amp']
+    write_amp = d['l0_write_amp']
 
-    sa = level_gb / r.database_gb
-    wa = (1.0 * level_rows) / d['l0_entries']
-    space_amp = d['l0_space_amp'] + sa
-    write_amp = d['l0_write_amp'] + wa
-    insert_cmp += wa
-    print 'per-level 1: %.3f write-amp, %.3f space-amp' % (wa, sa)
-    level = 2
-
+    print 'memtable: %.3f write-amp, %.3f space-amp, %.1f insert-cmp' % (write_amp, space_amp, insert_cmp)
+    level = 1
     while level <= r.max_level:
-      level_rows *= d['level_fanout']
-      level_gb *= d['level_fanout']
 
       if level < r.max_level:
+        level_rows *= d['level_fanout']
+        level_gb *= d['level_fanout']
         sa = level_gb / r.database_gb
         # assume non-max level is half full on average when compaction done into it
         wa = d['level_fanout'] / 2.0
       else:
         # assume max level is always full when compaction done into it
-        sa = 0
+        level_rows = d['nrows']
+        level_gb = r.database_gb
+        sa = 1
         wa = d['level_fanout']
 
-      print 'per-level %d: %.3f write-amp, %.3f space-amp' % (level, wa, sa)
+      print 'per-level %d: %.3f write-amp, %.3f space-amp, %.3f gb' % (level, wa, sa, level_gb)
       write_amp += wa
       space_amp += sa
       insert_cmp += wa
@@ -214,10 +212,11 @@ def runme(argv):
     # per-level : compute cache-amp
     #
     cache_gb = level_gb = d['l0_cache_gb']
-    print 'cache-amp: L0 gb %.3f, amp %.3f' % (cache_gb, cache_gb / r.database_gb)
+    print 'cache-amp: L0 gb %.3f, amp %.4f' % (cache_gb, cache_gb / r.database_gb)
 
     level = 1
     while level <= r.max_level:
+      level_rows = d['level_rows'][level-1]
       if level < r.max_level:
         bf_bits = level_rows * r.bloom_filter_bits
       else:
@@ -230,22 +229,23 @@ def runme(argv):
 
       level_gb = bf_gb + block_index_gb
       cache_gb += level_gb
-      print 'cache-amp: L%d gb %.3f, amp %.3f' % (level, level_gb, level_gb / r.database_gb)
+      print 'cache-amp: L%d gb %.3f, amp %.4f' % (level, level_gb, level_gb / r.database_gb)
 
       level += 1
 
-    print 'cache-amp: total gb %.3f, amp %.3f' % (cache_gb, cache_gb / r.database_gb)
+    print 'cache-amp: total gb %.3f, amp %.4f' % (cache_gb, cache_gb / r.database_gb)
 
     #
     # per-level : compute read-amp
     #
 
-    hit_cmp = d['l0_point_cmp']
+    hit_cmp = miss_cmp = d['l0_point_cmp']
     cum_prob_hit = prob_hit =  d['l0_data_gb'] / r.database_gb
-    hit_cum_cmp = hit_cmp * prob_hit
-    miss_cum_cmp = d['l0_point_cmp']
-    print 'L0 cum hit/miss %.3f/%.3f, level hit/miss %.3f/%.3f, cum/level phit %.5f/%.5f' % (
-        hit_cum_cmp, miss_cum_cmp, hit_cmp, hit_cmp, cum_prob_hit, prob_hit)
+    exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
+    hit_cum_cmp = exp_cmp
+    miss_cum_cmp = miss_cmp
+    print 'L0 cum hit/miss %.3f/%.3f, level hit/miss/ehit %.3f/%.3f/%.3f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     level = 1
     while level <= r.max_level:
@@ -266,20 +266,20 @@ def runme(argv):
         hit_cmp = r.bloom_filter_compares + lblocks_cmp + d['cmp_per_block']
         miss_cmp = r.bloom_filter_compares
         prob_hit =  level_gb / r.database_gb
-        exp_hit_cmp = (hit_cmp * prob_hit) + (miss_cmp * (1 - prob_hit))
+        exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
         cum_prob_hit += prob_hit
       else:
         # no bloom : max level
         hit_cmp = miss_cmp = lblocks_cmp + d['cmp_per_block']
         # for hit-cmp, this is a hit on the max level (always)
         prob_hit = 1.0 - cum_prob_hit
-        exp_hit_cmp = hit_cmp * prob_hit
+        exp_cmp = hit_cmp * prob_hit
         cum_prob_hit += prob_hit
    
       miss_cum_cmp += miss_cmp
-      hit_cum_cmp += exp_hit_cmp
+      hit_cum_cmp += exp_cmp
       print 'L%d cum hit/miss  %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-          level, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_hit_cmp, cum_prob_hit, prob_hit)
+          level, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
       level += 1
 

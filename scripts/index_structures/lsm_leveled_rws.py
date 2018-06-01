@@ -21,31 +21,38 @@ def range_compares(lsm, args):
 def point_compares(lsm, args):
     # returns the number of comparisons on a point query (hit,miss)
 
+    database_mb = 1024.0 * args.database_gb
+
     # first search memtable, cost is same for hit and miss
+    prob_hit = cum_prob_hit = args.memtable_mb / database_mb
+
     lcmp = math.ceil(math.log((1024.0 * 1024 * args.memtable_mb) / args.row_size, 2))
+    # hit and miss both do lcmp compares
+    exp_cmp = (prob_hit * lcmp) + ((1 - prob_hit) * lcmp)
     miss_cum_cmp = lcmp
-    hit_cum_cmp = lcmp
-    print '\nmemtable: %.0f cmp' % lcmp
+    hit_cum_cmp = exp_cmp
+    print '\nmemtable cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, lcmp, lcmp, exp_cmp, cum_prob_hit, prob_hit)
  
     # then search L0
-    # check min/max key per L0 file, then check bloom filter
-    # and cost for bloom filter check is args.bloom_filter_compares
-    miss_cmp = args.l0_trigger * (2 + args.bloom_filter_compares)
+    # check bloom filter
+    # assume there is no check for min/max key per SST given bloom filter
+    miss_cmp = args.l0_trigger * args.bloom_filter_compares
 
-    # assume hit occur after half of L0 runs checked
-    prob_hit = (args.l0_trigger * args.memtable_mb) / (1024.0 * args.database_gb)
+    # assume hit occurs after half of L0 runs checked
+    prob_hit = (args.l0_trigger * args.memtable_mb) / database_mb
+    cum_prob_hit += prob_hit
     run_that_hits = math.ceil(args.l0_trigger / 2.0)
     # then add cost for runs that miss
-    hit_cmp = (run_that_hits - 1) * (2 + args.bloom_filter_compares)
+    hit_cmp = (run_that_hits - 1) * args.bloom_filter_compares
     # then add cost for run that hits
-    hit_cmp += (2 + args.bloom_filter_compares + lsm['cmp_block_index_l0'] +
-                lsm['cmp_per_block'])
+    hit_cmp += args.bloom_filter_compares + lsm['cmp_block_index_l0'] + lsm['cmp_per_block']
 
     miss_cum_cmp += miss_cmp
-    exp_hit_cmp = (hit_cmp * prob_hit) + (miss_cmp * (1 - prob_hit))
-    hit_cum_cmp += exp_hit_cmp
-    print 'L0 cum miss/hit  %.2f/%.2f, level miss/hit/ehit %.2f/%.2f/%.2f, phit %.5f' % (
-        miss_cum_cmp, hit_cum_cmp, miss_cmp, hit_cmp, exp_hit_cmp, prob_hit)
+    exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
+    hit_cum_cmp += exp_cmp
+    print 'L0 cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     # then search remaining levels
     for x in xrange(len(lsm['level_mb'])):
@@ -66,13 +73,18 @@ def point_compares(lsm, args):
         # no bloom
         hit_cmp = all_cmp
         miss_cmp = all_cmp
-   
+
+      if x == len(lsm['level_mb']) - 1:
+        prob_hit = 1 - cum_prob_hit
+      else:
+        prob_hit =  lsm['level_mb'][x] / database_mb
+
+      exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
+      hit_cum_cmp += exp_cmp
       miss_cum_cmp += miss_cmp
-      prob_hit =  lsm['level_mb'][x] / (1024.0 * args.database_gb)
-      exp_hit_cmp = (hit_cmp * prob_hit) + (miss_cmp * (1 - prob_hit))
-      hit_cum_cmp += exp_hit_cmp
-      print 'L%d cum miss/hit  %.2f/%.2f, level miss/hit/ehit %.2f/%.2f/%.2f, phit %.5f' % (
-          x+1, miss_cum_cmp, hit_cum_cmp, miss_cmp, hit_cmp, exp_hit_cmp, prob_hit)
+      cum_prob_hit += prob_hit
+      print 'L%d cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+          x+1, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     return (hit_cum_cmp, miss_cum_cmp)
 
@@ -220,9 +232,9 @@ def config_lsm_tree(args):
 def runme(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--memtable_mb', type=int, default=64)
+    parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--l0_trigger', type=int, default=4)
-    parser.add_argument('--l1_mb', type=int, default=512)
+    parser.add_argument('--l1_mb', type=int, default=1024)
     parser.add_argument('--l1_fudge', type=float, default=1.5)
     parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)
@@ -240,7 +252,7 @@ def runme(argv):
     #
     # RocksDB does bloom_filter_bits * 0.69 probes, rounded down. With
     # bloom_filter_bits=10 this is 6
-    parser.add_argument('--bloom_filter_compares', type=int, default=3)
+    parser.add_argument('--bloom_filter_compares', type=int, default=2)
 
     # The default is a 6-byte pointer
     parser.add_argument('--bytes_per_block_pointer', type=int, default=6)
