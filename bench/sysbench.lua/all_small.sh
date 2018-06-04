@@ -29,8 +29,10 @@ bash run.sh $ntabs $nrows $readsecs  $engine 0      0        read-only.pre   100
 echo random-points.pre
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        random-points.pre 100  $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
 
+if [[ $usepk -eq 1 ]]; then
 echo full-scan.pre
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        full-scan.pre   100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
+fi
 
 echo update-inlist
 bash run.sh $ntabs $nrows $writesecs $engine 0      0        update-inlist   100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
@@ -66,8 +68,10 @@ bash run.sh $ntabs $nrows $readsecs  $engine 0      0        random-points   100
 echo hot-points
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        hot-points      100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
 
+if [[ $usepk -eq 1 ]]; then
 echo full-scan.post
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        full-scan.post  100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
+fi
 
 echo insert
 bash run.sh $ntabs $nrows $insertsecs $engine 0     $cleanup insert          100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency
