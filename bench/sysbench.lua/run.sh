@@ -11,6 +11,7 @@ tableoptions=${10}
 sysbdir=${11}
 ddir=${12}
 dname=${13}
+usepk=${14}
 
 testArgs="--rand-type=uniform"
 
@@ -55,6 +56,11 @@ if [[ $engine == "myisam" ]]; then
   testArgs="$testArgs --skip-trx"
 fi
 
+prepareArgs=""
+if [[ $usepk -eq 0 ]]; then
+  prepareArgs="$prepareArgs --secondary "
+fi
+
 dbcreds="--mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test"
 sfx="nr${nr}.range${range}.${engine}.${testType}"
 
@@ -71,14 +77,14 @@ if [[ $tableoptions != none ]]; then
 topt="--mysql-table-options=$tableoptions"
 fi
 
-ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua prepare"
+ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare"
 echo $ex > sb.prepare.$sfx
 time $ex >> sb.prepare.$sfx 2>&1
 
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 fi
 
-shift 13
+shift 14
 
 samp=2
 
