@@ -92,7 +92,7 @@ def runme(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--l0_max_mb', type=int, default=1024)
-    parser.add_argument('--l0_index_load_factor', type=int, default=70)
+    parser.add_argument('--l0_index_load_factor', type=int, default=90)
     # number of times byte written into l0 index is rewritten
     parser.add_argument('--l0_index_rewrite', type=float, default=2.0)
 

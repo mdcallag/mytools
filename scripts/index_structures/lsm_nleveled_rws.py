@@ -108,10 +108,10 @@ def config_lsm_tree(args):
     print 'rows_per_block %d' % lsm['rows_per_block']
     print 'compare per block: %d' % lsm['cmp_per_block']
 
-    l1_mb = args.memtable_mb * args.memtable_l1_fanout
     database_mb = args.database_gb * 1024
-    total_fanout = database_mb / (l1_mb * 1.0) 
-    level_fanout = total_fanout ** (1.0 / (args.max_level - 1)) 
+    total_fanout = database_mb / (args.memtable_mb * 1.0) 
+    level_fanout = total_fanout ** (1.0 / args.max_level) 
+    l1_mb = args.memtable_mb * level_fanout
     print '%.1f total fanout, %.1f level fanout' % (total_fanout, level_fanout)
 
     level_mb = []
@@ -165,15 +165,10 @@ def config_lsm_tree(args):
       lnum = x + 1
 
       if lnum == 1:
-        # for memtable if memtable_l1_fanout == 1 then assume memtable flush is new L1 run
-        # otherwise assume there is a merge between memtable and current L1 run and current L1
+        # assume there is a merge between memtable and current L1 run and current L1
         # is half-full (on average)
-        if args.memtable_l1_fanout == 1:
-          write_amp.append(1.0)
-          comp_cmp.append(1) # comparisons for duplicate elimination
-        else:
-          write_amp.append((args.memtable_mb + (lsm['level_mb'][x]/2.0)) / args.memtable_mb)
-          comp_cmp.append(2) # 1 for merge, 1 for duplicate elimination
+        write_amp.append((args.memtable_mb + (lsm['level_mb'][x]/2.0)) / args.memtable_mb)
+        comp_cmp.append(2) # 1 for merge, 1 for duplicate elimination
 
       elif lnum == args.max_level:
         write_amp.append(level_fanout)
@@ -237,7 +232,6 @@ def runme(argv):
     parser.add_argument('--memtable_mb', type=int, default=1024)
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--max_level', type=int, default=2)
-    parser.add_argument('--memtable_l1_fanout', type=int, default=10)
     parser.add_argument('--row_size', type=int, default=128)
     parser.add_argument('--key_size', type=int, default=8)
     parser.add_argument('--block_bytes', type=int, default=4096)
@@ -265,7 +259,6 @@ def runme(argv):
     print 'memtable_mb ', r.memtable_mb
     print 'database_gb ', r.database_gb
     print 'max_level ', r.max_level
-    print 'memtable_l1_fanout ', r.memtable_l1_fanout
     print 'row_size ', r.row_size
     print 'key_size ', r.key_size
     print 'block_bytes ', r.block_bytes
