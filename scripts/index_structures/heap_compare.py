@@ -41,6 +41,7 @@ def heap_next(h):
   nruns = len(h) - 1
   while 2*k <= nruns:
     j = 2*k
+
     if j < nruns:
       ncmp += 1
       if k > 1 or h[0] == 0:
@@ -51,15 +52,19 @@ def heap_next(h):
         h[0] = 1
       if heap_val(h, j) > heap_val(h,j+1):
         j += 1
+
+    ncmp += 1
+    ocmp += 1
     if heap_val(h,k) <= heap_val(h,j):
-      ncmp += 1
-      ocmp += 1
       break
+
     if k == 1:
       # uncache outcome
       h[0] = 0
+
     heap_swap(h, k, j)
     k = j
+
   #print 'after fix', h
   return v, ncmp, ocmp
 
