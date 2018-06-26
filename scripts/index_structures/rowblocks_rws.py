@@ -22,9 +22,10 @@ def config_l0(args, d):
     print 'l0 cache-amp: %.3f, cache_gb %.2f' % (d['l0_cache_gb'] / args.database_gb, d['l0_cache_gb'])
 
     d['l0_point_cmp'] = math.ceil(math.log(d['l0_entries'], 2))
-    d['l0_range_cmp'] = 1
-    print 'l0 compares: point %d, range %d, insert %d' % (
-        d['l0_point_cmp'], d['l0_range_cmp'], d['l0_point_cmp'])
+    d['l0_range_seek'] = d['l0_point_cmp']
+    d['l0_range_next'] = 0
+    print 'l0 compares: point %d, range: seek %d, next 1, insert %d' % (
+        d['l0_point_cmp'], d['l0_range_seek'], d['l0_point_cmp'])
 
     d['l0_insert_cmp'] = d['l0_point_cmp']
     index_sa = index_gb / args.database_gb
@@ -244,8 +245,9 @@ def runme(argv):
     exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
     hit_cum_cmp = exp_cmp
     miss_cum_cmp = miss_cmp
-    print 'L0 cum hit/miss %.3f/%.3f, level hit/miss/ehit %.3f/%.3f/%.3f, cum/level phit %.5f/%.5f' % (
-        hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
+    miss_nobf_cum = miss_cmp
+    print 'L0 cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, miss_nobf_cum, hit_cmp, miss_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
 
     level = 1
     while level <= r.max_level:
@@ -275,17 +277,32 @@ def runme(argv):
         prob_hit = 1.0 - cum_prob_hit
         exp_cmp = hit_cmp * prob_hit
         cum_prob_hit += prob_hit
-   
+
+      miss_nobf = lblocks_cmp + d['cmp_per_block']
+      miss_nobf_cum += miss_nobf   
       miss_cum_cmp += miss_cmp
       hit_cum_cmp += exp_cmp
-      print 'L%d cum hit/miss  %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-          level, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
+      print 'L%d cum hit/miss/mnbf  %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+          level, hit_cum_cmp, miss_cum_cmp, miss_nobf_cum, hit_cmp, miss_cmp, miss_nobf, exp_cmp, cum_prob_hit, prob_hit)
 
       level += 1
 
     # Number of search trees
     ntrees = 1 + r.max_level
-    print 'Range cmp: %d with %d trees' % (math.ceil(math.log(ntrees, 2)), ntrees)
+
+    # See optimizations in merging iterator. Values determined by simulation.
+    # Each entry is (niters, ncmps) where ncmps is the expected number of comparisons
+    # per row produced by merging iterator with optimized heap.
+    nc = [(1, 0), (2,1), (3,1.18), (4,1.30), (5,1.45), (6,1.47), (7,1.54),
+          (9,1.55), (10,1.56)]
+    next_cmp = nc[-1][1]
+    for niter,ncmp in nc:
+      if niter >= ntrees:
+        next_cmp = ncmp
+        break
+    next_cmp += 1 # Comparison to determine when scan can stop
+
+    print 'Range seek/next with %d trees: %.3f\t%.3f' % (ntrees, miss_nobf_cum, next_cmp)
 
     for x in xrange(r.max_level):
       print 'level %d: %.1f Mrows, %.3f gb' % (x+1, d['level_rows'][x] / 1000000.0, d['level_gb'][x])

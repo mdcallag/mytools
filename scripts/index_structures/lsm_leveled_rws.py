@@ -4,22 +4,33 @@ import sys
 import argparse
 import math
 
-def range_compares(lsm, args):
-    # returns number of comparisons per row produced by a range scan. So this counts
-    # the number of comparisons done by the merge iterator, plus one comparison done
-    # to confirm the value is still within the range (which might be done by SQL layer)
+def range_compares(lsm, args, miss_nobf):
+    # returns (seek_cmp, next_cmp)
+    #   seek_cmp is number of comparisons to position an iterator per sorted run
+    #   next_cmp is number of comparisons per row produced by merging iterator 
 
     n_sources = len(lsm['level_mb'])
     n_sources += 1 # memtable
     n_sources += args.l0_trigger
+    # next_cmp = math.ceil(math.log(n_sources, 2))
 
-    iter_cmp = math.ceil(math.log(n_sources, 2))
-    iter_cmp += 1 # to confirm output is within range
+    # See optimizations in merging iterator. Values determined by simulation.
+    # Each entry is (niters, ncmps) where ncmps is the expected number of comparisons
+    # per row produced by merging iterator with optimized heap.
+    nc = [(1, 0), (2,1), (3,1.18), (4,1.30), (5,1.45), (6,1.47), (7,1.54),
+          (9,1.55), (10,1.56)]
+    next_cmp = nc[-1][1]
+    for niter,ncmp in nc:
+      if niter >= n_sources:
+        next_cmp = ncmp
+        break
+    next_cmp += 1 # Comparison to determine when scan can stop
 
-    return iter_cmp
+    return miss_nobf, next_cmp
 
 def point_compares(lsm, args):
-    # returns the number of comparisons on a point query (hit,miss)
+    # returns the number of comparisons on a point query (hit,miss,miss_nobf)
+    # where miss_nobf is number of compares on a miss without bloom filters
 
     database_mb = 1024.0 * args.database_gb
 
@@ -30,15 +41,11 @@ def point_compares(lsm, args):
     # hit and miss both do lcmp compares
     exp_cmp = (prob_hit * lcmp) + ((1 - prob_hit) * lcmp)
     miss_cum_cmp = lcmp
+    miss_nobf_cum = lcmp
     hit_cum_cmp = exp_cmp
-    print '\nmemtable cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-        hit_cum_cmp, miss_cum_cmp, lcmp, lcmp, exp_cmp, cum_prob_hit, prob_hit)
+    print '\nmemtable cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, miss_nobf_cum, lcmp, lcmp, lcmp, exp_cmp, cum_prob_hit, prob_hit)
  
-    # then search L0
-    # check bloom filter
-    # assume there is no check for min/max key per SST given bloom filter
-    miss_cmp = args.l0_trigger * args.bloom_filter_compares
-
     # assume hit occurs after half of L0 runs checked
     prob_hit = (args.l0_trigger * args.memtable_mb) / database_mb
     cum_prob_hit += prob_hit
@@ -48,11 +55,18 @@ def point_compares(lsm, args):
     # then add cost for run that hits
     hit_cmp += args.bloom_filter_compares + lsm['cmp_block_index_l0'] + lsm['cmp_per_block']
 
+    # then search L0
+    # check bloom filter
+    # assume there is no check for min/max key per SST given bloom filter
+    miss_cmp = args.l0_trigger * args.bloom_filter_compares
+    miss_nobf = args.l0_trigger * (lsm['cmp_block_index_l0'] + lsm['cmp_per_block'])
+
     miss_cum_cmp += miss_cmp
+    miss_nobf_cum += miss_nobf
     exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
     hit_cum_cmp += exp_cmp
-    print 'L0 cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-        hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
+    print 'L0 cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+        hit_cum_cmp, miss_cum_cmp, miss_nobf_cum, hit_cmp, miss_cmp, miss_nobf, exp_cmp, cum_prob_hit, prob_hit)
 
     # then search remaining levels
     for x in xrange(len(lsm['level_mb'])):
@@ -74,6 +88,8 @@ def point_compares(lsm, args):
         hit_cmp = all_cmp
         miss_cmp = all_cmp
 
+      miss_nobf = all_cmp
+
       if x == len(lsm['level_mb']) - 1:
         prob_hit = 1 - cum_prob_hit
       else:
@@ -82,11 +98,12 @@ def point_compares(lsm, args):
       exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
       hit_cum_cmp += exp_cmp
       miss_cum_cmp += miss_cmp
+      miss_nobf_cum += miss_nobf
       cum_prob_hit += prob_hit
-      print 'L%d cum hit/miss %.2f/%.2f, level hit/miss/ehit %.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-          x+1, hit_cum_cmp, miss_cum_cmp, hit_cmp, miss_cmp, exp_cmp, cum_prob_hit, prob_hit)
+      print 'L%d cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
+          x+1, hit_cum_cmp, miss_cum_cmp, miss_nobf_cum, hit_cmp, miss_cmp, miss_nobf, exp_cmp, cum_prob_hit, prob_hit)
 
-    return (hit_cum_cmp, miss_cum_cmp)
+    return (hit_cum_cmp, miss_cum_cmp, miss_nobf_cum)
 
 def cache_overhead(args, mb_per_run, blocks_per_run, uses_bloom, nruns):
   cache_mb = 0.0
@@ -278,11 +295,11 @@ def runme(argv):
 
     lsm = config_lsm_tree(r)
 
-    hit_cmp, miss_cmp = point_compares(lsm, r)
-    range_cmp = range_compares(lsm, r) 
+    hit_cmp, miss_cmp, miss_nobf = point_compares(lsm, r)
+    range_seek, range_next = range_compares(lsm, r, miss_nobf) 
 
-    print '\nCompares point-hit/point-miss/range: %.2f\t%.2f\t%.2f' % (
-        hit_cmp, miss_cmp, range_cmp)
+    print '\nCompares point hit/miss/mnbf: %.2f\t%.2f\t%.2f' % (hit_cmp, miss_cmp, miss_nobf)
+    print '\nCompares range seek/next: %.2f\t%.2f' % (range_seek, range_next)
 
     return 0
 
