@@ -62,13 +62,16 @@ def config_l0(args, d):
       # rows per log segment
       nr = (run_mb * 1024.0 * 1024) / args.row_size
 
-      # first add cost to sort unordered log segments -- logN compares, 1 write,
-      # ignore IO overhead for updating index, but index must also be updated to
-      # reference new location per record.
+      # add cost to sort unordered log segments -- logN compares, 1 write,
+      # assume sort is done immediately before compacting with L1 so index doesn't get updated
       wa1 = math.ceil(math.log(nr, 2))  # for sort
-      wa2 = d['l0_point_cmp']
-      print 'cmp %d sort, %d modify index' % (wa1, wa2)
-      merge_wa_cmp = wa1 + wa2
+
+      #wa2 = d['l0_point_cmp']
+      #print 'cmp %d sort, %d modify index' % (wa1, wa2)
+      #merge_wa_cmp = wa1 + wa2
+
+      print 'cmp %d sort' % wa1
+      merge_wa_cmp = wa1
       merge_wa_io = 1
 
       # then add costs to merge ordered log segments
