@@ -17,6 +17,9 @@ testArgs="--rand-type=uniform"
 
 if [[ $testType == "read-only" || $testType == "read-only.pre" ]]; then
   lua="oltp_read_only.lua"
+elif [[ $testType == "read-only-count" ]]; then
+  lua="oltp_read_only_count.lua"
+  testArgs="--skip-trx"
 elif [[ $testType == "read-write" ]]; then
   lua="oltp_read_write.lua"
 elif [[ $testType == "write-only" ]]; then
@@ -35,13 +38,17 @@ elif [[ $testType == "update-special" ]]; then
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-index" ]]; then
   lua="oltp_update_index.lua"
+elif [[ $testType == "update-rate" ]]; then
+  lua="oltp_update_rate.lua"
+  testArgs="--update-rate=1000"
 elif [[ $testType == "point-query" || $testType == "point-query.pre" ]]; then
   lua="oltp_point_select.lua"
+  testArgs="--skip-trx"
 elif [[ $testType == "random-points" || $testType == "random-points.pre" ]]; then
-  testArgs="--rand-type=uniform --random-points=$range"
+  testArgs="--rand-type=uniform --random-points=$range --skip-trx"
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "hot-points" ]]; then
-  testArgs="--rand-type=uniform --random-points=$range --hot-points"
+  testArgs="--rand-type=uniform --random-points=$range --hot-points --skip-trx"
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
@@ -183,12 +190,12 @@ echo Cleanup
 fi
 
 for nt in "$@"; do
-  grep transactions: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%.0f\t", $1 }' 
+  grep transactions: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%.0f\t", $1 }' 
+  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.qps.$sfx
 echo "$engine $testType range=$range" >> sb.r.qps.$sfx
 
