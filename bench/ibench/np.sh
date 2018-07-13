@@ -167,6 +167,12 @@ ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
 ps aux | grep mongod | grep -v grep >> o.res.$sfx
 
 echo >> o.res.$sfx
+echo "Max insert" >> o.res.$sfx
+grep -h "Insert rt" o.ib.dop${dop}.ns${ns}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
+echo "Max query" >> o.res.$sfx
+grep -h "Query rt" o.ib.dop${dop}.ns${ns}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
+
+echo >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
   grep "Insert rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
 done
