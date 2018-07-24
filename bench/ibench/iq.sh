@@ -55,14 +55,14 @@ for q in 1 2 3 4 5 ; do
 
     # Explain after running the query. Don't want explain time counted in query time.
     if [[ $mongo == "yes" ]] ; then 
-      echo with explain $explain, ${txtmo[$q]}
+      echo with explain $explain, ${txtmo[$q]} >> o.ib.scan.$q.$i
       if [[ $explain -eq 1 ]]; then
-        echo ${txtmo[$q]}".explain()" | $client ib >> o.ib.scan.$q.$i &
+        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client ib >> o.ib.scan.$q.$i &
       else
         echo ${txtmo[$q]} | $client ib >> o.ib.scan.$q.$i 2>&1 &
       fi
     else
-      echo with explain $explain, \"${txtmy[$q]}\" 
+      echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
       if [[ $explain -eq 1 ]]; then
         $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
       else
