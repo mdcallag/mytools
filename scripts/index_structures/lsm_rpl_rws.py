@@ -77,7 +77,7 @@ def cache_overhead(args, mb_per_run, blocks_per_run, uses_bloom, nruns):
   cache_mb *= nruns
   return cache_mb, bf_mb, block_index_mb
 
-def config_lsm_tree(args):
+def config_lsm_tree(args, level_config):
     level_mb = []
     level_files = []
     level_files_cmp = []
@@ -98,10 +98,33 @@ def config_lsm_tree(args):
 
     database_mb = args.database_gb * 1024.0
     total_fanout = database_mb / (args.memtable_mb * 1.0)
-    level_fanout = total_fanout ** (1.0 / args.max_level)
-    lsm['level_fanout'] = level_fanout
+    # lsm['level_fanout'] = level_fanout
     lsm['total_fanout'] = total_fanout
-    print 'level_fanout %.2d, total_fanout %.2f' % (level_fanout, total_fanout)
+    print 'total_fanout %.2f' % total_fanout
+
+    fo_prod = 1 # product of fanout for all but max level
+    for e in level_config[0:-1]:
+      fo_prod *= e[1]
+      print 'fo prod %.2f' % fo_prod
+
+    last_fo = total_fanout / fo_prod  # actual fanout needed for max level
+
+    if last_fo < 2:
+      print 'fanout needed for max level is too small %.2f' % last_fo
+      sys.exit(-1)
+    elif last_fo > (level_config[-1][1] * 1.2):
+      print 'last level fanout was too small %.2f, should be %.2f' % (level_config[-1][1], last_fo)
+      sys.exit(-1)
+    elif last_fo < (level_config[-1][1] * 0.8):
+      print 'last level fanout was too big %.2f, should be %.2f' % (level_config[-1][1], last_fo)
+      sys.exit(-1)
+
+    if level_config[-1][1] != last_fo:
+      print 'last level fanout was %.2f adjusted to %.2f to match total_fanout' % (
+          level_config[-1][1], last_fo)
+      level_config[-1][1] = last_fo
+
+    lsm['level_config'] = level_config
     
     # the memtable is L0
     level_mb.append(args.memtable_mb)
@@ -362,7 +385,7 @@ def parse_level_config(r):
         print 'from second(%s) and third(%s) fields must be integers' % (opts[1], opts[2])
         sys.exit(-1)
 
-      level_cnf.append((opts[0], int(opts[1]), int(opts[2])))
+      level_cnf.append([opts[0], int(opts[1]), int(opts[2])])
 
   return level_cnf
 
@@ -417,10 +440,10 @@ def runme(argv):
     print 'bytes_per_block_pointer ', r.bytes_per_block_pointer
     print 'Mrows %.2f' % (((r.database_gb * 1024 * 1024 * 1024) / r.row_size) / 1000000.0)
 
-    level_cnf = parse_level_config(r)
-    validate_level_config(r, level_cnf)
+    level_config = parse_level_config(r)
+    validate_level_config(r, level_config)
 
-    lsm = config_lsm_tree(r)
+    lsm = config_lsm_tree(r, level_config)
 
     hit_cmp, miss_cmp, miss_nobf = point_compares(lsm, r)
     range_seek, range_next = range_compares(lsm, r, miss_nobf) 
