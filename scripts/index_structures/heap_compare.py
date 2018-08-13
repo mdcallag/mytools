@@ -108,7 +108,7 @@ def estimate_compares(sizes):
   return ncmp, ocmp, nval
 
 def fill_levels(lsm_type, maxvals, maxiters, rplto):
-  fanout_arr = [2, 4, 5, 8, 10, 15, 20]
+  fanout_arr = [2*x for x in xrange(1, 11)]
   
   print("niters\t"),
   for fanout in fanout_arr:

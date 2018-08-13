@@ -41,7 +41,7 @@ def point_compares(lsm, args):
 
     database_mb = args.database_gb * 1024.0
 
-    # first search memtable, cost is same for hit and miss
+    # first search memtable
     if args.bloom_on_memtable:
       miss_cmp = args.bloom_filter_compares
       hit_cmp = lsm['memtable_cmp'] + args.bloom_filter_compares
