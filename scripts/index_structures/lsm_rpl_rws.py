@@ -229,14 +229,151 @@ def config_lsm_tree(args):
  
     return lsm
 
+def isInt(s):
+  try:
+    int(s)
+  except ValueError:
+    return 0
+  else:
+    return 1
+
+# If not Lmax then runs-per-level <= fanout
+# If Lmax then runs-per-level = 1
+# For each level fanout >= 2
+def validate_t2l(r, x, e):
+  if x+1 == r.max_level:
+    if e[2] != 1:
+      print 'L%d: t2l runs-per-level must be 1 for max level was %d' % (x+1, e[2])
+      sys.exit(-1)
+  else:
+    if e[2] > e[1]:
+      print 'L%d: t2l runs-per-level must be <= fanout for non max level was %d,%d' % (x+1, e[1], e[2])
+      sys.exit(-1)
+
+  if e[1] < 2:
+    print 'L%d: t2l, fanout must be >= 2 was %d' % (x+1, e[1])
+    sys.exit(-1)
+
+# For all levels fanout >= 2 and runs-per-level = 1
+def validate_leveled(r, x, e):
+  if e[1] < 2:
+    print 'L%d: leveled, fanout must be >= 2 was %d' % (x+1, e[1])
+    sys.exit(-1)
+  if e[2] != 1:
+    print 'L%d: leveled, runs-per-level must be 1 was %d' % (x+1, e[2])
+    sys.exit(-1)
+
+# For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
+# For the last t level runs-per-level <= fanout and fanout == k
+# For all in between levels runs-per-level and fanout == k
+def validate_tiered(r, x, e, fo_rpl, last_tiered):
+  if x == 0:
+    if e[1] != 1 or e[2] < 2:
+      print 'L0: tiered fanout was %d, must be 1, runs-per-level was %d, must be > 1' % (e[1], e[2])
+      sys.exit(-1) 
+  elif not last_tiered:
+    if e[1] != fo_rpl or e[2] != fo_rpl:
+      print 'L%d: tiered not last, fanout & runs-per-level were %d, %d and must be %d' % (x, e[1], e[2], fo_rpl)
+      sys.exit(-1) 
+  else:
+    if e[1] != fo_rpl:
+      print 'L%d: tiered last, fanout was %d, must be %d' % (x, e[1], fo_rpl)
+      sys.exit(-1) 
+    if e[2] > fo_rpl:
+      print 'L%d: tiered last, runs-per-level was %d, must be <= %d' % (x, e[2], fo_rpl)
+      sys.exit(-1) 
+
+def validate_level_config(r, level_cnf):
+  if level_cnf[0][0] == '2':
+    print 'L1 must be t or l'
+    sys.exit(-1)
+  elif level_cnf[0][0] == 'l':
+    for x,e in level_cnf:
+      if e[0] != 'l':
+        print 'L%d: all leveled, must be l was %s' % (x+1, e[0])
+        sys.exit(-1)
+      validate_leveled(r, x, e)
+  elif level_cnf[0][0] == 't':
+    x = 0
+    fo_rpl = level_cnf[0][2]
+    while x < r.max_level and level_cnf[x][0] == 't':
+      if x+1 == r.max_level:
+        print 'max_level must be 2 or l'
+        sys.exit(-1)
+      validate_tiered(r, x, level_cnf[x], fo_rpl, level_cnf[x+1][0] != 't')
+      x = x + 1
+    if level_cnf[x][0] != '2':
+      print 'L%d: first level after t must be 2, was %s' % (x+1, level_cnf[x][0])
+      sys.exit(-1)
+    while x < r.max_level and level_cnf[x][0] == '2':
+      validate_t2l(r, x, level_cnf[x])
+      x = x + 1
+    while x < r.max_level and level_cnf[x][0] == 'l':
+      validate_leveled(r, x, level_cnf[x])
+      x = x + 1
+    if x != r.max_level:
+      print 'Unable to parse starting with t'
+      sys.exit(-1)
+
+def parse_level_config(r):
+  # Expects:
+  #   Entry per level, entries are comma separated
+  #   Each entry has 3 parts and is ':' separated
+  #   With max_level=2, then --level_config='t:1:8,2:8:1' is valid
+  #   For each entry
+  #     field 1 is 't', '2' or 'l' for tiered, tiered-to-leveled and leveled
+  #     field 2 is fanout, an integer
+  #     field 3 is runs-per-level, an integer
+  #   I expect runs-per-level for the last level to always be 1 to reduce space-amp
+  #   There are 2 types of compaction sequences described using regexes below.
+  #     Note that t+ isn't on the list because I don't want more than 1 run on the
+  #     max level to avoid large space-amp. the sequences are:
+  #       l+ -- leveled compaction
+  #       t+ 2+ l* -- tiered compaction followed by 1 or more tiered-to-leveled, then 0 or more leveled
+  #   And there are rules specific to l, t and 2. First, for t:
+  #     For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
+  #     For the last t level runs-per-level <= fanout and fanout == k
+  #     For all in between levels runs-per-level and fanout == k
+  #     So this is valid: 't:1:10,t:10:10,t:10:10,t:10:2,...'
+  #   Next the rules for 2:
+  #     If not Lmax then runs-per-level <= fanout
+  #     If Lmax then runs-per-level = 1
+  #     For each level fanout >= 2
+  #   Next the rules for l:
+  #     For all levels fanout >= 2 and runs-per-level = 1
+
+  level_cnf = []
+
+  cfgs = r.level_config.split(',')
+  if len(cfgs) != r.max_level:
+    print 'max level(%d) must == number of per-level configs(%d) from --level_config(%s)' % (
+      r.max_level, len(cfgs), r.level_config) 
+    sys.exit(-1)
+  else:
+    for lv, cfg in enumerate(cfgs):
+      opts = cfg.split(':')
+      if len(opts) != 3:
+        print '%s must have 3 fields like a:b:c' % cfg
+        sys.exit(-1)
+      elif opts[0] not in ['t', '2', 'l']:
+        print 'from %s first field must be one of t, 2, l' % opts[0]
+        sys.exit(-1)
+      elif not isInt(opts[1]) or not isInt(opts[2]):
+        print 'from second(%s) and third(%s) fields must be integers' % (opts[1], opts[2])
+        sys.exit(-1)
+
+      level_cnf.append((opts[0], int(opts[1]), int(opts[2])))
+
+  return level_cnf
+
 def runme(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)
-    parser.add_argument('--runs_per_level', type=int, default=1)
     parser.add_argument('--max_level', type=int, default=2)
+    parser.add_argument('--level_config', default="")
     parser.add_argument('--row_size', type=int, default=128)
     parser.add_argument('--key_size', type=int, default=8)
     parser.add_argument('--file_mb', type=int, default=32)
@@ -271,7 +408,7 @@ def runme(argv):
     print 'memtable_mb ', r.memtable_mb
     print 'wa_fudge ', r.wa_fudge
     print 'database_gb ', r.database_gb
-    print 'runs_per_level ', r.runs_per_level
+    print 'level_config ', r.level_config
     print 'row_size %d, key_size %d' % (r.row_size, r.key_size)
     print 'file_mb ', r.file_mb
     print 'block_bytes ', r.block_bytes
@@ -279,6 +416,9 @@ def runme(argv):
     print 'bloom_filter_bits %d, bloom_filter_compares %d' % (r.bloom_filter_bits, r.bloom_filter_compares)
     print 'bytes_per_block_pointer ', r.bytes_per_block_pointer
     print 'Mrows %.2f' % (((r.database_gb * 1024 * 1024 * 1024) / r.row_size) / 1000000.0)
+
+    level_cnf = parse_level_config(r)
+    validate_level_config(r, level_cnf)
 
     lsm = config_lsm_tree(r)
 
