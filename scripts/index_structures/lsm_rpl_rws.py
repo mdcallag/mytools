@@ -37,8 +37,8 @@ def point_compares(lsm, args):
     cum_prob_hit = 0
 
     # search levels
-    for x in xrange(0, args.max_level + 1):
-      if x == args.max_level:
+    for x in xrange(0, lsm['max_level'] + 1):
+      if x == lsm['max_level']:
         prob_hit = 1 - cum_prob_hit
       else:
         prob_hit =  lsm['level_mb'][x] / database_mb
@@ -51,8 +51,10 @@ def point_compares(lsm, args):
       miss_cum_cmp += miss_cmp
       miss_nobf_cum_cmp += miss_nobf_cmp
       cum_prob_hit += prob_hit
-      print 'L%d cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, cum/level phit %.5f/%.5f' % (
-          x+1, hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp, hit_cmp, miss_cmp, miss_nobf_cmp, exp_cmp, cum_prob_hit, prob_hit)
+      print 'L%d cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, '\
+            'cum/level phit %.5f/%.5f' % (
+          x+1, hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp, hit_cmp, miss_cmp, miss_nobf_cmp,
+	  exp_cmp, cum_prob_hit, prob_hit)
 
     return (hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp)
 
@@ -184,11 +186,14 @@ def config_lsm_tree(args, level_config):
     lvl_nrows.append(mt_nrows)
 
     # setup levels 1 to max
-    cur_level = 1
-    cur_run_mb = args.memtable_mb * lvl_fanout[1]
+    cur_run_mb = args.memtable_mb
     disk_mb = 0
 
     for cur_level in xrange(1, max_level+1):
+      # print 'cur_level %d, fo %s, rpl %s, mb %s' % (
+      #    cur_level, lvl_fanout[cur_level], lvl_rpl[cur_level], cur_run_mb)
+      cur_run_mb *= lvl_fanout[cur_level]
+
       # fix for rounding
       if (cur_level == max_level):
         cur_run_mb = database_mb
@@ -220,17 +225,14 @@ def config_lsm_tree(args, level_config):
       run_cmp_miss.append(miss_cmp)
       run_cmp_miss_nobf.append(all_cmp)
       run_nrows.append(math.ceil((cur_run_mb * 1024 * 1024) / args.row_size))
-
       lvl_nrows.append(run_nrows[-1] * lvl_rpl[cur_level])
-
-      cur_run_mb *= lvl_fanout[cur_level]
 
     for x in xrange(0, max_level + 1):
         print 'L%d /run: %.1f Mrows, %.1f MB, %d/%d Nfiles/cmp, %d/%d/%d cmp hit/miss/m_nobf '\
               ':: /level %.1f Mrows, %.1f MB, %d bloom' % (
-            x, run_nrows[x] / (1024.0*1024), run_mb[x], run_files[x], run_files_cmp[x],
+            x, run_nrows[x] / 1000000.0, run_mb[x], run_files[x], run_files_cmp[x],
             run_cmp_hit[x], run_cmp_miss[x], run_cmp_miss_nobf[x],
-            lvl_nrows[x] / (1024.0*1024), lvl_mb[x], lvl_has_bloom[x])
+            lvl_nrows[x] / 1000000.0, lvl_mb[x], lvl_has_bloom[x])
 
     # determine CPU and IO write-amp during compaction. CPU is number of compares,
     wa_io_sum = 0
@@ -239,11 +241,12 @@ def config_lsm_tree(args, level_config):
     for x in xrange(0, max_level + 1):
       if x == 0:
         wa_io = 1                     # IO to WAL
-        wa_cpu = 1                    # comparisons for duplication elimination
+        wa_cpu = 0
       elif lvl_type[x] == 't':
         # Cost to merge runs from previous level and write new run in this level
         wa_io = 1
-        wa_cpu = math.ceil(math.log(lvl_fanout[x], 2))
+        if x == 1: wa_cpu = 1         # comparison for duplicate elimination on memtable flush
+        else: wa_cpu = math.ceil(math.log(lvl_fanout[x], 2))
       elif lvl_type[x] == 'p':
         # Cost to merge runs from previous level into one run from this level.
         # Assume runs in Lx are half full.
@@ -255,7 +258,7 @@ def config_lsm_tree(args, level_config):
         wa_cpu = math.ceil(math.log(lvl_fanout[x], 2)) + 1
       elif lvl_type[x] == 'l':
         wa_io = lvl_fanout[x] * args.wa_fudge
-        wa_cpu = wa_io                # 1 cmp per KV pair re-written
+        wa_cpu = wa_io                # cmp per KV pair re-written
       else:
         print 'bad type %s at %d' % (lvl_comp_type[x], x)
         assert 0
@@ -316,14 +319,15 @@ def isFloat(s):
     return 1
 
 # runs-per-level < fanout
-# fanout >= 2
-def validate_partial_tiered(r, x, e):
+# fanout >= 2 * runs-per-level from previous level
+def validate_partial_tiered(r, x, e, prev_rpl):
   if e[2] >= e[1]:
     print 'L%d: t2l runs-per-level must be < fanout was %d,%d' % (x+1, e[1], e[2])
     sys.exit(-1)
 
-  if e[1] < 2:
-    print 'L%d: t2l, fanout must be >= 2 was %d' % (x+1, e[1])
+  if e[1] < (2 * prev_rpl):
+    print 'L%d: t2l, fanout was %d and must be >= 2*runs-per-level from prev level (%d)' % (
+        x+1, e[1], prev_rpl)
     sys.exit(-1)
 
 # For all levels fanout >= 2 and runs-per-level = 1
@@ -356,6 +360,8 @@ def validate_tiered(r, x, e, fo_rpl, last_tiered):
       sys.exit(-1) 
 
 def validate_level_config(r, level_cnf):
+  max_level = len(level_cnf)
+
   if level_cnf[-1][0] != 'l':
     print 'L%d is Lmax and must be l but was %s' % (len(level_cnf), level_cnf[-1][0])
     sys.exit(-1)
@@ -372,22 +378,22 @@ def validate_level_config(r, level_cnf):
     x = 0
     fo_rpl = level_cnf[0][2]
     # first parse the sequence of t
-    while x < r.max_level and level_cnf[x][0] == 't':
-      if x+1 == r.max_level:
+    while x < max_level and level_cnf[x][0] == 't':
+      if x+1 == max_level:
         print 'max_level must be p or l'
         sys.exit(-1)
       validate_tiered(r, x, level_cnf[x], fo_rpl, level_cnf[x+1][0] != 't')
       x = x + 1
     # next parse the optional sequence of p
-    while x < r.max_level and level_cnf[x][0] == 'p':
-      validate_partial_tiered(r, x, level_cnf[x])
+    while x < max_level and level_cnf[x][0] == 'p':
+      validate_partial_tiered(r, x, level_cnf[x], level_cnf[x-1][2])
       x = x + 1
     # next parse the required sequence of l
-    while x < r.max_level and level_cnf[x][0] == 'l':
+    while x < max_level and level_cnf[x][0] == 'l':
       validate_leveled(r, x, level_cnf[x])
       x = x + 1
     # we should be done
-    if x != r.max_level:
+    if x != max_level:
       print 'Unable to parse starting with t'
       sys.exit(-1)
   else:
@@ -423,7 +429,9 @@ def parse_level_config(r):
   #     For all in between levels runs-per-level and fanout == k
   #     So this is valid: 't:1:10,t:10:10,t:10:10,t:10:2,...'
   #   Next the rules for p:
-  #     runs-per-level <= fanout, fanout >= 2
+  #     runs-per-level < fanout
+  #     fanout >= 2 * runs-per-level from previous level - to make sorted run on this level
+  #       sufficiently larger than data that will be merged into it.
   #   Next the rules for l:
   #     For all levels fanout >= 2 and runs-per-level = 1
 
@@ -487,7 +495,7 @@ def runme(argv):
 
     print 'memtable_mb ', r.memtable_mb
     print 'wa_fudge ', r.wa_fudge
-    print 'database_gb ', r.database_gb
+    print 'database_gb %d, database_mb %d' % (r.database_gb, r.database_gb * 1024)
     print 'level_config ', r.level_config
     print 'row_size %d, key_size %d' % (r.row_size, r.key_size)
     print 'file_mb ', r.file_mb
