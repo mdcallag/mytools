@@ -9,24 +9,35 @@ def range_compares(lsm, args, miss_nobf):
     #   seek_cmp is number of comparisons to position an iterator per sorted run
     #   next_cmp is number of comparisons per row produced by merging iterator 
 
-    n_sources = args.max_level
-    n_sources += 1 # memtable
+    # For now use miss_nobf, computed in point_compares, as value for seek_cmp
+    seek_cmp = miss_nobf
 
-    # TODO - update for runs per level, and a function of fanout?
-    
-    # See optimizations in merging iterator. Values determined by simulation.
+    next_cmp = 0
+    x = 1
+    while lsm['lvl_type'][x] != 'l':
+      runs_per_level = lsm['lvl_rpl'][x]
+      # print 'L%d type(%s) rpl(%d)' % (x, lsm['lvl_type'][x], lsm['lvl_rpl'][x])
+      assert runs_per_level > 1
+      # k-way merge within level, log2(k) compares
+      next_cmp += math.log(runs_per_level, 2)
+      x += 1
+    print 'range_compares next_cmp = %d after tiered and partial-tiered prior to L%d' % (
+        next_cmp, x)
+# See optimizations in merging iterator. Values determined by simulation.
     # Each entry is (niters, ncmps) where ncmps is the expected number of comparisons
     # per row produced by merging iterator with optimized heap.
     nc = [(1, 0), (2,1), (3,1.18), (4,1.30), (5,1.45), (6,1.47), (7,1.54),
           (9,1.55), (10,1.56)]
+
+    nlevels = lsm['max_level'] + 1
     next_cmp = nc[-1][1]
     for niter,ncmp in nc:
-      if niter >= n_sources:
-        next_cmp = ncmp
+      if niter >= nlevels:
+        next_cmp += ncmp
         break
     next_cmp += 1 # Comparison to determine when scan can stop
 
-    return miss_nobf, next_cmp
+    return seek_cmp, next_cmp
 
 def point_compares(lsm, args):
     # returns the number of comparisons on a point query (hit,miss,miss_nobf)
@@ -41,20 +52,30 @@ def point_compares(lsm, args):
       if x == lsm['max_level']:
         prob_hit = 1 - cum_prob_hit
       else:
-        prob_hit =  lsm['level_mb'][x] / database_mb
+        prob_hit =  lsm['lvl_mb'][x] / database_mb
 
-      hit_cmp = lsm['level_cmp_hit'][x]
-      miss_cmp = lsm['level_cmp_miss'][x]
-      miss_nobf_cmp = lsm['level_cmp_miss_nobf'][x]
+      runs_per_level = lsm['lvl_rpl'][x]
+      if runs_per_level > 1:
+        miss_cmp = lsm['run_cmp_miss'][x] * runs_per_level
+        miss_nobf_cmp = lsm['run_cmp_miss_nobf'][x] * runs_per_level
+        # assume that the hit occurs after half of the runs are checked
+        hit_cmp = (runs_per_level / 2.0) * lsm['run_cmp_miss'][x] + lsm['run_cmp_hit'][x]
+      else:
+        miss_cmp = lsm['run_cmp_miss'][x]
+        miss_nobf_cmp = lsm['run_cmp_miss_nobf'][x]
+        hit_cmp = lsm['run_cmp_hit'][x]
+
       exp_cmp = (prob_hit * hit_cmp) + ((1 - prob_hit) * miss_cmp)
       hit_cum_cmp += exp_cmp
       miss_cum_cmp += miss_cmp
       miss_nobf_cum_cmp += miss_nobf_cmp
       cum_prob_hit += prob_hit
-      print 'L%d cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, '\
+      print 'L%d rpl=%d cum hit/miss/mnbf %.2f/%.2f/%.2f, level hit/miss/mnbf/ehit %.2f/%.2f/%.2f/%.2f, '\
             'cum/level phit %.5f/%.5f' % (
-          x+1, hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp, hit_cmp, miss_cmp, miss_nobf_cmp,
-	  exp_cmp, cum_prob_hit, prob_hit)
+          x, runs_per_level,
+          hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp,
+          hit_cmp, miss_cmp, miss_nobf_cmp, exp_cmp,
+          cum_prob_hit, prob_hit)
 
     return (hit_cum_cmp, miss_cum_cmp, miss_nobf_cum_cmp)
 
@@ -133,10 +154,13 @@ def config_lsm_tree(args, level_config):
     lvl_rpl.append(1)
 
     # for levels after memtable
+    sorted_runs = 1  # memtable is one sorted run
     for e in level_config:
       lvl_type.append(e[0])
       lvl_fanout.append(e[1])
       lvl_rpl.append(e[2])
+      sorted_runs += e[2]
+    lsm['sorted_runs'] = sorted_runs
 
     run_mb = []
     run_files = []
@@ -273,6 +297,8 @@ def config_lsm_tree(args, level_config):
     insert_cmp = math.ceil(math.log((1024.0 * 1024 * args.memtable_mb) / args.row_size, 2))
     print 'insert compares: %.2f memtable, %.2f memtable + compaction' % (
         insert_cmp, insert_cmp + wa_cpu_sum)
+    lsm['write_amp_io'] = wa_io_sum
+    lsm['write_amp_cpu'] = wa_cpu_sum + insert_cmp
 
     # space-amp is size-on-disk / logical-size where...
     #   size-on-disk is sum of database file sizes
@@ -280,6 +306,7 @@ def config_lsm_tree(args, level_config):
     #     the size of the max LSM level
     print 'space-amp: %.2f' % (disk_mb / database_mb)
     lsm['disk_mb'] = disk_mb
+    lsm['space_amp'] = disk_mb / database_mb
 
     # Fraction of database that must be in cache so that <= 1 disk read is done
     # per point lookup. This assumes that everything except max level data blocks
@@ -307,6 +334,7 @@ def config_lsm_tree(args, level_config):
 
     cache_amp = cache_mb_sum / database_mb
     print 'cache_amp %.4f, cache_mb %d' % (cache_amp, cache_mb_sum)
+    lsm['cache_amp'] = cache_amp
  
     return lsm
 
@@ -323,6 +351,10 @@ def isFloat(s):
 def validate_partial_tiered(r, x, e, prev_rpl):
   if e[2] >= e[1]:
     print 'L%d: t2l runs-per-level must be < fanout was %d,%d' % (x+1, e[1], e[2])
+    sys.exit(-1)
+
+  if e[2] < 2:
+    print 'L%d: t2l runs-per-level must be >= 2 but was %d' % (x+1, e[2])
     sys.exit(-1)
 
   if e[1] < (2 * prev_rpl):
@@ -343,9 +375,13 @@ def validate_leveled(r, x, e):
 # For the last t level runs-per-level <= fanout and fanout == k
 # For all in between levels runs-per-level and fanout == k
 def validate_tiered(r, x, e, fo_rpl, last_tiered):
+  if e[2] < 2:
+    print 'L%d: tiered runs-per-level must be >= 2 but was %d' % (x+1, e[2])
+    sys.exit(-1)
+
   if x == 0:
-    if e[1] != 1 or e[2] < 2:
-      print 'L0: tiered fanout was %d, must be 1, runs-per-level was %d, must be > 1' % (e[1], e[2])
+    if e[1] != 1:
+      print 'L0: tiered fanout was %d, must be 1' % e[1]
       sys.exit(-1) 
   elif not last_tiered:
     if e[1] != fo_rpl or e[2] != fo_rpl:
@@ -425,11 +461,11 @@ def parse_level_config(r):
   #
   #   And there are rules specific to l, t and 2. First, for t:
   #     For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
-  #     For the last t level runs-per-level <= fanout and fanout == k
+  #     For the last t level runs-per-level <= fanout and fanout == k and runs-per-level >= 2
   #     For all in between levels runs-per-level and fanout == k
   #     So this is valid: 't:1:10,t:10:10,t:10:10,t:10:2,...'
   #   Next the rules for p:
-  #     runs-per-level < fanout
+  #     runs-per-level < fanout and runs-per-level >= 2
   #     fanout >= 2 * runs-per-level from previous level - to make sorted run on this level
   #       sufficiently larger than data that will be merged into it.
   #   Next the rules for l:
@@ -458,6 +494,7 @@ def parse_level_config(r):
 def runme(argv):
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--label', default='RES')
     parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--wa_fudge', type=float, default=0.7)
     parser.add_argument('--database_gb', type=int, default=1024)
@@ -486,6 +523,10 @@ def runme(argv):
     # The default is a 6-byte pointer
     parser.add_argument('--bytes_per_block_pointer', type=int, default=6)
 
+    # Determines whether read,write,space,cache amp metrics are comma or tab separated
+    parser.add_argument('--csv', dest='csv', action='store_true')
+    parser.set_defaults(csv=False)
+
     r = parser.parse_args(argv)
 
     x = r.memtable_mb // r.file_mb
@@ -510,16 +551,49 @@ def runme(argv):
 
     lsm = config_lsm_tree(r, level_config)
 
-    hit_cmp, miss_cmp, miss_nobf = point_compares(lsm, r)
-    range_seek, range_next = range_compares(lsm, r, miss_nobf) 
+    hit_cmp, miss_cmp, miss_nobf_cmp = point_compares(lsm, r)
+    range_seek, range_next = range_compares(lsm, r, miss_nobf_cmp) 
+    lsm['hit_cmp'] = hit_cmp
+    lsm['miss_cmp'] = miss_cmp
+    lsm['miss_nobf_cmp'] = miss_nobf_cmp
+    lsm['range_seek'] = range_seek
+    lsm['range_next'] = range_next
 
-    print '\nCompares point hit/miss/mnbf: %.2f\t%.2f\t%.2f' % (hit_cmp, miss_cmp, miss_nobf)
-    print '\nCompares range seek/next: %.2f\t%.2f' % (range_seek, range_next)
+    print '\nCompares point hit/miss/mnbf: %.2f\t%.2f\t%.2f, %d sorted runs' % (
+        hit_cmp, miss_cmp, miss_nobf_cmp, lsm['sorted_runs'])
+    print 'Compares range seek/next: %.2f\t%.2f' % (range_seek, range_next)
 
-    return 0
+    return lsm, r
+
+def print_result(lsm, args):
+    # Results on one line, comma or tab separated
+    #   write-amp CPU
+    #   write-amp IO
+    #   space-amp
+    #   cache-amp
+    #   N sorted runs
+    #   point-hit
+    #   point-miss
+    #   range-seek
+    #   range-next
+    if args.csv:
+      print '%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
+        args.label,
+        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
+        lsm['sorted_runs'],
+        lsm['hit_cmp'], lsm['miss_cmp'],
+        lsm['range_seek'], lsm['range_next'])
+    else:
+      print '%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
+        args.label,
+        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
+        lsm['sorted_runs'],
+        lsm['hit_cmp'], lsm['miss_cmp'],
+        lsm['range_seek'], lsm['range_next'])
 
 def main(argv):
-    return runme(argv)
+    lsm, args = runme(argv)
+    print_result(lsm, args)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))
