@@ -450,14 +450,12 @@ def parse_level_config(r):
   #     field 3 is runs-per-level, a float
   #     With max_level=2, then --level_config='t:1:8,2:8:1' is valid
   #
-  #   A regex specifies the patterns that are valid for field 1 from L1 to Lmax: (t+ p*)? l+
+  #   A regex specifies the patterns that are valid for field 1 from L1 to Lmax: t* p* l+
   #     These restrictions might be removed in the future, but reduce complexity for now
   #       last level must be l to reduce space-amp
   #       t cannot follow p or l -> tl is valid, lt is not
   #       p cannot follow l -> pl is valid, lp is not
-  #       to avoid confusion, L1 cannot be p, use t in that case
   #       these are valid: tpl, tl, ll
-  #       these are invalid: pl (L1 can't be p)
   #
   #   And there are rules specific to l, t and 2. First, for t:
   #     For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
@@ -490,6 +488,32 @@ def parse_level_config(r):
     level_cnf.append([opts[0], float(opts[1]), float(opts[2])])
 
   return level_cnf
+
+def print_result(lsm, args):
+    # Results on one line, comma or tab separated
+    #   write-amp CPU
+    #   write-amp IO
+    #   space-amp
+    #   cache-amp
+    #   N sorted runs
+    #   point-hit
+    #   point-miss
+    #   range-seek
+    #   range-next
+    if args.csv:
+      print '%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
+        args.label,
+        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
+        lsm['sorted_runs'],
+        lsm['hit_cmp'], lsm['miss_cmp'],
+        lsm['range_seek'], lsm['range_next'])
+    else:
+      print '%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
+        args.label,
+        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
+        lsm['sorted_runs'],
+        lsm['hit_cmp'], lsm['miss_cmp'],
+        lsm['range_seek'], lsm['range_next'])
 
 def runme(argv):
     parser = argparse.ArgumentParser()
@@ -563,37 +587,11 @@ def runme(argv):
         hit_cmp, miss_cmp, miss_nobf_cmp, lsm['sorted_runs'])
     print 'Compares range seek/next: %.2f\t%.2f' % (range_seek, range_next)
 
+    print_result(lsm, r)
     return lsm, r
-
-def print_result(lsm, args):
-    # Results on one line, comma or tab separated
-    #   write-amp CPU
-    #   write-amp IO
-    #   space-amp
-    #   cache-amp
-    #   N sorted runs
-    #   point-hit
-    #   point-miss
-    #   range-seek
-    #   range-next
-    if args.csv:
-      print '%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
-        args.label,
-        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
-        lsm['sorted_runs'],
-        lsm['hit_cmp'], lsm['miss_cmp'],
-        lsm['range_seek'], lsm['range_next'])
-    else:
-      print '%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
-        args.label,
-        lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
-        lsm['sorted_runs'],
-        lsm['hit_cmp'], lsm['miss_cmp'],
-        lsm['range_seek'], lsm['range_next'])
 
 def main(argv):
     lsm, args = runme(argv)
-    print_result(lsm, args)
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))
