@@ -8,22 +8,24 @@ def range_compares(lsm, args, miss_nobf):
     # returns (seek_cmp, next_cmp)
     #   seek_cmp is number of comparisons to position an iterator per sorted run
     #   next_cmp is number of comparisons per row produced by merging iterator 
-
+    #
     # For now use miss_nobf, computed in point_compares, as value for seek_cmp
     seek_cmp = miss_nobf
 
     next_cmp = 0
     x = 1
-    while lsm['lvl_type'][x] != 'l':
+    while x <= lsm['max_level']:
       runs_per_level = lsm['lvl_rpl'][x]
       # print 'L%d type(%s) rpl(%d)' % (x, lsm['lvl_type'][x], lsm['lvl_rpl'][x])
-      assert runs_per_level > 1
+      assert runs_per_level >= 1
       # k-way merge within level, log2(k) compares
-      next_cmp += math.log(runs_per_level, 2)
+      if runs_per_level > 1:
+        assert runs_per_level >= 2
+        next_cmp += math.log(runs_per_level, 2)
+      print 'range_compares next_cmp = %d after L%d' % (next_cmp, x)
       x += 1
-    print 'range_compares next_cmp = %d after tiered and partial-tiered prior to L%d' % (
-        next_cmp, x)
-# See optimizations in merging iterator. Values determined by simulation.
+
+    # See optimizations in merging iterator. Values determined by simulation.
     # Each entry is (niters, ncmps) where ncmps is the expected number of comparisons
     # per row produced by merging iterator with optimized heap.
     nc = [(1, 0), (2,1), (3,1.18), (4,1.30), (5,1.45), (6,1.47), (7,1.54),
@@ -115,30 +117,34 @@ def config_lsm_tree(args, level_config):
 
     database_mb = args.database_gb * 1024.0
     total_fanout = database_mb / (args.memtable_mb * 1.0)
-    lsm['total_fanout'] = total_fanout
-    print 'total_fanout %.2f' % total_fanout
 
     fo_prod = 1 # product of fanout for all but max level
-    for e in level_config[0:-1]:
+    for e in level_config:
       fo_prod *= e[1]
       print 'fo prod %.2f' % fo_prod
 
-    last_fo = total_fanout / fo_prod  # actual fanout needed for max level
+    # Determine if product of per-level fanout is close to fanout that is needed to
+    # support database_mb / memtable_mb. Adjust size of memtable by up to 10% to make
+    # that work.
+    fo_diff = total_fanout / fo_prod
 
-    if last_fo < 2:
-      print 'fanout needed for max level is too small %.2f' % last_fo
+    if fo_diff > 1.1 or fo_diff < 0.9:
+      print 'total fanout is %.1f and product of per-level fanouts is %.1f for '\
+            'database_gb(%s) and memtable_mb(%s). Difference is too large.' % (
+             total_fanout, fo_prod, args.database_gb, args.memtable_mb)
       sys.exit(-1)
-    elif last_fo > (level_config[-1][1] * 1.2):
-      print 'last level fanout was too small %.2f, should be %.2f' % (level_config[-1][1], last_fo)
-      sys.exit(-1)
-    elif last_fo < (level_config[-1][1] * 0.8):
-      print 'last level fanout was too big %.2f, should be %.2f' % (level_config[-1][1], last_fo)
-      sys.exit(-1)
+    elif fo_diff > 1.01 or fo_diff < 0.99:
+      # adjust memtable_mb to reduce the difference
+      new_mb = args.memtable_mb * fo_diff
+      new_fo = database_mb / (new_mb * 1.0)
+      print 'memtable_mb changed from %d to %d to adjust total_fanout from %.1f to %.1f '\
+            'with product of per-level fanouts = %.1f' % (
+        args.memtable_mb, new_mb, total_fanout, new_fo, fo_prod)
+      total_fanout = new_fo
+      args.memtable_mb = new_mb
 
-    if level_config[-1][1] != last_fo:
-      print 'last level fanout was %.2f adjusted to %.2f to match total_fanout' % (
-          level_config[-1][1], last_fo)
-      level_config[-1][1] = last_fo
+    lsm['total_fanout'] = total_fanout
+    print 'total_fanout %.2f' % total_fanout
 
     # Copy things from level_config
     lvl_fanout = []
@@ -269,20 +275,20 @@ def config_lsm_tree(args, level_config):
       elif lvl_type[x] == 't':
         # Cost to merge runs from previous level and write new run in this level
         wa_io = 1
-        if x == 1: wa_cpu = 1         # comparison for duplicate elimination on memtable flush
-        else: wa_cpu = math.ceil(math.log(lvl_fanout[x], 2))
-      elif lvl_type[x] == 'p':
+        if x == 1:
+          wa_cpu = 1         # comparison for duplicate elimination on memtable flush
+        else:
+          assert lvl_fanout[x] == lvl_rpl[x-1]
+          wa_cpu = math.ceil(math.log(lvl_fanout[x], 2))
+      elif lvl_type[x] == 'l':
         # Cost to merge runs from previous level into one run from this level.
-        # Assume runs in Lx are half full.
+        # Assume runs in Lx are wa_fudge full
 
         # Relative size of the run ln Lx after the merge
-        size_after = (lvl_fanout[x] * 0.5) + lvl_rpl[x-1]
+        size_after = (lvl_fanout[x] * args.wa_fudge) + lvl_rpl[x-1]
         wa_io = size_after / lvl_rpl[x-1]
         # +1 for the merge with the run already on Lx
         wa_cpu = math.ceil(math.log(lvl_fanout[x], 2)) + 1
-      elif lvl_type[x] == 'l':
-        wa_io = lvl_fanout[x] * args.wa_fudge
-        wa_cpu = wa_io                # cmp per KV pair re-written
       else:
         print 'bad type %s at %d' % (lvl_comp_type[x], x)
         assert 0
@@ -346,61 +352,50 @@ def isFloat(s):
   else:
     return 1
 
-# runs-per-level < fanout
-# fanout >= 2 * runs-per-level from previous level
-def validate_partial_tiered(r, x, e, prev_rpl):
-  if e[2] >= e[1]:
-    print 'L%d: t2l runs-per-level must be < fanout was %d,%d' % (x+1, e[1], e[2])
+def isInt(s):
+  try:
+    int(s)
+  except ValueError:
+    return 0
+  else:
+    return 1
+
+# If runs-per-level=1 then this is classic leveled, and I call it leveled-1
+# Else if runs-per-level >= 1 then I call it leveled-N 
+# For all levels fanout on level n must be >= 2 * runs-per-level on level n-1
+#     to avoid configurations with too much write-amp.
+def validate_leveled(r, x, e_cur, e_prev):
+  if e_cur[1] < 2 or e_cur[1] < (2 * e_prev[2]):
+    print 'L%d: leveled, fanout must be >= rpl on prev level(d) was %d' % (
+        x+1, e_cur[1], e_prev[2])
     sys.exit(-1)
 
-  if e[2] < 2:
-    print 'L%d: t2l runs-per-level must be >= 2 but was %d' % (x+1, e[2])
+  if e_cur[2] < 1:
+    print 'L%d: leveled, runs-per-level must be >= 1 was %d' % (x+1, e_cur[2])
     sys.exit(-1)
 
-  if e[1] < (2 * prev_rpl):
-    print 'L%d: t2l, fanout was %d and must be >= 2*runs-per-level from prev level (%d)' % (
-        x+1, e[1], prev_rpl)
-    sys.exit(-1)
-
-# For all levels fanout >= 2 and runs-per-level = 1
-def validate_leveled(r, x, e):
-  if e[1] < 2:
-    print 'L%d: leveled, fanout must be >= 2 was %d' % (x+1, e[1])
-    sys.exit(-1)
-  if e[2] != 1:
-    print 'L%d: leveled, runs-per-level must be 1 was %d' % (x+1, e[2])
-    sys.exit(-1)
-
-# For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
-# For the last t level runs-per-level <= fanout and fanout == k
-# For all in between levels runs-per-level and fanout == k
-def validate_tiered(r, x, e, fo_rpl, last_tiered):
-  if e[2] < 2:
-    print 'L%d: tiered runs-per-level must be >= 2 but was %d' % (x+1, e[2])
-    sys.exit(-1)
-
+# For the first t level (L1) fanout is 1 and runs-per-level is k where k >= 2
+# For L2+:
+#  runs-per-level >= 2
+#  runs-per-level on Ln determines the fanout on Ln+1.
+def validate_tiered(r, x, e_cur, e_prev):
   if x == 0:
-    if e[1] != 1:
-      print 'L0: tiered fanout was %d, must be 1' % e[1]
+    if e_cur[1] != 1:
+      print 'L0: tiered fanout was %d, must be 1' % e_cur[1]
       sys.exit(-1) 
-  elif not last_tiered:
-    if e[1] != fo_rpl or e[2] != fo_rpl:
-      print 'L%d: tiered not last, fanout & runs-per-level were %d, %d and must be %d' % (x, e[1], e[2], fo_rpl)
+    if e_cur[2] < 2:
+      print 'L0: tiered runs-per-level was %d, must be >= 2' % e_cur[2]
       sys.exit(-1) 
   else:
-    if e[1] != fo_rpl:
-      print 'L%d: tiered last, fanout was %d, must be %d' % (x, e[1], fo_rpl)
+    if e_cur[1] != e_prev[2]:
+      print 'L%d: fanout was %d, must be be %d' % (x, e_cur[1], e_prev[2])
       sys.exit(-1) 
-    if e[2] > fo_rpl:
-      print 'L%d: tiered last, runs-per-level was %d, must be <= %d' % (x, e[2], fo_rpl)
+    if e_cur[2] < 2:
+      print 'L%d: tiered runs-per-level was %d, must be >= 2' % (x, e_cur[2])
       sys.exit(-1) 
 
 def validate_level_config(r, level_cnf):
   max_level = len(level_cnf)
-
-  if level_cnf[-1][0] != 'l':
-    print 'L%d is Lmax and must be l but was %s' % (len(level_cnf), level_cnf[-1][0])
-    sys.exit(-1)
 
   if level_cnf[0][0] == 'l':
     # this is easy -- all levels must use 'l'
@@ -408,26 +403,21 @@ def validate_level_config(r, level_cnf):
       if e[0] != 'l':
         print 'L%d: all leveled, must be l was %s' % (x+1, e[0])
         sys.exit(-1)
-      validate_leveled(r, x, e)
+      validate_leveled(r, x, e, level_cnf[x-1])
   elif level_cnf[0][0] == 't':
-    # this is less easy -- look for t+ p* l+
+    # this is less easy -- look for t+ l*
     x = 0
-    fo_rpl = level_cnf[0][2]
+
     # first parse the sequence of t
     while x < max_level and level_cnf[x][0] == 't':
-      if x+1 == max_level:
-        print 'max_level must be p or l'
-        sys.exit(-1)
-      validate_tiered(r, x, level_cnf[x], fo_rpl, level_cnf[x+1][0] != 't')
+      validate_tiered(r, x, level_cnf[x], level_cnf[x-1])
       x = x + 1
-    # next parse the optional sequence of p
-    while x < max_level and level_cnf[x][0] == 'p':
-      validate_partial_tiered(r, x, level_cnf[x], level_cnf[x-1][2])
-      x = x + 1
+
     # next parse the required sequence of l
     while x < max_level and level_cnf[x][0] == 'l':
-      validate_leveled(r, x, level_cnf[x])
+      validate_leveled(r, x, level_cnf[x], level_cnf[x-1])
       x = x + 1
+
     # we should be done
     if x != max_level:
       print 'Unable to parse starting with t'
@@ -445,29 +435,28 @@ def parse_level_config(r):
   #     Each entry has 3 parts and is ':' separated
   #
   #   For each entry
-  #     field 1 is 't', 'p' or 'l' for tiered, partial-tiered and leveled
+  #     field 1 is 't' or 'l' for tiered or leveled
   #     field 2 is fanout, a float
-  #     field 3 is runs-per-level, a float
+  #     field 3 is runs-per-level, an integer
   #     With max_level=2, then --level_config='t:1:8,2:8:1' is valid
   #
-  #   A regex specifies the patterns that are valid for field 1 from L1 to Lmax: t* p* l+
-  #     These restrictions might be removed in the future, but reduce complexity for now
-  #       last level must be l to reduce space-amp
-  #       t cannot follow p or l -> tl is valid, lt is not
-  #       p cannot follow l -> pl is valid, lp is not
-  #       these are valid: tpl, tl, ll
+  #   A regex specifies the patterns that are valid for field 1 from L1 to Lmax. They are:
+  #     t+ l* - tiered optionally followed by leveled
+  #     l+ - all leveled
+  #   Note that t cannot follow l -> tl is valid, lt is not. This is done to reduce the search space.
   #
-  #   And there are rules specific to l, t and 2. First, for t:
-  #     For the first t level (L1) fanout is 1 and runs-per-level is k where k > 1
-  #     For the last t level runs-per-level <= fanout and fanout == k and runs-per-level >= 2
-  #     For all in between levels runs-per-level and fanout == k
-  #     So this is valid: 't:1:10,t:10:10,t:10:10,t:10:2,...'
-  #   Next the rules for p:
-  #     runs-per-level < fanout and runs-per-level >= 2
-  #     fanout >= 2 * runs-per-level from previous level - to make sorted run on this level
-  #       sufficiently larger than data that will be merged into it.
+  #   And there are rules specific to l and t. First, for t:
+  #     For the first t level (L1) fanout is 1 and runs-per-level is k where k >= 2
+  #     For L2+:
+  #       runs-per-level >= 2
+  #       runs-per-level on Ln determines the fanout on Ln+1.
+  #     This is valid: t:1:10,t:10:4,t:4:1
+  #
   #   Next the rules for l:
-  #     For all levels fanout >= 2 and runs-per-level = 1
+  #     If runs-per-level=1 then this is classic leveled, and I call it leveled-1
+  #     Else if runs-per-level >= 1 then I call it leveled-N 
+  #     For all levels fanout on level n must be >= 2 * runs-per-level on level n-1
+  #         to avoid configurations with too much write-amp.
 
   level_cnf = []
 
@@ -478,14 +467,17 @@ def parse_level_config(r):
     if len(opts) != 3:
       print '%s must have 3 fields like a:b:c' % cfg
       sys.exit(-1)
-    elif opts[0] not in ['t', 'p', 'l']:
-      print 'from %s first field must be one of t, p, l' % opts[0]
+    elif opts[0] not in ['t', 'l']:
+      print 'from %s first field must be one of t, l' % opts[0]
       sys.exit(-1)
-    elif not isFloat(opts[1]) or not isFloat(opts[2]):
-      print 'from second(%s) and third(%s) fields must be integers' % (opts[1], opts[2])
+    elif not isFloat(opts[1]):
+      print 'second field must be a float' % opts[1]
+      sys.exit(-1)
+    elif not isInt(opts[2]):
+      print 'third field must be an int' % opts[2]
       sys.exit(-1)
 
-    level_cnf.append([opts[0], float(opts[1]), float(opts[2])])
+    level_cnf.append([opts[0], float(opts[1]), int(opts[2])])
 
   return level_cnf
 
@@ -553,10 +545,16 @@ def runme(argv):
 
     r = parser.parse_args(argv)
 
-    x = r.memtable_mb // r.file_mb
-    if (r.file_mb * x) != r.memtable_mb:
-      print 'file_mb adjusted from %d to %d with mult %d' % (r.file_mb, r.memtable_mb // x, x)
-      r.file_mb = r.memtable_mb // x
+    if r.file_mb < r.memtable_mb:
+      x = r.memtable_mb // r.file_mb
+      if (r.file_mb * x) != r.memtable_mb:
+        print 'file_mb adjusted from %d to %d with mult %d' % (r.file_mb, r.memtable_mb // x, x)
+        r.file_mb = r.memtable_mb // x
+    elif r.file_mb > r.memtable_mb:
+      x = r.file_mb // r.memtable_mb
+      if (r.memtable_mb * x) != r.memtable_mb:
+        print 'file_mb adjusted from %d to %d with mult %d' % (r.file_mb, r.memtable_mb * x, x)
+        r.file_mb = r.memtable_mb * x
 
     print 'memtable_mb ', r.memtable_mb
     print 'wa_fudge ', r.wa_fudge
