@@ -22,7 +22,7 @@ def range_compares(lsm, args, miss_nobf):
       if runs_per_level > 1:
         assert runs_per_level >= 2
         next_cmp += math.log(runs_per_level, 2)
-      print 'range_compares next_cmp = %d after L%d' % (next_cmp, x)
+        print 'after L%d merge range_compares next_cmp = %.2f' % (x, next_cmp)
       x += 1
 
     # See optimizations in merging iterator. Values determined by simulation.
@@ -32,13 +32,13 @@ def range_compares(lsm, args, miss_nobf):
           (9,1.55), (10,1.56)]
 
     nlevels = lsm['max_level'] + 1
-    next_cmp = nc[-1][1]
+    i = nc[-1][1]
     for niter,ncmp in nc:
       if niter >= nlevels:
-        next_cmp += ncmp
+        i = ncmp
         break
-    next_cmp += 1 # Comparison to determine when scan can stop
-
+    next_cmp += 1 + i  # +1 is comparison to determine when scan can stop
+    print 'next_cmp += %.2f + 1 to %.2f after cross-level merge' % (i, next_cmp)
     return seek_cmp, next_cmp
 
 def point_compares(lsm, args):
@@ -279,16 +279,17 @@ def config_lsm_tree(args, level_config):
           wa_cpu = 1         # comparison for duplicate elimination on memtable flush
         else:
           assert lvl_fanout[x] == lvl_rpl[x-1]
-          wa_cpu = math.ceil(math.log(lvl_fanout[x], 2))
+          # compares/row merged into this level is < 1, round it up to 1
+          wa_cpu = 1
       elif lvl_type[x] == 'l':
         # Cost to merge runs from previous level into one run from this level.
         # Assume runs in Lx are wa_fudge full
 
         # Relative size of the run ln Lx after the merge
         size_after = (lvl_fanout[x] * args.wa_fudge) + lvl_rpl[x-1]
+        # normalize work done by amount of data moved into this level
         wa_io = size_after / lvl_rpl[x-1]
-        # +1 for the merge with the run already on Lx
-        wa_cpu = math.ceil(math.log(lvl_fanout[x], 2)) + 1
+        wa_cpu = math.ceil(math.log(size_after, 2) / lvl_rpl[x-1]) 
       else:
         print 'bad type %s at %d' % (lvl_comp_type[x], x)
         assert 0
@@ -483,8 +484,8 @@ def parse_level_config(r):
 
 def print_result(lsm, args):
     # Results on one line, comma or tab separated
-    #   write-amp CPU
     #   write-amp IO
+    #   write-amp CPU
     #   space-amp
     #   cache-amp
     #   N sorted runs
@@ -493,6 +494,7 @@ def print_result(lsm, args):
     #   range-seek
     #   range-next
     if args.csv:
+      print 'L,wa-I,wa-C,sa,ca,Nruns,ph,pm,rs,rn'
       print '%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
         args.label,
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
@@ -500,6 +502,7 @@ def print_result(lsm, args):
         lsm['hit_cmp'], lsm['miss_cmp'],
         lsm['range_seek'], lsm['range_next'])
     else:
+      print 'L\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn'
       print '%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
         args.label,
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
@@ -512,7 +515,7 @@ def runme(argv):
 
     parser.add_argument('--label', default='RES')
     parser.add_argument('--memtable_mb', type=int, default=256)
-    parser.add_argument('--wa_fudge', type=float, default=0.7)
+    parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)
     parser.add_argument('--level_config', default="")
     parser.add_argument('--row_size', type=int, default=128)
@@ -575,15 +578,16 @@ def runme(argv):
 
     hit_cmp, miss_cmp, miss_nobf_cmp = point_compares(lsm, r)
     range_seek, range_next = range_compares(lsm, r, miss_nobf_cmp) 
+
     lsm['hit_cmp'] = hit_cmp
     lsm['miss_cmp'] = miss_cmp
     lsm['miss_nobf_cmp'] = miss_nobf_cmp
     lsm['range_seek'] = range_seek
     lsm['range_next'] = range_next
 
-    print '\nCompares point hit/miss/mnbf: %.2f\t%.2f\t%.2f, %d sorted runs' % (
+    print 'Compares point hit/miss/mnbf: %.2f\t%.2f\t%.2f, %d sorted runs' % (
         hit_cmp, miss_cmp, miss_nobf_cmp, lsm['sorted_runs'])
-    print 'Compares range seek/next: %.2f\t%.2f' % (range_seek, range_next)
+    print 'Compares range seek/next: %.2f\t%.2f\n' % (range_seek, range_next)
 
     print_result(lsm, r)
     return lsm, r
