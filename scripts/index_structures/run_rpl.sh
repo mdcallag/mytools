@@ -3,6 +3,15 @@ db_gb=$2
 wb_mb=$3
 format=$4
 
+#
+# This runs lsm_rpl_rws.py for a variety of configuations including
+#  * leveled with 1 run per level
+#  * leveled with N runs per level
+#  * tiered with 2 to 8 runs per level at Lmax
+#  * tiered on the smaller levels, leveled on the larger levels
+#  * tiered on the smaller levels, leveled on the larger levels with leveled-N 
+#
+
 fmt=""
 pf0=xa.tsv
 pf1=x1.tsv
@@ -51,7 +60,7 @@ function expand_tiered {
 
   label=ZT${maxt}_${max_level_rpl}
  
-  echo expand_tiered with $maxt maxt, $level_fo level_fo, $max_level_rpl max_level_rpl, $rpl_lo lo, $rpl_hi hi
+  # echo expand_tiered with $maxt maxt, $level_fo level_fo, $max_level_rpl max_level_rpl, $rpl_lo lo, $rpl_hi hi
 
   level_cnf=""
   prev_rpl=1
@@ -85,9 +94,44 @@ function expand_tiered {
 }
 
 function expand_tiered_leveled {
-  maxt=$1
-  maxl=$2
-  echo expand_tiered_leveled with maxt=$maxt, maxl=$maxl
+  lvls=$1
+  last_t=$2
+  first_l=$3
+  tiered_fo=$4
+  leveled_fo=$5
+  last_ln=$6
+  ln_rpl=$7
+  # echo expand_tiered_leveled with $lvls lvls, $last_t last_t, $first_l first_l, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $last_ln last_ln, $ln_rpl ln_rpl
+
+  label=ZTL${lvls}_${last_t}_${last_ln}_${ln_rpl}
+  level_cnf=""
+
+  for x in $( seq 1 $lvls ); do
+
+    if [[ $x -gt 1 ]]; then level_cnf+=","; fi
+
+    if [[ $x -eq 1 ]]; then
+      if [[ $x -lt $last_t ]]; then
+        level_cnf+="t:1:$tiered_fo"
+      else
+        level_cnf+="t:1:$(( $tiered_fo / 2 ))"
+      fi
+    elif [[ $x -lt $last_t ]]; then
+      level_cnf+="t:$tiered_fo:$tiered_fo"
+    elif [[ $x -lt $first_l ]]; then
+      tfo=$(( $tiered_fo / 2 ))
+      level_cnf+="t:$tiered_fo:$(( $tiered_fo / 2 ))"
+    elif [[ $x -le $last_ln ]]; then
+      level_cnf+="l:$leveled_fo:$ln_rpl"
+    else
+      level_cnf+="l:$leveled_fo:1"
+    fi
+
+  done
+
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label $fmt > $pf0.$label
+  grep $label $pf0.$label > $pf1.$label
 }
 
 function compute_fanout_prod {
@@ -122,11 +166,11 @@ for max_lv in $( seq 2 $max_level ); do
   expand_leveled $max_lv 0 $level_fo 1 $label
 done
 
-# expand: l+ with using 2..N runs per level
+# expand: l+ using 2..8 runs per level
 for max_lv in $( seq 2 $max_level ); do
   # per-level fanout is nth root of total fanout
   level_fo=$( printf "%.3f" $( echo "e(l($total_fanout) / $max_lv)" | bc -l ) )
-  # the max number of runs-per-level for leveled-N
+  # the max number of runs-per-level for leveled-N is < (level fanout / 2)
   x=$( printf "%.0f" $level_fo )
   max_rpl=$(( ($x / 2) - 1 ))
   # Limit to at most 8 runs-per-level
@@ -195,9 +239,41 @@ for maxt in $( seq 2 $max_level ); do
 done
 
 # expand: t+ l+
-for maxl in $( seq 2 $max_level ); do
-for maxt in $( seq 1 $(( $maxl - 1 )) ); do
-  expand_tiered_leveled $maxt $maxl
-done
+for lvls in $( seq 2 $max_level ); do
+  # fanout from L0 to L1 is 1, so per-level fanout computed using 1 less level
+  # this is the per-level fanout for the tiered levels after l1, it must be an integer
+  tiered_fo=$( printf "%.0f" $( echo "e(l($total_fanout) / ($lvls - 1))" | bc -l ) )
+
+  for first_l in $( seq 2 $lvls ); do
+    last_t=$(( $first_l - 1 ))
+
+    # this is the per-level fanout for the leveled levels, it doesn't have to be an integer
+    total_tiered_fo=1
+    if [[ $first_l -gt 2 ]]; then
+      total_tiered_fo=$( echo "$tiered_fo ^ ($first_l - 2)" | bc )
+    fi
+    # echo ttf $total_tiered_fo, tfo $tiered_fo, last_t $last_t
+    leveled_fo=$( printf "%.3f" $( echo "e(l($total_fanout / $total_tiered_fo) / ($lvls - $first_l + 1))" | bc -l ) )
+
+    # echo $total_fanout total_fo, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $lvls levels, $last_t last_t, $first_l first_l
+    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo 0 0
+
+    # the max number of runs-per-level for leveled-N is < (level fanout / 2)
+    x=$( printf "%.0f" $leveled_fo )
+    max_rpl=$(( ($x / 2) - 1 ))
+    # Limit to at most 8 runs-per-level
+    if [[ $max_rpl -gt 8 ]]; then max_rpl=8; fi
+
+    if [[ $first_l -lt $lvls ]]; then
+      for last_ln in $( seq $first_l $(( $lvls - 1 )) ) ; do
+        if [[ $max_rpl -ge 2 ]]; then
+          for rpl in $( seq 2 $max_rpl ); do
+            expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo $last_ln $rpl
+          done
+        fi
+      done
+    fi
+
+  done
 done
 

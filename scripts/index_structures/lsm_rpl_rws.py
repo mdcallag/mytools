@@ -367,7 +367,7 @@ def isInt(s):
 #     to avoid configurations with too much write-amp.
 def validate_leveled(r, x, e_cur, e_prev):
   if e_cur[1] < 2 or e_cur[1] < (2 * e_prev[2]):
-    print 'L%d: leveled, fanout must be >= rpl on prev level(d) was %d' % (
+    print 'L%d: leveled, fanout must be >= rpl on prev level(%d) was %d' % (
         x+1, e_cur[1], e_prev[2])
     sys.exit(-1)
 
