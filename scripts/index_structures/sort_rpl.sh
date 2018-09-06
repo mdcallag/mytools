@@ -5,7 +5,7 @@
 # ZL3	L	65.0	34.0	1.04	0.004	4	73.7	73.0	105.0	2.3
 
 if [ $# -ne 7 ]; then
-  echo "requires 6 args: pct-i pct-p pct-r nps max-wa-io max-wa-cpu max-sa"
+  echo "requires 7 args: pct-i pct-p pct-r nps max-wa-io max-wa-cpu max-sa"
   echo "  pct-i, pct-p, prt-r: percentage of ops that are insert, point, range"
   echo "  nps: number of calls to range-next per range-seek"
   echo "  max-wa-io: ignore configs with IO write-amp that exceeds this"
@@ -27,6 +27,6 @@ if [ $(( ($pctp + $pctr + $pcti) )) -ne 100 ]; then
   exit 1
 fi
 
-#echo $pcti $pctp $pctr $nps
-awk '{ if ($3 <= maxwai && $4 <= maxwac && $5 <= $maxsa) { printf "%s\t%.1f\n", $0, ((pctp * $8) + (pctr * ($10 + ($11 * nps))) + (pcti * $4)) / 100.0 } }' \
+#echo $pcti $pctp $pctr $nps $maxwai $maxwac $maxsa
+awk '{ if ($3 <= maxwai && $4 <= maxwac && $5 <= maxsa) { printf "%s\t%.1f\n", $0, ((pctp * $8) + (pctr * ($10 + ($11 * nps))) + (pcti * $4)) / 100.0 } }' \
     pcti=$pcti pctp=$pctp pctr=$pctr nps=$nps maxsa=$maxsa maxwac=$maxwac maxwai=$maxwai
