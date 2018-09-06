@@ -3,6 +3,9 @@ db_gb=$2
 wb_mb=$3
 format=$4
 
+# bash run_rpl.sh 8 1024 64 csv
+# grep Nruns xa.tsv.ZL2 > o1; grep -h ^Z x1.tsv.Z* >> o1
+
 #
 # This runs lsm_rpl_rws.py for a variety of configuations including
 #  * leveled with 1 run per level
@@ -33,6 +36,7 @@ function expand_leveled {
   level_fo=$3
   rpl=$4
   label=$5
+  family=$6
 
   # echo leveled max_lv=$max_lv max_lvn=$max_lvn total_fo=$total_fanout level_fo=$level_fo label=$label
 
@@ -46,8 +50,8 @@ function expand_leveled {
     fi
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label
-  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label $fmt > $pf0.$label
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=$family
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=$family $fmt > $pf0.$label
   grep $label $pf0.$label > $pf1.$label
 }
 
@@ -88,8 +92,8 @@ function expand_tiered {
     prev_rpl=$rpl
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label
-  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label $fmt > $pf0.$label
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=T
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=T $fmt > $pf0.$label
   grep $label $pf0.$label > $pf1.$label
 }
 
@@ -101,6 +105,8 @@ function expand_tiered_leveled {
   leveled_fo=$5
   last_ln=$6
   ln_rpl=$7
+  family=$8
+
   # echo expand_tiered_leveled with $lvls lvls, $last_t last_t, $first_l first_l, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $last_ln last_ln, $ln_rpl ln_rpl
 
   label=ZTL${lvls}_${last_t}_${last_ln}_${ln_rpl}
@@ -129,8 +135,8 @@ function expand_tiered_leveled {
 
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label
-  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label $fmt > $pf0.$label
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=$family
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --label=$label --family=$family $fmt > $pf0.$label
   grep $label $pf0.$label > $pf1.$label
 }
 
@@ -163,7 +169,7 @@ for max_lv in $( seq 2 $max_level ); do
   # per-level fanout is nth root of total fanout
   level_fo=$( printf "%.3f" $( echo "e(l($total_fanout) / $max_lv)" | bc -l ) )
   label="ZL${max_lv}"
-  expand_leveled $max_lv 0 $level_fo 1 $label
+  expand_leveled $max_lv 0 $level_fo 1 $label L
 done
 
 # expand: l+ using 2..8 runs per level
@@ -182,7 +188,7 @@ for max_lv in $( seq 2 $max_level ); do
     for rpl in $( seq 2 $max_rpl ); do
       label="ZLN${max_lv}_${max_lvn}_${rpl}"
       # echo leveled-N: $max_lv max_lv, $max_lvn max_lvn, $rpl rpl, $level_fo fanout, $label label
-      expand_leveled $max_lv $max_lvn $level_fo $rpl $label
+      expand_leveled $max_lv $max_lvn $level_fo $rpl $label LN
     done
   done
 done
@@ -256,7 +262,7 @@ for lvls in $( seq 2 $max_level ); do
     leveled_fo=$( printf "%.3f" $( echo "e(l($total_fanout / $total_tiered_fo) / ($lvls - $first_l + 1))" | bc -l ) )
 
     # echo $total_fanout total_fo, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $lvls levels, $last_t last_t, $first_l first_l
-    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo 0 0
+    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo 0 0 TL
 
     # the max number of runs-per-level for leveled-N is < (level fanout / 2)
     x=$( printf "%.0f" $leveled_fo )
@@ -268,7 +274,7 @@ for lvls in $( seq 2 $max_level ); do
       for last_ln in $( seq $first_l $(( $lvls - 1 )) ) ; do
         if [[ $max_rpl -ge 2 ]]; then
           for rpl in $( seq 2 $max_rpl ); do
-            expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo $last_ln $rpl
+            expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $leveled_fo $last_ln $rpl TLN
           done
         fi
       done

@@ -494,17 +494,17 @@ def print_result(lsm, args):
     #   range-seek
     #   range-next
     if args.csv:
-      print 'L,wa-I,wa-C,sa,ca,Nruns,ph,pm,rs,rn'
-      print '%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
-        args.label,
+      print 'L,F,wa-I,wa-C,sa,ca,Nruns,ph,pm,rs,rn'
+      print '%s,%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
+        args.label, args.family,
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
         lsm['sorted_runs'],
         lsm['hit_cmp'], lsm['miss_cmp'],
         lsm['range_seek'], lsm['range_next'])
     else:
-      print 'L\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn'
-      print '%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
-        args.label,
+      print 'L\tF\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn'
+      print '%s\t%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
+        args.label, args.family,
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
         lsm['sorted_runs'],
         lsm['hit_cmp'], lsm['miss_cmp'],
@@ -514,6 +514,7 @@ def runme(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--label', default='RES')
+    parser.add_argument('--family', default='Z')
     parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)
