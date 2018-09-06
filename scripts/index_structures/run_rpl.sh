@@ -283,3 +283,4 @@ for lvls in $( seq 2 $max_level ); do
   done
 done
 
+grep Nruns xa.tsv.ZL2 > o1; grep -h ^Z x1.tsv.Z* >> o1
