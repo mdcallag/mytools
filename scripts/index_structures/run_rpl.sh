@@ -3,8 +3,8 @@ db_gb=$2
 wb_mb=$3
 format=$4
 
-# bash run_rpl.sh 8 1024 64 csv
-# grep Nruns xa.tsv.ZL2 > o1; grep -h ^Z x1.tsv.Z* >> o1
+# bash run_rpl.sh 8 1024 64 tsv
+# grep Nruns xa.tsv.ZL2 > o1.tsv; grep -h ^Z x1.tsv.Z* | tr -d 'Z' >> o1.tsv
 
 #
 # This runs lsm_rpl_rws.py for a variety of configuations including
