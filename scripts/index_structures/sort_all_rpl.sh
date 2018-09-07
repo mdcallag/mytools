@@ -1,5 +1,6 @@
 fn=$1
 nps=$2
+sfx=$3
 
 # Run for workloads X constraints
 
@@ -18,52 +19,74 @@ nps=$2
 #   c3: max-wa-io < 40, max-wa-cpu <= 100 && max-sa <= 1.5
 #   c4: max-wa-io < 80, max-wa-cpu <= 160 && max-sa <= 1.25
 
+function gen {
+  wa_io=$1
+  wa_cpu=$2
+  sa=$3
+  wl_i=$4
+  wl_p=$5
+  wl_r=$6
+  of=$7
+
+  printf "L\tF\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn\tcost\n" > $of.$sfx
+  grep -v Nruns $fn | bash sort_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 12,12 | head -5 >> $of.$sfx
+  #echo "---" >> $of.$sfx
+  grep -v Nruns $fn | bash sort_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | egrep 'ZL4|ZTL4_3_0_0' >> $of.$sfx
+}
+
 #   point-only
 wl="0 100 0"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.po.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.po.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.po.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.po.c4
+pfx=po
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   range-only
 wl="0 0 100"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.ro.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.ro.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.ro.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.ro.c4
+pfx=ro
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   range+point
 wl="0 50 50"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.rp.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.rp.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.rp.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.rp.c4
+pfx=rp
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   insert-only
 wl="100 0 0"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.io.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.io.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.io.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.io.c4
+pfx=io
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   insert+point
 wl="50 50 0"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.ip.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.ip.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.ip.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.ip.c4
+pfx=ip
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   insert+range
 wl="50 0 50"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.ir.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.ir.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.ir.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.ir.c4
+pfx=po
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
 #   insert+point+range
-wl="10 60 30"
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 10 40  2.5  | sort -nk 12,12 > cr.ipr.c1
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 20 50  2    | sort -nk 12,12 > cr.ipr.c2
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 40 100 1.5  | sort -nk 12,12 > cr.ipr.c3
-grep -v Nruns $fn | bash sort_rpl.sh $wl $nps 80 160 1.25 | sort -nk 12,12 > cr.ipr.c4
+wl="20 50 30"
+pfx=ipr
+gen 10  40 2.5  $wl cr.$pfx.c1
+gen 20  50 2    $wl cr.$pfx.c2
+gen 40 100 1.5  $wl cr.$pfx.c3
+gen 80 160 1.25 $wl cr.$pfx.c4
 
