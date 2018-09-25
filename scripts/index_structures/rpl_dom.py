@@ -3,7 +3,7 @@ import argparse
 import sys
 
 def print_df(t):
-  print('wa-I\twa-C\tsa\tca\tNruns\tNlevels\tph\tpm\trs\trn\tisdom\tF\tL')
+  print('wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tisdom\tF\tL')
   for x, r in t.iterrows():
     print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
         r['wa-I'], r['wa-C'], r['sa'], r['ca'], r['Nruns'], r['Nlvls'],
@@ -14,8 +14,8 @@ def runit(args):
   # print(t.head())
   # print("count: %d" % t.count()['L'])
 
-  if args.max_nruns > 0:
-    t = t[ t['Nruns'] <= args.max_nruns]
+  if args.max_runs > 0:
+    t = t[ t['Nruns'] <= args.max_runs]
 
   dominates = {}
   dominated_by = {}
@@ -59,7 +59,7 @@ def main(argv):
   parser.add_argument('--max_sa', type=float, default=1.2)
   parser.add_argument('--max_ca', type=float, default=1.2)
   parser.add_argument('--print_dom', type=int, default=0)
-  parser.add_argument('--max_nruns', type=int, default=-1)
+  parser.add_argument('--max_runs', type=int, default=-1)
 
   args = parser.parse_args(argv)
   runit(args)

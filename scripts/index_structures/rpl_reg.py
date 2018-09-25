@@ -2,16 +2,11 @@ import argparse
 import sys
 import math
 import numpy
+import random
 import pandas as pd
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
-
-def print_df(t):
-  for x, r in t.iterrows():
-    print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
-        r['L'], r['F'], r['wa-I'], r['wa-C'], r['sa'], r['ca'], r['Nruns'],
-        r['ph'], r['pm'], r['rs'], r['rn'], r['isdom']))
 
 def plot_it(actual, predicted, name, xarr, show, save):
   plt.scatter(xarr, actual, color='black', label='Actual')
@@ -28,6 +23,21 @@ def plot_it(actual, predicted, name, xarr, show, save):
     plt.savefig('%s.png' % name)
   plt.close('all')
 
+def augment_combine(args, df, aug_cols):
+  if args.augment:
+    df['Nlvls_pow'] = numpy.power([2 for x in range(len(df['Nlvls']))], df['Nlvls'])
+    for c in aug_cols:
+      df[c + '_sq'] = df[c] * df[c]
+      df[c + '_sqrt'] = numpy.sqrt(df[c])
+      df[c + '_log'] = numpy.log2(df[c])
+
+  if args.combine:
+    for c1 in aug_cols:
+      for c2 in aug_cols:
+        if c1 != c2:
+          # print('%s X %s' % (c1, c2))
+          df[c1 + '_X_' + c2] = df[c1] * df[c2]
+
 def get_model(args):
   if args.model == 'linear':
     return linear_model.LinearRegression(normalize=args.normalize)
@@ -38,60 +48,99 @@ def get_model(args):
     sys.exit(-1)
 
 def runit(args):
-  t = pd.read_table(args.file)
+  train_dfs = []
+  for f in args.train.split(','):
+    print('train: %s' % f)
+    df = pd.read_table(f)
+    train_dfs.append(df)
+  train_df = pd.concat(train_dfs)
+  print('before move %d train' % train_df.count()['L'])
+
+  if args.test != None:
+    test_dfs = []
+    for f in args.test.split(','):
+      print('test: %s' % f)
+      df = pd.read_table(f)
+      test_dfs.append(df)
+    test_df = pd.concat(test_dfs)
+  else:
+    if args.train_pct >= 100 or args.train_pct < 1:
+      print('train_pct=%d and must be >= 1 and < 100' % args.train_pct)
+      sys.exit(-1)
+
+    test_df = pd.DataFrame(columns=train_df.columns.copy())
+    df_len = train_df.count()['L']
+    n_to_move = int(((100 - args.train_pct) / 100.0) * df_len)
+    to_move = []
+    print('Move %d with train_pct=%d' % (n_to_move, args.train_pct))
+    ixa = range(df_len)
+    for x in range(n_to_move):
+      v = random.choice(ixa)
+      ixa.remove(v)
+      to_move.append(v)  
+    print('Moving: %s' % to_move)
+    rows = [train_df.iloc[x].copy() for x in to_move]
+    test_df = test_df.append(rows, ignore_index=True)
+    train_df.drop(to_move, axis=0, inplace=True)
+
+  if args.max_runs > 0:
+    test_df = test_df[ test_df['Nruns'] <= args.max_runs]
+    train_df = train_df[ train_df['Nruns'] <= args.max_runs]
+
+  train_count = train_df.count()['L']
+  test_count = test_df.count()['L']
+  print('begin with %d train, %d test' % (train_count, test_count))
+
   if args.notdom:
-    t = t[ t['isdom'] == False ]
+    train_df = train_df[ train_df['isdom'] == False ]
+    test_df = test_df[ test_df['isdom'] == False ]
 
-  count = t.count()['L']
+  train_y = {}
+  test_y = {}
+  for cn in ['wa-I', 'wa-C', 'ph', 'rs', 'rn', 'L', 'isdom']:
+    train_y[cn] = train_df[cn].copy()
+    test_y[cn] = test_df[cn].copy()
 
-  t2 = t.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'isdom'], axis=1)
-  t2.F = t2.F.astype('category').cat.codes
+  train_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'isdom'], axis=1, inplace=True)
+  test_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'isdom'], axis=1, inplace=True)
 
-  f1 = len(t2.columns)
+  train_df.F = train_df.F.astype('category').cat.codes
+  test_df.F = test_df.F.astype('category').cat.codes
 
-  if args.augment:
-    for c in t2.columns:
-      if c not in ['F', 'isdom']:
-        t2[c + '_sq'] = t2[c] * t2[c]
-        t2[c + '_sqrt'] = numpy.sqrt(t2[c])
-        t2[c + '_log'] = numpy.log2(t2[c])
-  f2 = len(t2.columns)
+  print(train_df.head())
+  print(test_df.head())
+  f1 = len(train_df.columns)
 
-  if args.combine:
-    cols = [c for c in t2.columns if c != ['F', 'isdom']]
-    for c1 in cols:
-      for c2 in cols:
-        t2[c1 + '_X_' + c2] = t2[c1] * t2[c2]
-  f3 = len(t2.columns)
+  aug_cols = ['sa', 'ca', 'Nruns', 'Nlvls']
+  augment_combine(args, train_df, aug_cols)
+  augment_combine(args, test_df, aug_cols)
 
-  print('features: %d initial, %d post agument, %d post combine' % (f1, f2, f3))
-
-  y_wai = t['wa-I']
-  y_wac = t['wa-C']
-  y_ph = t['ph']
-  y_rs = t['rs']
+  f3 = len(train_df.columns)
+  print('features: %d initial, %d post augment+combine' % (f1, f3))
+  print(train_df.columns)
 
   pdict = {}
-  for pv in [('wa-I', y_wai), ('wa-C', y_wac), ('ph', y_ph), ('rs', y_rs)]:
+  for cname in ['wa-I', 'wa-C', 'ph', 'rs']:
     lr = get_model(args)
-    lr.fit(t2, pv[1])
-    pdict[pv[0]] = lr.predict(t2)
-    print(pv[0])
-    print("  mean squared error: %s" % mean_squared_error(pv[1], pdict[pv[0]]))
-    print("  variance score: %s" % r2_score(pv[1], pdict[pv[0]]))
+    lr.fit(train_df, train_y[cname])
+    pdict[cname] = lr.predict(test_df)
+    print(cname)
+    print("  mean squared error: %s" % mean_squared_error(test_y[cname], pdict[cname]))
+    print("  r2_score: %s" % r2_score(test_y[cname], pdict[cname]))
     print("  intercept: {}".format(lr.intercept_))
-    for idx, col_name in enumerate(t2.columns):
+    for idx, col_name in enumerate(train_df.columns):
       print("  coef for {}: {}".format(col_name, lr.coef_[idx]))
 
-  xarr = [x for x in range(count)]
-
-  for v in [(y_wai, 'wa-I'), (y_wac, 'wa-C'), (y_ph, 'ph'), (y_rs, 'rs')]:
-    plot_it(v[0], pdict[v[1]], v[1], xarr, args.show, args.save)
+  xarr = [x for x in range(test_count)]
+  for cn in ['wa-I', 'wa-C', 'ph', 'rs']:
+    plot_it(test_y[cn], pdict[cn], cn, xarr, args.show, args.save)
   
 
 def main(argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--file')
+  parser.add_argument('--train')
+  parser.add_argument('--test')
+  parser.add_argument('--train_pct', type=int, default=90)
   parser.add_argument('--notdom', type=int, default=0)
   parser.add_argument('--show', type=int, default=1)
   parser.add_argument('--save', type=int, default=0)
@@ -101,6 +150,7 @@ def main(argv):
   parser.add_argument('--alpha', type=float, default=1.0)
   parser.add_argument('--augment', type=int, default=0)
   parser.add_argument('--combine', type=int, default=0)
+  parser.add_argument('--max_runs', type=int, default=-1)
 
   args = parser.parse_args(argv)
   runit(args)

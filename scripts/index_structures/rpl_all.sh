@@ -16,7 +16,7 @@ cat o2.tsv.tmp o1.tsv > o2.tsv; rm -f o2.tsv.tmp
 bash cost_all_rpl.sh o2.tsv 100 tsv
 
 # this finds configurations that are dominates (strictly worse) than other configs
-python rpl_dom.py --file=o2.tsv --max_sa=1.1 --max_ca=1.1 --max_nruns=-1 > o3.tsv 2> e
+python rpl_dom.py --file=o2.tsv --max_sa=1.1 --max_ca=1.1 --max_runs=-1 > o3.tsv 2> e
 
 awk '{ print $12 }' o1.tsv > o1.x
 awk '{ print $12 }' o2.tsv > o2.x
