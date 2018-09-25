@@ -1,8 +1,8 @@
 
 # Input looks like this:
-# L	F	wa-I	wa-C	sa	ca	Nruns	ph	pm	rs	rn
-# ZL2	L	207.8	33.0	1.01	0.004	3	62.1	62.0	78.0	2.2
-# ZL3	L	65.0	34.0	1.04	0.004	4	73.7	73.0	105.0	2.3
+# wa-I	wa-C	sa	ca	Nruns	Nlvls	ph	pm	rs	rn	F	L
+# 207.8	33.0	1.01	0.004	3	3	62.1	62.0	78.0	2.2	L	...
+# 65.0	34.0	1.04	0.004	4	6	73.7	73.0	105.0	2.3	T	...
 
 if [ $# -ne 7 ]; then
   echo "requires 7 args: pct-i pct-p pct-r nps max-wa-io max-wa-cpu max-sa"
@@ -28,5 +28,5 @@ if [ $(( ($pctp + $pctr + $pcti) )) -ne 100 ]; then
 fi
 
 #echo $pcti $pctp $pctr $nps $maxwai $maxwac $maxsa
-awk '{ if ($3 <= maxwai && $4 <= maxwac && $5 <= maxsa) { printf "%s\t%.1f\n", $0, ((pctp * $8) + (pctr * ($10 + ($11 * nps))) + (pcti * $4)) / 100.0 } }' \
+awk '{ if ($1 <= maxwai && $2 <= maxwac && $3 <= maxsa) { printf "%s\t%.1f\n", $0, ((pctp * $7) + (pctr * ($9 + ($10 * nps))) + (pcti * $2)) / 100.0 } }' \
     pcti=$pcti pctp=$pctp pctr=$pctr nps=$nps maxsa=$maxsa maxwac=$maxwac maxwai=$maxwai

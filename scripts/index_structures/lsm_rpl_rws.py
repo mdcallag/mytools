@@ -367,9 +367,10 @@ def isInt(s):
 #     to avoid configurations with too much write-amp.
 def validate_leveled(r, x, e_cur, e_prev):
   if e_cur[1] < 2 or e_cur[1] < (2 * e_prev[2]):
-    print 'L%d: leveled, fanout must be >= rpl on prev level(%d) was %d' % (
-        x+1, e_cur[1], e_prev[2])
-    sys.exit(-1)
+    #print 'L%d: leveled, fanout must be >= rpl on prev level(%d) was %d' % (
+    #    x+1, e_cur[1], e_prev[2])
+    #sys.exit(-1)
+    pass
 
   if e_cur[2] < 1:
     print 'L%d: leveled, runs-per-level must be >= 1 was %d' % (x+1, e_cur[2])
@@ -413,6 +414,14 @@ def validate_level_config(r, level_cnf):
     while x < max_level and level_cnf[x][0] == 't':
       validate_tiered(r, x, level_cnf[x], level_cnf[x-1])
       x = x + 1
+
+    # we should be done
+    if x == max_level:
+      # Banned for now because it has too much space amp and the cost
+      # model isn't correct for it -- it doesn't consider work done
+      # to occasionally merge runs at Lmax to limit the number of runs there.
+      print 'Max level cannot be tiered'
+      sys.exit(-1)
 
     # next parse the required sequence of l
     while x < max_level and level_cnf[x][0] == 'l':
@@ -461,7 +470,7 @@ def parse_level_config(r):
 
   level_cnf = []
 
-  cfgs = r.level_config.split(',')
+  cfgs = r.level_config.split('-')
 
   for lv, cfg in enumerate(cfgs):
     opts = cfg.split(':')
@@ -494,26 +503,25 @@ def print_result(lsm, args):
     #   range-seek
     #   range-next
     if args.csv:
-      print 'L,F,wa-I,wa-C,sa,ca,Nruns,ph,pm,rs,rn'
-      print '%s,%s,%.1f,%.1f,%.2f,%.3f,%d,%.1f,%.1f,%.1f,%.1f' % (
-        args.label, args.family,
+      print 'wa-I,wa-C,sa,ca,Nruns,Nlvls,ph,pm,rs,rn,F,L'
+      print '%.1f,%.1f,%.2f,%.3f,%d,%d,%.1f,%.1f,%.1f,%.1f,%s,%s' % (
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
-        lsm['sorted_runs'],
+        lsm['sorted_runs'], lsm['max_level'],
         lsm['hit_cmp'], lsm['miss_cmp'],
-        lsm['range_seek'], lsm['range_next'])
+        lsm['range_seek'], lsm['range_next'],
+        args.family, args.level_config)
     else:
-      print 'L\tF\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn'
-      print '%s\t%s\t%.1f\t%.1f\t%.2f\t%.3f\t%d\t%.1f\t%.1f\t%.1f\t%.1f' % (
-        args.label, args.family,
+      print 'wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tF\tL'
+      print '%.1f\t%.1f\t%.2f\t%.3f\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%s' % (
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
-        lsm['sorted_runs'],
+        lsm['sorted_runs'], lsm['max_level'],
         lsm['hit_cmp'], lsm['miss_cmp'],
-        lsm['range_seek'], lsm['range_next'])
+        lsm['range_seek'], lsm['range_next'],
+        args.family, args.level_config)
 
 def runme(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--label', default='RES')
     parser.add_argument('--family', default='Z')
     parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--wa_fudge', type=float, default=0.8)

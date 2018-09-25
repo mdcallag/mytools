@@ -3,11 +3,11 @@ import argparse
 import sys
 
 def print_df(t):
-  print('L\tF\twa-I\twa-C\tsa\tca\tNruns\tph\tpm\trs\trn\tisdom')
+  print('wa-I\twa-C\tsa\tca\tNruns\tNlevels\tph\tpm\trs\trn\tisdom\tF\tL')
   for x, r in t.iterrows():
-    print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
-        r['L'], r['F'], r['wa-I'], r['wa-C'], r['sa'], r['ca'], r['Nruns'],
-        r['ph'], r['pm'], r['rs'], r['rn'], r['isdom']))
+    print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
+        r['wa-I'], r['wa-C'], r['sa'], r['ca'], r['Nruns'], r['Nlvls'],
+        r['ph'], r['pm'], r['rs'], r['rn'], r['isdom'], r['F'], r['L']))
 
 def runit(args):
   t = pd.read_table(args.file)
