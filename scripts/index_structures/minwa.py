@@ -27,7 +27,7 @@ def check(args, va, fudge, mins):
     maxlv = len(va)
     prefix = 0
     for x in range(1,maxlv):
-      prefix += va[x-1] / 2
+      prefix += va[x-1] / args.runs_per_level
       new_sum = prefix + sum(va[x:])
       if new_sum < mins[x][0]:
         mins[x][0] = new_sum
@@ -104,11 +104,15 @@ def main(argv):
   parser.add_argument('--fanout', type=int, default=1000)
   parser.add_argument('--min_level', type=int, default=2)
   parser.add_argument('--max_level', type=int, default=10)
+  parser.add_argument('--runs_per_level', type=int, default=2)
   parser.add_argument('--step', type=float, default=0.5)
 
   args = parser.parse_args(argv)
   assert args.min_level >= 3
   assert args.max_level <= 9
+  assert args.runs_per_level >= 2
+  assert args.step > 0
+  assert args.fanout >= 2
   runit(args)
 
 if __name__ == '__main__':
