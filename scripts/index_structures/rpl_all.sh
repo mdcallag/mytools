@@ -13,7 +13,7 @@ grep -h Nruns xa.tsv.* | head -1 > o2.tsv.tmp
 cat o2.tsv.tmp o1.tsv > o2.tsv; rm -f o2.tsv.tmp
 
 # this generates cr.*
-bash cost_all_rpl.sh o2.tsv 100 tsv
+bash cost_all_rpl.sh o2.tsv 10 tsv
 
 # this finds configurations that are dominates (strictly worse) than other configs
 python rpl_dom.py --file=o2.tsv --max_sa=1.05 --max_ca=1.05 --max_runs=-1 > o3.tsv 2> e
