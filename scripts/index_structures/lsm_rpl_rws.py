@@ -130,8 +130,8 @@ def config_lsm_tree(args, level_config):
 
     if fo_diff > 1.1 or fo_diff < 0.9:
       print 'total fanout is %.1f and product of per-level fanouts is %.1f for '\
-            'database_gb(%s) and memtable_mb(%s). Difference is too large: %s' % (
-             total_fanout, fo_prod, args.database_gb, args.memtable_mb, args.level_config)
+            'database_gb(%s) and memtable_mb(%s). Difference is too large: %s, %s' % (
+             total_fanout, fo_prod, args.database_gb, args.memtable_mb, args.label, args.level_config)
       sys.exit(-1)
     elif fo_diff > 1.01 or fo_diff < 0.99:
       # adjust memtable_mb to reduce the difference
