@@ -28,5 +28,5 @@ if [ $(( ($pctp + $pctr + $pcti) )) -ne 100 ]; then
 fi
 
 #echo $pcti $pctp $pctr $nps $maxwai $maxwac $maxsa
-awk '{ if ($1 <= maxwai && $2 <= maxwac && $3 <= maxsa) { printf "%s\t%.1f\n", $0, ((pctp * $7) + (pctr * ($9 + ($10 * nps))) + (pcti * $2)) / 100.0 } }' \
+awk '{ if ($1 <= maxwai && $2 <= maxwac && $3 <= maxsa) { printf "%.1f\t%s\n", ((pctp * $7) + (pctr * ($9 + ($10 * nps))) + (pcti * $2)) / 100.0, $0 } }' \
     pcti=$pcti pctp=$pctp pctr=$pctr nps=$nps maxsa=$maxsa maxwac=$maxwac maxwai=$maxwai

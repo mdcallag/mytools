@@ -271,10 +271,19 @@ for maxt in $( seq 2 $max_level ); do
 done
 
 # expand: t+ l+
+function expand_tl {
+reduce_tfo=$1
+
 for lvls in $( seq 2 $max_level ); do
   # fanout from L0 to L1 is 1, so per-level fanout computed using 1 less level
   # this is the per-level fanout for the tiered levels after l1, it must be an integer
   tiered_fo=$( printf "%.0f" $( echo "e(l($total_fanout) / ($lvls - 1))" | bc -l ) )
+  if [[ $reduce_tfo -eq 1 ]]; then
+    tiered_fo=$(( tiered_fo / 2 ))
+    rtf=R
+  else
+    rtf=""
+  fi
 
   for first_l in $( seq 2 $lvls ); do
     last_t=$(( $first_l - 1 ))
@@ -288,18 +297,18 @@ for lvls in $( seq 2 $max_level ); do
     leveled_fo=$( printf "%.3f" $( echo "e(l($total_fanout / $total_tiered_fo) / ($lvls - $first_l + 1))" | bc -l ) )
 
     # echo $total_fanout total_fo, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $lvls levels, $last_t last_t, $first_l first_l
-    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo $leveled_fo 0 0 TL T${last_t}L${lvls}
+    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo $leveled_fo 0 0 TL T${last_t}${rtf}L${lvls}
 
     for n in 3 2 1; do
       divr=$(( ($tiered_fo * $n) / 4 ))
       if [[ $divr -ge 2 ]] ; then
-        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $leveled_fo $leveled_fo 0 0 TL T${last_t}L${lvls}
+        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $leveled_fo $leveled_fo 0 0 TL T${last_t}${rtf}L${lvls}
       fi
       ldivr=$divr
     done
-    for m in 2 4 8; do
+    for m in 2 4 6 8; do
       if [[ $m -lt $ldivr ]]; then
-        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $m $leveled_fo $leveled_fo 0 0 TL T${last_t}L${lvls}
+        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $m $leveled_fo $leveled_fo 0 0 TL T${last_t}${rtf}L${lvls}
       fi
     done
 
@@ -327,17 +336,17 @@ for lvls in $( seq 2 $max_level ); do
                 l_fo=$leveled_fo
                 ln_fo=$leveled_fo
               fi
-              expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $ln_fo $l_fo $last_ln $rpl TLN T${last_t}LN${last_ln}L${lvls}X$adjust
+              expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $ln_fo $l_fo $last_ln $rpl TLN T${last_t}${rtf}LN${last_ln}L${lvls}X$adjust
               for n in 3 2 1; do
                  divr=$(( ($tiered_fo * $n) / 4 ))
                 if [[ $divr -ge 2 ]] ; then
-                  expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $ln_fo $l_fo $last_ln $rpl TLN T${last_t}LN${last_ln}L${lvls}X$adjust
+                  expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $ln_fo $l_fo $last_ln $rpl TLN T${last_t}${rtf}LN${last_ln}L${lvls}X$adjust
                 fi
                 ldivr=$divr
               done
-              for m in 2 4 8; do
+              for m in 2 4 6 8; do
                 if [[ $m -lt $ldivr ]]; then
-                  expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $m $ln_fo $l_fo $last_ln $rpl TLN T${last_t}LN${last_ln}L${lvls}X$adjust
+                  expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $m $ln_fo $l_fo $last_ln $rpl TLN T${last_t}${rtf}LN${last_ln}L${lvls}X$adjust
                 fi
               done
             done
@@ -347,5 +356,9 @@ for lvls in $( seq 2 $max_level ); do
     done
   done
 done
+}
 
+# expand: t+ l+
+expand_tl 0
+expand_tl 1
 

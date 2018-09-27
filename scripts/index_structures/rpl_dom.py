@@ -26,7 +26,8 @@ def runit(args):
         if (r2['wa-I'] <= r1['wa-I'] and
             r2['wa-C'] <= r1['wa-C'] and
             r2['ph'] <= r1['ph'] and
-            r2['rs'] <= r1['rs']):
+            r2['rs'] <= r1['rs'] and
+            r2['rn'] <= r1['rn']):
 
           if (r2['sa'] > args.max_sa * r1['sa'] or
               r2['ca'] > args.max_ca * r1['ca']):
