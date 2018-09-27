@@ -33,24 +33,30 @@ function expand_leveled {
   max_lv=$1
   max_lvn=$2
   level_fo=$3
-  rpl=$4
-  family=$5
+  leveln_fo=$4
+  rpl=$5
+  family=$6
+  label=$7
 
   # echo leveled max_lv=$max_lv max_lvn=$max_lvn total_fo=$total_fanout level_fo=$level_fo 
 
   level_cnf=""
   for x in $( seq 1 $max_lv ); do
     if [[ $x -gt 1 ]]; then level_cnf+="-"; fi
-    if [[ $x -le $max_lvn ]]; then
+    if [[ $x -eq 1 ]]; then
       level_cnf+="l:$level_fo:$rpl"
+    elif [[ $x -le $max_lvn ]]; then
+      level_cnf+="l:$leveln_fo:$rpl"
+    elif [[ $x -eq $(( $max_lvn + 1 )) ]]; then
+      level_cnf+="l:$leveln_fo:1"
     else
       level_cnf+="l:$level_fo:1"
     fi
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family
-  sfx=$family.L${max_lv}.$level_cnf
-  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family $fmt > $pf0.$sfx
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family --label=$label $fmt
+  sfx=$family.$label.$level_cnf
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family --label=$label $fmt > $pf0.$sfx
   tail -1 $pf0.$sfx > $pf1.$sfx
   tail -1 $pf0.$sfx >> $allo
 }
@@ -61,6 +67,7 @@ function expand_tiered {
   max_level_rpl=$3
   rpl_lo=$4
   rpl_hi=$5
+  label=$6
 
   # echo expand_tiered with $maxt maxt, $level_fo level_fo, $max_level_rpl max_level_rpl, $rpl_lo lo, $rpl_hi hi
 
@@ -90,8 +97,8 @@ function expand_tiered {
     prev_rpl=$rpl
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=T
-  sfx=$family.L${maxt}.$level_cnf
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=T --label=$label $fmt
+  sfx=$family.$label.$level_cnf
   python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=T $fmt > $pf0.$sfx
   tail -1 $pf0.$sfx > $pf1.$sfx
   tail -1 $pf0.$sfx >> $allo
@@ -107,6 +114,7 @@ function expand_tiered_leveled {
   last_ln=$7
   ln_rpl=$8
   family=$9
+  label=${10}
 
   echo expand_tiered_leveled with $lvls lvls, $last_t last_t, $first_l first_l, $tiered_fo1 : $tiered_fo2 tiered_fo, $leveled_fo leveled_fo, $last_ln last_ln, $ln_rpl ln_rpl
 
@@ -134,9 +142,9 @@ function expand_tiered_leveled {
 
   done
 
-  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family
-  sfx=$family.L${lvls}.$level_cnf
-  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family $fmt > $pf0.$sfx
+  echo lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family --label=$label $fmt
+  sfx=$family.$label.$level_cnf
+  python lsm_rpl_rws.py --level_config=$level_cnf --database_gb=$db_gb --memtable_mb=$wb_mb --family=$family --label=$label $fmt > $pf0.$sfx
   tail -1 $pf0.$sfx > $pf1.$sfx
   tail -1 $pf0.$sfx >> $allo
 }
@@ -169,7 +177,7 @@ function compute_fanout_prod {
 for max_lv in $( seq 2 $max_level ); do
   # per-level fanout is nth root of total fanout
   level_fo=$( printf "%.3f" $( echo "e(l($total_fanout) / $max_lv)" | bc -l ) )
-  expand_leveled $max_lv 0 $level_fo 1 L
+  expand_leveled $max_lv 0 $level_fo $level_fo 1 L L$max_lv
 done
 
 # expand: l+ using 2..8 runs per level but max level has 1 run
@@ -184,10 +192,25 @@ for max_lv in $( seq 2 $max_level ); do
 
   #echo expand_leveled-N with $max_lv max_lv, $level_fo level_fo, $rpl rpl
 
+  # first generate with same per-level fanout for all levels
   for max_lvn in $( seq 1 $(( $max_lv - 1 )) ); do
     for rpl in $( seq 2 $max_rpl ); do
       # echo leveled-N: $max_lv max_lv, $max_lvn max_lvn, $rpl rpl, $level_fo fanout
-      expand_leveled $max_lv $max_lvn $level_fo $rpl LN
+      expand_leveled $max_lv $max_lvn $level_fo $level_fo $rpl LN LNC${max_lvn}L${max_lv}
+    done
+  done
+
+  # then generate with same write-amp per level -- more fanout when input level
+  # has more than one run. This computes fanout that minimizes write-amp for level-N
+
+  for max_lvn in $( seq 1 $(( $max_lv - 1 )) ); do
+    for rpl in $( seq 2 $max_rpl ); do
+      k=$( echo "$rpl ^ $max_lvn" | bc )
+      level_fo=$( printf "%.3f" $( echo "e(l($total_fanout / $k) / $max_lv)" | bc -l ) )
+      leveln_fo=$( printf "%.3f" $( echo "$rpl * $level_fo" | bc -l ) )
+      echo $max_lvn max_lvn, $rpl rpl, $max_lv max_lv : $k $leveln_fo $level_fo
+      # echo leveled-N: $max_lv max_lv, $max_lvn max_lvn, $rpl rpl, $level_fo fanout
+      expand_leveled $max_lv $max_lvn $level_fo $leveln_fo $rpl LN LNA${max_lvn}L${max_lv}
     done
   done
 done
@@ -239,7 +262,7 @@ for maxt in $( seq 2 $max_level ); do
   fi
   for max_level_rpl in $( seq 2 $mr ); do
     # echo et $total_fanout total_fo, $level_fo level_fo, $fo_prod fo_prod, $fo_ratio fo_ratio, $rpl_lo lo, $rpl_hi hi, $maxt maxt
-    # expand_tiered $maxt $level_fo $max_level_rpl $rpl_lo $rpl_hi 
+    # expand_tiered $maxt $level_fo $max_level_rpl $rpl_lo $rpl_hi T$maxt
     echo skip expand_tiered
   done
 done
@@ -262,10 +285,11 @@ for lvls in $( seq 2 $max_level ); do
     leveled_fo=$( printf "%.3f" $( echo "e(l($total_fanout / $total_tiered_fo) / ($lvls - $first_l + 1))" | bc -l ) )
 
     # echo $total_fanout total_fo, $tiered_fo tiered_fo, $leveled_fo leveled_fo, $lvls levels, $last_t last_t, $first_l first_l
-    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo 0 0 TL
+    expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo 0 0 TL T${last_t}L${lvls}
     for n in 1 2 3; do
-      if [[ $(( ($tiered_fo * $n) / 4 )) -ge 2 ]] ; then
-        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $(( ($tiered_fo * $n) / 4 )) $leveled_fo 0 0 TL
+      divr=$(( ($tiered_fo * $n) / 4 ))
+      if [[ $divr -ge 2 ]] ; then
+        expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $leveled_fo 0 0 TL T${last_t}L${lvls}
       fi
     done
 
@@ -279,10 +303,11 @@ for lvls in $( seq 2 $max_level ); do
       for last_ln in $( seq $first_l $(( $lvls - 1 )) ) ; do
         if [[ $max_rpl -ge 2 ]]; then
           for rpl in $( seq 2 $max_rpl ); do
-            expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo $last_ln $rpl TLN
+            expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $tiered_fo $leveled_fo $last_ln $rpl TLN T${last_t}LN${last_ln}L${lvls}
             for n in 1 2 3; do
-              if [[ $(( ($tiered_fo * $n) / 4 )) -ge 2 ]] ; then
-                expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $(( ($tiered_fo * $n) / 4 )) $leveled_fo $last_ln $rpl TLN
+               divr=$(( ($tiered_fo * $n) / 4 ))
+              if [[ $divr -ge 2 ]] ; then
+                expand_tiered_leveled $lvls $last_t $first_l $tiered_fo $divr $leveled_fo $last_ln $rpl TLN T${last_t}LN${last_ln}L${lvls}
               fi
             done
           done

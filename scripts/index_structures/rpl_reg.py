@@ -97,12 +97,12 @@ def runit(args):
 
   train_y = {}
   test_y = {}
-  for cn in ['wa-I', 'wa-C', 'ph', 'rs', 'rn', 'L', 'isdom']:
+  for cn in ['wa-I', 'wa-C', 'ph', 'rs', 'rn', 'L', 'C', 'isdom']:
     train_y[cn] = train_df[cn].copy()
     test_y[cn] = test_df[cn].copy()
 
-  train_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'isdom'], axis=1, inplace=True)
-  test_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'isdom'], axis=1, inplace=True)
+  train_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'C', 'isdom'], axis=1, inplace=True)
+  test_df.drop(['wa-I', 'wa-C', 'ph', 'pm', 'rs', 'rn', 'L', 'C', 'isdom'], axis=1, inplace=True)
 
   train_df.F = train_df.F.astype('category').cat.codes
   test_df.F = test_df.F.astype('category').cat.codes

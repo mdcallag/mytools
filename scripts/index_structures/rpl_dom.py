@@ -3,11 +3,11 @@ import argparse
 import sys
 
 def print_df(t):
-  print('wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tisdom\tF\tL')
+  print('wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tisdom\tF\tL\tC')
   for x, r in t.iterrows():
-    print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
+    print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (
         r['wa-I'], r['wa-C'], r['sa'], r['ca'], r['Nruns'], r['Nlvls'],
-        r['ph'], r['pm'], r['rs'], r['rn'], r['isdom'], r['F'], r['L']))
+        r['ph'], r['pm'], r['rs'], r['rn'], r['isdom'], r['F'], r['L'], r['C']))
 
 def runit(args):
   t = pd.read_table(args.file)
@@ -34,20 +34,20 @@ def runit(args):
 
           if args.print_dom:
             print('%s dominates %s: (%s : %s, %s : %s, %s : %s, %s : %s' % (
-                r2['L'], r1['L'], r2['wa-I'], r1['wa-I'],
+                r2['C'], r1['C'], r2['wa-I'], r1['wa-I'],
                 r2['wa-C'], r1['wa-C'], r2['ph'], r1['ph'], r2['rs'], r1['rs']))
 
-          if not dominates.has_key(r2['L']):
-            dominates[r2['L']] = [r1['L']]
+          if not dominates.has_key(r2['C']):
+            dominates[r2['C']] = [r1['C']]
           else:
-            dominates[r2['L']].append([r1['L']])
+            dominates[r2['C']].append([r1['C']])
 
-          if not dominated_by.has_key(r1['L']):
-            dominated_by[r1['L']] = [r2['L']]
+          if not dominated_by.has_key(r1['C']):
+            dominated_by[r1['C']] = [r2['C']]
           else:
-            dominated_by[r1['L']].append([r2['L']])
+            dominated_by[r1['C']].append([r2['C']])
           
-  is_dom = [dominated_by.has_key(r1['L']) for x1, r1 in t.iterrows()]
+  is_dom = [dominated_by.has_key(r1['C']) for x1, r1 in t.iterrows()]
   t['isdom'] = is_dom
   print_df(t)
   # t2 = t[is_dom]

@@ -130,8 +130,8 @@ def config_lsm_tree(args, level_config):
 
     if fo_diff > 1.1 or fo_diff < 0.9:
       print 'total fanout is %.1f and product of per-level fanouts is %.1f for '\
-            'database_gb(%s) and memtable_mb(%s). Difference is too large.' % (
-             total_fanout, fo_prod, args.database_gb, args.memtable_mb)
+            'database_gb(%s) and memtable_mb(%s). Difference is too large: %s' % (
+             total_fanout, fo_prod, args.database_gb, args.memtable_mb, args.level_config)
       sys.exit(-1)
     elif fo_diff > 1.01 or fo_diff < 0.99:
       # adjust memtable_mb to reduce the difference
@@ -285,11 +285,14 @@ def config_lsm_tree(args, level_config):
         # Cost to merge runs from previous level into one run from this level.
         # Assume runs in Lx are wa_fudge full
 
-        # Relative size of the run ln Lx after the merge
-        size_after = (lvl_fanout[x] * args.wa_fudge) + lvl_rpl[x-1]
+        # Relative size of the run ln Lx before the merge
+        size_before = lvl_fanout[x] * args.wa_fudge
         # normalize work done by amount of data moved into this level
-        wa_io = size_after / lvl_rpl[x-1]
-        wa_cpu = math.ceil(math.log(size_after, 2) / lvl_rpl[x-1]) 
+        wa_io = size_before / lvl_rpl[x-1]
+        wa_cpu = size_before / lvl_rpl[x-1]
+        if lvl_rpl[x-1] > 1:
+          # compares to merge N runs from smaller level
+          wa_cpu += math.ceil(math.log(lvl_rpl[x-1], 2))
       else:
         print 'bad type %s at %d' % (lvl_comp_type[x], x)
         assert 0
@@ -503,26 +506,27 @@ def print_result(lsm, args):
     #   range-seek
     #   range-next
     if args.csv:
-      print 'wa-I,wa-C,sa,ca,Nruns,Nlvls,ph,pm,rs,rn,F,L'
-      print '%.1f,%.1f,%.2f,%.3f,%d,%d,%.1f,%.1f,%.1f,%.1f,%s,%s' % (
+      print 'wa-I,wa-C,sa,ca,Nruns,Nlvls,ph,pm,rs,rn,F,L,C'
+      print '%.1f,%.1f,%.2f,%.3f,%d,%d,%.1f,%.1f,%.1f,%.1f,%s,%s,%s' % (
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
         lsm['sorted_runs'], lsm['max_level'],
         lsm['hit_cmp'], lsm['miss_cmp'],
         lsm['range_seek'], lsm['range_next'],
-        args.family, args.level_config)
+        args.family, args.label, args.level_config)
     else:
-      print 'wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tF\tL'
-      print '%.1f\t%.1f\t%.2f\t%.3f\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%s' % (
+      print 'wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tF\tL\tC'
+      print '%.1f\t%.1f\t%.2f\t%.3f\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%s\t%s\t%s' % (
         lsm['write_amp_io'], lsm['write_amp_cpu'], lsm['space_amp'], lsm['cache_amp'],
         lsm['sorted_runs'], lsm['max_level'],
         lsm['hit_cmp'], lsm['miss_cmp'],
         lsm['range_seek'], lsm['range_next'],
-        args.family, args.level_config)
+        args.family, args.label, args.level_config)
 
 def runme(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--family', default='Z')
+    parser.add_argument('--family', default='F')
+    parser.add_argument('--label', default='L')
     parser.add_argument('--memtable_mb', type=int, default=256)
     parser.add_argument('--wa_fudge', type=float, default=0.8)
     parser.add_argument('--database_gb', type=int, default=1024)

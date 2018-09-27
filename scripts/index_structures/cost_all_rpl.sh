@@ -28,8 +28,8 @@ function gen {
   wl_r=$6
   of=$7
 
-  printf "wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tcost\tF\tL\n" > $of.$sfx
-  grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 12,12 | head -5 >> $of.$sfx
+  printf "wa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tcost\tF\tL\tC\n" > $of.$sfx
+  grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 14,14 | head -5 >> $of.$sfx
   #echo "---" >> $of.$sfx
   grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | egrep '^L4|TL4_3_0_0' >> $of.$sfx
 }

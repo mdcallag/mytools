@@ -22,5 +22,5 @@ awk '{ print $12 }' o1.tsv > o1.x
 awk '{ print $12 }' o2.tsv > o2.x
 awk '{ print $13 }' o3.tsv > o3.x
 
-mv o.gen xa.* x1.* cr.* o?.tsv o?.x $odir
+# mv o.gen xa.* x1.* cr.* o?.tsv o?.x $odir
 
