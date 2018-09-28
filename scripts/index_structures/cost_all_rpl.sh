@@ -29,11 +29,11 @@ function gen {
   wl_r=$6
   of=$7
 
-  printf "cost\twa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tF\tL\tC\n" > $of.$sfx
-  grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 1,1 | head -5 >> $of.$sfx
+  printf "cost\twa-I\twa-C\tsa\tca\tNruns\tNlvls\tph\tpm\trs\trn\tisdom\tF\tL\tC\n" > $of.$sfx
+  # grep False to only consider plans that are not dominated
+  grep -v Nruns $fn | grep False | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 1,1 | head -5 >> $of.$sfx
   echo "---" >> $of.$sfx
-  #grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | grep 'TL' | sort -nk 1,1 | head -1 >> $of.$sfx
-  grep -v Nruns $fn | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | grep 'T1L' | sort -nk 1,1 | head -1 >> $of.$sfx
+  grep -v Nruns $fn | grep False | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | grep 'T1L' | sort -nk 1,1 | head -1 >> $of.$sfx
 }
 
 #   point-only
@@ -69,16 +69,6 @@ for x in 1 2 3 4 5; do echo $x; cat cr.$pfx.c$x.tsv; done > cr.$pfx.tsv
 #   insert-only
 wl="100 0 0"
 pfx=io
-gen 10  40 2.5  $wl cr.$pfx.c1
-gen 20  40 2    $wl cr.$pfx.c2
-gen 30  60 2    $wl cr.$pfx.c3
-gen 40  80 1.5  $wl cr.$pfx.c4
-gen 80 160 1.25 $wl cr.$pfx.c5
-for x in 1 2 3 4 5; do echo $x; cat cr.$pfx.c$x.tsv; done > cr.$pfx.tsv
-
-#   insert+point
-wl="50 50 0"
-pfx=ip
 gen 10  40 2.5  $wl cr.$pfx.c1
 gen 20  40 2    $wl cr.$pfx.c2
 gen 30  60 2    $wl cr.$pfx.c3
