@@ -16,7 +16,8 @@ cat o2.tsv.tmp o1.tsv > o2.tsv; rm -f o2.tsv.tmp
 bash cost_all_rpl.sh o2.tsv 10 tsv
 
 # this finds configurations that are dominates (strictly worse) than other configs
-python rpl_dom.py --file=o2.tsv --fuzz=0 --max_runs=-1 > o3.tsv 2> e
+python rpl_dom.py --file=o2.tsv --fuzz=0 --max_runs=-1 > o3.tsv 2> e1
+python rpl_dom.py --file=o2.tsv --fuzz=1.05 --max_runs=-1 > o3.tsv.105 2> e2
 
 awk '{ print $12 }' o1.tsv > o1.x
 awk '{ print $12 }' o2.tsv > o2.x
@@ -29,6 +30,9 @@ wc -l o3.tsv >> o4
 echo "False, True counts" >> o4
 grep False o3.tsv | wc -l >> o4
 grep True o3.tsv | wc -l >> o4
+echo "False, True counts with 1.05 fuzz" >> o4
+grep False o3.tsv.105 | wc -l >> o4
+grep True o3.tsv.105 | wc -l >> o4
 
-mv o.gen xa.* x1.* cr.* o?.tsv o?.x o4 $odir
+mv o.gen xa.* x1.* cr.* o?.tsv o?.x o4 o3.tsv.105 $odir
 

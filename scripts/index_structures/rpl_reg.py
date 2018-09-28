@@ -56,6 +56,11 @@ def runit(args):
   train_df = pd.concat(train_dfs)
   print('before move %d train' % train_df.count()['L'])
 
+  # TOD0
+  # if args.print_dom: print('Count before %d' % t.count()['C'])
+  # t.drop_duplicates(subset='C', keep='first', inplace=True)
+  # if args.print_dom: print('Count after %d' % t.count()['C'])
+
   if args.test != None:
     test_dfs = []
     for f in args.test.split(','):
