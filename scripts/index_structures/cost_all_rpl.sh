@@ -1,6 +1,7 @@
 fn=$1
 nps=$2
 sfx=$3
+min_cost_level=$4
 
 # Run for workloads X constraints
 
@@ -33,7 +34,7 @@ function gen {
   # grep False to only consider plans that are not dominated
   grep -v Nruns $fn | grep False | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps $wa_io $wa_cpu $sa | sort -nk 1,1 | head -5 >> $of.$sfx
   echo "---" >> $of.$sfx
-  grep -v Nruns $fn | grep False | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | grep 'T1L' | sort -nk 1,1 | head -1 >> $of.$sfx
+  grep -v Nruns $fn | grep False | bash cost_rpl.sh $wl_i $wl_p $wl_r $nps 10000 10000 1000 | grep 'T1L' | awk '{ if ($7 >= mcl) { print $0 } }' mcl=$min_cost_level | sort -nk 1,1 | head -1 >> $of.$sfx
 }
 
 #   point-only

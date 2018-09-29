@@ -1,6 +1,7 @@
 max_level=$1
 db_gb=$2
 wb_mb=$3
+min_cost_level=$4
 
 odir=rpl.mxl.${max_level}.dbgb.${db_gb}.wbmb.${wb_mb}
 rm -rf $odir
@@ -12,12 +13,13 @@ bash gen_rpl.sh $max_level $db_gb $wb_mb tsv > o.gen
 grep -h Nruns xa.tsv.* | head -1 > o2.tsv.tmp
 cat o2.tsv.tmp o1.tsv > o2.tsv; rm -f o2.tsv.tmp
 
-# this generates cr.*
-bash cost_all_rpl.sh o2.tsv 10 tsv
-
 # this finds configurations that are dominates (strictly worse) than other configs
 python rpl_dom.py --file=o2.tsv --fuzz=0 --max_runs=-1 > o3.tsv 2> e1
 python rpl_dom.py --file=o2.tsv --fuzz=1.05 --max_runs=-1 > o3.tsv.105 2> e2
+
+# this generates cr.*
+# this uses o3.tsv to ignore configs that are dominated or duplicate
+bash cost_all_rpl.sh o3.tsv 10 tsv $min_cost_level
 
 awk '{ print $12 }' o1.tsv > o1.x
 awk '{ print $12 }' o2.tsv > o2.x
