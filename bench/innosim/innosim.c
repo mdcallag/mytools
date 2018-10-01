@@ -352,16 +352,18 @@ void page_fill(char* page, unsigned int page_num) {
   memset(page + PAGE_DATA_OFFSET, page_num, PAGE_DATA_BYTES);
 }
 
-void page_check_checksum(char* page, unsigned int page_num) {
+void page_check_checksum(char* page, unsigned int page_num, int file_num, off_t offset) {
     int computed_cs = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
     int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
     unsigned int stored_page_num = deserialize_int(page + PAGE_NUM_OFFSET);
 
     if (computed_cs != stored_cs || page_num != stored_page_num) {
+      char fname_buf[1000];
+      snprintf(fname_buf, 1000-1, "%s.%d", data_fname, file_num);
       fprintf(stderr,
-              "Cannot validate page, checksum stored(%d) and computed(%d), "
-              "page# stored(%u) and expected(%u)\n",
-              stored_cs, computed_cs, stored_page_num, page_num);
+              "Cannot validate page in file(%d, %s), checksum stored(%d) and computed(%d), "
+              "page# stored(%u) and expected(%u) at offset(%lld)\n",
+              file_num, fname_buf, stored_cs, computed_cs, stored_page_num, page_num, (longlong)offset);
       exit(-1);
     }
 }
@@ -370,7 +372,7 @@ void page_write_checksum(char* page, unsigned int page_num) {
     int checksum = adler32(0, (unsigned char*) (page + PAGE_DATA_OFFSET), PAGE_DATA_BYTES);
     serialize_int(page + PAGE_CHECKSUM_OFFSET, checksum);
     serialize_int(page + PAGE_NUM_OFFSET, page_num);
-    page_check_checksum(page, page_num); /* TODO remove this */
+    page_check_checksum(page, page_num, -1, 0); /* TODO remove this */
 }
 
 
@@ -728,13 +730,13 @@ void* user_func(void* arg) {
 
   while (!shutdown_user) {
     int io_ops = 0;
-    longlong block_num;
+    longlong logical_block_num, file_block_num;
     int file_num;
     off_t offset;
 
-    block_num = rand_block(&ctx);
-    block_to_file(block_num, &file_num, &block_num);
-    offset = block_num * data_block_size;
+    logical_block_num = rand_block(&ctx);
+    block_to_file(logical_block_num, &file_num, &file_block_num);
+    offset = file_block_num * data_block_size;
 
     if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
       /* Do the read when it misses the pretend cache */
@@ -742,7 +744,7 @@ void* user_func(void* arg) {
       ++io_ops;
       assert(pread64(data_fd[file_num], data, data_block_size, offset) == data_block_size);
 
-      page_check_checksum(data, (unsigned int) block_num);
+      page_check_checksum(data, (unsigned int) file_block_num, file_num, offset);
 
       if (compress_level)
         decompress_page(decomp_buf, data_block_size);
