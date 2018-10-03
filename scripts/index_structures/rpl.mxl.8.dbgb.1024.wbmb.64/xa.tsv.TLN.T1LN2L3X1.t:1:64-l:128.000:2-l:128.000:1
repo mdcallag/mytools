@@ -1,0 +1,45 @@
+memtable_mb  64
+wa_fudge  0.8
+database_gb 1024, database_mb 1048576
+level_config  t:1:64-l:128.000:2-l:128.000:1
+row_size 128, key_size 8
+file_mb  32
+block_bytes  4096
+bloom_on_max 0, bloom_on_memtable 0
+bloom_filter_bits 10, bloom_filter_compares 2
+bytes_per_block_pointer  6
+Mrows 8589.93
+blocks per file 8192, block index compares 13
+rows_per_block 32, compare_per_block 5
+fo prod 1.00
+fo prod 128.00
+fo prod 16384.00
+total_fanout 16384.00
+L0 /run: 0.5 Mrows, 64.0 MB, 0/0 Nfiles/cmp, 19/19/19 cmp hit/miss/m_nobf :: /level 0.5 Mrows, 64.0 MB, 0 bloom
+L1 /run: 0.5 Mrows, 64.0 MB, 2/1 Nfiles/cmp, 21/3/19 cmp hit/miss/m_nobf :: /level 33.6 Mrows, 4096.0 MB, 1 bloom
+L2 /run: 67.1 Mrows, 8192.0 MB, 256/8 Nfiles/cmp, 28/10/26 cmp hit/miss/m_nobf :: /level 134.2 Mrows, 16384.0 MB, 1 bloom
+L3 /run: 8589.9 Mrows, 1048576.0 MB, 32768/15 Nfiles/cmp, 33/33/33 cmp hit/miss/m_nobf :: /level 8589.9 Mrows, 1048576.0 MB, 0 bloom
+L0: write-amp 1.00, comp-cmp 0.00
+L1: write-amp 1.00, comp-cmp 1.00
+L2: write-amp 1.60, comp-cmp 7.60
+L3: write-amp 51.20, comp-cmp 52.20
+Compaction total write-amp: io 54.80, cpu 60.80
+insert compares: 19.00 memtable, 79.80 memtable + compaction
+space-amp: 1.02
+L0: cache_mb 64.0, bf_mb 0.0
+L1: cache_mb 54.0, bf_mb 0.6, bi_mb 0.2
+L2: cache_mb 216.0, bf_mb 80.0, bi_mb 28.0
+L3: cache_mb 3584.0, bf_mb 0.0, bi_mb 3584.0
+cache_amp 0.0037, cache_mb 3918
+L0 rpl=1 cum hit/miss/mnbf 19.00/19.00/19.00, level hit/miss/mnbf/ehit 19.00/19.00/19.00/19.00, cum/level phit 0.00006/0.00006
+L1 rpl=64 cum hit/miss/mnbf 210.71/211.00/1235.00, level hit/miss/mnbf/ehit 117.00/192.00/1216.00/191.71, cum/level phit 0.00397/0.00391
+L2 rpl=2 cum hit/miss/mnbf 230.99/231.00/1287.00, level hit/miss/mnbf/ehit 38.00/20.00/52.00/20.28, cum/level phit 0.01959/0.01562
+L3 rpl=1 cum hit/miss/mnbf 263.99/264.00/1320.00, level hit/miss/mnbf/ehit 33.00/33.00/33.00/33.00, cum/level phit 1.00000/0.98041
+after L1 merge range_compares next_cmp = 6.00
+after L2 merge range_compares next_cmp = 7.00
+next_cmp += 1.30 + 1 to 9.30 after cross-level merge
+Compares point hit/miss/mnbf: 263.99	264.00	1320.00, 68 sorted runs
+Compares range seek/next: 1320.00	9.30
+
+wa-I	wa-C	sa	ca	Nruns	Nlvls	ph	pm	rs	rn	F	L	C
+54.8	79.8	1.02	0.004	68	3	264.0	264.0	1320.0	9.3	TLN	T1LN2L3X1	t:1:64-l:128.000:2-l:128.000:1
