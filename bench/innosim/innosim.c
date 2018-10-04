@@ -1007,7 +1007,11 @@ void* writer(void* arg) {
     block_to_file(logical_block_num, &file_num, &file_block_num);
     offset = file_block_num * data_block_size;
 
+    /* This is here to generate memory traffic from buffer pool */
     memcpy(data, rand_buffer_pool_page(&ctx), data_block_size);
+
+    /* This is here because buffer pool contents can't be trusted */
+    page_fill(data, logical_block_num, &ctx);
     page_write_checksum(data, (unsigned int) logical_block_num);
 
     lock_block(logical_block_num);
