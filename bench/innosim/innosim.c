@@ -101,6 +101,10 @@ char* buffer_pool_mem = NULL;
 char* compressed_page = NULL;
 unsigned int compressed_page_len = 0;
 
+/* Lock bits to get exclusive access to block during IO */
+typedef unsigned char byte;
+byte* block_lock;
+
 int num_writers = 8;
 int num_users = 8;
 
@@ -151,6 +155,9 @@ pthread_mutex_t buffer_pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t buffer_pool_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_pool_list_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t buffer_pool_list_not_full = PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t block_lock_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t block_lock_cond = PTHREAD_COND_INITIALIZER;
 
 #define INTERVAL_MAX  100000
 #define TOTAL_MAX    1000000
@@ -226,6 +233,12 @@ double rand_double(struct drand48_data* ctx) {
   return r;
 }
 
+long rand_long(struct drand48_data* ctx) {
+  long l;
+  assert(!lrand48_r(ctx, &l));
+  return l;
+}
+
 void block_to_file(longlong block_num, int* file_num, longlong* block_in_file) {
   *file_num = block_num / n_blocks_per_file;
   *block_in_file = block_num % n_blocks_per_file;
@@ -295,18 +308,6 @@ longlong rand_block(struct drand48_data* ctx) {
   }
 }
 
-char* rand_buffer_pool_ptr(long long bytes_from_end, struct drand48_data* ctx) {
- long long offset = (long long) (rand_double(ctx) * (buffer_pool_bytes - 1));
- offset -= bytes_from_end;
- if (offset < 0) offset = 0;
- return (buffer_pool_mem + offset);
-}
-
-char* rand_buffer_pool_page(struct drand48_data* ctx) {
- longlong buf_pool_page_num = (longlong) (rand_double(ctx) * (buffer_pool_pages - 1));
- return (buffer_pool_mem + (buf_pool_page_num * data_block_size));
-}
-
 void now(struct timeval* tv) {
   assert(!gettimeofday(tv, NULL));
 }
@@ -343,38 +344,177 @@ unsigned int deserialize_int(char* dest) {
   return result;
 }
 
-#define PAGE_NUM_OFFSET 0
-#define PAGE_CHECKSUM_OFFSET 4
-#define PAGE_DATA_OFFSET 8
-#define PAGE_DATA_BYTES (data_block_size - PAGE_DATA_OFFSET)
+#define PAGE_NUM_OFFSET1 0
+#define PAGE_NUM_OFFSET2 (data_block_size - 4)
 
-void page_fill(char* page, unsigned int page_num) {
-  memset(page + PAGE_DATA_OFFSET, page_num, PAGE_DATA_BYTES);
+#define PAGE_CHECKSUM_OFFSET1 4
+#define PAGE_CHECKSUM_OFFSET2 (data_block_size - 8)
+
+#define PAGE_DATA_OFFSET 8
+#define PAGE_DATA_BYTES (data_block_size - (2 * PAGE_DATA_OFFSET))
+
+#define ROW_SIZE_AS_INT 64
+#define ROW_SIZE_AS_BYTE (4 * ROW_SIZE_AS_INT)
+
+/* Warning: nothing is done to avoid concurrent read/write to a buffer pool page */
+char* rand_buffer_pool_page(struct drand48_data* ctx) {
+ longlong buf_pool_page_num = (longlong) (rand_double(ctx) * (buffer_pool_pages - 1));
+ return (buffer_pool_mem + (buf_pool_page_num * data_block_size));
 }
 
 void page_check_checksum(char* page, unsigned int page_num, int file_num, off_t offset) {
     int computed_cs = adler32(0, (unsigned char*) page + PAGE_DATA_OFFSET, PAGE_DATA_BYTES);
-    int stored_cs = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET);
-    unsigned int stored_page_num = deserialize_int(page + PAGE_NUM_OFFSET);
+    int stored_cs1 = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET1);
+    int stored_cs2 = (int) deserialize_int(page + PAGE_CHECKSUM_OFFSET2);
 
-    if (computed_cs != stored_cs || page_num != stored_page_num) {
+    unsigned int stored_page_num1 = deserialize_int(page + PAGE_NUM_OFFSET1);
+    unsigned int stored_page_num2 = deserialize_int(page + PAGE_NUM_OFFSET1);
+
+    if (computed_cs != stored_cs1 || page_num != stored_page_num1) {
       char fname_buf[1000];
       snprintf(fname_buf, 1000-1, "%s.%d", data_fname, file_num);
       fprintf(stderr,
-              "Cannot validate page in file(%d, %s), checksum stored(%d) and computed(%d), "
+              "Cannot validate page head in file(%d, %s), checksum stored(%x) and computed(%x), "
               "page# stored(%u) and expected(%u) at offset(%lld)\n",
-              file_num, fname_buf, stored_cs, computed_cs, stored_page_num, page_num, (longlong)offset);
+              file_num, fname_buf, stored_cs1, computed_cs, stored_page_num1, page_num, (longlong)offset);
+      exit(-1);
+    }
+    if (computed_cs != stored_cs2 || page_num != stored_page_num2) {
+      char fname_buf[1000];
+      snprintf(fname_buf, 1000-1, "%s.%d", data_fname, file_num);
+      fprintf(stderr,
+              "Cannot validate page tail in file(%d, %s), checksum stored(%x) and computed(%x), "
+              "page# stored(%u) and expected(%u) at offset(%lld)\n",
+              file_num, fname_buf, stored_cs2, computed_cs, stored_page_num2, page_num, (longlong)offset);
       exit(-1);
     }
 }
 
 void page_write_checksum(char* page, unsigned int page_num) {
     int checksum = adler32(0, (unsigned char*) (page + PAGE_DATA_OFFSET), PAGE_DATA_BYTES);
-    serialize_int(page + PAGE_CHECKSUM_OFFSET, checksum);
-    serialize_int(page + PAGE_NUM_OFFSET, page_num);
+    serialize_int(page + PAGE_CHECKSUM_OFFSET1, checksum);
+    serialize_int(page + PAGE_CHECKSUM_OFFSET2, checksum);
+    serialize_int(page + PAGE_NUM_OFFSET1, page_num);
+    serialize_int(page + PAGE_NUM_OFFSET2, page_num);
     page_check_checksum(page, page_num, -1, 0); /* TODO remove this */
 }
 
+void page_fill(char* page, unsigned int page_num, struct drand48_data* randctx) {
+  int rv = (int) rand_long(randctx);
+  char *p = page + PAGE_DATA_OFFSET;
+  int limit = PAGE_DATA_BYTES / 4;
+  int x;
+
+  for (x = 0; x < limit; ++x) {
+    serialize_int(p, rv);
+    rv++;
+    p += 4;
+  }
+}
+
+void page_dirty(char* page, int nints, struct drand48_data* randctx) {
+  int rv = (int) rand_long(randctx);
+  char *p = page + PAGE_DATA_OFFSET;
+  int x;
+ 
+  if ((nints*4) > PAGE_DATA_BYTES) {
+    printf("page_dirty called with nints %d\n", nints);
+    exit(-1);
+  }
+
+  for (x = 0; x < nints; ++x) {
+    serialize_int(p, rv);
+    rv++;
+    p += 4;
+  }
+}
+
+byte* allocate_bits(size_t nbits) {
+  size_t nbytes = (nbits / 8) + 1;
+  byte* uc = malloc(nbytes);
+  memset(uc, 0, nbytes);
+  assert(uc);
+  return uc;
+}
+
+int bit_get(byte* bm, int byte_no, int bit_no) {
+  byte bv = bm[byte_no];
+  return (bv >> bit_no) & 1;
+}
+
+void bit_set(byte* bm, int byte_no, int bit_no) {
+  byte bv = bm[byte_no];
+  bv |= (byte)1 << bit_no;
+  assert(!bit_get(bm, byte_no, bit_no));
+  bm[byte_no] = bv;
+}
+
+void bit_clear(byte* bm, int byte_no, int bit_no) {
+  assert(bit_get(bm, byte_no, bit_no));
+  bm[byte_no] &= ~((byte)1 << bit_no);
+}
+
+void test_bitmap(int nbits) {
+  byte* bm = allocate_bits(nbits);
+  int x, y;
+
+  for (x=0; x < nbits; ++x)
+    assert(!bit_get(bm, x/8, x%8));
+
+  for (x=0; x < nbits; ++x) {
+    bit_set(bm, x/8, x%8);
+    assert(bit_get(bm, x/8, x%8));
+    bit_clear(bm, x/8, x%8);
+    assert(!bit_get(bm, x/8, x%8));
+  }
+
+  for (x=0; x < nbits; ++x)
+    assert(!bit_get(bm, x/8, x%8));
+
+  for (x=32; x < 40; ++x) {
+    bit_set(bm, x/8, x%8);
+    assert(bit_get(bm, x/8, x%8));
+
+    for (y=32; y < 40; ++y)
+      if (x != y)
+        assert(!bit_get(bm, y/8, y%8));
+
+    bit_clear(bm, x/8, x%8);
+  }
+
+  for (x=0; x < nbits; ++x)
+    assert(!bit_get(bm, x/8, x%8));
+
+  free(bm);
+}
+
+void lock_block(longlong block_num) {
+  int byte_no = block_num / 8;
+  int bit_no = block_num % 8;
+
+  assert(block_num >= 0 && block_num <= n_blocks);
+
+  pthread_mutex_lock(&block_lock_mutex);
+
+  while (bit_get(block_lock, byte_no, bit_no))
+    pthread_cond_wait(&block_lock_cond, &block_lock_mutex);
+
+  bit_set(block_lock, byte_no, bit_no);
+
+  pthread_mutex_unlock(&block_lock_mutex);
+}
+
+void unlock_block(longlong block_num) {
+  int byte_no = block_num / 8;
+  int bit_no = block_num % 8;
+
+  assert(block_num >= 0 && block_num <= n_blocks);
+
+  pthread_mutex_lock(&block_lock_mutex);
+  bit_clear(block_lock, byte_no, bit_no);
+  pthread_cond_broadcast(&block_lock_cond);
+  pthread_mutex_unlock(&block_lock_mutex);
+}
 
 void decompress_page(char* decomp_buf, unsigned int decomp_buf_len) {
   z_stream stream;
@@ -629,8 +769,7 @@ void write_log(pthread_mutex_t* mux, longlong* offset, longlong file_size, int w
 }
 
 void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
-  char *ptr = rand_buffer_pool_ptr(100, ctx);
-  int x;
+  char *page = rand_buffer_pool_page(ctx);
 
   pthread_mutex_lock(&buffer_pool_mutex);
 
@@ -641,8 +780,8 @@ void buffer_pool_dirty_page(buffer_pool_t* pool, struct drand48_data* ctx) {
   pthread_mutex_unlock(&buffer_pool_mutex);
 
   /* Simulate modifying data in the page */
-  for (x=0; x < 100; ++x, ++ptr)
-    *ptr = (char) x;
+  /* Mutex not needed since page won't be "consumed" by anything */
+  page_dirty(page, ROW_SIZE_AS_INT, ctx);
 
   if (trxlog) {
     write_log(&trxlog_mutex, &trxlog_offset, trxlog_file_size, trxlog_write_size, 0,
@@ -739,12 +878,20 @@ void* user_func(void* arg) {
     offset = file_block_num * data_block_size;
 
     if (!read_hit_pct || (rand_double(&ctx) * 100) > read_hit_pct) {
+      char* page;
+
       /* Do the read when it misses the pretend cache */
+      lock_block(logical_block_num);
       now(&start);
       ++io_ops;
+ 
       assert(pread64(data_fd[file_num], data, data_block_size, offset) == data_block_size);
 
-      page_check_checksum(data, (unsigned int) file_block_num, file_num, offset);
+      /* Read page, copy into buffer pool to include real overhead */
+      /* Again, nothing is done to sync access to buffer pool pages */
+      page_check_checksum(data, (unsigned int) logical_block_num, file_num, offset);
+      page = rand_buffer_pool_page(&ctx);
+      memcpy(page, data, data_block_size);
 
       if (compress_level)
         decompress_page(decomp_buf, data_block_size);
@@ -756,12 +903,13 @@ void* user_func(void* arg) {
       stats->adler = adler32(0, (unsigned char*)data, data_block_size);
 
       stats_report(stats, &start, &ctx);
+      unlock_block(logical_block_num);
     } else {
       /* Do some work to simulate reading data from the buffer pool */
       int x;
-      char *ptr = rand_buffer_pool_ptr(100, &ctx);
+      char *ptr = rand_buffer_pool_page(&ctx) + PAGE_DATA_OFFSET;
 
-      for (x=0; x < 100; ++x, ++ptr)
+      for (x=0; x < ROW_SIZE_AS_BYTE; ++x, ++ptr)
         stats->adler += *ptr;
 
       if (compress_level &&
@@ -834,7 +982,7 @@ void* write_scheduler_func(void* arg) {
 
 void* writer(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  longlong block_num;
+  longlong logical_block_num, file_block_num;
   int file_num;
   off_t offset;
   char* data;
@@ -848,7 +996,7 @@ void* writer(void* arg) {
 
     pthread_mutex_lock(&buffer_pool_mutex);
     while (!shutdown &&
-           -1 == buffer_pool_list_pop(&buffer_pool, &block_num)) {
+           -1 == buffer_pool_list_pop(&buffer_pool, &logical_block_num)) {
         pthread_cond_wait(&buffer_pool_list_not_empty, &buffer_pool_mutex);
     }
     pthread_mutex_unlock(&buffer_pool_mutex);
@@ -856,15 +1004,17 @@ void* writer(void* arg) {
     if (shutdown)
       goto end;
 
-    block_to_file(block_num, &file_num, &block_num);
-    offset = block_num * data_block_size;
+    block_to_file(logical_block_num, &file_num, &file_block_num);
+    offset = file_block_num * data_block_size;
 
     memcpy(data, rand_buffer_pool_page(&ctx), data_block_size);
-    page_write_checksum(data, (unsigned int) block_num);
+    page_write_checksum(data, (unsigned int) logical_block_num);
 
+    lock_block(logical_block_num);
     now(&start);
     check_pwrite(data_fd[file_num], data, data_block_size, offset, "writer thread");
     stats_report(stats, &start, &ctx);
+    unlock_block(logical_block_num);
   }
 
 end:
@@ -940,13 +1090,15 @@ int process_stats(operation_stats* const stats, int num, const char* msg, int lo
   return sum_requests;
 }
 
-void buffer_pool_fill() {
+void buffer_pool_fill(struct drand48_data* randctx) {
   int x;
   unsigned int page_num = 0;
 
+  assert(PAGE_DATA_BYTES % 4 == 0);
+
   for (x=0; x < buffer_pool_pages; ++x) {
     char* page = buffer_pool_mem + (x * data_block_size);
-    page_fill(page, page_num);
+    page_fill(page, page_num, randctx);
     page_write_checksum(page, page_num);
     ++page_num;
     if (page_num >= n_blocks)
@@ -996,7 +1148,7 @@ void prepare_file(const char* fname, longlong size) {
   close(fd);
 }
 
-void prepare_data_files() {
+void prepare_data_files(struct drand48_data* randctx) {
   int fd;
   unsigned int page_num;
   char* buf;
@@ -1013,7 +1165,7 @@ void prepare_data_files() {
     assert (fd >= 0);
 
     for (page_num=0; page_num < n_blocks_per_file; ++page_num) {
-      page_fill(buf, page_num);
+      page_fill(buf, page_num, randctx);
       page_write_checksum(buf, page_num);
       assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
     }
@@ -1333,9 +1485,11 @@ int main(int argc, char **argv) {
   int *writes_per_interval;
   int max_loops;
   void* retval;
+  struct drand48_data randctx;
 
   process_options(argc, argv);
-
+  init_rand_ctx(&randctx);
+  
   n_blocks = database_size / data_block_size;
   if (n_blocks > 0xffffffff) {
     fprintf(stderr,
@@ -1355,6 +1509,9 @@ int main(int argc, char **argv) {
          (long long) n_blocks,
          (long long) data_file_size);
 
+  test_bitmap(100000);
+  block_lock = allocate_bits(n_blocks);
+
   stats_init(&scheduler_stats);
   stats_init(&doublewrite_stats);
   stats_init(&binlog_write_stats);
@@ -1372,7 +1529,7 @@ int main(int argc, char **argv) {
   }
 
   if (prepare)
-    prepare_data_files();
+    prepare_data_files(&randctx);
 
   max_loops = test_duration / stats_interval;
   reads_per_interval = (int*) malloc((1 + max_loops) * sizeof(int));
@@ -1387,7 +1544,7 @@ int main(int argc, char **argv) {
             (int) (buffer_pool_bytes / (1024 * 1024)));
     exit(-1);
   }
-  buffer_pool_fill(buffer_pool_bytes);
+  buffer_pool_fill(&randctx);
 
   if (!reads_per_interval || !writes_per_interval) {
     fprintf(stderr, "Cannot allocate for test_duration / stats_interval samples\n");
@@ -1553,6 +1710,7 @@ int main(int argc, char **argv) {
   free(writer_stats);
   free(reads_per_interval);
   free(writes_per_interval);
+  free(block_lock);
 
   return 0;
 }
