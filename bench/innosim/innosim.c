@@ -405,6 +405,9 @@ void page_fill(char* page, unsigned int page_num, struct drand48_data* randctx) 
   int limit = PAGE_DATA_BYTES / 4;
   int x;
 
+  serialize_int(page + PAGE_NUM_OFFSET1, page_num);
+  serialize_int(page + PAGE_NUM_OFFSET2, page_num);
+
   for (x = 0; x < limit; ++x) {
     serialize_int(p, rv);
     rv++;
@@ -982,7 +985,7 @@ void* write_scheduler_func(void* arg) {
 
 void* writer(void* arg) {
   operation_stats* stats = (operation_stats*) arg;
-  longlong logical_block_num, file_block_num;
+  longlong logical_block_num=-1, file_block_num;
   int file_num;
   off_t offset;
   char* data;
@@ -1154,7 +1157,7 @@ void prepare_file(const char* fname, longlong size) {
 
 void prepare_data_files(struct drand48_data* randctx) {
   int fd;
-  unsigned int page_num;
+  unsigned int file_page_num, logical_page_num=0;
   char* buf;
   char fname_buf[1000];
   int i;
@@ -1168,10 +1171,10 @@ void prepare_data_files(struct drand48_data* randctx) {
     fd = open(fname_buf, O_CREAT|O_RDWR|O_TRUNC, 0644);
     assert (fd >= 0);
 
-    for (page_num=0; page_num < n_blocks_per_file; ++page_num) {
-      page_fill(buf, page_num, randctx);
-      page_write_checksum(buf, page_num);
-      assert(pwrite64(fd, buf, data_block_size, data_block_size * page_num) == data_block_size);
+    for (file_page_num=0; file_page_num < n_blocks_per_file; ++file_page_num, ++logical_page_num) {
+      page_fill(buf, logical_page_num, randctx);
+      page_write_checksum(buf, logical_page_num);
+      assert(pwrite64(fd, buf, data_block_size, data_block_size * file_page_num) == data_block_size);
     }
 
     fsync(fd);
