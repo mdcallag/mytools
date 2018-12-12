@@ -35,7 +35,7 @@ for x in $(seq 1 $nsamples)
 awk '
   BEGIN { s = ""; } 
   /^Thread/ { print s; s = ""; } 
-  /^\#/ { if (s != "" ) { s = s "," $4} else { s = $4 } } 
+  /^\#/ { if ( $3 != "in" ) { new = $2 } else { new = $4 }; if (s != "" ) { s = s "," new} else { s = new } } 
   END { print s }' | \
 sort | uniq -c | sort -r -n -k 1,1
 
