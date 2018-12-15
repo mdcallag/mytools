@@ -1,0 +1,18 @@
+prefix=$1
+boostdir=$2
+
+cmake \
+      -DBUILD_CONFIG=mysql_release \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_INSTALL_PREFIX:PATH=$prefix \
+      -DWITH_SSL="bundled" \
+      -DWITH_ZLIB="bundled" \
+      -DMYSQL_DATADIR="${prefix}/data" \
+      -DMYSQL_UNIX_ADDR="${prefix}/var/mysql.sock" \
+      -DMYSQL_USER="mysql" \
+      -DENABLED_LOCAL_INFILE=1 \
+      -DMYSQL_MAINTAINER_MODE=1 \
+      -DWITH_PERF_SCHEMA_STORAGE_ENGINE=1 \
+      -DWITH_BOOST=${boostdir} \
+      .
+
