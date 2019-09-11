@@ -77,9 +77,19 @@ def inc_p(params, num_b, min_fanout, total_fanout, nrows, f_step, max_level_fo):
     cur_x = len(params) - 2
     params[cur_x] = max_level_fo + 1
 
+# total write amp
 def compute_wa(params):
   return sum(params[1:])
-  
+
+# total space amp
+def compute_sa(params):
+    x = 0
+    cum = 1
+    for p in params:
+        cum *= p
+        x += cum
+    return float(x) / cum
+        
 def run_all(args):
   mins = []
 
@@ -106,7 +116,7 @@ def run_all(args):
   def_params = [num_b] + [level_fanout] * args.nlevels
   def_qcmp, def_ucmp = cost_p(def_params, bloom_rows, args.debug)
 
-  print('N=%d, b_pct=%.3f, nlv=%d, params=%s, costs(%.3f, %.3f)' %
+  print('N=%d, b_pct=%.3f, nlv=%d, params=%s, costs(%.1f, %.1f)' %
         (args.nrows, args.b_pct, args.nlevels, format_p(def_params),
          def_qcmp, def_ucmp))
 
@@ -115,7 +125,9 @@ def run_all(args):
   min_cmp = []
   min_params = []
   def_wa = compute_wa(def_params)
+  def_sa = compute_sa(def_params)
   min_wa = []
+  min_sa = []
   
   t_cmp = []
   for x, q_frac in enumerate(q_cmp_arr):
@@ -124,6 +136,7 @@ def run_all(args):
     min_cmp.append(c)
     min_params.append(def_params)
     min_wa.append(compute_wa(def_params))
+    min_sa.append(compute_sa(def_params))    
 
   params, max_level_fo = init_p(num_b, args.min_fanout, total_fanout, args.nlevels, args.nrows)
   ok = True
@@ -141,13 +154,14 @@ def run_all(args):
         min_cmp[x] = c
         min_params[x] = copy.copy(params)
         min_wa[x] = compute_wa(params)
+        min_sa[x] = compute_sa(params)
 
     ok = inc_p(params, num_b, args.min_fanout, total_fanout, args.nrows, args.f_step, max_level_fo)
 
   for x, p in enumerate(min_params):
-    print('nl=%d, qpct=%.0f : %.3f vs %.3f rat=%.2f, wa is %.1f vs %.1f, from %s' %
-          (args.nlevels, 100*q_cmp_arr[x], min_cmp[x], def_cmp[x], min_cmp[x]/def_cmp[x],
-           min_wa[x], def_wa, format_p(p)))
+    print('b=%d, nl=%d, qpct=%.0f : cmp= %.1f v %.1f rat=%.2f : wa= %.1f v %.1f : sa= %.2f v %.2f : from %s' %
+          (args.bloom, args.nlevels, 100*q_cmp_arr[x], min_cmp[x], def_cmp[x], min_cmp[x]/def_cmp[x],
+           min_wa[x], def_wa, min_sa[x], def_sa, format_p(p)))
 
 
 def main(argv):
