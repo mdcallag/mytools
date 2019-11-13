@@ -51,18 +51,22 @@ class MyIterable:
     return self
 
 class Timestamper(MyIterable):
-  def next(self):
+  def __next__(self):
     return time.strftime('%Y-%m-%d_%H:%M:%S')
+
+  next = __next__
 
 class Counter(MyIterable):
   def __init__(self, interval):
     self.interval = interval
     self.value = 0
 
-  def next(self):
+  def __next__(self):
     result = str(self.value)
     self.value += self.interval
     return result
+
+  next = __next__
 
 class ScanMysql(MyIterable):
   def __init__(self, db_user, db_password, db_host, db_name, sql, retries,
@@ -75,7 +79,7 @@ class ScanMysql(MyIterable):
     self.retries = retries
     self.err_data = err_data
 
-  def next(self):
+  def __next__(self):
     r = self.retries
     while r >= 0:
       connect = None
@@ -94,28 +98,31 @@ class ScanMysql(MyIterable):
           return '\n'.join(result)
         else:
           return self.err_data
-      except MySQLdb.Error, e:
-        print 'sql (%s) fails (%s)' % (self.sql, e)
+      except MySQLdb.Error as e:
+        print('sql (%s) fails (%s)' % (self.sql, e))
         if connect is not None:
           try:
             connect.close()
-          except MySQLdb.Error, e:
+          except MySQLdb.Error:
             pass
         time.sleep(0.1)
       r -= 1
     return self.err_data
 
+  next = __next__
+
 class ScanFork(MyIterable):
   def __init__(self, cmdline, skiplines):
     self.proc = subprocess.Popen(cmdline, shell=True, bufsize=1,
+                                 universal_newlines=True,                                
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
     self.cmdline = cmdline
     self.lines_to_skip = skiplines
-    print >>sys.stderr, "forked pid %d for (%s)" % (
-      self.proc.pid, cmdline)
+    sys.stderr.write("forked pid %d for (%s)\n" % (self.proc.pid, cmdline))
+    sys.stderr.flush()
 
-  def next(self):
+  def __next__(self):
     while True:
       line = self.proc.stdout.readline()
       if not line:
@@ -126,6 +133,8 @@ class ScanFork(MyIterable):
       else:
         return line
 
+  next = __next__
+
 class FilterEquals(MyIterable):
   def __init__(self, pos, value, iterable, iostat_hack=False):
     self.pos = pos
@@ -133,30 +142,34 @@ class FilterEquals(MyIterable):
     self.iter = iterable
     self.iostat_hack = iostat_hack
 
-  def next(self):
+  def __next__(self):
     while True:
-      lines = self.iter.next()
+      lines = next(self.iter)
       for line in lines.split('\n'):
         cols = line.split()
         if len(cols) >= (self.pos + 1) and cols[self.pos] == self.value:
           return line
         # Ugly hack for long device name split over 2 lines
         # elif self.iostat_hack and len(cols) == 1 and cols[self.pos] == self.value:
-        # return '%s %s' % (self.value, self.iter.next())
+        # return '%s %s' % (self.value, next(self.iter)
+
+  next = __next__
 
 class Project(MyIterable):
   def  __init__(self, pos, iterable):
     self.pos = pos
     self.iter = iter(iterable)
 
-  def next(self):
-    line = self.iter.next()
+  def __next__(self):
+    line = next(self.iter)
     cols = line.split()
     try:
       v = float(cols[self.pos])
       return cols[self.pos]
-    except ValueError, e:
+    except ValueError:
       return 0.0
+
+  next = __next__
 
 class ExprAbsToRel(MyIterable):
   def __init__(self, interval, iterable):
@@ -164,8 +177,8 @@ class ExprAbsToRel(MyIterable):
     self.iter = iter(iterable)
     self.prev = None
 
-  def next(self):
-    current = float(self.iter.next())
+  def __next__(self):
+    current = float(next(self.iter))
     if self.prev is None:
       self.prev = current
       return '0'
@@ -175,20 +188,26 @@ class ExprAbsToRel(MyIterable):
       self.prev = current
       return str(rate)
 
+  next = __next__
+
 class ExprFunc(MyIterable):
   def __init__(self, func, iterables):
     self.func = func
     self.iters = [iter(i) for i in iterables]
 
-  def next(self):
+  def __next__(self):
     return str(self.func([float(i.next()) for i in self.iters]))
+
+  next = __next__
 
 class ExprAvg(MyIterable):
   def __init__(self, iterables):
     self.iters = [iter(i) for i in iterables]
 
-  def next(self):
+  def __next__(self):
     return str(sum([float(i.next()) for i in self.iters]) / len(self.iters))
+
+  next = __next__
 
 vmstat_cols = { 'swpd':2, 'free':3, 'buff':4, 'cache':5, 'si':6, 'so':7,
                 'bi':8, 'bo':9, 'in':10, 'cs':11, 'us':12, 'sy':13,
@@ -233,12 +252,12 @@ def get_my_cols(db_user, db_password, db_host, db_name):
         try:
           v = float(row[1])
           names.append(row[0])
-        except ValueError, e:
+        except ValueError:
           pass
     connect.close()
     return names
-  except MySQLdb.Error, e:
-    print 'SHOW GLOBAL STATUS fails (%s)' % e
+  except MySQLdb.Error as e:
+    print('SHOW GLOBAL STATUS fails:', e)
     return []
 
 def parse_args(arg, counters, expanded_args, devices):
@@ -314,7 +333,7 @@ def parse_args(arg, counters, expanded_args, devices):
   elif not ignore:
     expanded_args.append(arg)
   else:
-    print 'Ignoring %s' % arg
+    print('Ignoring %s' % arg)
 
 def make_data_inputs(arg, inputs, counters, interval, db_user,
                      db_password, db_host, db_name, db_retries,
@@ -486,16 +505,16 @@ def main(argv=None):
                         options.db_host, options.db_name, options.db_retries,
                         options.data_sources)
   for i,v in enumerate(inputs):
-    print i+1, v[0]
+    print(i+1, v[0])
 
-  print 'START'
+  print('START')
 
   iters = [iter(i[1]) for i in inputs]
   try:
-    for x in xrange(options.loops):
-      print ' '.join([i.next() for i in iters])
+    for x in range(options.loops):
+      print(' '.join([i.next() for i in iters]))
       time.sleep(options.interval)
-  except StopIteration, e:
+  except StopIteration:
     pass
 
 if __name__ == "__main__":

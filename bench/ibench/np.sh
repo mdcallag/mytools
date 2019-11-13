@@ -20,6 +20,8 @@ short=${19}
 bulk=${20}
 secatend=${21}
 
+mypy=python3
+
 if [[ $short == "yes" ]]; then
 names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
 else
@@ -44,7 +46,7 @@ fi
 killall vmstat
 killall iostat
 
-python mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
+$mypy mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
 mpid=$!
 
 vmstat 10 >& o.vm.$sfx &
@@ -91,7 +93,7 @@ for n in $( seq 1 $dop ) ; do
   fi
 
   echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) $names > o.ib.dop${dop}.ns${ns}.${n} 
-  python iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  $mypy iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
 
   pids[${n}]=$!
   

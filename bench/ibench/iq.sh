@@ -12,6 +12,9 @@ bulk=${11}
 secatend=${12}
 nr=${13}
 scanonly=${14}
+# used to be hardwired to 5000 seconds
+querysecs=${15}
+
 ns=3
 
 # insert only
@@ -98,13 +101,13 @@ if [[ $scanonly == "yes" ]]; then
   exit 0
 fi
 
-# Run for 5000 seconds regardless of concurrency
-bash np.sh $(( 5000000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $mongo $short 0 no
+# Run for querysecs seconds regardless of concurrency
+bash np.sh $(( $querysecs * 1000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $mongo $short 0 no
 mkdir q1000
 mv o.* q1000
 
-# Run for 5000 seconds regardless of concurrency
-bash np.sh $(( 500000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $mongo $short 0 no
+# Run for querysecs seconds regardless of concurrency
+bash np.sh $(( $querysecs * 100 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $mongo $short 0 no
 mkdir q100
 mv o.* q100
 

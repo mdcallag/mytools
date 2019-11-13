@@ -64,7 +64,7 @@ import timeit
 FLAGS = optparse.Values()
 parser = optparse.OptionParser()
 
-letters_and_digits = string.letters + string.digits
+letters_and_digits = string.ascii_letters + string.digits
 
 def DEFINE_string(name, default, description, short_name=None):
   if default is not None and default != '':
@@ -293,7 +293,7 @@ def create_table_mysql():
 
   ddl_sql = 'create table %s ( %s ) engine=%s %s' % (
       FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options)
-  print ddl_sql
+  print(ddl_sql)
   cursor.execute(ddl_sql)
 
   cursor.close()
@@ -451,7 +451,7 @@ def Query(query_args, shared_arr, lock, result_q):
   lock.acquire()
   lock.release()
 
-  # print 'Query thread running'
+  # print('Query thread running')
   db_conn = get_conn()
 
   start_time = time.time()
@@ -477,10 +477,10 @@ def Query(query_args, shared_arr, lock, result_q):
         count = 0
         for r in query:
           count += 1
-        # if count: print 'fetched %d' % count
-        # print 'fetched %d' % count
+        # if count: print('fetched %d' % count)
+        # print('fetched %d' % count)
       else:
-        # print "Query is:", query
+        # print("Query is:", query)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
 
@@ -488,8 +488,7 @@ def Query(query_args, shared_arr, lock, result_q):
 
     except:
       e = sys.exc_info()[0]
-      print "Query exception"
-      print e  
+      print("Query exception: ", e)
 
     loops += 1
     if (loops % 16) == 0:
@@ -518,7 +517,7 @@ def print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size)
 
   nrows = inserted
 
-  print '%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
+  print('%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
       nrows,
       now - prev_time,
       now - start_time,
@@ -527,7 +526,7 @@ def print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size)
       FLAGS.rows_per_report / (now - prev_time),
       sum_queries,
       sum_queries / (now - start_time),
-      (sum_queries - prev_sum) / (now - prev_time))
+      (sum_queries - prev_sum) / (now - prev_time)))
   sys.stdout.flush()
   return now, sum_queries
 
@@ -560,9 +559,9 @@ def Insert(rounds, insert_q, counters, lock):
     if rounds_per_second < 1:
       rounds_per_second = 1
     last_check = time.time()
-    # print "rounds per second = %d" % rounds_per_second
+    # print("rounds per second = %d" % rounds_per_second)
 
-  for r in xrange(rounds):
+  for r in range(rounds):
     rows = generate_insert_rows(rand_data_buf)
 
     insert_q.put(rows)
@@ -587,11 +586,11 @@ def Insert(rounds, insert_q, counters, lock):
 
     # optionally enforce write rate limit
     if rounds_per_second and (r % rounds_per_second) == 0:
-      # print "check time on %d" % r
+      # print("check time on %d" % r)
       now = time.time()
       if now > last_check and now < (last_check + 0.95):
         sleep_time = 1.0 - (now - last_check)
-        # print "sleep %s" % sleep_time
+        # print("sleep %s" % sleep_time)
         time.sleep(sleep_time)
       last_check = time.time()
 
@@ -626,7 +625,7 @@ def statement_executor(stmt_q, lock, result_q):
     # db_conn.write_concern['w'] = FLAGS.mongo_w
     # db_conn.write_concern['j'] = FLAGS.mongo_j
     # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
-    # print "w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync)
+    # print("w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync))
   else:
     cursor = db_conn.cursor()
 
@@ -645,18 +644,16 @@ def statement_executor(stmt_q, lock, result_q):
         # TODO options for these
         res = collection.insert(stmt, w=FLAGS.mongo_w, j=FLAGS.mongo_j, fsync=FLAGS.mongo_fsync)
         assert len(res) == len(stmt)
-      except pymongo.errors.PyMongoError, e:
-        print "Mongo error on insert"
-        print e
+      except pymongo.errors.PyMongoError as e:
+        print("Mongo error on insert: ", e)
         raise e
 
     else:
       try:
         cursor.execute(stmt)
-      except MySQLdb.Error, e:
+      except MySQLdb.Error as e:
         if e[0] != 2006:
-          print "Ignoring MySQL exception"
-          print e
+          print("Ignoring MySQL exception: ", e)
         else:
           raise e
     
@@ -686,12 +683,12 @@ def run_benchmark():
     query_args.append(generate_market_query)
     query_args.append(generate_register_query)
 
-    for i in xrange(FLAGS.query_threads):
+    for i in range(FLAGS.query_threads):
       counters.append(Array('i', [0,0,0]))
 
     query_thr = []
     query_result = Queue()
-    for i in xrange(FLAGS.query_threads):
+    for i in range(FLAGS.query_threads):
       query_thr.append(Process(target=Query, args=(query_args, counters[i], lock, query_result)))
 
   if not FLAGS.no_inserts:
@@ -713,7 +710,7 @@ def run_benchmark():
     create_table()
     if not FLAGS.secondary_at_end:
       create_index()
-    # print 'created table'
+    # print('created table')
   else:
     conn = get_conn()
     conn.close()
@@ -726,7 +723,7 @@ def run_benchmark():
     # block until the inserter is done
     insert_delete.join()
     
-    print stmt_result.get()
+    print(stmt_result.get())
     sys.stdout.flush()
 
     inserter.terminate()
@@ -753,14 +750,14 @@ def run_benchmark():
 
   if FLAGS.query_threads:
     # Signal Query process to stop
-    for i in xrange(FLAGS.query_threads):
+    for i in range(FLAGS.query_threads):
       counters[i][2] = 1
 
     for qthr in query_thr:
       qthr.join()
 
     for qthr in query_thr:
-      print query_result.get()
+      print(query_result.get())
     sys.stdout.flush()
 
     for qthr in query_thr:
@@ -770,17 +767,17 @@ def run_benchmark():
     x_start = time.time()
     create_index()
     x_end = time.time()
-    print 'Created secondary indexes in %.1f seconds' % (x_end - x_start)
+    print('Created secondary indexes in %.1f seconds' % (x_end - x_start))
 
   test_end = time.time()
-  print 'Totals: %.1f secs, %.1f rows/sec, %s rows' % (
+  print('Totals: %.1f secs, %.1f rows/sec, %s rows' % (
       test_end - test_start,
       FLAGS.max_rows / (test_end - test_start),
-      FLAGS.max_rows)
-  print 'Done'
+      FLAGS.max_rows))
+  print('Done')
 
 def main(argv):
-  print '#rows #seconds #total_seconds cum_ips table_size last_ips #queries cum_qps last_qps'
+  print('#rows #seconds #total_seconds cum_ips table_size last_ips #queries cum_qps last_qps')
   run_benchmark()
   return 0
 
