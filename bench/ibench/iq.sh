@@ -62,10 +62,11 @@ for q in 1 2 3 4 5 ; do
     # Explain after running the query. Don't want explain time counted in query time.
     if [[ $mongo == "yes" ]] ; then 
       echo with explain $explain, ${txtmo[$q]} >> o.ib.scan.$q.$i
+      moauth="--authenticationDatabase admin -u root -p pw"
       if [[ $explain -eq 1 ]]; then
-        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client -u root -p pw ib >> o.ib.scan.$q.$i &
+        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client $moauth ib >> o.ib.scan.$q.$i &
       else
-        echo ${txtmo[$q]} | $client -u root -p pw ib >> o.ib.scan.$q.$i 2>&1 &
+        echo ${txtmo[$q]} | $client $moauth ib >> o.ib.scan.$q.$i 2>&1 &
       fi
     else
       echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
