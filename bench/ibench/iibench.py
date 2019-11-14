@@ -638,7 +638,7 @@ def statement_executor(stmt_q, lock, result_q):
       mongo_session = db_conn.start_session()
     mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
     collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
-    print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
+    # print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
   else:
     cursor = db_conn.cursor()
 
