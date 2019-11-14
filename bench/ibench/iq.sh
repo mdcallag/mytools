@@ -14,11 +14,14 @@ nr=${13}
 scanonly=${14}
 # used to be hardwired to 5000 seconds
 querysecs=${15}
+# comma separate options specific to the engine, for Mongo can be "journal,transaction" or "transaction"
+# should otherwise be "none"
+dbopt=${16}
 
 ns=3
 
 # insert only
-bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $mongo $short $bulk $secatend
+bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $mongo $short $bulk $secatend $dbopt
 mkdir l
 mv o.* l
 
@@ -60,9 +63,9 @@ for q in 1 2 3 4 5 ; do
     if [[ $mongo == "yes" ]] ; then 
       echo with explain $explain, ${txtmo[$q]} >> o.ib.scan.$q.$i
       if [[ $explain -eq 1 ]]; then
-        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client ib >> o.ib.scan.$q.$i &
+        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client -u root -p pw ib >> o.ib.scan.$q.$i &
       else
-        echo ${txtmo[$q]} | $client ib >> o.ib.scan.$q.$i 2>&1 &
+        echo ${txtmo[$q]} | $client -u root -p pw ib >> o.ib.scan.$q.$i 2>&1 &
       fi
     else
       echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i

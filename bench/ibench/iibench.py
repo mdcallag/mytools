@@ -145,6 +145,8 @@ DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)
 DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
 DEFINE_integer('seed', 3221223452, 'RNG seed')
+# Can override other options, see get_conn
+DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
@@ -165,7 +167,7 @@ DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB to
 DEFINE_boolean('mongo', False, 'if True then for MongoDB, else for MySQL')
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
-DEFINE_boolean('mongo_fsync', False, 'Value for MongoDB write concern: fsync')
+DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
 DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
 DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
 DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
@@ -231,7 +233,16 @@ def rthist_result(obj, prefix):
 
 def get_conn():
   if FLAGS.mongo:
-    return pymongo.MongoClient("mongodb://%s:27017" % FLAGS.db_host)
+
+    if FLAGS.dbopt != 'none':
+      mopts = FLAGS.dbopt.split(',')
+      for mopt in mopts:
+        if mopt == 'journal':
+          FLAGS.mongo_j = True
+        elif mopt == 'transaction':
+          FLAGS.mongo_trx = True
+
+    return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
   else:
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
                            db=FLAGS.db_name, passwd=FLAGS.db_password,
@@ -621,11 +632,13 @@ def statement_executor(stmt_q, lock, result_q):
     cursor.close()
 
   if FLAGS.mongo:
-    collection = db_conn[FLAGS.db_name][FLAGS.table_name]
-    # db_conn.write_concern['w'] = FLAGS.mongo_w
-    # db_conn.write_concern['j'] = FLAGS.mongo_j
-    # db_conn.write_concern['fsync'] = FLAGS.mongo_fsync
-    # print("w, j, fsync : %s, %s, %s" % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_fsync))
+    db = db_conn[FLAGS.db_name]
+    mongo_session = None
+    if FLAGS.mongo_trx:
+      mongo_session = db_conn.start_session()
+    mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
+    collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
+    print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
   else:
     cursor = db_conn.cursor()
 
@@ -641,9 +654,15 @@ def statement_executor(stmt_q, lock, result_q):
 
     if FLAGS.mongo:
       try:
-        # TODO options for these
-        res = collection.insert(stmt, w=FLAGS.mongo_w, j=FLAGS.mongo_j, fsync=FLAGS.mongo_fsync)
-        assert len(res) == len(stmt)
+        # res has type pymongo.InsertManyResult
+        if mongo_session:
+          mongo_session.start_transaction(write_concern=mongo_write_concern,
+                                          max_commit_time_ms=1000*180)                   
+        res = collection.insert_many(stmt, ordered=True,
+                                     bypass_document_validation=False, session=mongo_session)
+        assert len(res.inserted_ids) == len(stmt)
+        if mongo_session:
+          mongo_session.commit_transaction()
       except pymongo.errors.PyMongoError as e:
         print("Mongo error on insert: ", e)
         raise e

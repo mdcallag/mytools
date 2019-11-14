@@ -19,6 +19,7 @@ mongo=${18}
 short=${19}
 bulk=${20}
 secatend=${21}
+dbopt=${22}
 
 mypy=python3
 
@@ -77,7 +78,7 @@ for n in $( seq 1 $dop ) ; do
   fi
 
   if [[ $mongo == "yes" ]]; then
-    db_args="--mongo --mongo_w=1"
+    db_args="--mongo --mongo_w=1 --db_user=root --db_password=pw"
   else
     db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
   fi
@@ -92,8 +93,8 @@ for n in $( seq 1 $dop ) ; do
     rpr=$(( ips * 10 ))
   fi
 
-  echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) $names > o.ib.dop${dop}.ns${ns}.${n} 
-  $mypy iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.ns${ns}.${n} 
+  $mypy iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
 
   pids[${n}]=$!
   
@@ -137,8 +138,8 @@ cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s
 
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 else
-echo "db.serverStatus()" | $client > o.es.$sfx
-echo "db.pi1.stats()" | $client ib > o.tab.$sfx
+echo "db.serverStatus()" | $client -u root -p pw > o.es.$sfx
+echo "db.pi1.stats()" | $client -u root -p pw ib > o.tab.$sfx
 fi
 
 du -hs $ddir > o.sz.$sfx
