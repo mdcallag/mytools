@@ -5,7 +5,7 @@ data=$4
 dname=$5
 checku=$6
 dop=$7
-mongo=$8
+dbms=$8
 short=$9
 only1t=${10}
 bulk=${11}
@@ -18,10 +18,21 @@ querysecs=${15}
 # should otherwise be "none"
 dbopt=${16}
 
+if [[ $dbms == "mongo" ]] ; then 
+echo Use mongo
+elif [[ $dbms == "mysql" ]] ; then 
+echo Use mysql
+elif [[ $dbms == "postgres" ]] ; then 
+echo Use postgres
+else
+echo "dbms must be one of: mongo, mysql, postgres"
+exit -1
+fi
+
 ns=3
 
 # insert only
-bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $mongo $short $bulk $secatend $dbopt
+bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk $secatend $dbopt
 mkdir l
 mv o.* l
 
@@ -60,7 +71,7 @@ for q in 1 2 3 4 5 ; do
     txtmy[5]="select transactionid,data,customerid from pi$i where customerid < 0"
 
     # Explain after running the query. Don't want explain time counted in query time.
-    if [[ $mongo == "yes" ]] ; then 
+    if [[ $dbms == "mongo" ]] ; then 
       echo with explain $explain, ${txtmo[$q]} >> o.ib.scan.$q.$i
       moauth="--authenticationDatabase admin -u root -p pw"
       if [[ $explain -eq 1 ]]; then
@@ -68,13 +79,16 @@ for q in 1 2 3 4 5 ; do
       else
         echo ${txtmo[$q]} | $client $moauth ib >> o.ib.scan.$q.$i 2>&1 &
       fi
-    else
+    elif [[ $dbms == "mysql" ]] ; then 
       echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
       if [[ $explain -eq 1 ]]; then
         $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
       else
         $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
       fi
+    else
+      echo "TODO: postgres"
+      exit -1
     fi
     pids[${i}]=$!
   done
@@ -106,12 +120,12 @@ if [[ $scanonly == "yes" ]]; then
 fi
 
 # Run for querysecs seconds regardless of concurrency
-bash np.sh $(( $querysecs * 1000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $mongo $short 0 no
+bash np.sh $(( $querysecs * 1000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $dbms $short 0 no $dbopt
 mkdir q1000
 mv o.* q1000
 
 # Run for querysecs seconds regardless of concurrency
-bash np.sh $(( $querysecs * 100 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $mongo $short 0 no
+bash np.sh $(( $querysecs * 100 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $dbms $short 0 no $dbopt
 mkdir q100
 mv o.* q100
 

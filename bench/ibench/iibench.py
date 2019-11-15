@@ -104,10 +104,15 @@ def ParseArgs(argv):
   parser.set_usage(usage)
   unused_flags, new_argv = parser.parse_args(args=argv, values=FLAGS)
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     globals()['pymongo'] = __import__('pymongo')
-  else:
+  elif FLAGS.dbms == 'mysql':
     globals()['MySQLdb'] = __import__('MySQLdb')
+  elif FLAGS.dbms == 'postgres':
+    globals()['psycopg2'] = __import__('psycopg2')
+  else:
+    print('dbms must be one of: mysql, mongodb, postgres')
+    sys.exit(-1)
 
   return new_argv
 
@@ -148,6 +153,8 @@ DEFINE_integer('seed', 3221223452, 'RNG seed')
 # Can override other options, see get_conn
 DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
+DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
+
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
 DEFINE_string('db_name', 'test', 'Name of database for the test')
@@ -164,7 +171,6 @@ DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
 # MongoDB flags
-DEFINE_boolean('mongo', False, 'if True then for MongoDB, else for MySQL')
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
 DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
@@ -232,7 +238,7 @@ def rthist_result(obj, prefix):
   return res
 
 def get_conn():
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
 
     if FLAGS.dbopt != 'none':
       mopts = FLAGS.dbopt.split(',')
@@ -243,11 +249,14 @@ def get_conn():
           FLAGS.mongo_trx = True
 
     return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
-  else:
+  elif FLAGS.dbms == 'mysql':
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
                            db=FLAGS.db_name, passwd=FLAGS.db_password,
                            unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file,
                            autocommit=True)
+  else:
+    # TODO user, passwd, etc
+    return psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
 
 def create_index_mongo():
   conn = get_conn()
@@ -311,16 +320,20 @@ def create_table_mysql():
   conn.close()
 
 def create_table():
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     create_table_mongo()
-  else:
+  elif FLAGS.dbms == 'mysql':
     create_table_mysql()
+  else:
+    create_table_postgres()
 
 def create_index():
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     create_index_mongo()
-  else:
+  elif FLAGS.dbms == 'mysql':
     create_index_mysql()
+  else:
+    create_index_postgres()
 
 def generate_cols(rand_data_buf):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
@@ -349,10 +362,12 @@ def generate_row_mysql(when, rand_data_buf):
       when,cashregisterid,customerid,productid,price,data)
 
 def generate_row(when, rand_data_buf):
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     return generate_row_mongo(when, rand_data_buf)
-  else:
+  elif FLAGS.dbms == 'mysql':
     return generate_row_mysql(when, rand_data_buf)
+  else:
+    return generate_row_postgres(when, rand_data_buf)
 
 def generate_pdc_query_mongo(conn, price):
   return (
@@ -378,10 +393,12 @@ def generate_pdc_query(conn):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     return generate_pdc_query_mongo(conn, price)
-  else:
+  elif FLAGS.dbms == 'mysql':
     return generate_pdc_query_mysql(conn, price)
+  else:
+    return generate_pdc_query_postgres(conn, price)
 
 def generate_market_query_mongo(conn, price):
   return (
@@ -405,10 +422,12 @@ def generate_market_query(conn):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     return generate_market_query_mongo(conn, price)
-  else:
+  elif FLAGS.dbms == 'mysql':
     return generate_market_query_mysql(conn, price)
+  else:
+    return generate_market_query_postgres(conn, price)
 
 def generate_register_query_mongo(conn, cashregisterid):
   return (
@@ -434,27 +453,33 @@ def generate_register_query_mysql(conn, cashregisterid):
 def generate_register_query(conn):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     return generate_register_query_mongo(conn, cashregisterid)
-  else:
+  elif FLAGS.dbms == 'mysql':
     return generate_register_query_mysql(conn, cashregisterid)
+  else:
+    return generate_register_query_postgres(conn, cashregisterid)
 
 def generate_insert_rows(rand_data_buf):
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     when = datetime.utcnow()
-  else:
+  elif FLAGS.dbms == 'mysql':
     when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+  else:
+    assert False
 
   rows = [generate_row(when, rand_data_buf) \
       for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     return rows
-  else:
+  elif FLAGS.dbms == 'mysql':
     sql_data = ',\n'.join(rows)
     return 'insert into %s '\
            '(dateandtime,cashregisterid,customerid,productid,price,data) '\
            'values %s' % (FLAGS.table_name, sql_data)
+  else:
+    assert False
 
 def Query(query_args, shared_arr, lock, result_q):
 
@@ -468,10 +493,12 @@ def Query(query_args, shared_arr, lock, result_q):
   start_time = time.time()
   loops = 0
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
-  else:
+  elif FLAGS.dbms == 'mysql':
     db_thing = db_conn.cursor()
+  else:
+    assert False
 
   rthist = rthist_new()
 
@@ -484,16 +511,18 @@ def Query(query_args, shared_arr, lock, result_q):
 
       ts = rthist_start(rthist)
 
-      if FLAGS.mongo:
+      if FLAGS.dbms == 'mongo':
         count = 0
         for r in query:
           count += 1
         # if count: print('fetched %d' % count)
         # print('fetched %d' % count)
-      else:
+      elif FLAGS.dbms == 'mysql':
         # print("Query is:", query)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
+      else:
+        assert False
 
       rthist_finish(rthist, ts)
 
@@ -507,8 +536,13 @@ def Query(query_args, shared_arr, lock, result_q):
       if shared_arr[2] == 1:
         done = True
 
-  if not FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
+    pass
+  elif FLAGS.dbms == 'mysql':
     db_thing.close()
+  else:
+    assert False
+
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
@@ -586,11 +620,14 @@ def Insert(rounds, insert_q, counters, lock):
     # deletes - TODO support for MongoDB
     if FLAGS.with_max_table_rows:
       if table_size > FLAGS.max_table_rows:
-        if FLAGS.mongo:
+        if FLAGS.dbms == 'mongo':
           assert False
-        else:
+        elif FLAGS.dbms == 'mysql':
           sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
                  % (FLAGS.table_name, tail, tail + FLAGS.rows_per_commit))
+        else:
+          assert False
+
         insert_q.put(sql)
         table_size -= FLAGS.rows_per_commit
         tail += FLAGS.rows_per_commit
@@ -615,7 +652,7 @@ def statement_executor(stmt_q, lock, result_q):
   lock.release()
 
   db_conn = get_conn()
-  if not FLAGS.mongo:
+  if FLAGS.dbms == 'mysql':
     cursor = db_conn.cursor()
 
     if not FLAGS.unique_checks:
@@ -631,16 +668,18 @@ def statement_executor(stmt_q, lock, result_q):
 
     cursor.close()
 
-  if FLAGS.mongo:
+  if FLAGS.dbms == 'mongo':
     db = db_conn[FLAGS.db_name]
     mongo_session = None
     if FLAGS.mongo_trx:
       mongo_session = db_conn.start_session()
     mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
     collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
-    # print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
-  else:
+    print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
+  elif FLAGS.dbms == 'mysql':
     cursor = db_conn.cursor()
+  else:
+    assert False
 
   rthist = rthist_new()
 
@@ -652,7 +691,7 @@ def statement_executor(stmt_q, lock, result_q):
 
     ts = rthist_start(rthist)
 
-    if FLAGS.mongo:
+    if FLAGS.dbms == 'mongo':
       try:
         # res has type pymongo.InsertManyResult
         if mongo_session:
@@ -667,7 +706,7 @@ def statement_executor(stmt_q, lock, result_q):
         print("Mongo error on insert: ", e)
         raise e
 
-    else:
+    elif FLAGS.dbms == 'mysql':
       try:
         cursor.execute(stmt)
       except MySQLdb.Error as e:
@@ -675,6 +714,8 @@ def statement_executor(stmt_q, lock, result_q):
           print("Ignoring MySQL exception: ", e)
         else:
           raise e
+    else:
+      assert False
     
     rthist_finish(rthist, ts)
     

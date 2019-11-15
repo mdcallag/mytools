@@ -15,7 +15,7 @@ rpc=${14}
 ips=${15}
 nqt=${16}
 setup=${17}
-mongo=${18}
+dbms=${18}
 short=${19}
 bulk=${20}
 secatend=${21}
@@ -35,13 +35,26 @@ rm -f o.res.$sfx
 
 maxr=$(( $nr / $dop ))
 
-if [[ $mongo != "yes" ]]; then
+moauth="--authenticationDatabase admin -u root -p pw"
+
+if [[ $dbms == "mysql" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-if [[ $setup == "yes" ]] ; then
-  $client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
-  sleep 5
-  $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
 fi
+
+if [[ $setup == "yes" ]] ; then
+  if [[ $dbms == "mongo" ]]; then
+    $client $moauth ib --eval 'db.dropDatabase()'
+    # echo "show databases" | $client $moauth 
+    sleep 5
+    $client $moauth ib --eval 'db.createCollection("foo")'
+  elif [[ $dbms == "mysql" ]]; then
+    $client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
+    sleep 5
+    $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
+  else
+    echo "TODO: postgres"
+    exit -1
+  fi
 fi
 
 killall vmstat
@@ -77,10 +90,13 @@ for n in $( seq 1 $dop ) ; do
     tn="pi${n}"
   fi
 
-  if [[ $mongo == "yes" ]]; then
-    db_args="--mongo --mongo_w=1 --db_user=root --db_password=pw"
-  else
+  if [[ $dbms == "mongo" ]]; then
+    db_args="--mongo_w=1 --db_user=root --db_password=pw"
+  elif [[ $dbms == "mysql" ]]; then
     db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
+  else
+    echo "TODO postgres"
+    exit -1
   fi
 
   if [[ $secatend == "yes" ]]; then
@@ -93,8 +109,8 @@ for n in $( seq 1 $dop ) ; do
     rpr=$(( ips * 10 ))
   fi
 
-  echo iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.ns${ns}.${n} 
-  $mypy iibench.py --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  echo iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.ns${ns}.${n} 
+  $mypy iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
 
   pids[${n}]=$!
   
@@ -123,7 +139,11 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
 
-if [[ $mongo == "no" ]]; then
+if [[ $dbms == "mongo" ]]; then
+echo "db.serverStatus()" | $client $moauth > o.es.$sfx
+echo "db.pi1.stats()" | $client $moauthib > o.tab.$sfx
+
+elif [[ $dbms == "mysql" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
@@ -137,9 +157,10 @@ cat o.ts.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s
 cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+
 else
-echo "db.serverStatus()" | $client -u root -p pw > o.es.$sfx
-echo "db.pi1.stats()" | $client -u root -p pw ib > o.tab.$sfx
+echo "TODO postgres"
+exit -1
 fi
 
 du -hs $ddir > o.sz.$sfx
