@@ -166,9 +166,14 @@ cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s
 $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 
 else
-echo "TODO postgres"
 echo "TODO reset replication state"
-echo "TODO get status"
+$client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
+$client ib -x -c 'select * from pg_stat_database' > o.pgs.db
+$client ib -x -c 'select * from pg_stat_all_tables' > o.pgs.tabs
+$client ib -x -c 'select * from pg_stat_all_indexes' > o.pgs.idxs
+$client ib -x -c 'select * from pg_statio_all_tables' > o.pgi.tabs
+$client ib -x -c 'select * from pg_statio_all_indexes' > o.pgi.idxs
+$client ib -x -c 'select * from pg_statio_all_sequences' > o.pgi.seq
 fi
 
 du -hs $ddir > o.sz.$sfx
