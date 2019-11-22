@@ -86,8 +86,15 @@ for q in 1 2 3 4 5 ; do
       else
         $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
       fi
+    elif [[ $dbms == "postgres" ]] ; then 
+      echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
+      if [[ $explain -eq 1 ]]; then
+        PGPASSWORD="pw" $client -h 127.0.0.1 -U root ib -c "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
+      else
+        PGPASSWORD="pw" $client -h 127.0.0.1 -U root ib -c "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
+      fi
     else
-      echo "TODO: postgres"
+      echo "uknown dbms"
       exit -1
     fi
     pids[${i}]=$!

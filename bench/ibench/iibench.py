@@ -256,7 +256,9 @@ def get_conn():
                            autocommit=True)
   else:
     # TODO user, passwd, etc
-    return psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
+    conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
+    conn.set_session(autocommit=True)
+    return conn
 
 def create_index_mongo():
   conn = get_conn()
@@ -319,6 +321,58 @@ def create_table_mysql():
   cursor.close()
   conn.close()
 
+def create_index_postgres():
+  if FLAGS.num_secondary_indexes >= 1:
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    # TODO: should fillfactor be set?
+    ddl = "create index marketsegment on %s (price, customerid) " % (
+          FLAGS.table_name)
+    cursor.execute(ddl)
+
+    if FLAGS.num_secondary_indexes >= 2:
+      ddl = "create index registersegment on %s (cashregisterid, price, customerid) " % (
+            FLAGS.table_name)
+      cursor.execute(ddl)
+
+    if FLAGS.num_secondary_indexes >= 3:
+      ddl = "create index pdc on %s (price, dateandtime, customerid) " % (
+            FLAGS.table_name)
+      cursor.execute(ddl)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def create_table_postgres():
+  conn = get_conn()
+  cursor = conn.cursor()
+  cursor.execute('drop table if exists %s' % FLAGS.table_name)
+
+  ddl_sql = 'transactionid bigserial primary key, '\
+            'dateandtime timestamp without time zone, '\
+            'cashregisterid int not null, '\
+            'customerid int not null, '\
+            'productid int not null, '\
+            'price real not null, '\
+            'data varchar(4000) '
+
+  ddl_sql = 'create table %s ( %s ) %s' % (
+      FLAGS.table_name, ddl_sql, FLAGS.engine_options)
+  print(ddl_sql)
+  cursor.execute(ddl_sql)
+  conn.commit()
+
+  # TODO: what is a good value for cache to reduce overhead?
+  ddl_sql = 'alter sequence %s_transactionid_seq cache 1000' % (FLAGS.table_name)
+  print(ddl_sql)
+  cursor.execute(ddl_sql)
+  conn.commit()
+
+  cursor.close()
+  conn.close()
+
 def create_table():
   if FLAGS.dbms == 'mongo':
     create_table_mongo()
@@ -356,18 +410,18 @@ def generate_row_mongo(when, rand_data_buf):
           FLAGS.name_cust : customerid, FLAGS.name_prod : productid,
           FLAGS.name_price : price, FLAGS.name_data : data }
 
-def generate_row_mysql(when, rand_data_buf):
+def generate_row_mysql_pg(when, rand_data_buf):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
-  return '("%s",%d,%d,%d,%.2f,"%s")' % (
+  return "('%s',%d,%d,%d,%.2f,'%s')" % (
       when,cashregisterid,customerid,productid,price,data)
 
 def generate_row(when, rand_data_buf):
   if FLAGS.dbms == 'mongo':
     return generate_row_mongo(when, rand_data_buf)
-  elif FLAGS.dbms == 'mysql':
-    return generate_row_mysql(when, rand_data_buf)
+  elif FLAGS.dbms in ['mysql', 'postgres']:
+    return generate_row_mysql_pg(when, rand_data_buf)
   else:
-    return generate_row_postgres(when, rand_data_buf)
+    assert False
 
 def generate_pdc_query_mongo(conn, price):
   return (
@@ -382,11 +436,16 @@ def generate_pdc_query_mongo(conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
 
-def generate_pdc_query_mysql(conn, price):
-  sql = 'SELECT price,dateandtime,customerid FROM %s FORCE INDEX (pdc) WHERE '\
+def generate_pdc_query_mysql_pg(conn, price, force):
+  if force:
+    force_txt = 'FORCE INDEX (pdc)'
+  else:
+    force_txt = ''
+  
+  sql = 'SELECT price,dateandtime,customerid FROM %s %s WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,dateandtime,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
+        'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
 def generate_pdc_query(conn):
@@ -396,9 +455,9 @@ def generate_pdc_query(conn):
   if FLAGS.dbms == 'mongo':
     return generate_pdc_query_mongo(conn, price)
   elif FLAGS.dbms == 'mysql':
-    return generate_pdc_query_mysql(conn, price)
+    return generate_pdc_query_mysql_pg(conn, price, True)
   else:
-    return generate_pdc_query_postgres(conn, price)
+    return generate_pdc_query_mysql_pg(conn, price, False)
 
 def generate_market_query_mongo(conn, price):
   return (
@@ -411,11 +470,16 @@ def generate_market_query_mongo(conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_market_query_mysql(conn, price):
-  sql = 'SELECT price,customerid FROM %s FORCE INDEX (marketsegment) WHERE '\
+def generate_market_query_mysql_pg(conn, price, force):
+  if force:
+    force_txt = 'FORCE INDEX (marketsegment)'
+  else:
+    force_txt = ''
+
+  sql = 'SELECT price,customerid FROM %s %s WHERE '\
         '(price>=%.2f) '\
         'ORDER BY price,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, price, FLAGS.rows_per_query)
+        'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
 def generate_market_query(conn):
@@ -425,9 +489,9 @@ def generate_market_query(conn):
   if FLAGS.dbms == 'mongo':
     return generate_market_query_mongo(conn, price)
   elif FLAGS.dbms == 'mysql':
-    return generate_market_query_mysql(conn, price)
+    return generate_market_query_mysql_pg(conn, price, True)
   else:
-    return generate_market_query_postgres(conn, price)
+    return generate_market_query_mysql_pg(conn, price, False)
 
 def generate_register_query_mongo(conn, cashregisterid):
   return (
@@ -442,12 +506,16 @@ def generate_register_query_mongo(conn, cashregisterid):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_register_query_mysql(conn, cashregisterid):
+def generate_register_query_mysql_pg(conn, cashregisterid, force):
+  if force:
+    force_txt = 'FORCE INDEX (registersegment)'
+  else:
+    force_txt = ''
+
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
-        'FORCE INDEX (registersegment) WHERE '\
-        '(cashregisterid>%d) '\
+        '%s WHERE (cashregisterid>%d) '\
         'ORDER BY cashregisterid,price,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, cashregisterid, FLAGS.rows_per_query)
+        'LIMIT %d' % (FLAGS.table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
   return sql
 
 def generate_register_query(conn):
@@ -456,14 +524,14 @@ def generate_register_query(conn):
   if FLAGS.dbms == 'mongo':
     return generate_register_query_mongo(conn, cashregisterid)
   elif FLAGS.dbms == 'mysql':
-    return generate_register_query_mysql(conn, cashregisterid)
+    return generate_register_query_mysql_pg(conn, cashregisterid, True)
   else:
-    return generate_register_query_postgres(conn, cashregisterid)
+    return generate_register_query_mysql_pg(conn, cashregisterid, False)
 
 def generate_insert_rows(rand_data_buf):
   if FLAGS.dbms == 'mongo':
     when = datetime.utcnow()
-  elif FLAGS.dbms == 'mysql':
+  elif FLAGS.dbms in ['mysql', 'postgres']:
     when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
   else:
     assert False
@@ -473,7 +541,7 @@ def generate_insert_rows(rand_data_buf):
 
   if FLAGS.dbms == 'mongo':
     return rows
-  elif FLAGS.dbms == 'mysql':
+  elif FLAGS.dbms in ['mysql', 'postgres']:
     sql_data = ',\n'.join(rows)
     return 'insert into %s '\
            '(dateandtime,cashregisterid,customerid,productid,price,data) '\
@@ -495,7 +563,7 @@ def Query(query_args, shared_arr, lock, result_q):
 
   if FLAGS.dbms == 'mongo':
     db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
-  elif FLAGS.dbms == 'mysql':
+  elif FLAGS.dbms in ['mysql', 'postgres']:
     db_thing = db_conn.cursor()
   else:
     assert False
@@ -521,6 +589,10 @@ def Query(query_args, shared_arr, lock, result_q):
         # print("Query is:", query)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
+      elif FLAGS.dbms == 'postgres':
+        # print("Query is:", query)
+        db_thing.execute(query)
+        count = len(db_thing.fetchall())
       else:
         assert False
 
@@ -538,7 +610,7 @@ def Query(query_args, shared_arr, lock, result_q):
 
   if FLAGS.dbms == 'mongo':
     pass
-  elif FLAGS.dbms == 'mysql':
+  elif FLAGS.dbms in ['mysql', 'postgres']:
     db_thing.close()
   else:
     assert False
@@ -596,7 +668,7 @@ def Insert(rounds, insert_q, counters, lock):
   tail = 0
   sum_queries = 0
 
-  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4))
+  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
 
   rounds_per_second = 0
   if (FLAGS.inserts_per_second):
@@ -676,7 +748,7 @@ def statement_executor(stmt_q, lock, result_q):
     mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
     collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
     print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
-  elif FLAGS.dbms == 'mysql':
+  elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
   else:
     assert False
@@ -714,6 +786,14 @@ def statement_executor(stmt_q, lock, result_q):
           print("Ignoring MySQL exception: ", e)
         else:
           raise e
+    elif FLAGS.dbms == 'postgres':
+      try:
+        cursor.execute(stmt)
+      except psycopg2.Error as e:
+        print("Insert error: %s" % e.pgerror)
+        print("Insert error: %s" % e.pgcode)
+        print("Insert error: %s" % e.diag)
+        raise e
     else:
       assert False
     

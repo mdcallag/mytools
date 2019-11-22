@@ -36,9 +36,15 @@ rm -f o.res.$sfx
 maxr=$(( $nr / $dop ))
 
 moauth="--authenticationDatabase admin -u root -p pw"
+pgauth="--host 127.0.0.1"
 
-if [[ $dbms == "mysql" ]]; then
-$client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+if [[ $dbms == "mongo" ]]; then
+  echo "no need to reset MongoDB replication as oplog is capped"
+elif [[ $dbms == "mysql" ]]; then
+  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+elif [[ $dbms == "postgres" ]]; then
+  # TODO postgres
+  echo "TODO: reset Postgres replication"
 fi
 
 if [[ $setup == "yes" ]] ; then
@@ -53,7 +59,9 @@ if [[ $setup == "yes" ]] ; then
     $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
   else
     echo "TODO: postgres"
-    exit -1
+    $client me -c 'drop database ib' $pgauth
+    sleep 5
+    $client me -c 'create database ib' $pgauth
   fi
 fi
 
@@ -95,8 +103,7 @@ for n in $( seq 1 $dop ) ; do
   elif [[ $dbms == "mysql" ]]; then
     db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
   else
-    echo "TODO postgres"
-    exit -1
+    db_args="--db_user=root --db_password=pw --engine=pg --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
   fi
 
   if [[ $secatend == "yes" ]]; then
@@ -160,7 +167,8 @@ $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
 
 else
 echo "TODO postgres"
-exit -1
+echo "TODO reset replication state"
+echo "TODO get status"
 fi
 
 du -hs $ddir > o.sz.$sfx
