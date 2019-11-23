@@ -72,11 +72,11 @@ killall top
 $mypy mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
 mpid=$!
 
-vmstat 10 >& o.vm.$sfx &
+vmstat 1 >& o.vm.$sfx &
 vpid=$!
-iostat -kx 10 >& o.io.$sfx &
+iostat -kx 1 >& o.io.$sfx &
 ipid=$!
-top -w 200 -c -b -n 10 >& o.top.$sfx &
+top -w 200 -c -b -n 1 >& o.top.$sfx &
 tpid=$!
 
 fio-status -a >& o.fio.pre.$sfx
