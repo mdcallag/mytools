@@ -67,6 +67,7 @@ fi
 
 killall vmstat
 killall iostat
+killall top
 
 $mypy mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
 mpid=$!
@@ -75,6 +76,8 @@ vmstat 10 >& o.vm.$sfx &
 vpid=$!
 iostat -kx 10 >& o.io.$sfx &
 ipid=$!
+top -w 200 -c -b -n 10 >& o.top.$sfx &
+tpid=$!
 
 fio-status -a >& o.fio.pre.$sfx
 
@@ -144,6 +147,7 @@ echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate row
 kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
+kill $tpid >& /dev/null
 fio-status -a >& o.fio.post.$sfx
 
 if [[ $dbms == "mongo" ]]; then
