@@ -76,7 +76,7 @@ vmstat 1 >& o.vm.$sfx &
 vpid=$!
 iostat -kx 1 >& o.io.$sfx &
 ipid=$!
-top -w 200 -c -b -n 1 >& o.top.$sfx &
+top -w 200 -c -b -d 1 >& o.top.$sfx &
 tpid=$!
 
 fio-status -a >& o.fio.pre.$sfx
