@@ -286,14 +286,16 @@ def create_index_mysql():
     conn = get_conn()
     cursor = conn.cursor()
 
-    index_ddl = "alter table %s add index marketsegment (price, customerid) " % (
-                   FLAGS.table_name)
+    index_ddl = "alter table %s add index %s_marketsegment (price, customerid) " % (
+                   FLAGS.table_name, FLAGS.table_name)
 
     if FLAGS.num_secondary_indexes >= 2:
-      index_ddl += ", add index registersegment (cashregisterid, price, customerid) "
+      index_ddl += ", add index %s_registersegment (cashregisterid, price, customerid) " % (
+                   FLAGS.table_name)
 
     if FLAGS.num_secondary_indexes >= 3:
-      index_ddl += ", add index pdc (price, dateandtime, customerid) "
+      index_ddl += ", add index %s_pdc (price, dateandtime, customerid) " % (
+                   FLAGS.table_name)
 
     cursor.execute(index_ddl)
     cursor.close()
@@ -327,18 +329,18 @@ def create_index_postgres():
     cursor = conn.cursor()
 
     # TODO: should fillfactor be set?
-    ddl = "create index marketsegment on %s (price, customerid) " % (
-          FLAGS.table_name)
+    ddl = "create index %s_marketsegment on %s (price, customerid) " % (
+          FLAGS.table_name, FLAGS.table_name)
     cursor.execute(ddl)
 
     if FLAGS.num_secondary_indexes >= 2:
-      ddl = "create index registersegment on %s (cashregisterid, price, customerid) " % (
-            FLAGS.table_name)
+      ddl = "create index %s_registersegment on %s (cashregisterid, price, customerid) " % (
+            FLAGS.table_name, FLAGS.table_name)
       cursor.execute(ddl)
 
     if FLAGS.num_secondary_indexes >= 3:
-      ddl = "create index pdc on %s (price, dateandtime, customerid) " % (
-            FLAGS.table_name)
+      ddl = "create index %s_pdc on %s (price, dateandtime, customerid) " % (
+            FLAGS.table_name, FLAGS.table_name)
       cursor.execute(ddl)
 
     conn.commit()
@@ -436,9 +438,9 @@ def generate_pdc_query_mongo(conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
 
-def generate_pdc_query_mysql_pg(conn, price, force):
+def generate_pdc_query_mysql_pg(conn, price, force, table_name):
   if force:
-    force_txt = 'FORCE INDEX (pdc)'
+    force_txt = 'FORCE INDEX (%s_pdc)' % table_name
   else:
     force_txt = ''
   
@@ -448,16 +450,16 @@ def generate_pdc_query_mysql_pg(conn, price, force):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(conn):
+def generate_pdc_query(conn, table_name):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
     return generate_pdc_query_mongo(conn, price)
   elif FLAGS.dbms == 'mysql':
-    return generate_pdc_query_mysql_pg(conn, price, True)
+    return generate_pdc_query_mysql_pg(conn, price, True, table_name)
   else:
-    return generate_pdc_query_mysql_pg(conn, price, False)
+    return generate_pdc_query_mysql_pg(conn, price, False, table_name)
 
 def generate_market_query_mongo(conn, price):
   return (
@@ -470,9 +472,9 @@ def generate_market_query_mongo(conn, price):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_market_query_mysql_pg(conn, price, force):
+def generate_market_query_mysql_pg(conn, price, force, table_name):
   if force:
-    force_txt = 'FORCE INDEX (marketsegment)'
+    force_txt = 'FORCE INDEX (%s_marketsegment)' % table_name
   else:
     force_txt = ''
 
@@ -482,16 +484,16 @@ def generate_market_query_mysql_pg(conn, price, force):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(conn):
+def generate_market_query(conn, table_name):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
     return generate_market_query_mongo(conn, price)
   elif FLAGS.dbms == 'mysql':
-    return generate_market_query_mysql_pg(conn, price, True)
+    return generate_market_query_mysql_pg(conn, price, True, table_name)
   else:
-    return generate_market_query_mysql_pg(conn, price, False)
+    return generate_market_query_mysql_pg(conn, price, False, table_name)
 
 def generate_register_query_mongo(conn, cashregisterid):
   return (
@@ -506,9 +508,9 @@ def generate_register_query_mongo(conn, cashregisterid):
                       (FLAGS.name_cust, pymongo.ASCENDING)])
          )
  
-def generate_register_query_mysql_pg(conn, cashregisterid, force):
+def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
   if force:
-    force_txt = 'FORCE INDEX (registersegment)'
+    force_txt = 'FORCE INDEX (%s_registersegment)' % table_name
   else:
     force_txt = ''
 
@@ -518,15 +520,15 @@ def generate_register_query_mysql_pg(conn, cashregisterid, force):
         'LIMIT %d' % (FLAGS.table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(conn):
+def generate_register_query(conn, table_name):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.dbms == 'mongo':
     return generate_register_query_mongo(conn, cashregisterid)
   elif FLAGS.dbms == 'mysql':
-    return generate_register_query_mysql_pg(conn, cashregisterid, True)
+    return generate_register_query_mysql_pg(conn, cashregisterid, True, table_name)
   else:
-    return generate_register_query_mysql_pg(conn, cashregisterid, False)
+    return generate_register_query_mysql_pg(conn, cashregisterid, False, table_name)
 
 def generate_insert_rows(rand_data_buf):
   if FLAGS.dbms == 'mongo':
@@ -575,7 +577,7 @@ def Query(query_args, shared_arr, lock, result_q):
     query_func = random.choice(query_args)
 
     try:
-      query = query_func(db_thing)
+      query = query_func(db_thing, FLAGS.table_name)
 
       ts = rthist_start(rthist)
 

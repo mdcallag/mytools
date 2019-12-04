@@ -179,6 +179,14 @@ $client ib -x -c 'select * from pg_stat_all_indexes' > o.pgs.idxs
 $client ib -x -c 'select * from pg_statio_all_tables' > o.pgi.tabs
 $client ib -x -c 'select * from pg_statio_all_indexes' > o.pgi.idxs
 $client ib -x -c 'select * from pg_statio_all_sequences' > o.pgi.seq
+echo "pi1_pkey" > o.pgsi
+$client ib -x -c "select * from pgstatindex('pi1_pkey')" >> o.pgsi
+echo "pi1_pdc" >> o.pgsi
+$client ib -x -c "select * from pgstatindex('pi1_pdc')" >> o.pgsi
+echo "pi1_marketsegment" >> o.pgsi
+$client ib -x -c "select * from pgstatindex('pi1_marketsegment')" >> o.pgsi
+echo "pi1_registersegment" >> o.pgsi
+$client ib -x -c "select * from pgstatindex('pi1_registersegment')" >> o.pgsi
 fi
 
 du -hs $ddir > o.sz.$sfx
