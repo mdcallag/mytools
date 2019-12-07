@@ -136,3 +136,19 @@ bash np.sh $(( $querysecs * 100 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 
 mkdir q100
 mv o.* q100
 
+mkdir end
+pga="-h 127.0.0.1 -U root ib"
+echo "pi1_pkey" > o.pgsi
+PGPASSWORD="pw" $client $pga -x -c "select * from pgstatindex('pi1_pkey')" >> o.pgsi
+echo "pi1_pdc" >> o.pgsi
+PGPASSWORD="pw" $client $pga -x -c "select * from pgstatindex('pi1_pdc')" >> o.pgsi
+echo "pi1_marketsegment" >> o.pgsi
+PGPASSWORD="pw" $client $pga -x -c "select * from pgstatindex('pi1_marketsegment')" >> o.pgsi
+echo "pi1_registersegment" >> o.pgsi
+PGPASSWORD="pw" $client $pga -x -c "select * from pgstatindex('pi1_registersegment')" >> o.pgsi
+mv o.pgsi end
+
+echo "pi1" > o.pgst
+PGPASSWORD="pw" $client $pga -x -c "select * from pgstattuple('pi1')" >> o.pgst
+mv o.pgst end
+
