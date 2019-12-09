@@ -104,14 +104,15 @@ for q in 1 2 3 4 5 ; do
     wait ${pids[${i}]}
   done
 
+  nrt=$(( $nr / $ntabs ))
   if [[ $explain -eq 0 ]]; then
-    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nr > o.ib.scan.met.q$q
+    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nrt > o.ib.scan.met.q$q
   fi
 
   stop_secs=$( date +%s )
   tot_secs=$(( $stop_secs - $start_secs ))
-  mrps=$( echo "scale=3; $nr / $tot_secs / 1000000.0" | bc )
-  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $mrps Mrps" >> o.ib.scan
+  mrps=$( echo "scale=3; $nrt / $tot_secs / 1000000.0" | bc )
+  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $nrt rows/table, $mrps Mrps" >> o.ib.scan
 
   kill $vpid
   kill $ipid
