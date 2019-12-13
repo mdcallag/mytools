@@ -104,15 +104,18 @@ for q in 1 2 3 4 5 ; do
     wait ${pids[${i}]}
   done
 
-  nrt=$(( $nr / $ntabs ))
+  pmrows=$( echo "scale=0; $nr / 1000000.0" | bc )
   if [[ $explain -eq 0 ]]; then
-    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nrt > o.ib.scan.met.q$q
+    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nr > o.ib.scan.met.q$q
   fi
 
   stop_secs=$( date +%s )
   tot_secs=$(( $stop_secs - $start_secs ))
-  mrps=$( echo "scale=3; $nrt / $tot_secs / 1000000.0" | bc )
-  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $nrt rows/table, $mrps Mrps" >> o.ib.scan
+  tot_secs2=$tot_secs
+  if [[ $tot_secs2 -eq 0 ]]; then tot_secs2=1; fi
+  mper=$( echo "scale=3; $nr / 1000000.0  / $tot_secs2 / $ntabs" | bc | awk '{ printf "%0.3f", $1 }' )
+  mtot=$( echo "scale=3; $nr / 1000000.0 / $tot_secs2"           | bc | awk '{ printf "%0.3f", $1 }' )
+  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $mper Mrps_per, $mtot Mrps_tot, $pmrows Mrows" >> o.ib.scan
 
   kill $vpid
   kill $ipid

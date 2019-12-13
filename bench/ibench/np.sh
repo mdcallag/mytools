@@ -76,10 +76,8 @@ vmstat 1 >& o.vm.$sfx &
 vpid=$!
 iostat -kx 1 >& o.io.$sfx &
 ipid=$!
-top -w 200 -c -b -d 1 >& o.top.$sfx &
+top -w 200 -c -b -d 30 >& o.top.$sfx &
 tpid=$!
-
-fio-status -a >& o.fio.pre.$sfx
 
 start_secs=$( date +%s )
 
@@ -138,7 +136,7 @@ tot_secs=$(( $stop_secs - $start_secs ))
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
 insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
 
-total_query=$( for n in $( seq 1 $dop ); do grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | tail -3 | head -1 ; done | awk '{ tq += $7; } END { print tq }' )
+total_query=$( for n in $( seq 1 $dop ); do awk '{ if (NF==9) print $0 }' o.ib.dop${dop}.ns${ns}.$n | tail -1 ; done | awk '{ tq += $7; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
@@ -148,7 +146,6 @@ kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
-fio-status -a >& o.fio.post.$sfx
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
