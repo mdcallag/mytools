@@ -4,7 +4,7 @@ dpg12=/home/mdcallag/d/pg120
 dmy8=/home/mdcallag/d/my8018
 dmyfb=/home/mdcallag/d/fbmysql56
 
-qsecs=30
+qsecs=3600
 
 inmem=5000000
 inmemt=5m
