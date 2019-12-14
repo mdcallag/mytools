@@ -141,6 +141,8 @@ mkdir q100
 mv o.* q100
 
 mkdir end
+
+if [[ $dbms == "postgres" ]] ; then 
 pga="-h 127.0.0.1 -U root ib"
 echo "pi1_pkey" > o.pgsi
 PGPASSWORD="pw" $client $pga -x -c "select * from pgstatindex('pi1_pkey')" >> o.pgsi
@@ -155,4 +157,5 @@ mv o.pgsi end
 echo "pi1" > o.pgst
 PGPASSWORD="pw" $client $pga -x -c "select * from pgstattuple('pi1')" >> o.pgst
 mv o.pgst end
+fi
 
