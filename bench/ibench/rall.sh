@@ -71,7 +71,7 @@ function do_pg {
 
 # test in-memory
 for dop in 1 2; do
-for cnf in 1 2 3 4 5 ; do
+for cnf in 1 3 5 ; do
   do_rx $dop $cnf $inmemt $inmem
 done
 done
@@ -104,7 +104,7 @@ done
 
 # now test io-bound with dop=2
 dop=2
-for cnf in 1 2 3 4 5 ; do
+for cnf in 1 2 3 4 5 6 ; do
   do_rx $dop $cnf $iobt2 $iob2
 done
 
