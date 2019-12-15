@@ -37,6 +37,12 @@ function do_mo {
   cp $dmo42/etc/my.cnf $rdir
 }
 
+ts=$( date +'%m%d_%H%M%S' )
+mv 1u 1u.bak.$ts
+mv 2u 2u.bak.$ts
+mkdir 1u
+mkdir 2u
+
 # echo in-memory
 for dop in 1 2; do
 for cnf in 1 ; do
