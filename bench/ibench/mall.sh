@@ -2,21 +2,15 @@
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dmo42=/home/mdcallag/d/mo421
 
-#TODO
-#qsecs=3600
-qsecs=30
+qsecs=3600
 
 inmem=5000000
 inmemt=5m
 
-#TODO
-#iob1=500000000
-iob1=6000000
+iob1=500000000
 iobt1=500m
 
-#TODO
-#iob2=1000000000
-iob2=7000000
+iob2=1000000000
 iobt2=1000m
 
 function do_mo {
