@@ -42,7 +42,7 @@ function do_in {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy8; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" ~/d/my8018/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx
+  cd $dgit; bash iq.sh innodb "" ~/d/my8018/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmy8; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.in80.c${cnf}
@@ -60,7 +60,7 @@ function do_pg {
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" ~/d/pg120/bin/psql /data/m/pg/base nvme0n1 1 $dop postgres no no 0 no $rmem no $qsecs none >& a.$sfx
+  cd $dgit; bash iq.sh pg "" ~/d/pg120/bin/psql /data/m/pg/base nvme0n1 1 $dop postgres no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dpg12; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.pg12.c${cnf}
