@@ -34,7 +34,7 @@ function do_mo {
   rdir=${dop}u/$rmemt.mo42.c${cnf}
   mkdir $rdir
   mv $dmo42/o.ini.* l end scan q100 q1000 a.$sfx $rdir
-  cp $dmo42/etc/my.cnf $rdir
+  cp $dmo42/mongo.conf $rdir
 }
 
 ts=$( date +'%m%d_%H%M%S' )
