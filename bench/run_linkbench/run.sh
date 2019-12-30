@@ -29,7 +29,7 @@ du -hs $ddir >> r.sz.$fn
 if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& r.ps.$fn &
   spid=$!
-  props=LinkConfigMongoDBv2.properties
+  props=LinkConfigMongoDb2.properties
   logarg=""
 else
   while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& r.ps.$fn &
@@ -76,7 +76,7 @@ ips=$( grep "REQUEST PHASE COMPLETED" r.o.$fn | awk '{ print $NF }' )
 grep "REQUEST PHASE COMPLETED" r.o.$fn  > r.r.$fn
 
 printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> r.r.$fn
-grep $dname r.io.$fn | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> r.r.$fn
+grep $dname r.io.$fn | awk '{ rs += $2; rkb += $4; wkb += $5; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> r.r.$fn
 
 printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> r.r.$fn
 grep -v swpd r.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> r.r.$fn

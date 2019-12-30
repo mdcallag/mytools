@@ -9,8 +9,11 @@ myORmo=$8
 ddl=$9
 dbhost=${10}
 
-if [[ $myORmo = "mysql" ]]; then
-  $client -uroot -ppw -h${dbhost} < $ddl
+if [[ $myORmo = "mongo" ]]; then
+  $client admin -u root -p pw --host ${dbhost} < $ddl >& l.ddl.$fn
+
+elif [[ $myORmo = "mysql" ]]; then
+  $client -uroot -ppw -h${dbhost} < $ddl >& l.ddl.$fn
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.mstat.$fn &
@@ -29,7 +32,7 @@ du -hs $ddir >> l.sz.$fn
 if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& l.ps.$fn &
   spid=$!
-  props=LinkConfigMongoDBv2.properties
+  props=LinkConfigMongoDb2.properties
   logarg=""
 else
   while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& l.ps.$fn &
@@ -81,7 +84,7 @@ ips=$( grep "LOAD PHASE COMPLETED" l.o.$fn | awk '{ print $NF }' )
 grep "LOAD PHASE COMPLETED" l.o.$fn  > l.r.$fn
 
 printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> l.r.$fn
-grep $dname l.io.$fn | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.r.$fn
+grep $dname l.io.$fn | awk '{ rs += $2; rkb += $4; wkb += $5; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.r.$fn
 
 printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> l.r.$fn
 grep -v swpd l.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.r.$fn
