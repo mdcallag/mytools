@@ -159,3 +159,26 @@ PGPASSWORD="pw" $client $pga -x -c "select * from pgstattuple('pi1')" >> o.pgst
 mv o.pgst end
 fi
 
+rm -f o.linux o.mount o.sysblock.$dname o.sysvm
+touch o.linux o.mount o.sysblock.$dname o.sysvm
+
+for d in \
+/proc/sys/vm/dirty_background_ratio \
+/proc/sys/vm/dirty_ratio \
+/proc/sys/vm/dirty_expire_centisecs \
+/sys/block/${dname}/queue/read_ahead_kb ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> o.linux
+done
+
+for d in /sys/block/${dname}/queue/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> o.sysblock.$dname
+done
+
+for d in /proc/sys/vm/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> o.sysvm
+done
+
+mount -v > o.mount
