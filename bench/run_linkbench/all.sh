@@ -3,31 +3,30 @@ client=$2
 ddir=$3
 maxid=$4
 dname=$5
-qdop=$6
+wdop=$6
 secs=$7
 myORmo=$8
 ddl=$9
-loops=${10}
-dbhost=${11}
-ldop=${12}
+dbhost=${10}
+ldop=${11}
 
-benchdir=$PWD
-
-echo Load
+echo Load at $( date )
 bash load.sh $fn $client $ddir $maxid $dname $ldop true $myORmo $ddl $dbhost
 
-for loop in $( seq 1 $loops ); do
-bash run.sh $fn.L${loop}.P${qdop} $client $ddir $maxid $dname $qdop $secs $myORmo $dbhost
-done
+# Warmup
+echo Warmup at $( date )
+bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $myORmo $dbhost
 
-shift 12
+shift 11
 
+loop=1
 if [[ $# -gt 0 ]]; then
   doparr=( "$@" )
 
   for mydop in "${doparr[@]}" ; do
-    loop=$(( $loop + 1 ))
+    echo Run dop=$mydop at $( date )
     bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $myORmo $dbhost
+    loop=$(( $loop + 1 ))
   done
 fi
 

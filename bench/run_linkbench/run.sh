@@ -50,10 +50,10 @@ kill $spid
 # kill $mpid
 
 if [[ $myORmo = "mongo" ]]; then
-  echo "db.serverStatus()" | $client > r.stat.$fn
-  echo "db.link.stats()" | $client graph-linkbench > r.link.$fn
-  echo "db.node.stats()" | $client graph-linkbench > r.node.$fn
-  echo "db.count.stats()" | $client graph-linkbench > r.count.$fn
+  echo "db.serverStatus()" | $client $cred linkdb0 > r.stat.$fn
+  echo "db.link.stats()" | $client $cred linkdb0 > r.link.$fn
+  echo "db.node.stats()" | $client $cred linkdb0 > r.node.$fn
+  echo "db.count.stats()" | $client $cred linkdb0 > r.count.$fn
 else
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > r.esi.$fn
