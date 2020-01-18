@@ -1,7 +1,8 @@
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dpg12=/home/mdcallag/d/pg120
-dmy8=/home/mdcallag/d/my8018
+dmy80=/home/mdcallag/d/my8018
+dmy57=/home/mdcallag/d/my5729
 dmyfb=/home/mdcallag/d/fbmysql56
 
 qsecs=3600
@@ -33,7 +34,7 @@ function do_rx {
   cp $dmyfb/etc/my.cnf $rdir
 }
 
-function do_in {
+function do_in80 {
   dop=$1
   cnf=$2
   rmemt=$3
@@ -41,14 +42,32 @@ function do_in {
 
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
-  cd $dmy8; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh innodb "" ~/d/my8018/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
-  cd $dmy8; bash down.sh
+  cd $dmy80; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.in80.c${cnf}
   mkdir $rdir
-  mv $dmy8/o.ini.* l end scan q100 q1000 a.$sfx $rdir
-  cp $dmy8/etc/my.cnf $rdir
+  mv $dmy80/o.ini.* l end scan q100 q1000 a.$sfx $rdir
+  cp $dmy80/etc/my.cnf $rdir
+}
+
+function do_in57 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem=$4
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" ~/d/my5729/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dmy57; bash down.sh
+  cd $dgit
+  rdir=${dop}u/$rmemt.in57.c${cnf}
+  mkdir $rdir
+  mv $dmy57/o.ini.* l end scan q100 q1000 a.$sfx $rdir
+  cp $dmy57/etc/my.cnf $rdir
 }
 
 function do_pg {
@@ -84,7 +103,13 @@ done
 
 for dop in 1 2; do
 for cnf in 8 ; do
-  do_in $dop $cnf $inmemt $inmem
+  do_in80 $dop $cnf $inmemt $inmem
+done
+done
+
+for dop in 1 2; do
+for cnf in 8 ; do
+  do_in57 $dop $cnf $inmemt $inmem
 done
 done
 
@@ -101,7 +126,11 @@ for cnf in 1 2 3 4 5 ; do
 done
 
 for cnf in 8 ; do
-  do_in $dop $cnf $iobt1 $iob1
+  do_in80 $dop $cnf $iobt1 $iob1
+done
+
+for cnf in 8 ; do
+  do_in57 $dop $cnf $iobt1 $iob1
 done
 
 for cnf in 5 ; do
@@ -115,7 +144,11 @@ for cnf in 1 2 3 4 5 6 ; do
 done
 
 for cnf in 8 ; do
-  do_in $dop $cnf $iobt2 $iob2
+  do_in80 $dop $cnf $iobt2 $iob2
+done
+
+for cnf in 8 ; do
+  do_in57 $dop $cnf $iobt2 $iob2
 done
 
 for cnf in 5 ; do
