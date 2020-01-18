@@ -91,12 +91,12 @@ echo "before $ddir" > l.pre.sz.$fn
 du -hs $ddir >> l.pre.sz.$fn
 
 if [[ $myORmo = "mongo" ]]; then
-  while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
 else
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
@@ -111,7 +111,7 @@ echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
 start_secs=$( date +%s )
-time bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1
+/usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1
 
 nodes=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $9 }' )
 links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $14 }' )
@@ -133,12 +133,12 @@ du -hs $ddir >> l.post.sz.$fn
 
 start_secs=$( date +%s )
 if [[ $myORmo = "mongo" ]]; then
-  while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& l.post.ps.$fn &
+  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
   $client admin -u root -p pw --host ${dbhost} < $ddl.post >& l.post.ddl.$fn
 
 elif [[ $myORmo = "mysql" ]]; then
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& l.post.ps.$fn &
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
   $client -uroot -ppw -h${dbhost} < $ddl.post >& l.post.ddl.$fn
   echo Skip mstat

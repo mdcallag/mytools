@@ -27,12 +27,12 @@ echo "before $ddir" > r.sz.$fn
 du -hs $ddir >> r.sz.$fn
 
 if [[ $myORmo = "mongo" ]]; then
-  while :; do ps aux | grep mongod | grep -v grep; sleep 180; done >& r.ps.$fn &
+  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
 else
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 180; done >& r.ps.$fn &
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
@@ -42,7 +42,7 @@ fi
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
 
-time bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1
+/usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1
 
 kill $ipid
 kill $vpid
