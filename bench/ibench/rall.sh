@@ -88,9 +88,6 @@ function do_pg {
   cp $dpg12/conf.diff $rdir
 }
 
-ts=$( date +'%m%d_%H%M%S' )
-mv 1u 1u.bak.$ts
-mv 2u 2u.bak.$ts
 mkdir 1u
 mkdir 2u
 
