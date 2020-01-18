@@ -38,6 +38,7 @@ slow_query_log=1
 innodb_purge_threads=1
 performance_schema=1
 ssl=0
+default_authentication_plugin=mysql_native_password
 
 character_set_server=latin1
 collation_server=latin1_swedish_ci
