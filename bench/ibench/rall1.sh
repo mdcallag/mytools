@@ -1,11 +1,9 @@
-dbms=$1
-cnf=$2
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dpg12=/home/mdcallag/d/pg120
 dmy80=/home/mdcallag/d/my8018
 dmy57=/home/mdcallag/d/my5729
-dmyfb=/home/mdcallag/d/fbmy56
+dmyfb=/home/mdcallag/d/fbmysql56
 
 qsecs=3600
 
@@ -27,7 +25,7 @@ function do_rx {
   echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=rx.$rmemt.dop$dop.c$cnf
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh rocksdb "" ~/d/fbmy56/bin/mysql /data/m/fbmy/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" ~/d/fbmysql56/bin/mysql /data/m/fbmy/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmyfb; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.rx56.c${cnf}
@@ -94,45 +92,63 @@ mkdir 1u
 mkdir 2u
 
 # test in-memory
-for dop in 1 2 4 ; do
-  if [[ $dbms == "rx" ]]; then
-    do_rx $dop $cnf $inmemt $inmem
-  elif [[ $dbms == "pg" ]]; then
-    do_pg $dop $cnf $inmemt $inmem
-  elif [[ $dbms == "in80" ]]; then
-    do_in80 $dop $cnf $inmemt $inmem
-  elif [[ $dbms == "in57" ]]; then
-    do_in57 $dop $cnf $inmemt $inmem
-  elif [[ $dbms == "mo42" ]]; then
-    do_mo42 $dop $cnf $inmemt $inmem
-  fi  
+for dop in 1 2; do
+for cnf in 1 3 5 ; do
+  do_rx $dop $cnf $inmemt $inmem
+done
+done
+
+for dop in 1 2; do
+for cnf in 8 ; do
+  do_in80 $dop $cnf $inmemt $inmem
+done
+done
+
+for dop in 1 2; do
+for cnf in 8 ; do
+  do_in57 $dop $cnf $inmemt $inmem
+done
+done
+
+for dop in 1 2; do
+for cnf in 5 ; do
+  do_pg $dop $cnf $inmemt $inmem
+done
 done
 
 # now test io-bound with dop=1
 dop=1
-if [[ $dbms == "rx" ]]; then
+for cnf in 1 2 3 4 5 ; do
   do_rx $dop $cnf $iobt1 $iob1
-elif [[ $dbms == "pg" ]]; then
-  do_pg $dop $cnf $iobt1 $iob1
-elif [[ $dbms == "in80" ]]; then
+done
+
+for cnf in 8 ; do
   do_in80 $dop $cnf $iobt1 $iob1
-elif [[ $dbms == "in57" ]]; then
+done
+
+for cnf in 8 ; do
   do_in57 $dop $cnf $iobt1 $iob1
-elif [[ $dbms == "mo42" ]]; then
-  do_mo42 $dop $cnf $iobt1 $iob1
-fi  
+done
+
+for cnf in 5 ; do
+  do_pg $dop $cnf $iobt1 $iob1
+done
 
 # now test io-bound with dop=2
 dop=2
-if [[ $dbms == "rx" ]]; then
+for cnf in 1 2 3 4 5 6 ; do
   do_rx $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "pg" ]]; then
-  do_pg $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "in80" ]]; then
+done
+
+for cnf in 8 ; do
   do_in80 $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "in57" ]]; then
+done
+
+for cnf in 8 ; do
   do_in57 $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "mo42" ]]; then
-  do_mo42 $dop $cnf $iobt2 $iob2
-fi  
+done
+
+for cnf in 5 ; do
+  do_pg $dop $cnf $iobt2 $iob2
+done
 
