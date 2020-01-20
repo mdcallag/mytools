@@ -135,12 +135,12 @@ start_secs=$( date +%s )
 if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
-  $client admin -u root -p pw --host ${dbhost} < $ddl.post >& l.post.ddl.$fn
+  /usr/bin/time -o l.post.time.$fn $client admin -u root -p pw --host ${dbhost} < $ddl.post >& l.post.ddl.$fn
 
 elif [[ $myORmo = "mysql" ]]; then
   while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
-  $client -uroot -ppw -h${dbhost} < $ddl.post >& l.post.ddl.$fn
+  /usr/bin/time -o l.post.time.$fn $client -uroot -ppw -h${dbhost} < $ddl.post >& l.post.ddl.$fn
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.mstat.$fn &
