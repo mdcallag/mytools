@@ -7,18 +7,21 @@ function dt2s {
   ts=$1
   min=$( echo $ts | tr ':' ' ' | awk '{ print $1 }' )
   sec=$( echo $ts | tr ':' ' ' | awk '{ print $2 }' )
-  nsecs=$( echo "$min * 60 + $sec" | bc )
-  echo $nsecs
+  d2nsecs=$( echo "$min * 60 + $sec" | bc )
+  echo $d2nsecs
 }
 
 if [[ $secORop == "sec" ]]; then
-  echo "secs,ips,dbgb,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
+  echo "secs,ips,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
 else
-  echo "secs,ips,rpi,rkbpi,wkbpi,cspi,cpupi,csec,dsec,cnf"
+  echo "secs,ips,rpi,rkbpi,wkbpi,cspi,cpupi,csecpq,dsecpq,csec,dsec,dbgb,cnf"
 fi
 
 for d in * ; do 
   nsecs=$( cat $d/l.$tag.r.* | grep "^Inserted in" | awk '{ print $3 }' )
+  # Avoids div by 0 during l.post when there is no work to do because 
+  # index was created during l.pre
+  if [[ $nsecs -eq 0 ]]; then nsecs=1 ; fi
   ips=$( cat $d/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.0f", $8 }' )
 
   # dbms CPU secs
@@ -38,8 +41,7 @@ for d in * ; do
   else
     cus=X; csy=X; csec=0; csec0=0
   fi
-
-  dbgb=$( cat $d/l.$tag.r.* | head -11 | tail -1 | awk '{ print $1 }' )
+dbgb=$( cat $d/l.$tag.r.* | head -11 | tail -1 | awk '{ print $1 }' )
 
   if [[ $secORop == "sec" ]]; then
     rps=$( cat $d/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.0f", $2 }' )
@@ -50,16 +52,16 @@ for d in * ; do
     cutil=$( echo $csec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
     dutil=$( echo $dsec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
     #echo "$csec,$dsec"
-    echo "$nsecs,$ips,$dbgb,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$d"
+    echo "$nsecs,$ips,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$d"
   else
     rpi=$( cat $d/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.3f", $5 }' )
     rkbpi=$( cat $d/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.3f", $6 }' )
     wkbpi=$( cat $d/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.3f", $7 }' )
     cspi=$( cat $d/l.$tag.r.* | head -6 | tail -1 | awk '{ printf "%.1f", $4 }' )
     cpupi=$( cat $d/l.$tag.r.* | head -6 | tail -1 | awk '{ printf "%.0f", $5 * 1000000.0 }' )
-    #cupi=$( echo $csec $nsecs $ips | awk '{ printf "%.3f", $1 / $2 / $3 }' )
-    #dupi=$( echo $dsec $nsecs $ips | awk '{ printf "%.3f", $1 / $2 / $3 }' )
-    echo "$nsecs,$ips,$rpi,$rkbpi,$wkbpi,$cspi,$cpupi,$csec0,$dsec0,$d"
+    csecpq=$( echo $csec $nsecs $ips | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
+    dsecpq=$( echo $dsec $nsecs $ips | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
+    echo "$nsecs,$ips,$rpi,$rkbpi,$wkbpi,$cspi,$cpupi,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$d"
   fi
 
 done

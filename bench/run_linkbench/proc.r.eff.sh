@@ -12,9 +12,9 @@ function dt2s {
 }
 
 if [[ $secORop == "sec" ]]; then
-  echo "secs,qps,dbgb,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
+  echo "secs,qps,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
 else
-  echo "secs,qps,rpq,rkbpq,wkbpq,cspq,cpupq,csec,dsec,cnf"
+  echo "secs,qps,rpq,rkbpq,wkbpq,cspq,cpupq,csecpq,dsecpq,csec,dsec,dbgb,cnf"
 fi
 
 for d in * ; do 
@@ -46,23 +46,16 @@ for d in * ; do
     cutil=$( echo $csec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
     dutil=$( echo $dsec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
     #echo "$csec,$dsec"
-    echo "$nsecs,$qps,$dbgb,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$d"
+    echo "$nsecs,$qps,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$d"
   else
     rpq=$( cat $d/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.3f", $5 }' )
     rkbpq=$( cat $d/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.3f", $6 }' )
     wkbpq=$( cat $d/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.3f", $7 }' )
     cspq=$( cat $d/r.r.*.$tag | head -7 | tail -1 | awk '{ printf "%.1f", $4 }' )
     cpupq=$( cat $d/r.r.*.$tag | head -7 | tail -1 | awk '{ printf "%.0f", $5 * 1000000.0 }' )
-    #cupi=$( echo $csec $nsecs $ips | awk '{ printf "%.3f", $1 / $2 / $3 }' )
-    #dupi=$( echo $dsec $nsecs $ips | awk '{ printf "%.3f", $1 / $2 / $3 }' )
-    echo "$nsecs,$qps,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csec0,$dsec0,$d"
+    csecpq=$( echo $csec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
+    dsecpq=$( echo $dsec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
+    echo "$nsecs,$qps,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$d"
   fi
 
-  #tcspq=$( cat $d/r.r.*.$tag | awk '{ if (NR==7) { print $4 } }' )
-  #tcpupq=$( cat $d/r.r.*.$tag | awk '{ if (NR==7) { print $5 } }' | awk '{ printf "%.0f\n", 1000000 * $1 }' )
-  #umax=$( cat $d/r.o.*.$tag | grep UPDATE_LINK | tail -1 | awk '{ print $26 }' | sed 's/ms//g' | awk '{ printf "%.0f\n", $1 }' )
-  #umean=$( cat $d/r.o.*.$tag | grep UPDATE_LINK | tail -1 | awk '{ print $29 }' | sed 's/ms//g' )
-  #rmax=$( cat $d/r.o.*.$tag | grep GET_LINKS_LIST | tail -1 | awk '{ print $26 }' | sed 's/ms//g' | awk '{ printf "%.0f\n", $1 }' )
-  #rmean=$( cat $d/r.o.*.$tag | grep GET_LINKS_LIST | tail -1 | awk '{ print $29 }' | sed 's/ms//g' )
-  #echo "$qps,$tcspq,$tcpupq,$dcpupq,$ccpupq,$umax,$umean,$rmax,$rmean,$d"
 done
