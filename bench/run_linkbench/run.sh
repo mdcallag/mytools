@@ -23,8 +23,14 @@ ipid=$!
 vmstat 5 >& r.vm.$fn &
 vpid=$!
 
-echo "before $ddir" > r.sz.$fn
-du -hs $ddir >> r.sz.$fn
+echo "before $ddir" > r.sz1.$fn
+du -sm $ddir >> r.sz1.$fn
+echo "before $ddir" > r.sz2.$fn
+du -sm $ddir/* >> r.sz2.$fn
+echo "before apparent $ddir" > r.asz1.$fn
+du -sm --apparent-size $ddir >> r.asz1.$fn
+echo "before apparent $ddir" > r.asz2.$fn
+du -sm --apparent-size $ddir/* >> r.asz2.$fn
 
 if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& r.ps.$fn &
@@ -50,10 +56,14 @@ kill $spid
 # kill $mpid
 
 if [[ $myORmo = "mongo" ]]; then
+  cred="-u root -p pw --authenticationDatabase=admin"
   echo "db.serverStatus()" | $client $cred linkdb0 > r.stat.$fn
-  echo "db.link.stats()" | $client $cred linkdb0 > r.link.$fn
-  echo "db.node.stats()" | $client $cred linkdb0 > r.node.$fn
-  echo "db.count.stats()" | $client $cred linkdb0 > r.count.$fn
+  echo "db.linktable.stats()" | $client $cred linkdb0 > r.link.$fn
+  echo "db.nodetable.stats()" | $client $cred linkdb0 > r.node.$fn
+  echo "db.counttable.stats()" | $client $cred linkdb0 > r.count.$fn
+  echo "db.oplog.rs.stats()" | $client $cred local > r.oplog.$fn
+  echo "show dbs" | $client $cred linkdb0 > r.dbs.$fn
+
 else
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > r.esi.$fn
@@ -68,9 +78,14 @@ else
   $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > r.mem.$fn
 fi
 
-echo "after $ddir" >> r.sz.$fn
-du -hs $ddir >> r.sz.$fn
-du -hs $ddir/* >> r.sz.$fn
+echo "after $ddir" >> r.sz1.$fn
+du -sm $ddir >> r.sz1.$fn
+echo "after $ddir" >> r.sz2.$fn
+du -sm $ddir/* >> r.sz2.$fn
+echo "after $ddir" >> r.asz1.$fn
+du -sm --apparent-size $ddir >> r.asz1.$fn
+echo "after $ddir" >> r.asz2.$fn
+du -sm --apparent-size $ddir/* >> r.asz2.$fn
 
 ips=$( grep "REQUEST PHASE COMPLETED" r.o.$fn | awk '{ print $NF }' )
 grep "REQUEST PHASE COMPLETED" r.o.$fn  > r.r.$fn
@@ -82,7 +97,7 @@ printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> r.r.$fn
 grep -v swpd r.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> r.r.$fn
 
 echo >> r.r.$fn
-head -4 r.sz.$fn >> r.r.$fn
+head -4 r.sz1.$fn >> r.r.$fn
 
 echo >> r.r.$fn
 head -1 r.ps.$fn >> r.r.$fn

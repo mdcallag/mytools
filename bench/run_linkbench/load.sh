@@ -29,9 +29,14 @@ function process_stats {
   kill $spid
   # kill $mpid
 
-  echo "after $ddir" >> l.$tag.sz.$fn
-  du -hs $ddir >> l.$tag.sz.$fn
-  du -hs $ddir/* >> l.$tag.sz.$fn
+  echo "after $ddir" >> l.$tag.sz1.$fn
+  du -sm $ddir >> l.$tag.sz1.$fn
+  echo "after $ddir" >> l.$tag.sz2.$fn
+  du -sm $ddir/* >> l.$tag.sz2.$fn
+  echo "after apparent $ddir" >> l.$tag.asz1.$fn
+  du -sm --apparent-size $ddir >> l.$tag.asz1.$fn
+  echo "after apparent $ddir" >> l.$tag.asz2.$fn
+  du -sm --apparent-size $ddir/* >> l.$tag.asz2.$fn
 
   printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> l.$tag.r.$fn
   grep $dname l.$tag.io.$fn | awk '{ rs += $2; rkb += $4; wkb += $5; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.$tag.r.$fn
@@ -40,7 +45,7 @@ function process_stats {
   grep -v swpd l.$tag.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
-  head -4 l.$tag.sz.$fn >> l.$tag.r.$fn
+  head -4 l.$tag.sz1.$fn >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
   head -1 l.$tag.ps.$fn >> l.$tag.r.$fn
@@ -53,9 +58,11 @@ function process_stats {
   if [[ $myORmo = "mongo" ]]; then
     cred="-u root -p pw --authenticationDatabase=admin"
     echo "db.serverStatus()" | $client $cred > l.$tag.stat.$fn
-    echo "db.link.stats()" | $client $cred linkdb0 > l.$tag.link.$fn
-    echo "db.node.stats()" | $client $cred linkdb0 > l.$tag.node.$fn
-    echo "db.count.stats()" | $client $cred linkdb0 > l.$tag.count.$fn
+    echo "db.linktable.stats()" | $client $cred linkdb0 > l.$tag.link.$fn
+    echo "db.nodetable.stats()" | $client $cred linkdb0 > l.$tag.node.$fn
+    echo "db.counttable.stats()" | $client $cred linkdb0 > l.$tag.count.$fn
+    echo "db.oplog.rs.stats()" | $client $cred local > l.$tag.oplog.$fn
+    echo "show dbs" | $client $cred linkdb0 > l.$tag.dbs.$fn
   else
     $client -uroot -ppw -A -h${dbhost} -e 'reset master'
     $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > l.$tag.esi.$fn
@@ -87,8 +94,14 @@ ipid=$!
 vmstat 5 >& l.pre.vm.$fn &
 vpid=$!
 
-echo "before $ddir" > l.pre.sz.$fn
-du -hs $ddir >> l.pre.sz.$fn
+echo "before $ddir" > l.pre.sz1.$fn
+du -sm $ddir >> l.pre.sz1.$fn
+echo "before $ddir" > l.pre.sz2.$fn
+du -sm $ddir/* >> l.pre.sz2.$fn
+echo "before apparent $ddir" > l.pre.asz1.$fn
+du -sm --apparent-size $ddir >> l.pre.asz1.$fn
+echo "before apparent $ddir" > l.pre.asz2.$fn
+du -sm --apparent-size $ddir/* >> l.pre.asz2.$fn
 
 if [[ $myORmo = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
@@ -128,8 +141,14 @@ ipid=$!
 vmstat 5 >& l.post.vm.$fn &
 vpid=$!
 
-echo "before secondary $ddir" > l.post.sz.$fn
-du -hs $ddir >> l.post.sz.$fn
+echo "before secondary $ddir" > l.post.sz1.$fn
+du -sm $ddir >> l.post.sz1.$fn
+echo "before secondary $ddir" > l.post.sz2.$fn
+du -sm $ddir/* >> l.post.sz2.$fn
+echo "before secondary apparent $ddir" > l.post.asz1.$fn
+du -sm --apparent-size $ddir >> l.post.asz1.$fn
+echo "before secondary apparent $ddir" > l.post.asz2.$fn
+du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
 start_secs=$( date +%s )
 if [[ $myORmo = "mongo" ]]; then
