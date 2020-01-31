@@ -5,9 +5,11 @@ maxid=$4
 dname=$5
 dop=$6
 gennodes=$7
-myORmo=$8
+dbms=$8
 ddl=$9
 dbhost=${10}
+
+pgauth="--host 127.0.0.1"
 
 function process_stats {
   tag=$1
@@ -55,7 +57,7 @@ function process_stats {
   echo "Inserted in $tsecs seconds: $nodes node, $links link" >> l.$tag.r.$fn
   echo "This excludes updates to linkcount" >> l.$tag.r.$fn
 
-  if [[ $myORmo = "mongo" ]]; then
+  if [[ $dbms = "mongo" ]]; then
     cred="-u root -p pw --authenticationDatabase=admin"
     echo "db.serverStatus()" | $client $cred > l.$tag.stat.$fn
     echo "db.linktable.stats()" | $client $cred linkdb0 > l.$tag.link.$fn
@@ -63,7 +65,7 @@ function process_stats {
     echo "db.counttable.stats()" | $client $cred linkdb0 > l.$tag.count.$fn
     echo "db.oplog.rs.stats()" | $client $cred local > l.$tag.oplog.$fn
     echo "show dbs" | $client $cred linkdb0 > l.$tag.dbs.$fn
-  else
+  elif [[ $dbms == "mysql" ]]; then
     $client -uroot -ppw -A -h${dbhost} -e 'reset master'
     $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > l.$tag.esi.$fn
     $client -uroot -ppw -A -h${dbhost} -e 'show engine rocksdb status\G' > l.$tag.esr.$fn
@@ -75,18 +77,42 @@ function process_stats {
     $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from nodetable' >> l.$tag.is.$fn
     $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from counttable' >> l.$tag.is.$fn
     $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > l.$tag.mem.$fn
+  elif [[ $dbms == "postgres" ]]; then
+    $client linkdb $pgauth -c 'show all' > o.pg.conf
+    $client linkdb $pgauth -x -c 'select * from pg_stat_bgwriter' > l.$tag.pgs.bg
+    $client linkdb $pgauth -x -c 'select * from pg_stat_database' > l.$tag.pgs.db
+    $client linkdb $pgauth -x -c 'select * from pg_stat_all_tables' > l.$tag.pgs.tabs
+    $client linkdb $pgauth -x -c 'select * from pg_stat_all_indexes' > l.$tag.pgs.idxs
+    $client linkdb $pgauth -x -c 'select * from pg_statio_all_tables' > l.$tag.pgi.tabs
+    $client linkdb $pgauth -x -c 'select * from pg_statio_all_indexes' > l.$tag.pgi.idxs
+    $client linkdb $pgauth -x -c 'select * from pg_statio_all_sequences' > l.$tag.pgi.seq
+  else
+    echo dbms :: $dbms :: not supported
+    exit 1
   fi
 }
 
-if [[ $myORmo = "mongo" ]]; then
+if [[ $dbms = "mongo" ]]; then
   $client admin -u root -p pw --host ${dbhost} < $ddl.pre >& l.pre.ddl.$fn
 
-elif [[ $myORmo = "mysql" ]]; then
+elif [[ $dbms = "mysql" ]]; then
   $client -uroot -ppw -h${dbhost} < $ddl.pre >& l.pre.ddl.$fn
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.pre.mstat.$fn &
   # mpid=$!
+elif [[ $dbms = "postgres" ]]; then
+  echo PG drop database
+  $client me $pgauth -c "drop database if exists linkdb"
+  sleep 5
+  echo PG create database
+  #$client me $pgauth -c "create database linkdb0 encoding='latin1'"
+  $client me $pgauth -c "create database linkdb"
+  echo PG pre DDL
+  $client linkdb $pgauth < $ddl.pre >& l.pre.ddl.$fn
+else
+  echo dbms :: $dbms :: not supported
+  exit 1
 fi
 
 iostat -kx 5 >& l.pre.io.$fn &
@@ -103,12 +129,12 @@ du -sm --apparent-size $ddir >> l.pre.asz1.$fn
 echo "before apparent $ddir" > l.pre.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.pre.asz2.$fn
 
-if [[ $myORmo = "mongo" ]]; then
+if [[ $dbms = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
-else
+elif [[ $dbms = "mysql" ]]; then
   while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
@@ -117,6 +143,14 @@ else
 
   while :; do sleep 300; lh=$( date --date='last hour' +'%Y-%m-%d %H:%M:%S' ); $client -uroot -ppw -h${dbhost} -e "purge binary logs before \"$lh\""; done &
   pblpid=$!
+elif [[ $dbms = "postgres" ]]; then
+  while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  spid=$!
+  props=LinkConfigPgsql.properties
+  logarg="-Duser=linkdb -Dpassword=pw"
+else
+  echo dbms :: $dbms :: not supported
+  exit 1
 fi
 
 echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
@@ -151,12 +185,12 @@ echo "before secondary apparent $ddir" > l.post.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
 start_secs=$( date +%s )
-if [[ $myORmo = "mongo" ]]; then
+if [[ $dbms = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
   /usr/bin/time -o l.post.time.$fn $client admin -u root -p pw --host ${dbhost} < $ddl.post >& l.post.ddl.$fn
 
-elif [[ $myORmo = "mysql" ]]; then
+elif [[ $dbms = "mysql" ]]; then
   while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
   /usr/bin/time -o l.post.time.$fn $client -uroot -ppw -h${dbhost} < $ddl.post >& l.post.ddl.$fn
@@ -164,6 +198,14 @@ elif [[ $myORmo = "mysql" ]]; then
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.mstat.$fn &
   # mpid=$!
+
+elif [[ $dbms = "postgres" ]]; then
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
+  spid=$!
+  /usr/bin/time -o l.post.time.$fn $client me $pgauth linkdb < $ddl.post >& l.post.ddl.$fn
+else
+  echo dbms :: $dbms :: not supported
+  exit 1
 fi
 
 process_stats post $start_secs $nodes $links
