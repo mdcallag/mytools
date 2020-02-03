@@ -78,14 +78,14 @@ function process_stats {
     $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from counttable' >> l.$tag.is.$fn
     $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > l.$tag.mem.$fn
   elif [[ $dbms == "postgres" ]]; then
-    $client linkdb $pgauth -c 'show all' > o.pg.conf
-    $client linkdb $pgauth -x -c 'select * from pg_stat_bgwriter' > l.$tag.pgs.bg
-    $client linkdb $pgauth -x -c 'select * from pg_stat_database' > l.$tag.pgs.db
-    $client linkdb $pgauth -x -c 'select * from pg_stat_all_tables' > l.$tag.pgs.tabs
-    $client linkdb $pgauth -x -c 'select * from pg_stat_all_indexes' > l.$tag.pgs.idxs
-    $client linkdb $pgauth -x -c 'select * from pg_statio_all_tables' > l.$tag.pgi.tabs
-    $client linkdb $pgauth -x -c 'select * from pg_statio_all_indexes' > l.$tag.pgi.idxs
-    $client linkdb $pgauth -x -c 'select * from pg_statio_all_sequences' > l.$tag.pgi.seq
+    $client linkbench $pgauth -c 'show all' > o.pg.conf
+    $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > l.$tag.pgs.bg
+    $client linkbench $pgauth -x -c 'select * from pg_stat_database' > l.$tag.pgs.db
+    $client linkbench $pgauth -x -c 'select * from pg_stat_all_tables' > l.$tag.pgs.tabs
+    $client linkbench $pgauth -x -c 'select * from pg_stat_all_indexes' > l.$tag.pgs.idxs
+    $client linkbench $pgauth -x -c 'select * from pg_statio_all_tables' > l.$tag.pgi.tabs
+    $client linkbench $pgauth -x -c 'select * from pg_statio_all_indexes' > l.$tag.pgi.idxs
+    $client linkbench $pgauth -x -c 'select * from pg_statio_all_sequences' > l.$tag.pgi.seq
   else
     echo dbms :: $dbms :: not supported
     exit 1
@@ -107,9 +107,9 @@ elif [[ $dbms = "postgres" ]]; then
   sleep 5
   echo PG create database
   #$client me $pgauth -c "create database linkdb0 encoding='latin1'"
-  $client me $pgauth -c "create database linkdb"
+  $client me $pgauth -c "create database linkbench"
   echo PG pre DDL
-  $client linkdb $pgauth < $ddl.pre >& l.pre.ddl.$fn
+  $client linkbench $pgauth < $ddl.pre >& l.pre.ddl.$fn
 else
   echo dbms :: $dbms :: not supported
   exit 1
@@ -147,7 +147,7 @@ elif [[ $dbms = "postgres" ]]; then
   while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigPgsql.properties
-  logarg="-Duser=linkdb -Dpassword=pw"
+  logarg="-Duser=linkbench -Dpassword=pw"
 else
   echo dbms :: $dbms :: not supported
   exit 1
@@ -202,7 +202,7 @@ elif [[ $dbms = "mysql" ]]; then
 elif [[ $dbms = "postgres" ]]; then
   while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
   spid=$!
-  /usr/bin/time -o l.post.time.$fn $client me $pgauth linkdb < $ddl.post >& l.post.ddl.$fn
+  /usr/bin/time -o l.post.time.$fn $client linkbench $pgauth < $ddl.post >& l.post.ddl.$fn
 else
   echo dbms :: $dbms :: not supported
   exit 1
