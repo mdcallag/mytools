@@ -16,11 +16,12 @@ function process_stats {
   start_secs=$2
   nodes=$3
   links=$4
+  counts=$5
 
   touch l.$tag.r.$fn
 
   # This ignores inserts and updates to linkcount
-  nr=$( echo "$3 + $4" | bc )
+  nr=$( echo "$3 + $4 + $5" | bc )
 
   end_secs=$( date +%s )
   tsecs=$( echo "$end_secs - $start_secs" | bc )
@@ -54,15 +55,18 @@ function process_stats {
   tail -1 l.$tag.ps.$fn >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
-  echo "Inserted in $tsecs seconds: $nodes node, $links link" >> l.$tag.r.$fn
-  echo "This excludes updates to linkcount" >> l.$tag.r.$fn
+  echo "Inserted in $tsecs seconds: $nodes node, $links link, $counts count" >> l.$tag.r.$fn
 
   if [[ $dbms = "mongo" ]]; then
     cred="-u root -p pw --authenticationDatabase=admin"
-    echo "db.serverStatus()" | $client $cred > l.$tag.stat.$fn
-    echo "db.linktable.stats()" | $client $cred linkdb0 > l.$tag.link.$fn
-    echo "db.nodetable.stats()" | $client $cred linkdb0 > l.$tag.node.$fn
-    echo "db.counttable.stats()" | $client $cred linkdb0 > l.$tag.count.$fn
+    echo "db.serverStatus()" | $client $cred > l.$tag.srvstat.$fn
+    echo "db.stats()" | $client $cred > l.$tag.dbstats.$fn
+    echo "db.linktable.stats({indexDetails: true})" | $client $cred linkdb0 > l.$tag.stats.link.$fn
+    echo "db.nodetable.stats({indexDetails: true})" | $client $cred linkdb0 > l.$tag.stats.node.$fn
+    echo "db.counttable.stats({indexDetails: true})" | $client $cred linkdb0 > l.$tag.stats.count.$fn
+    echo "db.linktable.latencyStats({histograms: true}).pretty()" | $client $cred linkdb0 > l.$tag.lat.link.$fn
+    echo "db.nodetable.latencyStats({histograms: true}).pretty()" | $client $cred linkdb0 > l.$tag.lat.node.$fn
+    echo "db.counttable.latencyStats({histograms: true}).pretty()" | $client $cred linkdb0 > l.$tag.lat.count.$fn
     echo "db.oplog.rs.stats()" | $client $cred local > l.$tag.oplog.$fn
     echo "show dbs" | $client $cred linkdb0 > l.$tag.dbs.$fn
   elif [[ $dbms == "mysql" ]]; then
@@ -77,6 +81,14 @@ function process_stats {
     $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from nodetable' >> l.$tag.is.$fn
     $client -uroot -ppw -A -h${dbhost} linkdb0 -e 'show indexes from counttable' >> l.$tag.is.$fn
     $client -uroot -ppw -A -h${dbhost} -e 'show memory status\G' > l.$tag.mem.$fn
+    $client -uroot -ppw -A -h${dbhost} performance_schema -E -e 'SELECT * FROM table_io_waits_summary_by_table WHERE OBJECT_NAME IN ("linktable", "nodetable", "counttable")' > l.$tag.tstat1.$fn
+    $client -uroot -ppw -A -h${dbhost} performance_schema -E -e 'SELECT * FROM events_statements_summary_by_account_by_event_name WHERE USER="root"' > l.$tag.ustat1.$fn
+    $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM sys.schema_table_statistics WHERE table_name IN ("linktable", "nodetable", "counttable")' > l.$tag.tstat2.$fn
+    $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM sys.user_summary' > l.$tag.ustat2.$fn
+    $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.user_statistics' > l.$tag.ustat3.$fn
+    $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.table_statistics WHERE TABLE_NAME IN ("linktable", "nodetable", "counttable")' > l.$tag.tstat3.$fn
+    $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.index_statistics' > l.$tag.istat3.$fn
+
   elif [[ $dbms == "postgres" ]]; then
     $client linkbench $pgauth -c 'show all' > o.pg.conf
     $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > l.$tag.pgs.bg
@@ -158,13 +170,17 @@ echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
 start_secs=$( date +%s )
-/usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1
+if ! /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
+  echo Load failed
+  exit 1
+fi
 
 nodes=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $9 }' )
-links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $14 }' )
+links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $13 }' )
+counts=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $17 }' )
 
 kill $pblpid
-process_stats pre $start_secs $nodes $links
+process_stats pre $start_secs $nodes $links $counts
 
 #
 # Now create the covering index on Link
@@ -208,5 +224,5 @@ else
   exit 1
 fi
 
-process_stats post $start_secs $nodes $links
+process_stats post $start_secs $nodes $links $counts
 
