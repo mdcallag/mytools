@@ -13,8 +13,8 @@ qsecs=3600
 inmem=5000000
 inmemt=5m
 
-iob1=500000000
-iobt1=500m
+iob1=250000000
+iobt1=250m
 
 iob2=1000000000
 iobt2=1000m
@@ -111,10 +111,9 @@ function do_mo42 {
 
 mkdir 1u
 mkdir 2u
-mkdir 4u
 
 # test in-memory
-for dop in 1 2 4 ; do
+for dop in 1 ; do
   if [[ $dbms == "rx" ]]; then
     do_rx $dop $cnf $inmemt $inmem
   elif [[ $dbms == "pg" ]]; then
@@ -140,19 +139,5 @@ elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $iobt1 $iob1
 elif [[ $dbms == "mo42" ]]; then
   do_mo42 $dop $cnf $iobt1 $iob1
-fi  
-
-# now test io-bound with dop=2
-dop=2
-if [[ $dbms == "rx" ]]; then
-  do_rx $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "pg" ]]; then
-  do_pg $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "in80" ]]; then
-  do_in80 $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "in57" ]]; then
-  do_in57 $dop $cnf $iobt2 $iob2
-elif [[ $dbms == "mo42" ]]; then
-  do_mo42 $dop $cnf $iobt2 $iob2
 fi  
 

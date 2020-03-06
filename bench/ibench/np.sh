@@ -40,11 +40,17 @@ pgauth="--host 127.0.0.1"
 
 if [[ $dbms == "mongo" ]]; then
   echo "no need to reset MongoDB replication as oplog is capped"
+  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  spid=$!
 elif [[ $dbms == "mysql" ]]; then
   $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  spid=$!
 elif [[ $dbms == "postgres" ]]; then
   # TODO postgres
   echo "TODO: reset Postgres replication"
+  while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  spid=$!
 fi
 
 if [[ $setup == "yes" ]] ; then
@@ -118,7 +124,7 @@ for n in $( seq 1 $dop ) ; do
   fi
 
   echo iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.ns${ns}.${n} 
-  $mypy iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  /usr/bin/time -o o.ctime.${sfx}.${n} $mypy iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
 
   pids[${n}]=$!
   
@@ -146,6 +152,7 @@ kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
+kill $spid >& /dev/null
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
@@ -231,5 +238,34 @@ for n in $( seq 1 $dop ) ; do
     echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
   done
 done
+
+echo >> o.res.$sfx
+echo "CPU seconds" >> o.res.$sfx
+
+# Client CPU seconds
+cat o.ctime.${sfx}.* | head -1 | awk '{ print $1 }' | sed 's/user//g' > o.utime.$sfx
+cat o.ctime.${sfx}.* | head -1 | awk '{ print $2 }' | sed 's/system//g' > o.stime.$sfx
+paste o.utime.$sfx o.stime.$sfx > o.atime.$sfx
+us=$( cat o.atime.$sfx | awk '{ s += $1 } END { printf "%.2f\n", s }' )
+sy=$( cat o.atime.$sfx | awk '{ s += $2 } END { printf "%.2f\n", s }' )
+echo "client: $us user, $sy system, $( echo "$us $sy" | awk '{ printf "%.1f", $1 + $2 }' ) total" >> o.res.$sfx
+
+function dt2s {
+  ts=$1
+  min=$( echo $ts | tr ':' ' ' | awk '{ print $1 }' )
+  sec=$( echo $ts | tr ':' ' ' | awk '{ print $2 }' )
+  d2nsecs=$( echo "$min * 60 + $sec" | bc )
+  echo $d2nsecs
+}
+
+# dbms CPU seconds
+# TODO -- make this work for postgres which uses many processes
+dh=$( cat o.ps.$sfx | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
+dt=$( cat o.ps.$sfx | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
+hsec=$( dt2s $dh )
+tsec=$( dt2s $dt )
+dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
+dsec0=$( echo "$hsec $tsec" | awk '{ printf "%.0f", $2 - $1 }' )
+echo "dbms: $dsec" >> o.res.$sfx
 
 cat o.res.$sfx
