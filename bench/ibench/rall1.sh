@@ -1,5 +1,9 @@
 dbms=$1
 cnf=$2
+dop=$3
+mode=$4
+qsecs=$5
+brdir=$6
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dpg12=/home/mdcallag/d/pg120
@@ -7,8 +11,6 @@ dmy80=/home/mdcallag/d/my8018
 dmy57=/home/mdcallag/d/my5729
 dmyfb=/home/mdcallag/d/fbmy56
 dmo42=/home/mdcallag/d/mo421
-
-qsecs=3600
 
 inmem=5000000
 inmemt=5m
@@ -31,7 +33,7 @@ function do_rx {
   cd $dgit; bash iq.sh rocksdb "" ~/d/fbmy56/bin/mysql /data/m/fbmy/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmyfb; bash down.sh
   cd $dgit
-  rdir=${dop}u/$rmemt.rx56.c${cnf}
+  rdir=${brdir}/${dop}u/$rmemt.rx56.c${cnf}
   mkdir -p $rdir
   mv $dmyfb/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dmyfb/etc/my.cnf $rdir
@@ -49,7 +51,7 @@ function do_in80 {
   cd $dgit; bash iq.sh innodb "" ~/d/my8018/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmy80; bash down.sh
   cd $dgit
-  rdir=${dop}u/$rmemt.in80.c${cnf}
+  rdir=${brdir}/${dop}u/$rmemt.in80.c${cnf}
   mkdir -p $rdir
   mv $dmy80/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dmy80/etc/my.cnf $rdir
@@ -67,7 +69,7 @@ function do_in57 {
   cd $dgit; bash iq.sh innodb "" ~/d/my5729/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmy57; bash down.sh
   cd $dgit
-  rdir=${dop}u/$rmemt.in57.c${cnf}
+  rdir=${brdir}/${dop}u/$rmemt.in57.c${cnf}
   mkdir -p $rdir
   mv $dmy57/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dmy57/etc/my.cnf $rdir
@@ -85,7 +87,7 @@ function do_pg {
   cd $dgit; bash iq.sh pg "" ~/d/pg120/bin/psql /data/m/pg/base nvme0n1 1 $dop postgres no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dpg12; bash down.sh
   cd $dgit
-  rdir=${dop}u/$rmemt.pg12.c${cnf}
+  rdir=${brdir}/${dop}u/$rmemt.pg12.c${cnf}
   mkdir -p $rdir
   mv $dpg12/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
@@ -103,18 +105,16 @@ function do_mo42 {
   cd $dgit; bash iq.sh wiredtiger "" ~/d/mo421/bin/mongo /data/m/mo/ nvme0n1 1 $dop mongo yes no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmo42; bash down.sh
   cd $dgit
-  rdir=${dop}u/$rmemt.mo42.c${cnf}
+  rdir=${brdir}/${dop}u/$rmemt.mo42.c${cnf}
   mkdir -p $rdir
   mv $dmo42/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dmo42/mongo.conf $rdir
 }
 
-mkdir 1u
-mkdir 2u
-mkdir 4u
+mkdir -p $brdir
 
 # test in-memory
-for dop in 1 2 4 ; do
+if [[ $mode == "mem" ]] ; then
   if [[ $dbms == "rx" ]]; then
     do_rx $dop $cnf $inmemt $inmem
   elif [[ $dbms == "pg" ]]; then
@@ -126,10 +126,12 @@ for dop in 1 2 4 ; do
   elif [[ $dbms == "mo42" ]]; then
     do_mo42 $dop $cnf $inmemt $inmem
   fi  
-done
+fi
 
 # now test io-bound with dop=1
-dop=1
+if [[ $mode == "io" ]] ; then
+
+if [[ $dop -eq 1 ]] ; then
 if [[ $dbms == "rx" ]]; then
   do_rx $dop $cnf $iobt1 $iob1
 elif [[ $dbms == "pg" ]]; then
@@ -141,9 +143,10 @@ elif [[ $dbms == "in57" ]]; then
 elif [[ $dbms == "mo42" ]]; then
   do_mo42 $dop $cnf $iobt1 $iob1
 fi  
+fi
 
 # now test io-bound with dop=2
-dop=2
+if [[ $dop -eq 2 ]] ; then
 if [[ $dbms == "rx" ]]; then
   do_rx $dop $cnf $iobt2 $iob2
 elif [[ $dbms == "pg" ]]; then
@@ -155,4 +158,6 @@ elif [[ $dbms == "in57" ]]; then
 elif [[ $dbms == "mo42" ]]; then
   do_mo42 $dop $cnf $iobt2 $iob2
 fi  
+fi
 
+fi
