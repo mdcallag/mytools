@@ -23,8 +23,7 @@ function do_rx {
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
   cd $dgit; bash all.sh rx56 ~/d/fbmy56/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $@ >& a.$sfx; sleep 10
-  cd $dmyfb; bash down.sh
-  cd $dgit
+  cd $dmyfb; bash down.sh; cd $dgit
   rdir=a.rx56.c${cnf}
   mkdir $rdir
   mv $dmyfb/o.ini.* l.* r.* a.$sfx $rdir
@@ -72,8 +71,7 @@ function do_pg {
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
   cd $dgit; bash all.sh pg12 ~/d/pg120/bin/psql /data/m/pg/base $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $@ >& a.$sfx; sleep 10
-  cd $dpg12; bash down.sh
-  cd $dgit
+  cd $dpg12; bash down.sh; cd $dgit
   rdir=a.pg12.c${cnf}
   mkdir $rdir
   mv $dpg12/o.ini.* l.* r.* a.$sfx $rdir

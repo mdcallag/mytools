@@ -11,6 +11,14 @@ dbhost=${10}
 
 pgauth="--host 127.0.0.1"
 
+function dt2s {
+  ts=$1
+  min=$( echo $ts | tr ':' ' ' | awk '{ print $1 }' )
+  sec=$( echo $ts | tr ':' ' ' | awk '{ print $2 }' )
+  d2nsecs=$( echo "$min * 60 + $sec" | bc )
+  echo $d2nsecs
+}
+
 function process_stats {
   tag=$1
   start_secs=$2
@@ -56,6 +64,24 @@ function process_stats {
 
   echo >> l.$tag.r.$fn
   echo "Inserted in $tsecs seconds: $nodes node, $links link, $counts count" >> l.$tag.r.$fn
+
+  # client CPU seconds
+  cus=$( cat l.$tag.time.$fn | head -1 | awk '{ print $1 }' | sed 's/user//g' )
+  csy=$( cat l.$tag.time.$fn | head -1 | awk '{ print $2 }' | sed 's/system//g' )
+  csec=$( echo "$cus $csy" | awk '{ printf "%.1f", $1 + $2 }' )
+
+  # dbms CPU seconds
+  # TODO make this work for Postgres
+  dh=$( cat l.$tag.ps.$fn | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
+  dt=$( cat l.$tag.ps.$fn | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
+  hsec=$( dt2s $dh )
+  tsec=$( dt2s $dt )
+  dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
+
+  echo >> l.$tag.r.$fn
+  echo "CPU seconds" >> l.$tag.r.$fn
+  echo "client: $cus user, $csy system, $csec total" >> l.$tag.r.$fn
+  echo "dbms: $dsec " >> l.$tag.r.$fn
 
   if [[ $dbms = "mongo" ]]; then
     cred="-u root -p pw --authenticationDatabase=admin"

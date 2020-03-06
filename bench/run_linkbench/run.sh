@@ -51,8 +51,7 @@ elif [[ $dbms = "postgres" ]]; then
 else
   echo dbms :: $dbms :: not supported
   exit 1
-fi
-
+fi 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
 
@@ -138,4 +137,31 @@ head -1 r.ps.$fn >> r.r.$fn
 tail -1 r.ps.$fn >> r.r.$fn
 
 for op in UPDATE_NODE GET_NODE UPDATE_LINK GET_LINKS_LIST ; do tail -20 r.o.$fn | grep $op | grep main ; done >> r.r.$fn
+
+function dt2s {
+  ts=$1
+  min=$( echo $ts | tr ':' ' ' | awk '{ print $1 }' )
+  sec=$( echo $ts | tr ':' ' ' | awk '{ print $2 }' )
+  d2nsecs=$( echo "$min * 60 + $sec" | bc )
+  echo $d2nsecs
+}
+
+# client CPU seconds
+cus=$( cat r.time.$fn | head -1 | awk '{ print $1 }' | sed 's/user//g' )
+csy=$( cat r.time.$fn | head -1 | awk '{ print $2 }' | sed 's/system//g' )
+csec=$( echo "$cus $csy" | awk '{ printf "%.1f", $1 + $2 }' )
+
+# dbms CPU seconds
+# TODO make this work for Postgres
+dh=$( cat r.ps.$fn | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
+dt=$( cat r.ps.$fn | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
+hsec=$( dt2s $dh )
+tsec=$( dt2s $dt )
+dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
+
+echo >> r.r.$fn
+echo "CPU seconds" >> r.r.$fn
+echo "client: $cus user, $csy system, $csec total" >> r.r.$fn
+echo "dbms: $dsec " >> r.r.$fn
+
 
