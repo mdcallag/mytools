@@ -44,7 +44,7 @@ if [[ $dbms == "mongo" ]]; then
   spid=$!
 elif [[ $dbms == "mysql" ]]; then
   $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  while :; do ps aux | grep mysqld | grep -v mysqld_safe | grep -v grep; sleep 5; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "postgres" ]]; then
   # TODO postgres
@@ -260,8 +260,8 @@ function dt2s {
 
 # dbms CPU seconds
 # TODO -- make this work for postgres which uses many processes
-dh=$( cat o.ps.$sfx | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
-dt=$( cat o.ps.$sfx | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
+dh=$( cat o.ps.$sfx | head -1 | awk '{ print $10 }' )
+dt=$( cat o.ps.$sfx | tail -1 | awk '{ print $10 }' )
 hsec=$( dt2s $dh )
 tsec=$( dt2s $dt )
 dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
