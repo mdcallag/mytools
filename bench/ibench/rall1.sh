@@ -1,11 +1,10 @@
 dbms=$1
 cnf=$2
 dop=$3
-mode=$4
-qsecs=$5
-brdir=$6
-nr=$7
-nrt=$8
+qsecs=$4
+brdir=$5
+nr=$6
+nrt=$7
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dpg12=/home/mdcallag/d/pg120
