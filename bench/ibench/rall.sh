@@ -7,17 +7,21 @@ dmy80=/home/mdcallag/d/my8018
 dmy57=/home/mdcallag/d/my5729
 dmyfb=/home/mdcallag/d/fbmy56
 dmo42=/home/mdcallag/d/mo421
+dmo44=/home/mdcallag/d/mo44
 
 qsecs=3600
 
 inmem=5000000
 inmemt=5m
 
-iob1=500000000
-iobt1=500m
+iob50m=50000000
+iobt50m=50m
 
-iob2=1000000000
-iobt2=1000m
+iob500m=500000000
+iobt500m=500m
+
+iob1g=1000000000
+iobt1g=1000m
 
 function do_rx {
   dop=$1
@@ -109,12 +113,30 @@ function do_mo42 {
   cp $dmo42/mongo.conf $rdir
 }
 
+function do_mo44 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem=$4
+
+  echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=mo.$rmemt.dop$dop.c$cnf
+  cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" ~/d/mo44/bin/mongo /data/m/mo/ nvme0n1 1 $dop mongo yes no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
+  cd $dmo44; bash down.sh
+  cd $dgit
+  rdir=${dop}u/$rmemt.mo44.c${cnf}
+  mkdir -p $rdir
+  mv $dmo44/o.ini.* l end scan q100 q1000 a.$sfx $rdir
+  cp $dmo44/mongo.conf $rdir
+}
+
 mkdir 1u
 mkdir 2u
 mkdir 4u
 
 # test in-memory
-for dop in 1 2 4 ; do
+for dop in 1 ; do
   if [[ $dbms == "rx" ]]; then
     do_rx $dop $cnf $inmemt $inmem
   elif [[ $dbms == "pg" ]]; then
@@ -125,34 +147,38 @@ for dop in 1 2 4 ; do
     do_in57 $dop $cnf $inmemt $inmem
   elif [[ $dbms == "mo42" ]]; then
     do_mo42 $dop $cnf $inmemt $inmem
+  elif [[ $dbms == "mo44" ]]; then
+    do_mo44 $dop $cnf $inmemt $inmem
   fi  
 done
 
 # now test io-bound with dop=1
 dop=1
 if [[ $dbms == "rx" ]]; then
-  do_rx $dop $cnf $iobt1 $iob1
+  do_rx $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "pg" ]]; then
-  do_pg $dop $cnf $iobt1 $iob1
+  do_pg $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "in80" ]]; then
-  do_in80 $dop $cnf $iobt1 $iob1
+  do_in80 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "in57" ]]; then
-  do_in57 $dop $cnf $iobt1 $iob1
+  do_in57 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "mo42" ]]; then
-  do_mo42 $dop $cnf $iobt1 $iob1
+  do_mo42 $dop $cnf $iobt50m $iob50m
+elif [[ $dbms == "mo44" ]]; then
+  do_mo44 $dop $cnf $iobt50m $iob50m
 fi  
 
-# now test io-bound with dop=2
-dop=2
+dop=1
 if [[ $dbms == "rx" ]]; then
-  do_rx $dop $cnf $iobt2 $iob2
+  do_rx $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "pg" ]]; then
-  do_pg $dop $cnf $iobt2 $iob2
+  do_pg $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "in80" ]]; then
-  do_in80 $dop $cnf $iobt2 $iob2
+  do_in80 $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "in57" ]]; then
-  do_in57 $dop $cnf $iobt2 $iob2
+  do_in57 $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "mo42" ]]; then
-  do_mo42 $dop $cnf $iobt2 $iob2
+  do_mo42 $dop $cnf $iobt500m $iob500m
+elif [[ $dbms == "mo44" ]]; then
+  do_mo44 $dop $cnf $iobt500m $iob500m
 fi  
-

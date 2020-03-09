@@ -7,6 +7,7 @@ dmy80=/home/mdcallag/d/my8018
 dmy57=/home/mdcallag/d/my5729
 dmyfb=/home/mdcallag/d/fbmy56
 dmo42=/home/mdcallag/d/mo421
+dmo44=/home/mdcallag/d/mo44
 
 qsecs=3600
 
@@ -109,6 +110,24 @@ function do_mo42 {
   cp $dmo42/mongo.conf $rdir
 }
 
+function do_mo44 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem=$4
+
+  echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=mo.$rmemt.dop$dop.c$cnf
+  cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" ~/d/mo44/bin/mongo /data/m/mo/ nvme0n1 1 $dop mongo yes no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
+  cd $dmo44; bash down.sh
+  cd $dgit
+  rdir=${dop}u/$rmemt.mo44.c${cnf}
+  mkdir -p $rdir
+  mv $dmo44/o.ini.* l end scan q100 q1000 a.$sfx $rdir
+  cp $dmo44/mongo.conf $rdir
+}
+
 mkdir 1u
 mkdir 2u
 
@@ -124,6 +143,8 @@ for dop in 1 ; do
     do_in57 $dop $cnf $inmemt $inmem
   elif [[ $dbms == "mo42" ]]; then
     do_mo42 $dop $cnf $inmemt $inmem
+  elif [[ $dbms == "mo44" ]]; then
+    do_mo44 $dop $cnf $inmemt $inmem
   fi  
 done
 
@@ -139,5 +160,7 @@ elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $iobt1 $iob1
 elif [[ $dbms == "mo42" ]]; then
   do_mo42 $dop $cnf $iobt1 $iob1
+elif [[ $dbms == "mo44" ]]; then
+  do_mo44 $dop $cnf $iobt1 $iob1
 fi  
 
