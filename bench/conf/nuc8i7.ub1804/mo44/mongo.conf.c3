@@ -2,10 +2,10 @@ processManagement:
   fork: true
 systemLog:
   destination: file
-  path: /home/mdcallag/d/mo42/mongo.log
+  path: /home/mdcallag/d/mo44/mongo.log
   logAppend: true
 storage:
-  syncPeriodSecs: 600
+  syncPeriodSecs: 60
   dbPath: /data/m/mo
   journal:
     enabled: true
@@ -21,5 +21,5 @@ storage.wiredTiger.collectionConfig.blockCompressor: none
 storage.wiredTiger.engineConfig.journalCompressor: none
 storage.wiredTiger.engineConfig.cacheSizeGB: 12
 
-#storage.wiredTiger.collectionConfig.configString: "leaf_page_max=8KB,internal_page_max=8KB"
-#storage.wiredTiger.indexConfig.configString: "leaf_page_max=8KB,internal_page_max=8KB"
+storage.wiredTiger.collectionConfig.configString: "leaf_page_max=8KB,internal_page_max=8KB"
+storage.wiredTiger.indexConfig.configString: "leaf_page_max=8KB,internal_page_max=8KB"

@@ -2,7 +2,7 @@ processManagement:
   fork: true
 systemLog:
   destination: file
-  path: /home/mdcallag/d/mo421/mongo.log
+  path: /home/mdcallag/d/mo42/mongo.log
   logAppend: true
 storage:
   syncPeriodSecs: 60
@@ -12,7 +12,7 @@ storage:
 operationProfiling:
   slowOpThresholdMs: 2000
 replication:
-  oplogSizeMB: 2000
+  oplogSizeMB: 32000
   replSetName: foo
 security:
   authorization: enabled

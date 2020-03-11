@@ -1,0 +1,20 @@
+prefix=$1
+
+#python3 buildscripts/scons.py --prefix=/home/mdcallag/d/mo421 CXX=g++-8 CC=gcc-8 -c > o.clean
+rm -rf build
+python3 buildscripts/scons.py -j 4 --prefix=$prefix CXX=g++-8 CC=gcc-8 mongod mongo mongos > o.mk 2> e.mk
+
+echo pre strip > o.sz
+for b in mongo mongod mongos ; do
+ls -halrt $b >> o.sz
+ls -halrt build/opt/mongo/$b >> o.sz
+
+strip $b >> o.sz
+strip build/opt/mongo/$b >> o.sz
+done
+
+echo post strip >> o.sz
+for b in mongo mongod mongos ; do
+ls -halrt $b >> o.sz
+ls -halrt build/opt/mongo/$b >> o.sz
+done
