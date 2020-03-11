@@ -127,6 +127,9 @@ mkdir scan
 mv o.* scan
 
 if [[ $scanonly == "yes" ]]; then
+  if [[ $dbms == "mongo" ]] ; then 
+    cp -r $data/diagnostic.data l
+  fi
   exit 0
 fi
 
@@ -182,3 +185,8 @@ for d in /proc/sys/vm/* ; do
 done
 
 mount -v > o.mount
+mv o.* l
+
+if [[ $dbms == "mongo" ]] ; then 
+  cp -r $data/diagnostic.data l
+fi
