@@ -72,8 +72,8 @@ function process_stats {
 
   # dbms CPU seconds
   # TODO make this work for Postgres
-  dh=$( cat l.$tag.ps.$fn | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
-  dt=$( cat l.$tag.ps.$fn | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
+  dh=$( cat l.$tag.ps.$fn | head -1 | awk '{ print $10 }' )
+  dt=$( cat l.$tag.ps.$fn | tail -1 | awk '{ print $10 }' )
   hsec=$( dt2s $dh )
   tsec=$( dt2s $dt )
   dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
@@ -168,12 +168,12 @@ echo "before apparent $ddir" > l.pre.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.pre.asz2.$fn
 
 if [[ $dbms = "mongo" ]]; then
-  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "mongod " | grep "storageEngine wiredTiger" | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
 elif [[ $dbms = "mysql" ]]; then
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
@@ -182,7 +182,7 @@ elif [[ $dbms = "mysql" ]]; then
   while :; do sleep 300; lh=$( date --date='last hour' +'%Y-%m-%d %H:%M:%S' ); $client -uroot -ppw -h${dbhost} -e "purge binary logs before \"$lh\""; done &
   pblpid=$!
 elif [[ $dbms = "postgres" ]]; then
-  while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "postgres " | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigPgsql.properties
   logarg="-Duser=linkbench -Dpassword=pw"
