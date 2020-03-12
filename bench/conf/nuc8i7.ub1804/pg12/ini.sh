@@ -19,7 +19,10 @@ sleep 5
 
 echo "create db and users"
 bin/createdb me
+bin/createdb ib
+bin/createdb linkbench
 bin/psql me -c "create user root with superuser login password 'pw'"
+bin/psql me -c "create user linkbench with superuser login password 'pw'"
 
 bin/psql template1 -c 'create extension pgstattuple'
 
