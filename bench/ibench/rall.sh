@@ -2,9 +2,10 @@ dbms=$1
 cnf=$2
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
-dpg12=/home/mdcallag/d/pg120
-dmy80=/home/mdcallag/d/my8018
-dmy57=/home/mdcallag/d/my5729
+dpg12=/home/mdcallag/d/pg12
+dmy80=/home/mdcallag/d/my80
+dmy57=/home/mdcallag/d/my57
+dmy56=/home/mdcallag/d/my56
 dmyfb=/home/mdcallag/d/fbmy56
 dmo40=/home/mdcallag/d/mo40
 dmo42=/home/mdcallag/d/mo421
@@ -17,6 +18,9 @@ inmemt=5m
 
 iob50m=50000000
 iobt50m=50m
+
+iob250m=250000000
+iobt250m=250m
 
 iob500m=500000000
 iobt500m=500m
@@ -51,7 +55,7 @@ function do_in80 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" ~/d/my8018/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" ~/d/my80/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmy80; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.in80.c${cnf}
@@ -69,13 +73,31 @@ function do_in57 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" ~/d/my5729/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" ~/d/my57/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
   cd $dmy57; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.in57.c${cnf}
   mkdir -p $rdir
   mv $dmy57/o.ini.* l end scan q100 q1000 a.$sfx $rdir
   cp $dmy57/etc/my.cnf $rdir
+}
+
+function do_in56 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem=$4
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" ~/d/my56/bin/mysql /data/m/my/data nvme0n1 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dmy56; bash down.sh
+  cd $dgit
+  rdir=${dop}u/$rmemt.in56.c${cnf}
+  mkdir -p $rdir
+  mv $dmy56/o.ini.* l end scan q100 q1000 a.$sfx $rdir
+  cp $dmy56/etc/my.cnf $rdir
 }
 
 function do_pg {
@@ -87,7 +109,7 @@ function do_pg {
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" ~/d/pg120/bin/psql /data/m/pg/base nvme0n1 1 $dop postgres no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" ~/d/pg12/bin/psql /data/m/pg/base nvme0n1 1 $dop postgres no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dpg12; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.pg12.c${cnf}
@@ -164,6 +186,8 @@ for dop in 1 ; do
     do_in80 $dop $cnf $inmemt $inmem
   elif [[ $dbms == "in57" ]]; then
     do_in57 $dop $cnf $inmemt $inmem
+  elif [[ $dbms == "in56" ]]; then
+    do_in56 $dop $cnf $inmemt $inmem
   elif [[ $dbms == "mo40" ]]; then
     do_mo40 $dop $cnf $inmemt $inmem
   elif [[ $dbms == "mo42" ]]; then
@@ -183,12 +207,33 @@ elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $iobt50m $iob50m
+elif [[ $dbms == "in56" ]]; then
+  do_in56 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "mo40" ]]; then
   do_mo40 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "mo42" ]]; then
   do_mo42 $dop $cnf $iobt50m $iob50m
 elif [[ $dbms == "mo44" ]]; then
   do_mo44 $dop $cnf $iobt50m $iob50m
+fi 
+
+dop=1
+if [[ $dbms == "rx" ]]; then
+  do_rx $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "pg" ]]; then
+  do_pg $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "in80" ]]; then
+  do_in80 $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "in57" ]]; then
+  do_in57 $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "in56" ]]; then
+  do_in56 $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "mo40" ]]; then
+  do_mo40 $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "mo42" ]]; then
+  do_mo42 $dop $cnf $iobt250m $iob250m
+elif [[ $dbms == "mo44" ]]; then
+  do_mo44 $dop $cnf $iobt250m $iob250m
 fi  
 
 dop=1
@@ -200,6 +245,8 @@ elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $iobt500m $iob500m
+elif [[ $dbms == "in56" ]]; then
+  do_in56 $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "mo40" ]]; then
   do_mo40 $dop $cnf $iobt500m $iob500m
 elif [[ $dbms == "mo42" ]]; then
