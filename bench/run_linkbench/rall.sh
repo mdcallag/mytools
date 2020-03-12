@@ -166,7 +166,7 @@ dbms=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $1 }' )
 cnf=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $2 }' )
 echo Run for dbms=$dbms and cnf=$cnf
 
-shift 7
+shift 8
 
 if [[ $dbms = "rx56" ]]; then
   do_rx56 $cnf $@
