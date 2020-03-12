@@ -252,3 +252,30 @@ fi
 
 process_stats post $start_secs $nodes $links $counts
 
+rm -f l.linux.$fn l.mount.$fn l.sysblock.$dname.$fn l.sysvm.$fn
+touch l.linux.$fn l.mount.$fn l.sysblock.$dname.$fn l.sysvm.$fn
+
+for d in \
+/proc/sys/vm/dirty_background_ratio \
+/proc/sys/vm/dirty_ratio \
+/proc/sys/vm/dirty_expire_centisecs \
+/sys/block/${dname}/queue/read_ahead_kb ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> l.linux.$fn
+done
+
+for d in /sys/block/${dname}/queue/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> l.sysblock.$dname.$fn
+done
+
+for d in /proc/sys/vm/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> l.sysvm.$fn
+done
+
+mount -v > l.mount.$fn
+
+if [[ $dbms == "mongo" ]] ; then
+  cp -r $data/diagnostic.data l.diag.data.$fn
+fi

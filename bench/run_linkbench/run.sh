@@ -164,4 +164,31 @@ echo "CPU seconds" >> r.r.$fn
 echo "client: $cus user, $csy system, $csec total" >> r.r.$fn
 echo "dbms: $dsec " >> r.r.$fn
 
+rm -f r.linux.$fn r.mount.$fn r.sysblock.$dname.$fn r.sysvm.$fn
+touch r.linux.$fn r.mount.$fn r.sysblock.$dname.$fn r.sysvm.$fn
+
+for d in \
+/proc/sys/vm/dirty_background_ratio \
+/proc/sys/vm/dirty_ratio \
+/proc/sys/vm/dirty_expire_centisecs \
+/sys/block/${dname}/queue/read_ahead_kb ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> r.linux.$fn
+done
+
+for d in /sys/block/${dname}/queue/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> r.sysblock.$dname.$fn
+done
+
+for d in /proc/sys/vm/* ; do
+  v=$( cat $d )
+  printf "%s\t\t%s\n" "$v" $d >> r.sysvm.$fn
+done
+
+mount -v > r.mount.$fn
+
+if [[ $dbms == "mongo" ]] ; then
+  cp -r $data/diagnostic.data r.diag.data.$fn
+fi
 
