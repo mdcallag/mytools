@@ -8,7 +8,7 @@ dmy57=/home/mdcallag/d/my57
 dmy56=/home/mdcallag/d/my56
 dmyfb=/home/mdcallag/d/fbmy56
 dmo40=/home/mdcallag/d/mo40
-dmo42=/home/mdcallag/d/mo421
+dmo42=/home/mdcallag/d/mo42
 dmo44=/home/mdcallag/d/mo44
 
 qsecs=3600
@@ -145,7 +145,7 @@ function do_mo42 {
   echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=mo.$rmemt.dop$dop.c$cnf
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh wiredtiger "" ~/d/mo421/bin/mongo /data/m/mo/ nvme0n1 1 $dop mongo yes no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" ~/d/mo42/bin/mongo /data/m/mo/ nvme0n1 1 $dop mongo yes no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmo42; bash down.sh
   cd $dgit
   rdir=${dop}u/$rmemt.mo42.c${cnf}
