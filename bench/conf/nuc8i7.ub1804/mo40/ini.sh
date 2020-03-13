@@ -14,9 +14,7 @@ if [ "$#" -ge 1 ]; then
   cp mongo.conf.c${1} mongo.conf
 fi
 
-#numactl --interleave=all /usr/bin/mongod --config mongo.conf --master --storageEngine wiredTiger
-#/usr/bin/mongod --config mongo.conf --master --storageEngine wiredTiger
-bin/mongod --config mongo.conf --storageEngine wiredTiger
+numactl --interleave=all bin/mongod --config mongo.conf --storageEngine wiredTiger
 
 sleep 5
 bin/mongo admin --eval "rs.initiate()"
