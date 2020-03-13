@@ -35,6 +35,7 @@ innodb_log_group_home_dir=/data/m/my/txlogs
 innodb_log_file_size=1G
 slow_query_log=1
 
+loose_innodb_numa_interleave=1
 innodb_purge_threads=1
 performance_schema=1
 ssl=0

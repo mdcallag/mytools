@@ -14,7 +14,7 @@ echo "init"
 bin/initdb --data-checksums -D $bdir >& o.ini.1
 mv $bdir/postgresql.conf $bdir/postgresql.conf.orig
 cat $bdir/postgresql.conf.orig conf.diff > $bdir/postgresql.conf
-bin/pg_ctl -D $bdir -l logfile start >& o.ini.2
+numactl --interleave=all bin/pg_ctl -D $bdir -l logfile start >& o.ini.2
 sleep 5
 
 echo "create db and users"
