@@ -1,10 +1,9 @@
-dbms=$1
-cnf=$2
-dop=$3
-qsecs=$4
-brdir=$5
-nr=$6
-nrt=$7
+dbms_cnf=$1
+dop=$2
+qsecs=$3
+brdir=$4
+nr=$5
+nrt=$6
 
 dgit=/home/mdcallag/git/mytools/bench/ibench
 dpg12=/home/mdcallag/d/pg12
@@ -15,6 +14,10 @@ dmyfb=/home/mdcallag/d/fbmy56
 dmo40=/home/mdcallag/d/mo40
 dmo42=/home/mdcallag/d/mo42
 dmo44=/home/mdcallag/d/mo44
+
+dbms=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $1 }' )
+cnf=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $2 }' )
+echo Run for dbms=$dbms and cnf=$cnf
 
 function do_rx56 {
   dop=$1
