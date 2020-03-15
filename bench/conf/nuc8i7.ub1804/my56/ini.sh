@@ -16,7 +16,7 @@ killall mongod mysqld
 
 scripts/mysql_install_db --defaults-file=etc/my.cnf >& o.ini.$csfx
 
-bin/mysqld_safe &
+bin/mysqld_safe --numa-interleave &
 sleep 30
 bin/mysqladmin -uroot --password="" password pw
 
