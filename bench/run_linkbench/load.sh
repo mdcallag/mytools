@@ -49,8 +49,17 @@ function process_stats {
   echo "after apparent $ddir" >> l.$tag.asz2.$fn
   du -sm --apparent-size $ddir/* >> l.$tag.asz2.$fn
 
+  # Old and new output format for iostat
+  #Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+  #Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+
   printf "\nsamp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\n" >> l.$tag.r.$fn
-  grep $dname l.$tag.io.$fn | awk '{ rs += $2; rkb += $4; wkb += $5; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.$tag.r.$fn
+  iover=$( head -10 l.$tag.io.$fn | grep Device | grep avgrq\-sz | wc -l )
+  if [[ $iover -eq 1 ]]; then
+    grep $dname l.$tag.io.$fn | awk '{ rs += $4; rkb += $6; wkb += $7; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.$tag.r.$fn
+  else
+    grep $dname l.$tag.io.$fn | awk '{ rs += $2; rkb += $4; wkb += $5; c += 1 } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.6f\t%.6f\t%s\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q }' q=$ips >> l.$tag.r.$fn
+  fi
 
   printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> l.$tag.r.$fn
   grep -v swpd l.$tag.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.$tag.r.$fn
@@ -153,7 +162,7 @@ else
   exit 1
 fi
 
-iostat -kx 5 >& l.pre.io.$fn &
+iostat -y -kx 5 >& l.pre.io.$fn &
 ipid=$!
 vmstat 5 >& l.pre.vm.$fn &
 vpid=$!
@@ -168,7 +177,7 @@ echo "before apparent $ddir" > l.pre.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.pre.asz2.$fn
 
 if [[ $dbms = "mongo" ]]; then
-  while :; do ps aux | grep "mongod " | grep "storageEngine wiredTiger" | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "mongod " | grep "\-\-config" | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
@@ -212,7 +221,7 @@ process_stats pre $start_secs $nodes $links $counts
 # Now create the covering index on Link
 #
 
-iostat -kx 5 >& l.post.io.$fn &
+iostat -y -kx 5 >& l.post.io.$fn &
 ipid=$!
 vmstat 5 >& l.post.vm.$fn &
 vpid=$!
