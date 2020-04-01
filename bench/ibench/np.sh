@@ -40,7 +40,7 @@ pgauth="--host 127.0.0.1"
 
 if [[ $dbms == "mongo" ]]; then
   echo "no need to reset MongoDB replication as oplog is capped"
-  while :; do ps aux | grep mongod | grep "storageEngine wiredTiger" | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 5; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "mysql" ]]; then
   $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
@@ -80,7 +80,7 @@ mpid=$!
 
 vmstat 1 >& o.vm.$sfx &
 vpid=$!
-iostat -kx 1 >& o.io.$sfx &
+iostat -y -kx 1 >& o.io.$sfx &
 ipid=$!
 top -w 200 -c -b -d 30 >& o.top.$sfx &
 tpid=$!
@@ -191,16 +191,26 @@ du -hs --apparent-size $ddir >> o.sz.$sfx
 echo "all" >> o.sz.$sfx
 du -hs ${ddir}/* >> o.sz.$sfx
 
+# Old and new format for iostat output
+#Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+#Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+
 printf "\niostat, vmstat normalized by insert rate\n" >> o.res.$sfx
 printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\t\tspi\n" >> o.res.$sfx
-grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$dop r=$rpc >> o.res.$sfx
+
+iover=$( head -10 o.io.$sfx | grep Device | grep avgrq\-sz | wc -l )
+if [[ $iover -eq 1 ]]; then
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$dop r=$rpc >> o.res.$sfx
+else
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$dop r=$rpc >> o.res.$sfx
+fi
 
 printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
 grep -v swpd o.vm.$sfx | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 } } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${insert_rate} >> o.res.$sfx
 
 printf "\niostat, vmstat normalized by query rate\n" >> o.res.$sfx
 printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tqps\t\tspq\n" >> o.res.$sfx
-grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$dop r=$rpc >> o.res.$sfx
+grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$dop r=$rpc >> o.res.$sfx
 
 printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
 grep -v swpd o.vm.$sfx | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 } } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${query_rate} >> o.res.$sfx

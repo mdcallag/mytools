@@ -52,8 +52,23 @@ for q in 1 2 3 4 5 ; do
   killall iostat
   vmstat $samp >& o.vm.$sfx.q$q.e${explain} &
   vpid=$!
-  iostat -kx $samp >& o.io.$sfx.q$q.e${explain} &
+  iostat -y -kx $samp >& o.io.$sfx.q$q.e${explain} &
   ipid=$!
+
+  if [[ $dbms == "mongo" ]]; then
+    echo "no need to reset MongoDB replication as oplog is capped"
+    while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 5; done >& o.ps.$sfx &
+    spid=$!
+  elif [[ $dbms == "mysql" ]]; then
+    $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+    while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 5; done >& o.ps.$sfx &
+    spid=$!
+  elif [[ $dbms == "postgres" ]]; then
+    # TODO postgres
+    echo "TODO: reset Postgres replication"
+    while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& o.ps.$sfx &
+    spid=$!
+  fi
 
   start_secs=$( date +%s )
   for i in $( seq 1 $ntabs ) ; do
@@ -119,6 +134,7 @@ for q in 1 2 3 4 5 ; do
 
   kill $vpid
   kill $ipid
+  kill $spid
 
 done
 done
