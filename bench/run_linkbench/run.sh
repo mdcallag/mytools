@@ -68,6 +68,8 @@ kill $spid
 if [[ $dbms = "mongo" ]]; then
   cred="-u root -p pw --authenticationDatabase=admin"
   echo "db.serverStatus()" | $client $cred > r.srvstat.$fn
+  echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $cred > r.srvstat1.$fn
+  echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $cred > r.srvstat2.$fn
   echo "db.stats()" | $client $cred > r.dbstats.$fn
   echo "db.linktable.stats({indexDetails: true})" | $client $cred linkdb0 > r.stats.link.$fn
   echo "db.nodetable.stats({indexDetails: true})" | $client $cred linkdb0 > r.stats.node.$fn

@@ -95,6 +95,8 @@ function process_stats {
   if [[ $dbms = "mongo" ]]; then
     cred="-u root -p pw --authenticationDatabase=admin"
     echo "db.serverStatus()" | $client $cred > l.$tag.srvstat.$fn
+    echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $cred > l.$tag.srvstat1.$fn
+    echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $cred > l.$tag.srvstat2.$fn
     echo "db.stats()" | $client $cred > l.$tag.dbstats.$fn
     echo "db.linktable.stats({indexDetails: true})" | $client $cred linkdb0 > l.$tag.stats.link.$fn
     echo "db.nodetable.stats({indexDetails: true})" | $client $cred linkdb0 > l.$tag.stats.node.$fn
