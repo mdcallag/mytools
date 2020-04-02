@@ -1,4 +1,5 @@
 bin/mysqladmin -uroot -ppw shutdown
+sleep 3
 
 rm -rf var; mkdir var
 rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy

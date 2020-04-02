@@ -1,15 +1,21 @@
 bin/mysqladmin -uroot -ppw shutdown
+sleep 3
 
 rm -rf var; mkdir var
-rm -rf /data/m/fbmy/*
+rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy
 mkdir -p /data/m/fbmy/data
 mkdir -p /data/m/fbmy/binlogs
 mkdir -p /data/m/fbmy/txlogs
 
 csfx=def
 if [ "$#" -ge 1 ]; then
-    cp etc/my.cnf.c${1} etc/my.cnf 
+  if [ -f etc/my.cnf.c${1} ]; then
+    cp etc/my.cnf.c${1} etc/my.cnf
     csfx=c${1}
+  else
+    echo etc/my.cnf.c${1} does not exist
+    exit 1
+  fi
 fi 
 
 killall mongod mysqld
