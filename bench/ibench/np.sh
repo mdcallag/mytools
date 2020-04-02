@@ -40,16 +40,16 @@ pgauth="--host 127.0.0.1"
 
 if [[ $dbms == "mongo" ]]; then
   echo "no need to reset MongoDB replication as oplog is capped"
-  while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "mysql" ]]; then
   $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-  while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "postgres" ]]; then
   # TODO postgres
   echo "TODO: reset Postgres replication"
-  while :; do ps aux | grep postgres | grep -v grep; sleep 5; done >& o.ps.$sfx &
+  while :; do ps aux | grep postgres | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
 fi
 

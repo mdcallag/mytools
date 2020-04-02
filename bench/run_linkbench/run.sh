@@ -33,18 +33,18 @@ echo "before apparent $ddir" > r.asz2.$fn
 du -sm --apparent-size $ddir/* >> r.asz2.$fn
 
 if [[ $dbms = "mongo" ]]; then
-  while :; do ps aux | grep "mongod " | grep "\-\-config" | grep -v grep; sleep 5; done >& r.ps.$fn &
+  while :; do ps aux | grep "mongod " | grep "\-\-config" | grep -v grep; sleep 30; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
 elif [[ $dbms = "mysql" ]]; then
-  while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 5; done >& r.ps.$fn &
+  while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   logarg="-Duser=root -Dpassword=pw"
 elif [[ $dbms = "postgres" ]]; then
-  while :; do ps aux | grep "postgres " | grep -v grep; sleep 5; done >& r.ps.$fn &
+  while :; do ps aux | grep "postgres " | grep -v grep; sleep 30; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigPgsql.properties
   logarg="-Duser=linkbench -Dpassword=pw"

@@ -179,12 +179,12 @@ echo "before apparent $ddir" > l.pre.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.pre.asz2.$fn
 
 if [[ $dbms = "mongo" ]]; then
-  while :; do ps aux | grep "mongod " | grep "\-\-config" | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "mongod " | grep "\-\-config" | grep -v grep; sleep 30; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
 elif [[ $dbms = "mysql" ]]; then
-  while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
@@ -193,7 +193,7 @@ elif [[ $dbms = "mysql" ]]; then
   while :; do sleep 300; lh=$( date --date='last hour' +'%Y-%m-%d %H:%M:%S' ); $client -uroot -ppw -h${dbhost} -e "purge binary logs before \"$lh\""; done &
   pblpid=$!
 elif [[ $dbms = "postgres" ]]; then
-  while :; do ps aux | grep "postgres " | grep -v grep; sleep 5; done >& l.pre.ps.$fn &
+  while :; do ps aux | grep "postgres " | grep -v grep; sleep 30; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigPgsql.properties
   logarg="-Duser=linkbench -Dpassword=pw"
@@ -239,12 +239,12 @@ du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
 start_secs=$( date +%s )
 if [[ $dbms = "mongo" ]]; then
-  while :; do ps aux | grep mongod | grep -v grep; sleep 5; done >& l.post.ps.$fn &
+  while :; do ps aux | grep mongod | grep -v grep; sleep 30; done >& l.post.ps.$fn &
   spid=$!
   /usr/bin/time -o l.post.time.$fn $client admin -u root -p pw --host ${dbhost} < $ddl.post >& l.post.ddl.$fn
 
 elif [[ $dbms = "mysql" ]]; then
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 30; done >& l.post.ps.$fn &
   spid=$!
   /usr/bin/time -o l.post.time.$fn $client -uroot -ppw -h${dbhost} < $ddl.post >& l.post.ddl.$fn
   echo Skip mstat
@@ -253,7 +253,7 @@ elif [[ $dbms = "mysql" ]]; then
   # mpid=$!
 
 elif [[ $dbms = "postgres" ]]; then
-  while :; do ps aux | grep mysqld | grep -v grep; sleep 5; done >& l.post.ps.$fn &
+  while :; do ps aux | grep mysqld | grep -v grep; sleep 30; done >& l.post.ps.$fn &
   spid=$!
   /usr/bin/time -o l.post.time.$fn $client linkbench $pgauth < $ddl.post >& l.post.ddl.$fn
 else
