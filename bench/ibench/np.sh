@@ -156,6 +156,9 @@ kill $spid >& /dev/null
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
+echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx
+echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx
+
 echo "db.pi1.stats()" | $client $moauthib > o.tab.$sfx
 
 elif [[ $dbms == "mysql" ]]; then

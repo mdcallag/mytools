@@ -36,6 +36,7 @@ bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 1
 mkdir l
 mv o.* l
 
+# TODO -- move this to a separate file
 # full scan
 ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
@@ -122,6 +123,15 @@ for q in 1 2 3 4 5 ; do
   pmrows=$( echo "scale=0; $nr / 1000000.0" | bc )
   if [[ $explain -eq 0 ]]; then
     bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nr > o.ib.scan.met.q$q
+
+    # TODO - write one script that dumps per-dbms stats and reuse it
+    if [[ $dbms == "mongo" ]]; then
+      moauth="--authenticationDatabase admin -u root -p pw"
+      echo "db.serverStatus()" | $client $moauth > o.es.$sfx.$q
+      echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx.$q
+      echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx.$q
+    fi
+
   fi
 
   stop_secs=$( date +%s )
