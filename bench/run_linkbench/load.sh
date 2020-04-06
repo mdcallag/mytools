@@ -287,6 +287,3 @@ done
 
 mount -v > l.mount.$fn
 
-if [[ $dbms == "mongo" ]] ; then
-  cp -r $ddir/diagnostic.data l.diag.data.$fn
-fi

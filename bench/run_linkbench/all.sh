@@ -32,6 +32,8 @@ fi
 
 if [[ $dbms == "mongo" ]]; then
   echo TODO add MongoDB count validation
+  cp -r $ddir/diagnostic.data l.diag.data.$fn
+
 elif [[ $dbms == "mysql" ]]; then
   $client -uroot -ppw -A -h${dbhost} -e 'select id, ltagg.lid, link_type, count, ltagg.lct as cct from counttable ct left join (select id1 as lid, link_type as llt, count(*) as lct from linktable where visibility=1 group by id1, link_type) ltagg on ct.id = ltagg.lid and ct.link_type = ltagg.llt where ltagg.lct != count' >& r.validate1.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'select id, ltagg.lid, link_type, count, ltagg.lct as cct from counttable ct right join (select id1 as lid, link_type as llt, count(*) as lct from linktable where visibility=1 group by id1, link_type) ltagg on ct.id = ltagg.lid and ct.link_type = ltagg.llt where ltagg.lct != count' >& r.validate2.$fn

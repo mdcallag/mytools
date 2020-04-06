@@ -199,7 +199,3 @@ done
 
 mount -v > r.mount.$fn
 
-if [[ $dbms == "mongo" ]] ; then
-  cp -r $ddir/diagnostic.data r.diag.data.$fn
-fi
-
