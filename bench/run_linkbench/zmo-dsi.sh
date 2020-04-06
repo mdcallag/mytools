@@ -23,6 +23,15 @@ for ver in mo421 mo423 mo425 ; do
   mv a.mo42.c${cnf} a.${ver}.c${cnf}
 done
 
+for ver in mo425 ; do
+  cnf=6b40
+  echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
+  rm $bdir/mo42
+  ln -s $bdir/$ver $bdir/mo42
+  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo42.${cnf} no $bdir 16 16 16 16 16 16
+  mv a.mo42.c${cnf} a.${ver}.c${cnf}
+done
+
 for ver in mo44pre ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
