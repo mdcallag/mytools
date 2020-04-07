@@ -159,7 +159,15 @@ echo "db.serverStatus()" | $client $moauth > o.es.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx
 
-echo "db.pi1.stats()" | $client $moauthib > o.tab.$sfx
+for n in $( seq 1 $dop ) ; do
+  echo "db.pi${n}.stats()" | $client $moauth ib > o.tab${n}.$sfx
+  echo "db.pi${n}.stats({indexDetails: true})" | $client $moauth ib > o.tab${n}.id.$sfx
+  echo "db.pi${n}.stats({histograms: true}).pretty()" | $client $moauth ib > o.tab${n}.id.$sfx
+done
+
+echo "db.stats()" | $client $moauth > o.dbstats.$sfx
+echo "db.oplog.rs.stats()" | $client $moauth local > o.oplog.$sfx
+echo "show dbs" | $client $moauth linkdb0 > o.dbs.$sfx
 
 elif [[ $dbms == "mysql" ]]; then
 $client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > o.esi.$sfx
