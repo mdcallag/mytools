@@ -151,13 +151,13 @@ echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate row
 # Compute average rates per interval using 10 intervals
 for x in 6 9 ; do
 for n in $( seq 1 $dop ); do
-  f=o.ib.dop${p}.ns3.$n
+  f=o.ib.dop${dop}.ns3.$n
   xa=$( wc -l $f | awk '{ print $1 }' ); xm=$(( $xa - 2 )); xp=$(( $xm / 10 ))
   for s in $( seq 0 9 ); do
     ha=$(( ($s * $xp) + $xp + 2 ))
     head -${ha} $f | tail -${xp} | awk '{ c += 1; s += $x } END { printf "%.0f,", s/c }' x=$x
   done
-  printf ",%s:DBMS\n" $i
+  printf "%s:DBMS\n" $n
 done > o.rate.c.$x
 cat o.rate.c.$x | tr ',' '\t' > o.rate.t.$x
 done 
