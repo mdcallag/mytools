@@ -176,7 +176,8 @@ echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client
 for n in $( seq 1 $dop ) ; do
   echo "db.pi${n}.stats()" | $client $moauth ib > o.tab${n}.$sfx
   echo "db.pi${n}.stats({indexDetails: true})" | $client $moauth ib > o.tab${n}.id.$sfx
-  echo "db.pi${n}.stats({histograms: true}).pretty()" | $client $moauth ib > o.tab${n}.id.$sfx
+  echo "db.pi${n}.latencyStats({histograms: true})" | $client $moauth ib > o.tab${n}.ls.$sfx
+  echo "db.pi${n}.latencyStats({histograms: true}).pretty()" | $client $moauth ib > o.tab${n}.lsp.$sfx
 done
 
 echo "db.stats()" | $client $moauth > o.dbstats.$sfx
