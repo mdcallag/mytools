@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright (C) 2009 Google Inc.
 # Copyright (C) 2009 Facebook Inc.
@@ -57,7 +57,7 @@ class MstatContext:
   def __init__(self, interval):
     self.cache_sources = {}
     self.devices = []
-    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0, 'flashcache':0 }
+    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0 }
     self.tee_iters = []
     self.use_sources = {}
     self.shared_sources = {}
@@ -75,8 +75,10 @@ class TeeIter(MyIterable):
     ctx.counters[type_name] += 1
     ctx.tee_iters.append(self)
 
-  def next(self):
-    return self.tee_iter.next()
+  def __next__(self):
+    return next(self.tee_iter)
+
+  next = __next__
 
 class CacheIter(MyIterable):
   def __init__(self, iter):
@@ -84,34 +86,40 @@ class CacheIter(MyIterable):
     self.value = None
     self.stop = False
 
-  def next(self):
+  def __next__(self):
     if self.stop:
       raise StopIteration
 
     return self.value
 
+  next = __next__
+
   def cache_next(self):
     try:
       self.value = self.iter.next()
       return self.value
-    except StopIteration, e:
+    except StopIteration:
       self.value = None
       self.stop = True
       return None
 
 class Timestamper(MyIterable):
-  def next(self):
+  def __next__(self):
     return time.strftime('%Y-%m-%d_%H:%M:%S')
+
+  next = __next__
 
 class Counter(MyIterable):
   def __init__(self, interval):
     self.interval = interval
     self.value = 0
 
-  def next(self):
+  def __next__(self):
     result = str(self.value)
     self.value += self.interval
     return result
+
+  next = __next__
 
 class ScanMysql(MyIterable):
   def __init__(self, db_user, db_password, db_host, db_name, sql, retries,
@@ -124,7 +132,7 @@ class ScanMysql(MyIterable):
     self.retries = retries
     self.err_data = err_data
 
-  def next(self):
+  def __next__(self):
     r = self.retries
     while r >= 0:
       connect = None
@@ -143,28 +151,31 @@ class ScanMysql(MyIterable):
           return '\n'.join(result)
         else:
           return self.err_data
-      except MySQLdb.Error, e:
-        print 'sql (%s) fails (%s)' % (self.sql, e)
+      except MySQLdb.Error as e:
+        print('sql (%s) fails (%s)' % (self.sql, e))
         if connect is not None:
           try:
             connect.close()
-          except MySQLdb.Error, e:
+          except MySQLdb.Error:
             pass
         time.sleep(0.1)
       r -= 1
     return self.err_data
 
+  next = __next__
+
 class ScanFork(MyIterable):
   def __init__(self, cmdline, skiplines):
     self.proc = subprocess.Popen(cmdline, shell=True, bufsize=1,
+                                 universal_newlines=True,                                
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
     self.cmdline = cmdline
     self.lines_to_skip = skiplines
-    print >>sys.stderr, "forked pid %d for (%s)" % (
-      self.proc.pid, cmdline)
+    sys.stderr.write("forked pid %d for (%s)\n" % (self.proc.pid, cmdline))
+    sys.stderr.flush()
 
-  def next(self):
+  def __next__(self):
     while True:
       line = self.proc.stdout.readline()
       if not line:
@@ -175,39 +186,7 @@ class ScanFork(MyIterable):
       else:
         return line
 
-class ScanReFork(MyIterable):
-  def __init__(self, cmdline, skiplines, max_fork):
-    self.cmdline = cmdline
-    self.lines_to_skip = skiplines
-    self.cur_lines_to_skip = skiplines
-    self.max_fork = max_fork
-    self.cur_fork = 0
-    self.init_helper()
-
-  def init_helper(self):
-    if self.cur_fork >= self.max_fork:
-      raise StopIteration
-
-    self.cur_fork += 1
-    self.proc = subprocess.Popen(self.cmdline, shell=True, bufsize=1,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-    self.cur_lines_to_skip = self.lines_to_skip
-    print >>sys.stderr, "forked #%d pid %d for (%s)" % (
-      self.cur_fork, self.proc.pid, self.cmdline)
-
-  def next(self):
-    while True:
-      line = self.proc.stdout.readline().rstrip()
-      # print 'ScanReFork (%d) read : %s' % (self.cur_fork, line)
-      if not line:
-        self.init_helper()
-        continue
-      elif self.cur_lines_to_skip > 0:
-        self.cur_lines_to_skip -= 1
-        continue
-      else:
-        return line
+  next = __next__
 
 class FilterEquals(MyIterable):
   def __init__(self, pos, value, iterable, iostat_hack=False):
@@ -216,30 +195,34 @@ class FilterEquals(MyIterable):
     self.iter = iterable
     self.iostat_hack = iostat_hack
 
-  def next(self):
+  def __next__(self):
     while True:
-      lines = self.iter.next()
+      lines = next(self.iter)
       for line in lines.split('\n'):
         cols = line.split()
         if len(cols) >= (self.pos + 1) and cols[self.pos] == self.value:
           return line
         # Ugly hack for long device name split over 2 lines
         # elif self.iostat_hack and len(cols) == 1 and cols[self.pos] == self.value:
-        # return '%s %s' % (self.value, self.iter.next())
+        # return '%s %s' % (self.value, next(self.iter)
+
+  next = __next__
 
 class Project(MyIterable):
   def  __init__(self, pos, iterable):
     self.pos = pos
     self.iter = iter(iterable)
 
-  def next(self):
-    line = self.iter.next()
+  def __next__(self):
+    line = next(self.iter)
     cols = line.split()
     try:
       v = float(cols[self.pos])
       return cols[self.pos]
-    except ValueError, e:
+    except ValueError:
       return 0.0
+
+  next = __next__
 
 class ProjectByPrefix(MyIterable):
   def __init__(self, separator, prefix, iterable):
@@ -248,7 +231,7 @@ class ProjectByPrefix(MyIterable):
     self.iter = iter(iterable)
     # print 'ProjectByPrefix searches for %s' % prefix
 
-  def next(self):
+  def __next__(self):
     line = self.iter.next()
     cols = line.split(self.separator)
     for c in cols:
@@ -256,14 +239,16 @@ class ProjectByPrefix(MyIterable):
         return c[len(self.prefix):].rstrip()
     raise StopIteration    
 
+  next = __next__
+
 class ExprAbsToRel(MyIterable):
   def __init__(self, interval, iterable):
     self.interval = interval
     self.iter = iter(iterable)
     self.prev = None
 
-  def next(self):
-    current = float(self.iter.next())
+  def __next__(self):
+    current = float(next(self.iter))
     if self.prev is None:
       self.prev = current
       return '0'
@@ -273,19 +258,23 @@ class ExprAbsToRel(MyIterable):
       self.prev = current
       return str(rate)
 
+  next = __next__
+
 class ExprFunc(MyIterable):
   def __init__(self, func, iterables):
     self.func = func
     self.iters = [iter(i) for i in iterables]
 
-  def next(self):
+  def __next__(self):
     return str(self.func([float(i.next()) for i in self.iters]))
+
+  next = __next__
 
 class ExprAvg(MyIterable):
   def __init__(self, iterables):
     self.iters = [iter(i) for i in iterables]
 
-  def next(self):
+  def __next__(self):
     return str(sum([float(i.next()) for i in self.iters]) / len(self.iters))
 
 class ExprBinaryFunc(MyIterable):
@@ -294,32 +283,44 @@ class ExprBinaryFunc(MyIterable):
     self.iter1 = iter(i1)
     self.iter2 = iter(i2)
 
-  def next(self):
+  def __next__(self):
     return str(self.func(self.iter1.next(), self.iter2.next()))
+
+  next = __next__
 
 vmstat_cols = { 'swpd':2, 'free':3, 'buff':4, 'cache':5, 'si':6, 'so':7,
                 'bi':8, 'bo':9, 'in':10, 'cs':11, 'us':12, 'sy':13,
                 'id':14, 'wa':15 }
 
-iostat_cols = { 'rrqm/s':1, 'wrqm/s':2, 'r/s':3, 'w/s':4, 'rsec/s':5,
-                'wsec/s':6,  'avgrq-sz':7, 'avgqu-sz':8, 'await':9,
-                'svctm':10, '%util':11 }
+# Iostat output...
+# Old style
+#    Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+# New style
+#    Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
 
-flashcache_cols = []
+# Initialized in iostat_init
+iostat_cols = { }
 
 funcs = [ 'sum', 'rate', 'ratesum', 'max', 'avg', 'div' ]
 
-def iostat_get_devices():
-  scan_iostat = ScanFork('iostat -x 1 1', 0)
+def iostat_init():
+  scan_iostat = ScanFork('iostat -kx 1 1', 0)
   saw_device = False
   devices = []
+  global iostat_cols
+  iostat_cols = {}
   for line in scan_iostat:
-    if line.startswith('Device:'):
+    if line.startswith('Device'):
+      cols = line.split()
+      for idx, c in enumerate(cols[1:]):
+        iostat_cols[c] = idx+1
       saw_device = True
     elif saw_device:
       cols = line.split()
       if cols:
         devices.append(cols[0])
+  #print('iostat devices: %s' % devices)
+  #print('iostat columns: %s' % iostat_cols)
   return devices
 
 def flashcache_get_cols():
@@ -351,12 +352,12 @@ def get_my_cols(db_user, db_password, db_host, db_name):
         try:
           v = float(row[1])
           names.append(row[0])
-        except ValueError, e:
+        except ValueError:
           pass
     connect.close()
     return names
-  except MySQLdb.Error, e:
-    print 'SHOW GLOBAL STATUS fails (%s)' % e
+  except MySQLdb.Error as e:
+    print('SHOW GLOBAL STATUS fails:', e)
     return []
 
 def make_basic_expr(arg, ctx, can_expand):
@@ -367,11 +368,6 @@ def make_basic_expr(arg, ctx, can_expand):
   if arg_parts[0] in ['timer', 'timestamp', 'counter']:
     assert pend == 1
     return (arg, ctx.shared_sources[arg_parts[0]])
-
-  elif arg_parts[0] == 'flashcache':
-    assert pend >= 2
-    assert arg_parts[1] in flashcache_cols
-    return (arg, ProjectByPrefix(' ', '%s=' % arg_parts[1], TeeIter(ctx, 'flashcache')))
 
   elif arg_parts[0] == 'vmstat':
     assert pend >= 2
@@ -418,7 +414,7 @@ def make_basic_expr(arg, ctx, can_expand):
     return (arg, Project(1, filter))
 
   else:
-    print 'validate_arg fails for %s' % arg
+    print('validate_arg fails for %s' % arg)
     assert False
 
 def get_tokens(strl):
@@ -522,10 +518,8 @@ def add_source(kv, sources):
 
 def build_inputs(args, interval, loops, db_user, db_password, db_host,
                  db_name, db_retries, data_sources):
-  flashcache_get_cols()
-  
   ctx = MstatContext(interval)
-  ctx.devices = iostat_get_devices()
+  ctx.devices = iostat_init()
 
   ctx.shared_sources['timer'] = CacheIter(iter(Counter(interval)))
   ctx.shared_sources['timestamp'] = CacheIter(iter(Timestamper()))
@@ -533,10 +527,6 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
 
   for arg in ['timestamp', 'timer', 'counter']:
     ctx.use_sources[arg] = make_basic_expr(arg, ctx, False)[1]
-
-  for col in flashcache_cols:
-    add_source(make_basic_expr('flashcache.%s' % col, ctx, False), ctx.use_sources)
-    add_source(parse_input('rate(flashcache.%s)' % col,  ctx, False), ctx.use_sources)
 
   for dev in ctx.devices:
     for col in iostat_cols:
@@ -553,13 +543,7 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
     add_source(parse_input('rate(my.status.%s)' % col, ctx, False), ctx.use_sources)
 
   derived_stats =\
-    [(('reads', 'read_hits'),
-      'div(rate(flashcache.read_hits),rate(flashcache.reads))',
-      flashcache_cols),
-     (('writes', 'write_hits'),
-      'div(rate(flashcache.write_hits),rate(flashcache.writes))',
-      flashcache_cols),
-     (('Innodb_data_sync_read_requests', 'Innodb_data_sync_read_svc_seconds'),
+    [(('Innodb_data_sync_read_requests', 'Innodb_data_sync_read_svc_seconds'),
       'div(rate(my.status.Innodb_data_sync_read_svc_seconds),rate(my.status.Innodb_data_sync_read_requests))',
       my_cols),
      (('Questions', 'Command_seconds'),
@@ -580,11 +564,7 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
       ctx.use_sources[k] = v
 
   tee = {}
-  tee_used = { 'vmstat':0, 'iostat':0, 'my.status':0, 'flashcache':0 }
-
-  if ctx.counters['flashcache']:
-    scan_flashcache = ScanReFork('cat /proc/flashcache_stats', 0, loops+1)
-    tee['flashcache'] = itertools.tee(scan_flashcache, ctx.counters['flashcache'])
+  tee_used = { 'vmstat':0, 'iostat':0, 'my.status':0 }
 
   if ctx.counters['vmstat']:
     scan_vmstat = ScanFork('vmstat -n %d %d' % (interval, loops+1), 2)
@@ -603,8 +583,8 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
     i.tee_iter = tee[i.type_name][i.index]
     tee_used[i.type_name] += 1
 
-  for i in ['vmstat', 'iostat', 'my.status', 'flashcache']:
-    print 'check for %s tee_used %d == ctx.counters %d' % (i, tee_used[i], ctx.counters[i])
+  for i in ['vmstat', 'iostat', 'my.status']:
+    print('check for %s tee_used %d == ctx.counters %d' % (i, tee_used[i], ctx.counters[i]))
     assert tee_used[i] == ctx.counters[i]
 
   return ctx
@@ -635,7 +615,7 @@ def parse_opts(args):
                     type="string",dest="data_sources",
                     default="",
                     help="File that lists data sources to plot in addition"
-                    " to those listed on the command line")
+                    "to those listed on the command line")
   parser.add_option("--interval", action="store",
                     type="int", dest="interval",
                     default="10",
@@ -656,26 +636,23 @@ def main(argv=None):
                      options.db_host, options.db_name, options.db_retries,
                      options.data_sources)
 
-  keys = ctx.use_sources.keys()
-  keys.sort()
-
   i=1
-  for k in keys:
-    print '%d %s' % (i, k)
+  for k in sorted(ctx.use_sources.keys()):
+    print('%d %s' % (i, k))
     i += 1
 
-  print 'START'
+  print('START')
 
-  shared_iters = [v for k,v in ctx.shared_sources.iteritems()]
-  use_iters = [iter(ctx.use_sources[k]) for k in keys]
+  shared_iters = [v for k,v in ctx.shared_sources.items()]
+  use_iters = [iter(ctx.use_sources[k]) for k in sorted(ctx.use_sources.keys())]
 
   try:
-    for x in xrange(options.loops):
+    for x in range(options.loops):
       shared_vals = [i.cache_next() for i in shared_iters]
 
-      print ' '.join([i.next() for i in use_iters])
+      print(' '.join([i.next() for i in use_iters]))
       time.sleep(options.interval)
-  except StopIteration, e:
+  except StopIteration:
     pass
 
 if __name__ == "__main__":
