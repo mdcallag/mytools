@@ -44,7 +44,50 @@ import subprocess
 import sys
 import time
 
-import MySQLdb
+def parse_opts(args):
+  parser = optparse.OptionParser()
+  parser.add_option("--dbms", action="store",
+                    type="string",dest="dbms",
+                    default="",
+                    help="one of: mysql, mongodb, postgres")
+  parser.add_option("--db_user", action="store",
+                    type="string",dest="db_user",
+                    default="",
+                    help="Username for database")
+  parser.add_option("--db_password", action="store",
+                    type="string",dest="db_password",
+                    default="",
+                    help="Password for database")
+  parser.add_option("--db_host", action="store",
+                    type="string",dest="db_host",
+                    default="localhost",
+                    help="Hostname for database")
+  parser.add_option("--db_name", action="store",
+                    type="string",dest="db_name",
+                    default="test",
+                    help="Database name")
+  parser.add_option("--db_retries", action="store",
+                    type="int",dest="db_retries",
+                    default="3",
+                    help="Number of times to retry failed queries")
+  parser.add_option("--sources", action="store",
+                    type="string",dest="data_sources",
+                    default="",
+                    help="File that lists data sources to plot in addition"
+                    "to those listed on the command line")
+  parser.add_option("--interval", action="store",
+                    type="int", dest="interval",
+                    default="10",
+                    help="Report every interval seconds")
+  parser.add_option("--loops", action="store",
+                    type="int", dest="loops",
+                    default="10",
+                    help="Stop after this number of intervals")
+  options, args = parser.parse_args(args)
+  if options.dbms not in ["", "mysql", "postgres", "mongodb"]:
+    print("dbms is ::%s:: but must be one of mysql, postgres, mongodb" % options.dbms)
+    sys.exit(1);
+  return options, args
 
 def divfunc(x, y):
   fy = float(y)
@@ -57,7 +100,8 @@ class MstatContext:
   def __init__(self, interval):
     self.cache_sources = {}
     self.devices = []
-    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0 }
+    # The values are the numbers of counters of that type, which is found at startup
+    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0, 'pg.bgwriter':0 }
     self.tee_iters = []
     self.use_sources = {}
     self.shared_sources = {}
@@ -121,6 +165,30 @@ class Counter(MyIterable):
 
   next = __next__
 
+def get_my_conn(db_user, db_password, db_host, db_name):
+  return MySQLdb.connect(host=db_host, user=db_user, passwd=db_password, db=db_name)
+
+def get_mo_conn(db_user, db_password, db_host, db_name):
+  return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (db_user, db_password, db_host))
+
+def get_pg_conn(db_user, db_password, db_host, db_name):
+  if not db_user:   
+    conn = psycopg2.connect(dbname=db_name, host=db_host)
+  else:
+    conn = psycopg2.connect(dbname=db_name, host=db_host, user=db_user, password=db_password)
+  conn.set_session(autocommit=True)
+  return conn
+
+def get_conn(db_user, db_password, db_host, db_name, dbms):
+  if dbms == 'mysql':
+    return get_my_conn(db_user, db_password, db_host, db_name)
+  elif dbms == 'postgres':
+    return get_pg_conn(db_user, db_password, db_host, db_name)
+  elif dbms == 'mongodb':
+    return get_mo_conn(db_user, db_password, db_host, db_name)
+  else:
+    print('dbms not known ::%s::' % dbms)
+
 class ScanMysql(MyIterable):
   def __init__(self, db_user, db_password, db_host, db_name, sql, retries,
                err_data):
@@ -135,17 +203,15 @@ class ScanMysql(MyIterable):
   def __next__(self):
     r = self.retries
     while r >= 0:
-      connect = None
+      conn = None
       try:
-        connect = MySQLdb.connect(host=self.db_host, user=self.db_user,
-                                  passwd=self.db_password,
-                                  db = self.db_name)
-        cursor = connect.cursor()
+        conn = get_my_conn(self.db_user, self.db_password, self.db_host, self.db_name)
+        cursor = conn.cursor()
         cursor.execute(self.sql)
         result = []
         for row in cursor.fetchall():
           result.append(' '.join(row))
-        connect.close()
+        conn.close()
         # print 'Connectdb'
         if result:
           return '\n'.join(result)
@@ -153,14 +219,77 @@ class ScanMysql(MyIterable):
           return self.err_data
       except MySQLdb.Error as e:
         print('sql (%s) fails (%s)' % (self.sql, e))
-        if connect is not None:
+        if conn is not None:
           try:
-            connect.close()
+            conn.close()
           except MySQLdb.Error:
             pass
         time.sleep(0.1)
       r -= 1
     return self.err_data
+
+  next = __next__
+
+class ScanSQLRow(MyIterable):
+  def __init__(self, db_user, db_password, db_host, db_name, sql, retries, key_prefix, dbms):
+    self.db_user = db_user
+    self.db_password = db_password
+    self.db_host = db_host
+    self.db_name = db_name
+    self.sql = sql
+    self.retries = retries
+    self.key_prefix = key_prefix
+    self.dbms = dbms
+
+  def do_my(self):
+    try:
+      return self.work()
+    except MySQLdb.Error as e:
+      print('ScanSQLRow  (%s) fails (%s)' % (self.sql, e))
+      return None, True
+
+  def do_pg(self):
+    try:
+      return self.work()
+    except psycopg2.Error as e:
+      print('ScanSQLRow  (%s) fails (%s)' % (self.sql, e))
+      return None, True
+
+  def work(self):
+    conn = get_conn(self.db_user, self.db_password, self.db_host, self.db_name, self.dbms)
+    cursor = conn.cursor()
+    cursor.execute(self.sql)
+    result = {}
+    row = cursor.fetchall()[0]
+    for i in range(len(cursor.description)):
+      #print('d::%s::%s' % (i, cursor.description[i].name))
+      k = '%s.%s' % (self.key_prefix, cursor.description[i].name)
+      v = row[i]
+      result[k] = v
+    print('ScanSQLRow ::%s' % result)
+    cursor.close()
+    conn.close()
+    return result, False
+
+  def __next__(self):
+    r = self.retries
+    while r >= 0:
+      if (self.dbms == 'mysql'):
+        res, err = self.do_my()
+      elif (self.dbms == 'postgres'):
+        res, err = self.do_pg()
+      else:
+        print('ScanSQLRow dbms must be mysql or postgres, was ::%s::' % self.dbms)
+
+      if not err:
+        return res
+
+      time.sleep(0.1)
+      r -= 1
+
+    err = {}
+    err['error'] = 0
+    return err
 
   next = __next__
 
@@ -205,6 +334,18 @@ class FilterEquals(MyIterable):
         # Ugly hack for long device name split over 2 lines
         # elif self.iostat_hack and len(cols) == 1 and cols[self.pos] == self.value:
         # return '%s %s' % (self.value, next(self.iter)
+
+  next = __next__
+
+class ValueForKey(MyIterable):
+  def __init__(self, key, iterable):
+    self.key = key
+    self.iter = iterable
+
+  def __next__(self):
+    while True:
+      row_dict = next(self.iter)
+      return str(row_dict[self.key])
 
   next = __next__
 
@@ -360,6 +501,26 @@ def get_my_cols(db_user, db_password, db_host, db_name):
     print('SHOW GLOBAL STATUS fails:', e)
     return []
 
+def get_pg(db_user, db_password, db_host, db_name):
+  names = {}
+  try:
+    cols = []
+    conn = get_pg_conn(db_user, db_password, db_host, db_name)
+    cursor = conn.cursor()
+    cursor.execute('select * from pg_stat_bgwriter')
+    rows = cursor.fetchall()
+    if cursor.description:
+      for i in range(len(cursor.description)):
+        print('d::%s::%s' % (i, cursor.description[i].name))
+        cols.append(cursor.description[i].name)
+    cursor.close()
+    conn.close()
+    names['bgwriter'] = cols
+
+  except psycopg2.Error as e:
+      print('pg error: %s' % e)
+  return names
+
 def make_basic_expr(arg, ctx, can_expand):
   # print "make_basic_expr for %s" % arg
   arg_parts = arg.split('.')
@@ -412,6 +573,12 @@ def make_basic_expr(arg, ctx, can_expand):
 
     filter = FilterEquals(0, arg_parts[2], TeeIter(ctx, 'my.status'))
     return (arg, Project(1, filter))
+
+  elif arg_parts[0] == 'pg':
+    print('pg val: %s %s' % (arg_parts[0], arg_parts[1]))
+    assert arg_parts[1] in ['bgwriter']
+    assert pend >= 3
+    return (arg, ValueForKey('%s.%s' % ('pg.bgwriter', arg_parts[2]), TeeIter(ctx, 'pg.bgwriter')))
 
   else:
     print('validate_arg fails for %s' % arg)
@@ -517,7 +684,7 @@ def add_source(kv, sources):
   sources[kv[0]] = kv[1]
 
 def build_inputs(args, interval, loops, db_user, db_password, db_host,
-                 db_name, db_retries, data_sources):
+                 db_name, db_retries, data_sources, dbms):
   ctx = MstatContext(interval)
   ctx.devices = iostat_init()
 
@@ -537,18 +704,38 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
     add_source(make_basic_expr('vmstat.%s' % col, ctx, False), ctx.use_sources)
     add_source(parse_input('rate(vmstat.%s)' % col,  ctx, False), ctx.use_sources)
 
-  my_cols = get_my_cols(db_user, db_password, db_host, db_name)
-  for col in my_cols:
-    add_source(make_basic_expr('my.status.%s' % col, ctx, False), ctx.use_sources)
-    add_source(parse_input('rate(my.status.%s)' % col, ctx, False), ctx.use_sources)
+  derived_stats = []
 
-  derived_stats =\
-    [(('Innodb_data_sync_read_requests', 'Innodb_data_sync_read_svc_seconds'),
-      'div(rate(my.status.Innodb_data_sync_read_svc_seconds),rate(my.status.Innodb_data_sync_read_requests))',
-      my_cols),
-     (('Questions', 'Command_seconds'),
-      'div(rate(my.status.Command_seconds),rate(my.status.Questions))',
-      my_cols)]
+  print('counters: %s' % ctx.counters)
+
+  my_cols = None
+  if dbms == 'mysql':
+    my_cols = get_my_cols(db_user, db_password, db_host, db_name)
+    if my_cols is None:
+      print('Unable to access MySQL for host(%s), db(%s), user(%s)' % (db_host, db_name, db_user))
+      sys.exit(1)
+    for col in my_cols:
+      add_source(make_basic_expr('my.status.%s' % col, ctx, False), ctx.use_sources)
+      add_source(parse_input('rate(my.status.%s)' % col, ctx, False), ctx.use_sources)
+    derived_stats.append(
+        (('Innodb_data_sync_read_requests', 'Innodb_data_sync_read_svc_seconds'),
+          'div(rate(my.status.Innodb_data_sync_read_svc_seconds),rate(my.status.Innodb_data_sync_read_requests))',
+          my_cols))
+    derived_stats.append(
+        (('Questions', 'Command_seconds'),
+          'div(rate(my.status.Command_seconds),rate(my.status.Questions))',
+          my_cols))
+
+  pg_cols = None
+  if dbms == 'postgres':
+    pg_cols = get_pg(db_user, db_password, db_host, db_name)
+    if pg_cols is None:
+      print('Unable to access Postgres for host(%s), db(%s), user(%s)' % (db_host, db_name, db_user))
+      sys.exit(1)
+    for col in pg_cols['bgwriter']:
+      add_source(make_basic_expr('pg.bgwriter.%s' % col, ctx, False), ctx.use_sources)
+      if col in ['checkpoints_timed', 'checkpoints_req', 'buffers_checkpoint', 'buffers_clean', 'maxwritten_clean', 'buffers_backend', 'buffers_backend_fsync', 'buffers_alloc']:
+        add_source(parse_input('rate(pg.bgwriter.%s)' % col, ctx, False), ctx.use_sources)
 
   for e in derived_stats:
     all_found = True
@@ -564,7 +751,9 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
       ctx.use_sources[k] = v
 
   tee = {}
-  tee_used = { 'vmstat':0, 'iostat':0, 'my.status':0 }
+  tee_used = {}
+  for k,v in ctx.counters.items(): tee_used[k] = 0
+  print('ctx counters: %s' % ctx.counters)
 
   if ctx.counters['vmstat']:
     scan_vmstat = ScanFork('vmstat -n %d %d' % (interval, loops+1), 2)
@@ -579,62 +768,42 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
                             'SHOW GLOBAL STATUS', db_retries, 'Foo 0')
     tee['my.status'] = itertools.tee(scan_mystat, ctx.counters['my.status'])
 
+  if ctx.counters['pg.bgwriter']:
+    scan_pg = ScanSQLRow(db_user, db_password, db_host, db_name,
+                         'select * from pg_stat_bgwriter', db_retries,
+                         'pg.bgwriter', dbms)
+    tee['pg.bgwriter'] = itertools.tee(scan_pg, ctx.counters['pg.bgwriter'])
+
   for i in ctx.tee_iters:
     i.tee_iter = tee[i.type_name][i.index]
     tee_used[i.type_name] += 1
 
-  for i in ['vmstat', 'iostat', 'my.status']:
+  for i in ['vmstat', 'iostat', 'my.status', 'pg.bgwriter']:
     print('check for %s tee_used %d == ctx.counters %d' % (i, tee_used[i], ctx.counters[i]))
     assert tee_used[i] == ctx.counters[i]
 
   return ctx
 
-def parse_opts(args):
-  parser = optparse.OptionParser()
-  parser.add_option("--db_user", action="store",
-                    type="string",dest="db_user",
-                    default="root",
-                    help="Username for database")
-  parser.add_option("--db_password", action="store",
-                    type="string",dest="db_password",
-                    default="",
-                    help="Password for database")
-  parser.add_option("--db_host", action="store",
-                    type="string",dest="db_host",
-                    default="localhost",
-                    help="Hostname for database")
-  parser.add_option("--db_name", action="store",
-                    type="string",dest="db_name",
-                    default="test",
-                    help="Database name")
-  parser.add_option("--db_retries", action="store",
-                    type="int",dest="db_retries",
-                    default="3",
-                    help="Number of times to retry failed queries")
-  parser.add_option("--sources", action="store",
-                    type="string",dest="data_sources",
-                    default="",
-                    help="File that lists data sources to plot in addition"
-                    "to those listed on the command line")
-  parser.add_option("--interval", action="store",
-                    type="int", dest="interval",
-                    default="10",
-                    help="Report every interval seconds")
-  parser.add_option("--loops", action="store",
-                    type="int", dest="loops",
-                    default="10",
-                    help="Stop after this number of intervals")
-  return parser.parse_args(args)
+def init_for_dbms(options):
+  if options.dbms == 'mongo':
+    globals()['pymongo'] = __import__('pymongo')
+  elif options.dbms == 'mysql':
+    globals()['MySQLdb'] = __import__('MySQLdb')
+  elif options.dbms == 'postgres':
+    globals()['psycopg2'] = __import__('psycopg2')
+  else:
+    print('no dbms configured')
 
 def main(argv=None):
   if argv is None:
     argv = sys.argv
   options, args = parse_opts(argv[1:])
+  init_for_dbms(options)
 
   ctx = build_inputs(args, options.interval, options.loops,
                      options.db_user, options.db_password,
                      options.db_host, options.db_name, options.db_retries,
-                     options.data_sources)
+                     options.data_sources, options.dbms)
 
   i=1
   for k in sorted(ctx.use_sources.keys()):
