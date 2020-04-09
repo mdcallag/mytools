@@ -15,8 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Originally published by Google.
-# Additional improvements from Facebook.
+# Originally published when I worked at Google.
+# Additional improvements when I worked at Facebook.
+# More improvements when I worked at MongoDB
 #
 
 """Multiple-stat reporter
@@ -89,6 +90,9 @@ def parse_opts(args):
     sys.exit(1);
   return options, args
 
+pg_numeric_typecodes = [20, 701]
+pg_date_typecodes = [1184]
+
 def divfunc(x, y):
   fy = float(y)
   if not fy:
@@ -101,11 +105,21 @@ class MstatContext:
     self.cache_sources = {}
     self.devices = []
     # The values are the numbers of counters of that type, which is found at startup
-    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0, 'pg.bgwriter':0 }
+    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0 }
+    self.tabs_1row = []
+    self.tabs_nrow = []
     self.tee_iters = []
     self.use_sources = {}
     self.shared_sources = {}
     self.interval = interval
+
+  def add_tab_1row(self, k):
+    self.counters[k] = 0
+    self.tabs_1row.append(k)
+
+  def add_tab_nrow(self, k):
+    self.counters[k] = 0
+    self.tabs_nrow.append(k)
 
 class MyIterable:
   def __iter__(self):
@@ -266,7 +280,7 @@ class ScanSQLRow(MyIterable):
       k = '%s.%s' % (self.key_prefix, cursor.description[i].name)
       v = row[i]
       result[k] = v
-    print('ScanSQLRow ::%s' % result)
+    #print('ScanSQLRow ::%s' % result)
     cursor.close()
     conn.close()
     return result, False
@@ -501,25 +515,47 @@ def get_my_cols(db_user, db_password, db_host, db_name):
     print('SHOW GLOBAL STATUS fails:', e)
     return []
 
-def get_pg(db_user, db_password, db_host, db_name):
-  names = {}
+def get_pg_stats(db_user, db_password, db_host, db_name, ctx):
+  # TODO: figure out how to support counters that can come and go after mstat has been started
+  # nrow_stat_tables = { 'pg_stat_database' : ['datname'] }
+  nrow_stat_tables = { }
+
+  tabs1 = {}
+  tabsn = {}
+
   try:
-    cols = []
     conn = get_pg_conn(db_user, db_password, db_host, db_name)
     cursor = conn.cursor()
+
     cursor.execute('select * from pg_stat_bgwriter')
     rows = cursor.fetchall()
     if cursor.description:
+      bgw_cols = []
       for i in range(len(cursor.description)):
-        print('d::%s::%s' % (i, cursor.description[i].name))
-        cols.append(cursor.description[i].name)
+        print('d::%s::%s::%s' % (i, cursor.description[i].name, cursor.description[i].type_code))
+        bgw_cols.append((cursor.description[i].name, cursor.description[i].type_code))
+      tabs1['pg_stat_bgwriter'] = bgw_cols
+      ctx.add_tab_1row('pg.pg_stat_bgwriter')
+
+    for tab_name, key_cols in nrow_stat_tables.items():
+      cursor.execute('select * from %s' % tab_name)
+      rows = cursor.fetchall()
+      if cursor.description:
+        db_cols = [key_cols]
+        for i in range(len(cursor.description)):
+          print('d::%s::%s::%s' % (i, cursor.description[i].name, cursor.description[i].type_code))
+          if cursor.description[i].name not in key_cols:
+            db_cols.append((cursor.description[i].name, cursor.description[i].type_code))
+        print('pg: %s :: %s :: %s' % (tab_name, key_cols, db_cols))
+        tabsn[tab_name] = db_cols
+        ctx.add_tab_nrow(tab_name)
+
     cursor.close()
     conn.close()
-    names['bgwriter'] = cols
 
   except psycopg2.Error as e:
       print('pg error: %s' % e)
-  return names
+  return tabs1, tabsn
 
 def make_basic_expr(arg, ctx, can_expand):
   # print "make_basic_expr for %s" % arg
@@ -575,10 +611,17 @@ def make_basic_expr(arg, ctx, can_expand):
     return (arg, Project(1, filter))
 
   elif arg_parts[0] == 'pg':
-    print('pg val: %s %s' % (arg_parts[0], arg_parts[1]))
-    assert arg_parts[1] in ['bgwriter']
-    assert pend >= 3
-    return (arg, ValueForKey('%s.%s' % ('pg.bgwriter', arg_parts[2]), TeeIter(ctx, 'pg.bgwriter')))
+    #print('pg val: %s %s %s' % (arg_parts[0], arg_parts[1], ctx.tabs_1row))
+    prefix = 'pg.%s' % arg_parts[1]
+    if prefix in ctx.tabs_1row:
+      assert pend >= 3
+      return (arg, ValueForKey('%s.%s' % (prefix, arg_parts[2]), TeeIter(ctx, prefix)))
+    elif prefix in ctx.tabs_nrow:
+      assert pend >= 3
+      return (arg, ValueForKeyN('%s.%s' % (prefix, arg_parts[2:]), TeeIter(ctx, prefix)))
+    else:
+      print('pg what is ::%s::' % prefix)
+      sys.exit(1)
 
   else:
     print('validate_arg fails for %s' % arg)
@@ -708,6 +751,9 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
 
   print('counters: %s' % ctx.counters)
 
+  scan_1row = []
+  scan_nrow = []
+
   my_cols = None
   if dbms == 'mysql':
     my_cols = get_my_cols(db_user, db_password, db_host, db_name)
@@ -726,16 +772,23 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
           'div(rate(my.status.Command_seconds),rate(my.status.Questions))',
           my_cols))
 
-  pg_cols = None
   if dbms == 'postgres':
-    pg_cols = get_pg(db_user, db_password, db_host, db_name)
-    if pg_cols is None:
+    pg_tabs1, pg_tabsn = get_pg_stats(db_user, db_password, db_host, db_name, ctx)
+    if pg_tabs1 is None or pg_tabsn is None:
       print('Unable to access Postgres for host(%s), db(%s), user(%s)' % (db_host, db_name, db_user))
       sys.exit(1)
-    for col in pg_cols['bgwriter']:
-      add_source(make_basic_expr('pg.bgwriter.%s' % col, ctx, False), ctx.use_sources)
-      if col in ['checkpoints_timed', 'checkpoints_req', 'buffers_checkpoint', 'buffers_clean', 'maxwritten_clean', 'buffers_backend', 'buffers_backend_fsync', 'buffers_alloc']:
-        add_source(parse_input('rate(pg.bgwriter.%s)' % col, ctx, False), ctx.use_sources)
+
+    # data from tables that have 1 row
+    for tab_name, tab_cols in pg_tabs1.items():
+      scan_1row.append(('pg', tab_name))
+      for col_name, col_type in tab_cols:
+        add_source(make_basic_expr('pg.%s.%s' % (tab_name, col_name), ctx, False), ctx.use_sources)
+        if col_type in pg_numeric_typecodes:
+          print('rate for %s' % col_name)
+          add_source(parse_input('rate(pg.%s.%s)' % (tab_name, col_name), ctx, False), ctx.use_sources)
+
+    # data from tables that have n rows
+    # TODO not supported yet
 
   for e in derived_stats:
     all_found = True
@@ -768,17 +821,18 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
                             'SHOW GLOBAL STATUS', db_retries, 'Foo 0')
     tee['my.status'] = itertools.tee(scan_mystat, ctx.counters['my.status'])
 
-  if ctx.counters['pg.bgwriter']:
-    scan_pg = ScanSQLRow(db_user, db_password, db_host, db_name,
-                         'select * from pg_stat_bgwriter', db_retries,
-                         'pg.bgwriter', dbms)
-    tee['pg.bgwriter'] = itertools.tee(scan_pg, ctx.counters['pg.bgwriter'])
+  for dbms_prefix, tab_name in scan_1row:
+    counter_prefix = '%s.%s' % (dbms_prefix, tab_name) 
+    scan = ScanSQLRow(db_user, db_password, db_host, db_name,
+                      'select * from %s' % tab_name, db_retries,
+                      counter_prefix, dbms)
+    tee[counter_prefix] = itertools.tee(scan, ctx.counters[counter_prefix])
 
   for i in ctx.tee_iters:
     i.tee_iter = tee[i.type_name][i.index]
     tee_used[i.type_name] += 1
 
-  for i in ['vmstat', 'iostat', 'my.status', 'pg.bgwriter']:
+  for i in ctx.counters.keys():
     print('check for %s tee_used %d == ctx.counters %d' % (i, tee_used[i], ctx.counters[i]))
     assert tee_used[i] == ctx.counters[i]
 
