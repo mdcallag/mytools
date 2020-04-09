@@ -50,7 +50,7 @@ def parse_opts(args):
   parser.add_option("--dbms", action="store",
                     type="string",dest="dbms",
                     default="",
-                    help="one of: mysql, mongodb, postgres")
+                    help="one of: mysql, mongo, postgres")
   parser.add_option("--db_user", action="store",
                     type="string",dest="db_user",
                     default="",
@@ -85,8 +85,8 @@ def parse_opts(args):
                     default="10",
                     help="Stop after this number of intervals")
   options, args = parser.parse_args(args)
-  if options.dbms not in ["", "mysql", "postgres", "mongodb"]:
-    print("dbms is ::%s:: but must be one of mysql, postgres, mongodb" % options.dbms)
+  if options.dbms not in ["", "mysql", "postgres", "mongo"]:
+    print("dbms is ::%s:: but must be one of mysql, postgres, mongo" % options.dbms)
     sys.exit(1);
   return options, args
 
@@ -105,7 +105,7 @@ class MstatContext:
     self.cache_sources = {}
     self.devices = []
     # The values are the numbers of counters of that type, which is found at startup
-    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0 }
+    self.counters = { 'iostat':0, 'vmstat':0, 'my.status':0, 'mo.status':0 }
     self.tabs_1row = []
     self.tabs_nrow = []
     self.tee_iters = []
@@ -198,7 +198,7 @@ def get_conn(db_user, db_password, db_host, db_name, dbms):
     return get_my_conn(db_user, db_password, db_host, db_name)
   elif dbms == 'postgres':
     return get_pg_conn(db_user, db_password, db_host, db_name)
-  elif dbms == 'mongodb':
+  elif dbms == 'mongo':
     return get_mo_conn(db_user, db_password, db_host, db_name)
   else:
     print('dbms not known ::%s::' % dbms)
@@ -241,6 +241,37 @@ class ScanMysql(MyIterable):
         time.sleep(0.1)
       r -= 1
     return self.err_data
+
+  next = __next__
+
+# This will need work to do things other than run serverStatus
+class ScanMongo(MyIterable):
+  def __init__(self, db_user, db_password, db_host, db_name, command, retries):
+    self.db_user = db_user
+    self.db_password = db_password
+    self.db_host = db_host
+    self.db_name = db_name
+    self.command = command
+    self.retries = retries
+
+  def __next__(self):
+    r = self.retries
+    while r >= 0:
+      conn = None
+      try:
+        conn = get_mo_conn(self.db_user, self.db_password, self.db_host, self.db_name)
+        # TODO don't hardware local
+        db = conn['local']
+        status = db.command(self.command)
+        kv_res = {}
+        walk_mongo(status, kv_res, "")
+        return kv_res
+      except pymongo.errors.PyMongoError as e:
+        print('mo error: %s' % e)
+        time.sleep(0.1)
+
+      r -= 1
+    return {'error': 0}
 
   next = __next__
 
@@ -359,6 +390,7 @@ class ValueForKey(MyIterable):
   def __next__(self):
     while True:
       row_dict = next(self.iter)
+      #print(row_dict)
       return str(row_dict[self.key])
 
   next = __next__
@@ -397,12 +429,14 @@ class ProjectByPrefix(MyIterable):
   next = __next__
 
 class ExprAbsToRel(MyIterable):
-  def __init__(self, interval, iterable):
+  def __init__(self, interval, iterable, name):
     self.interval = interval
     self.iter = iter(iterable)
     self.prev = None
+    self.name = name
 
   def __next__(self):
+    #print('ExprAbsToRel for %s' % self.name)
     current = float(next(self.iter))
     if self.prev is None:
       self.prev = current
@@ -515,6 +549,43 @@ def get_my_cols(db_user, db_password, db_host, db_name):
     print('SHOW GLOBAL STATUS fails:', e)
     return []
 
+def walk_mongo(json_as_dict, kv_res, prefix):
+  for k, v in json_as_dict.items():
+    k = str.replace(k, " ", "_")
+    k = str.replace(k, ")", "_")
+    k = str.replace(k, "(", "_")
+    k = str.replace(k, ",", "_")
+    if not prefix:
+      next_prefix = k
+    else:
+      next_prefix = '%s.%s' % (prefix, k)
+
+    if isinstance(v, dict):
+      walk_mongo(v, kv_res, next_prefix)
+    elif next_prefix != 'tcmalloc.tcmalloc.formattedString':
+      kv_res[next_prefix] = v
+
+def get_mo_stats(db_user, db_password, db_host, db_name, ctx):
+  try:
+    conn = get_mo_conn(db_user, db_password, db_host, db_name)
+    db = conn['local']
+    status = db.command('serverStatus')
+    kv_res = {}
+    walk_mongo(status, kv_res, "")
+    # for k, v in kv_res.items(): print('%s = %s' % (k, v))
+    non_numeric_keys = []
+    for k, v in kv_res.items():
+      #print('key %s has type %s' % (k, type(v)))
+      if not isinstance(v, (float, int)) or isinstance(v, (bool)):
+        non_numeric_keys.append(k)
+    for nnk in non_numeric_keys:
+      #print('del key %s' % nnk)
+      del kv_res[nnk]
+    return kv_res.keys()
+  except pymongo.errors.PyMongoError as e:
+    print('mo error: %s' % e)
+    return {}
+
 def get_pg_stats(db_user, db_password, db_host, db_name, ctx):
   # TODO: figure out how to support counters that can come and go after mstat has been started
   # nrow_stat_tables = { 'pg_stat_database' : ['datname'] }
@@ -554,7 +625,7 @@ def get_pg_stats(db_user, db_password, db_host, db_name, ctx):
     conn.close()
 
   except psycopg2.Error as e:
-      print('pg error: %s' % e)
+    print('pg error: %s' % e)
   return tabs1, tabsn
 
 def make_basic_expr(arg, ctx, can_expand):
@@ -610,6 +681,12 @@ def make_basic_expr(arg, ctx, can_expand):
     filter = FilterEquals(0, arg_parts[2], TeeIter(ctx, 'my.status'))
     return (arg, Project(1, filter))
 
+  elif arg_parts[0] == 'mo':
+    assert arg_parts[1] == 'status'
+    assert pend >= 3
+    # print('mongo: %s' % arg)
+    return (arg, ValueForKey('.'.join(arg_parts[2:]), TeeIter(ctx, 'mo.status')))
+
   elif arg_parts[0] == 'pg':
     #print('pg val: %s %s %s' % (arg_parts[0], arg_parts[1], ctx.tabs_1row))
     prefix = 'pg.%s' % arg_parts[1]
@@ -652,7 +729,7 @@ def get_tokens(strl):
   return r
 
 def parse_input(arg, ctx, can_expand):
-  # print "parse_input for %s" % arg
+  #print("parse_input for %s" % arg)
   tokens = get_tokens(arg)
   e, rem = parse_expr(tokens, ctx, can_expand)
   assert not rem
@@ -685,13 +762,13 @@ def parse_expr_list(parts, ctx, can_expand):
   return (args, parts)
 
 def parse_func_call(ctx, func_name, func_arg_list):
-  # print "parse_func_call for %s, %d" % (func_name, len(func_arg_list))
+  #print("parse_func_call for %s, %d" % (func_name, len(func_arg_list)))
 
   name = '%s(%s)' % (func_name, ','.join([e[0] for e in func_arg_list]))
 
   if func_name == 'rate':
     assert len(func_arg_list) == 1
-    return (name, ExprAbsToRel(ctx.interval, func_arg_list[0][1]))
+    return (name, ExprAbsToRel(ctx.interval, func_arg_list[0][1], name))
 
   elif func_name == 'sum':
     assert len(func_arg_list) >= 1
@@ -700,7 +777,7 @@ def parse_func_call(ctx, func_name, func_arg_list):
   elif func_name == 'ratesum':
     assert len(func_arg_list) >= 1
     sum_iter = ExprFunc(sum, [e[1] for e in func_arg_list])
-    return (name, ExprAbsToRel(interval, sum_iter))
+    return (name, ExprAbsToRel(interval, sum_iter, name))
 
   elif func_name == 'avg':
     assert len(func_arg_list) >= 1
@@ -790,6 +867,12 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
     # data from tables that have n rows
     # TODO not supported yet
 
+  if dbms == 'mongo':
+    mongo_keys = get_mo_stats(db_user, db_password, db_host, db_name, ctx)
+    for key in mongo_keys:
+      add_source(make_basic_expr('mo.status.%s' % key, ctx, False), ctx.use_sources)
+      add_source(parse_input('rate(mo.status.%s)' % key, ctx, False), ctx.use_sources)
+ 
   for e in derived_stats:
     all_found = True
     for col in e[0]:
@@ -820,6 +903,10 @@ def build_inputs(args, interval, loops, db_user, db_password, db_host,
     scan_mystat = ScanMysql(db_user, db_password, db_host, db_name,
                             'SHOW GLOBAL STATUS', db_retries, 'Foo 0')
     tee['my.status'] = itertools.tee(scan_mystat, ctx.counters['my.status'])
+
+  if ctx.counters['mo.status']:
+    scan = ScanMongo(db_user, db_password, db_host, db_name, 'serverStatus', db_retries)
+    tee['mo.status'] = itertools.tee(scan, ctx.counters['mo.status'])
 
   for dbms_prefix, tab_name in scan_1row:
     counter_prefix = '%s.%s' % (dbms_prefix, tab_name) 
