@@ -21,7 +21,7 @@ if [[ $isNode == "node" ]]; then
   gn9=$( cat $ddir/r.o.*.$tag | grep GET_NODE | tail -1 | awk '{ print $23 }' | tr -d '[]ms' | tr ',' ' ' | awk '{ print $2 }' )
   gnx=$( cat $ddir/r.o.*.$tag | grep GET_NODE | tail -1 | awk '{ print $26 }' | sed 's/ms//g' | awk '{ printf "%.1f\n", $1 }' )
   gnm=$( cat $ddir/r.o.*.$tag | grep GET_NODE | tail -1 | awk '{ print $29 }' | sed 's/ms//g' | awk '{ printf "%.3f\n", $1 }' )
-  echo "$an9,$anx,$anm,$un9,$unx,$unm,$dn9,$dnx,$dnm,$gn9,$gnx,$gnm,$dir"
+  echo "$an9,$anx,$anm,$un9,$unx,$unm,$dn9,$dnx,$dnm,$gn9,$gnx,$gnm,$ddir"
 else
   al9=$( cat $ddir/r.o.*.$tag | grep ADD_LINK | tail -1 | awk '{ print $23 }' | tr -d '[]ms' | tr ',' ' ' | awk '{ print $2 }' )
   alx=$( cat $ddir/r.o.*.$tag | grep ADD_LINK | tail -1 | awk '{ print $26 }' | sed 's/ms//g' | awk '{ printf "%.1f\n", $1 }' )

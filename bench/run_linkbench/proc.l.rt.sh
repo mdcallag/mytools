@@ -1,6 +1,6 @@
 ddir=$1
 
-echo "lps,secs,n9,nx,nm,l9,lx,lm,c9,cx,cm,cnf"
+echo "ips,secs,n9,nx,nm,l9,lx,lm,c9,cx,cm,cnf"
 
 n9=$( cat $ddir/l.pre.o.* | grep LOAD_NODE_BULK | tail -1 | awk '{ print $23 }' | tr -d '[]ms' | tr ',' ' ' | awk '{ print $2 }' )
 nx=$( cat $ddir/l.pre.o.* | grep LOAD_NODE_BULK | tail -1 | awk '{ print $26 }' | sed 's/ms//g' | awk '{ printf "%.0f\n", $1 }' )
@@ -13,8 +13,8 @@ cx=$( cat $ddir/l.pre.o.* | grep LOAD_COUNTS_BULK | tail -1 | awk '{ print $26 }
 cm=$( cat $ddir/l.pre.o.* | grep LOAD_COUNTS_BULK | tail -1 | awk '{ print $29 }' | sed 's/ms//g'  | awk '{ printf "%.0f\n", $1 }' )
 
 secs=$( cat $ddir/l.pre.o.* | grep "LOAD PHASE COMPLETED" | awk '{ printf "%.0f", $21 }' )
-lps=$( cat $ddir/l.pre.o.* | grep "LOAD PHASE COMPLETED" | awk '{ printf "%.0f", $25 }' )
+ips=$( cat $ddir/l.pre.o.* | grep "LOAD PHASE COMPLETED" | awk '{ printf "%.0f", $25 }' )
 
-echo "$lps,$secs,$n9,$nx,$nm,$l9,$lx,$lm,$c9,$cx,$cm,$ddir"
+echo "$ips,$secs,$n9,$nx,$nm,$l9,$lx,$lm,$c9,$cx,$cm,$ddir"
 
 

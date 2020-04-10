@@ -4,14 +4,6 @@ tag=$2
 # sORq is one of "sec" "op"
 secORop=$3
 
-function dt2s {
-  ts=$1
-  min=$( echo $ts | tr ':' ' ' | awk '{ print $1 }' )
-  sec=$( echo $ts | tr ':' ' ' | awk '{ print $2 }' )
-  d2nsecs=$( echo "$min * 60 + $sec" | bc )
-  echo $d2nsecs
-}
-
 if [[ $secORop == "sec" ]]; then
   echo "ips,secs,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
 else
@@ -25,23 +17,15 @@ if [[ $nsecs -eq 0 ]]; then nsecs=1 ; fi
 ips=$( cat $ddir/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.0f", $8 }' )
 
 # dbms CPU secs
-dh=$( cat $ddir/l.$tag.ps.* | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
-dt=$( cat $ddir/l.$tag.ps.* | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
-hsec=$( dt2s $dh )
-tsec=$( dt2s $dt )
-dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
-dsec0=$( echo "$hsec $tsec" | awk '{ printf "%.0f", $2 - $1 }' )
+dsec=$( grep dbms: $ddir/l.$tag.r.* | head -1 | awk '{ print $2 }' )
+dsec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
 
 # client CPU secs
-if [ -f $ddir/l.$tag.time.* ]; then
-  cus=$( cat $ddir/l.$tag.time.* | head -1 | awk '{ print $1 }' | sed 's/user//g' )
-  csy=$( cat $ddir/l.$tag.time.* | head -1 | awk '{ print $2 }' | sed 's/system//g' )
-  csec=$( echo "$cus $csy" | awk '{ printf "%.1f", $1 + $2 }' )
-  csec0=$( echo "$cus $csy" | awk '{ printf "%.0f", $1 + $2 }' )
-else
-  cus=X; csy=X; csec=0; csec0=0
-fi
-dbgb=$( cat $ddir/l.$tag.r.* | head -11 | tail -1 | awk '{ print $1 }' )
+csec=$( grep client: $ddir/l.$tag.r.* | head -1 | awk '{ print $6 }' )
+csec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
+#csec=0; csec0=0
+
+dbgb=$( cat $ddir/l.$tag.r.* | head -11 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
 
 if [[ $secORop == "sec" ]]; then
   rps=$( cat $ddir/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.0f", $2 }' )

@@ -35,7 +35,7 @@ csy=$( cat $ddir/r.time.*.$tag | head -1 | awk '{ print $2 }' | sed 's/system//g
 csec=$( echo "$cus $csy" | awk '{ printf "%.1f", $1 + $2 }' )
 csec0=$( echo "$cus $csy" | awk '{ printf "%.0f", $1 + $2 }' )
 
-dbgb=$( cat $ddir/r.r.*.$tag | head -12 | tail -1 | awk '{ print $1 }' )
+dbgb=$( cat $ddir/r.r.*.$tag | head -12 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
 
 if [[ $secORop == "sec" ]]; then
   rps=$( cat $ddir/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.0f", $2 }' )
@@ -46,7 +46,7 @@ if [[ $secORop == "sec" ]]; then
   cutil=$( echo $csec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
   dutil=$( echo $dsec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
   #echo "$csec,$dsec"
-  echo "$nsecs,$qps,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$ddir"
+  echo "$qps,$nsecs,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$ddir"
 else
   rpq=$( cat $ddir/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.3f", $5 }' )
   rkbpq=$( cat $ddir/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.3f", $6 }' )
@@ -55,6 +55,6 @@ else
   cpupq=$( cat $ddir/r.r.*.$tag | head -7 | tail -1 | awk '{ printf "%.0f", $5 * 1000000.0 }' )
   csecpq=$( echo $csec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
   dsecpq=$( echo $dsec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
-  echo "$nsecs,$qps,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$ddir"
+  echo "$qps,$nsecs,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$ddir"
 fi
 
