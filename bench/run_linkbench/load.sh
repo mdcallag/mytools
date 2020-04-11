@@ -127,7 +127,7 @@ function process_stats {
     $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.index_statistics' > l.$tag.istat3.$fn
 
   elif [[ $dbms == "postgres" ]]; then
-    $client linkbench $pgauth -c 'show all' > o.pg.conf
+    $client linkbench $pgauth -c 'show all' > l.$tag.pg.conf
     $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > l.$tag.pgs.bg
     $client linkbench $pgauth -x -c 'select * from pg_stat_database' > l.$tag.pgs.db
     $client linkbench $pgauth -x -c 'select * from pg_stat_all_tables' > l.$tag.pgs.tabs

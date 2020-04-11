@@ -100,14 +100,14 @@ elif [[ $dbms = "mysql" ]]; then
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.table_statistics WHERE TABLE_NAME IN ("linktable", "nodetable", "counttable")' > r.tstat3.$fn
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.index_statistics' > r.istat3.$fn
 elif [[ $dbms = "postgres" ]]; then
-  $client linkbench $pgauth -c 'show all' > o.pg.conf
-  $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > r.pgs.bg
-  $client linkbench $pgauth -x -c 'select * from pg_stat_database' > r.pgs.db
-  $client linkbench $pgauth -x -c 'select * from pg_stat_all_tables' > r.pgs.tabs
-  $client linkbench $pgauth -x -c 'select * from pg_stat_all_indexes' > r.pgs.idxs
-  $client linkbench $pgauth -x -c 'select * from pg_statio_all_tables' > r.pgi.tabs
-  $client linkbench $pgauth -x -c 'select * from pg_statio_all_indexes' > r.pgi.idxs
-  $client linkbench $pgauth -x -c 'select * from pg_statio_all_sequences' > r.pgi.seq
+  $client linkbench $pgauth -c 'show all' > r.pg.conf.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > r.pgs.bg.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_stat_database' > r.pgs.db.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_stat_all_tables' > r.pgs.tabs.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_stat_all_indexes' > r.pgs.idxs.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_statio_all_tables' > r.pgi.tabs.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_statio_all_indexes' > r.pgi.idxs.$fn
+  $client linkbench $pgauth -x -c 'select * from pg_statio_all_sequences' > r.pgi.seq.$fn
 else
   echo dbms :: $dbms :: not supported
   exit 1
