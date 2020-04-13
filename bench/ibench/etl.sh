@@ -4,6 +4,7 @@ ns=$3
 ddir=$4
 mrows=$5
 tag=$6
+uname=$7
 
 lres=$d/l/o.res.dop${dop}.ns${ns}
 q1000res=$d/q1000/o.res.dop${dop}.ns${ns}
@@ -49,8 +50,26 @@ function ddir_sz {
   fname=$1
   ddir=$2
 
-  sz=$( grep $ddir $fname | head -1 | awk '{ print $1 }' | sed s/G//g )
+  if grep $ddir $fname > /dev/null ; then
+    sz=$( grep $ddir $fname | head -1 | awk '{ print $1 }' | sed s/G//g )
+  else
+    sz=NA
+  fi
   echo -n "$sz,"
+}
+
+function dbms_vsz_rss {
+  fname=$1
+  username=$2
+
+  if grep $username $fname > /dev/null ; then
+    vsz=$( grep $username $fname | head -1 | awk '{ printf "%.1f", $5 / (1024*1024) }' )
+    rss=$( grep $username $fname | head -1 | awk '{ printf "%.1f", $6 / (1024*1024) }' )
+  else
+    vsz=NA
+    rss=NA
+  fi
+  echo -n "$vsz,$rss,"
 }
 
 function get_max {
@@ -105,13 +124,14 @@ function get_scans {
   echo "$s2,$mrps,$rps,$rmbps,$wmbps,$rpo,$rkbpo,$csps,$cpups,$cspo,$mcpupo,$tag"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,dbgb,maxop,p50,p99,tag"
+echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,dbgb,vsz,rss,maxop,p50,p99,tag"
 
 # echo load
 from_hdr_i $lres
 echo -n "0,"
 from_by $lres 5 8
 ddir_sz $lres $ddir
+dbms_vsz_rss $lres $uname
 get_max $lres "Max insert"
 get_ptile $lres 50th 6
 get_ptile $lres 99th 6
@@ -122,6 +142,7 @@ from_hdr_i $q1000res
 from_hdr_q $q1000res
 from_by $q1000res 12 15
 ddir_sz $q1000res $ddir
+dbms_vsz_rss $q1000res $uname
 get_max $q1000res "Max query"
 get_ptile $q1000res 50th 8
 get_ptile $q1000res 99th 8
@@ -132,6 +153,7 @@ from_hdr_i $q100res
 from_hdr_q $q100res
 from_by $q100res 12 15
 ddir_sz $q100res $ddir
+dbms_vsz_rss $q100res $uname
 get_max $q100res "Max query"
 get_ptile $q100res 50th 8
 get_ptile $q100res 99th 8
