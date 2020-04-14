@@ -78,11 +78,11 @@ killall top
 $mypy mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
 mpid=$!
 
-vmstat 1 >& o.vm.$sfx &
+vmstat 5 >& o.vm.$sfx &
 vpid=$!
-iostat -y -kx 1 >& o.io.$sfx &
+iostat -y -kx 5 >& o.io.$sfx &
 ipid=$!
-top -w 200 -c -b -d 30 >& o.top.$sfx &
+top -w 200 -c -b -d 60 >& o.top.$sfx &
 tpid=$!
 
 start_secs=$( date +%s )
@@ -167,6 +167,7 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
 kill $spid >& /dev/null
+gzip o.top.$sfx 
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
