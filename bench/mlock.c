@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <assert.h>
 
 void touch_pages(char *start, int n_pages) {
   int x;
@@ -40,6 +41,8 @@ int main(int argc, char **argv) {
     allocs[x] = c;
     touch_pages(c, n_pages);
   }
+  assert(x <= n_allocs);
+  n_allocs = x;
 
   x = 0;
   while (1) {
