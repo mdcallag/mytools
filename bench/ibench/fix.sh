@@ -72,10 +72,12 @@ grep -v swpd o.vm.$sfx | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 
 
 echo >> o.res.$sfx
 #du -hs $ddir >> o.res.$sfx
+echo TODO size $ddir >> o.res.$sfx
 
 echo >> o.res.$sfx
 #ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
 #ps aux | grep mongod | grep -v grep >> o.res.$sfx
+echo TODO ps dbmsd >> o.res.$sfx
 
 echo >> o.res.$sfx
 echo "Max insert" >> o.res.$sfx

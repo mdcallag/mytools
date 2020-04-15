@@ -1,3 +1,5 @@
+rmprefix=$1
+shift 1
 
 bdir=$( dirname $0 )
 
@@ -16,7 +18,7 @@ for l in 2 3 4; do
     else
       echo "-"
     fi
-  done  >> mrg.q$l
+  done | sed "s/${rmprefix}\.//g" >> mrg.q$l
 done
 
 mv mrg.q2 mrg.l
@@ -31,7 +33,7 @@ for l in 6 7 8 9 10; do
     else
       echo "-"
     fi
-  done  >> mrg.x$l
+  done | sed "s/${rmprefix}\.//g" >> mrg.x$l
 done
 
 mv mrg.x6 mrg.s1
