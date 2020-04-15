@@ -10,8 +10,12 @@ f1=${farr[0]}
 for l in 2 3 4; do
   head -1 $f1 > mrg.q$l
   for f in "$@"; do
-    head -${l} $f | tail -1 | \
-      awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); $12=sprintf("%.0f", $12 * 1000000); $17=sprintf("%.0f", $17); $18=sprintf("%.0f", $18); print $0 }'
+    if [ $f != "BREAK" ]; then
+      head -${l} $f | tail -1 | \
+        awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); $12=sprintf("%.0f", $12 * 1000000); $17=sprintf("%.0f", $17); $18=sprintf("%.0f", $18); print $0 }'
+    else
+      echo "-"
+    fi
   done  >> mrg.q$l
 done
 
@@ -22,7 +26,11 @@ mv mrg.q4 mrg.q100
 for l in 6 7 8 9 10; do
   head -5 $f1 | tail -1 > mrg.x$l
   for f in "$@"; do
-    head -${l} $f | tail -1;
+    if [ $f != "BREAK" ]; then
+      head -${l} $f | tail -1;
+    else
+      echo "-"
+    fi
   done  >> mrg.x$l
 done
 
