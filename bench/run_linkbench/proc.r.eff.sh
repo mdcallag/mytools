@@ -23,18 +23,12 @@ nsecs=$( cat $ddir/r.r.*.$tag | head -1 | awk '{ print $12 }' )
 qps=$( cat $ddir/r.r.*.$tag | head -1 | awk '{ printf "%.0f", $16 }' )
 
 # dbms CPU secs
-dh=$( cat $ddir/r.ps.*.$tag | grep -v mysqld_safe | head -1 | awk '{ print $10 }' )
-dt=$( cat $ddir/r.ps.*.$tag | grep -v mysqld_safe | tail -1 | awk '{ print $10 }' )
-hsec=$( dt2s $dh )
-tsec=$( dt2s $dt )
-dsec=$( echo "$hsec $tsec" | awk '{ printf "%.1f", $2 - $1 }' )
-dsec0=$( echo "$hsec $tsec" | awk '{ printf "%.0f", $2 - $1 }' )
+dsec=$( grep dbms: $ddir/r.r.*.$tag | head -1 | awk '{ print $2 }' )
+dsec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
 
 # client CPU secs
-cus=$( cat $ddir/r.time.*.$tag | head -1 | awk '{ print $1 }' | sed 's/user//g' )
-csy=$( cat $ddir/r.time.*.$tag | head -1 | awk '{ print $2 }' | sed 's/system//g' )
-csec=$( echo "$cus $csy" | awk '{ printf "%.1f", $1 + $2 }' )
-csec0=$( echo "$cus $csy" | awk '{ printf "%.0f", $1 + $2 }' )
+csec=$( grep client: $ddir/r.r.*.$tag | head -1 | awk '{ print $6 }' )
+csec0=$( echo $csec | awk '{ printf "%.0f", $1 }' )
 
 dbgb=$( cat $ddir/r.r.*.$tag | head -12 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
 
