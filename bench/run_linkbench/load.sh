@@ -49,6 +49,18 @@ function process_stats {
   echo "after apparent $ddir" >> l.$tag.asz2.$fn
   du -sm --apparent-size $ddir/* >> l.$tag.asz2.$fn
 
+  ls -asShR $ddir > l.$tag.lsh.r.$fn
+  ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
+  x=0
+  for xd in ${ddirs[@]}; do
+    if [ -d $xd ]; then
+      ls -asS --block-size=1M $xd > l.$tag.ls.${x}.$fn
+      ls -asSh $xd > l.$tag.lsh.${x}.$fn
+      x=$(( $x + 1 ))
+    fi
+  done
+  cat l.$tag.ls.*.$fn | grep -v "^total" | sort -rnk 1,1 > l.$tag.lsa.$fn
+
   # Old and new output format for iostat
   #Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
   #Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util

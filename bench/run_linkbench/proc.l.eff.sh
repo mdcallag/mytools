@@ -3,9 +3,10 @@ ddir=$1
 tag=$2
 # sORq is one of "sec" "op"
 secORop=$3
+username=$4
 
 if [[ $secORop == "sec" ]]; then
-  echo "ips,secs,rps,rmbps,wmbps,csps,cpups,cutil,dutil,cnf"
+  echo "ips,secs,rps,rmbps,wmbps,csps,cpups,cutil,dutil,vsz,rss,cnf"
 else
   echo "ips,secs,rpi,rkbpi,wkbpi,cspi,cpupi,csecpq,dsecpq,csec,dsec,dbgb,cnf"
 fi
@@ -35,8 +36,15 @@ if [[ $secORop == "sec" ]]; then
   cpups=$( cat $ddir/l.$tag.r.* | head -6 | tail -1 | awk '{ printf "%.1f", $3 }' )
   cutil=$( echo $csec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
   dutil=$( echo $dsec $nsecs | awk '{ printf "%.3f", $1 / $2 }' )
+  if grep $username $ddir/l.$tag.r.* > /dev/null ; then
+    vsz=$( grep $username $ddir/l.$tag.r.* | tail -1 | awk '{ printf "%.1f", $5 / (1024*1024) }' )
+    rss=$( grep $username $ddir/l.$tag.r.* | tail -1 | awk '{ printf "%.1f", $6 / (1024*1024) }' )
+  else
+    vsz=NA
+    rss=NA
+  fi
   #echo "$csec,$dsec"
-  echo "$ips,$nsecs,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$ddir"
+  echo "$ips,$nsecs,$rps,$rmbps,$wmbps,$csps,$cpups,$cutil,$dutil,$vsz,$rss,$ddir"
 else
   rpi=$( cat $ddir/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.3f", $5 }' )
   rkbpi=$( cat $ddir/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.3f", $6 }' )

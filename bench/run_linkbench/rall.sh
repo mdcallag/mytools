@@ -100,7 +100,7 @@ function do_pg12 {
   sfx=pg.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg/base $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dpg12; bash down.sh; cd $dgit
   fi

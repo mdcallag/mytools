@@ -122,6 +122,18 @@ du -sm --apparent-size $ddir >> r.asz1.$fn
 echo "after $ddir" >> r.asz2.$fn
 du -sm --apparent-size $ddir/* >> r.asz2.$fn
 
+ls -asShR $ddir > r.lsh.r.$fn
+ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
+x=0
+for xd in ${ddirs[@]}; do
+  if [ -d $xd ]; then
+    ls -asS --block-size=1M $xd > r.ls.${x}.$fn
+    ls -asSh $xd > r.lsh.${x}.$fn
+    x=$(( $x + 1 ))
+  fi
+done
+cat r.ls.*.$fn | grep -v "^total" | sort -rnk 1,1 > r.lsa.$fn
+
 ips=$( grep "REQUEST PHASE COMPLETED" r.o.$fn | awk '{ print $NF }' )
 grep "REQUEST PHASE COMPLETED" r.o.$fn  > r.r.$fn
 
