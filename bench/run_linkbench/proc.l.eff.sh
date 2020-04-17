@@ -23,7 +23,7 @@ dsec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
 
 # client CPU secs
 csec=$( grep client: $ddir/l.$tag.r.* | head -1 | awk '{ print $6 }' )
-csec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
+csec0=$( echo $csec | awk '{ printf "%.0f", $1 }' )
 #csec=0; csec0=0
 
 dbgb=$( cat $ddir/l.$tag.r.* | head -11 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
