@@ -1,7 +1,8 @@
 ddir=$1
 rdir=$2
+username=$3
+
 sdir=$( dirname $0 )
-username=$4
 
 for x in pre post; do
   for t in sec op; do
@@ -15,7 +16,7 @@ done
 bash $sdir/proc.l.rt.sh $ddir > $rdir/p.l.rt.c.$ddir
 cat $rdir/p.l.rt.c.$ddir | tr ',' '\t' > $rdir/p.l.rt.t.$ddir
 
-shift 2
+shift 3
 if [[ $# -gt 0 ]]; then
   doparr=( "$@" )
   for tag in "${doparr[@]}" ; do
