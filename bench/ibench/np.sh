@@ -218,6 +218,20 @@ du -hs --apparent-size $ddir >> o.sz.$sfx
 echo "all" >> o.sz.$sfx
 du -hs ${ddir}/* >> o.sz.$sfx
 
+ls -asShR $ddir > o.lsh.r.$sfx
+
+ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
+x=0
+for xd in ${ddirs[@]}; do
+  if [ -d $xd ]; then
+    ls -asS --block-size=1M $xd > o.ls.${x}.$sfx
+    ls -asSh $xd > o.lsh.${x}.$sfx
+    x=$(( $x + 1 ))
+  fi
+done
+
+cat o.ls.*.$sfx | grep -v "^total" | sort -rnk 1,1 > o.lsa.$sfx
+
 # Old and new format for iostat output
 #Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
 #Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
