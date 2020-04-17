@@ -3,6 +3,7 @@ tag=$2
 display=$3
 loadonly=$4
 strippfx=$5
+username=$6
 
 shift 5
 
@@ -14,7 +15,7 @@ f1=${farr[0]}
 for d in "$@"; do
   echo $d
   if [ $d != "BREAK" ]; then
-    bash $bdir/proc.sh $d $rdir $tag
+    bash $bdir/proc.sh $d $rdir $tag $username
   fi
 done
 
