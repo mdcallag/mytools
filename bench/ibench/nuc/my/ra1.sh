@@ -4,9 +4,11 @@ dop=$3
 nsecs=$4
 mbd=$5
 dev=$6
+rdir=$7
 
 for dc in pg12.7 in80.9 in57.9 in56.9 rx56.5 ; do
-  bash rall1.sh $dc $dop $nsecs $mbd/ibench $nr $nrt $dev no $mbd
+  bash rall1.sh $dc $dop $nsecs $rdir $nr $nrt $dev no $mbd
+  sleep 1200
 done
 
 
