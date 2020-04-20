@@ -7,6 +7,7 @@ dev=$6
 
 for dc in pg12.7 in80.9 in57.9 in56.9 rx56.5 ; do
   bash rall1.sh $dc $dop $nsecs $mbd/ibench $nr $nrt $dev no $mbd
+  sleep 1200
 done
 
 
