@@ -12,6 +12,7 @@ for ver in mo4018 mo4017 mo4016 ; do
   ln -s $mbd/$ver $mbd/mo40
   mkdir $rdir/perf.${ver}
   bash rall1.sh $dc $dop $nsecs $rdir/perf.${ver} $nr $nrt $dev no $mbd
+  echo Sleep 20 minutes to let HW rest
   sleep 1200
 done
 done
@@ -22,6 +23,7 @@ for ver in mo425 mo424 mo423 mo422 mo421 ; do
   ln -s $mbd/$ver $mbd/mo42
   mkdir $rdir/perf.${ver}
   bash rall1.sh $dc $dop $nsecs $rdir/perf.${ver} $nr $nrt $dev no $mbd
+  echo Sleep 20 minutes to let HW rest
   sleep 1200
 done
 done
@@ -32,6 +34,7 @@ for ver in mo44pre mo440rc0 mo44rc1 ; do
   ln -s $mbd/$ver $mbd/mo44
   mkdir $rdir/perf.${ver}
   bash rall1.sh $dc $dop $nsecs $rdir/perf.${ver} $nr $nrt $dev no $mbd
+  echo Sleep 20 minutes to let HW rest
   sleep 1200
 done
 done
