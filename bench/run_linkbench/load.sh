@@ -195,12 +195,14 @@ if [[ $dbms = "mongo" ]]; then
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
+  dbpid=$( pidof mongod )
 elif [[ $dbms = "mysql" ]]; then
   while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& l.pre.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   logarg="-Duser=root -Dpassword=pw"
+  dbpid=$( pidof mysqld )
 
   while :; do sleep 300; lh=$( date --date='last hour' +'%Y-%m-%d %H:%M:%S' ); $client -uroot -ppw -h${dbhost} -e "purge binary logs before \"$lh\""; done &
   pblpid=$!
@@ -209,6 +211,7 @@ elif [[ $dbms = "postgres" ]]; then
   spid=$!
   props=LinkConfigPgsql.properties
   logarg="-Duser=linkbench -Dpassword=pw"
+  dbpid=-1
 else
   echo dbms :: $dbms :: not supported
   exit 1
@@ -218,11 +221,19 @@ echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
 
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
+dbpid=-1 # remove this to use perf
+if [ $dbpid -ne -1 ] ; then
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.pre.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.pre.perf.$fn &
+  fpid=$!
+fi
+
 start_secs=$( date +%s )
 if ! /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
   echo Load failed
   exit 1
 fi
+
+if [ $dbpid -ne -1 ] ; then kill $fpid ; fi
 
 nodes=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $9 }' )
 links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $13 }' )
@@ -249,6 +260,12 @@ du -sm --apparent-size $ddir >> l.post.asz1.$fn
 echo "before secondary apparent $ddir" > l.post.asz2.$fn
 du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
+dbpid=-1 # remove this to use perf
+if [ $dbpid -ne -1 ] ; then
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.post.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.post.perf.$fn &
+  fpid=$!
+fi
+
 start_secs=$( date +%s )
 if [[ $dbms = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 30; done >& l.post.ps.$fn &
@@ -272,6 +289,8 @@ else
   echo dbms :: $dbms :: not supported
   exit 1
 fi
+
+if [ $dbpid -ne -1 ] ; then kill $fpid ; fi
 
 process_stats post $start_secs $nodes $links $counts
 

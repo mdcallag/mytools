@@ -37,23 +37,32 @@ if [[ $dbms = "mongo" ]]; then
   spid=$!
   props=LinkConfigMongoDb2.properties
   logarg=""
+  dbpid=$( pidof mongod )
 elif [[ $dbms = "mysql" ]]; then
   while :; do ps aux | grep "mysqld " | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigMysql.properties
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   logarg="-Duser=root -Dpassword=pw"
+  dbpid=$( pidof mysqld )
 elif [[ $dbms = "postgres" ]]; then
   while :; do ps aux | grep "postgres " | grep -v grep; sleep 30; done >& r.ps.$fn &
   spid=$!
   props=LinkConfigPgsql.properties
   logarg="-Duser=linkbench -Dpassword=pw"
+  dbpid=-1
 else
   echo dbms :: $dbms :: not supported
   exit 1
 fi 
 echo "background jobs: $ipid $vpid $spid" > r.o.$fn
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
+
+dbpid=-1 # remove this to use perf
+if [ $dbpid -ne -1 ] ; then
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=r.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& r.perf.$fn &
+  fpid=$!
+fi
 
 if ! /usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1 ; then
   echo Run failed
@@ -64,6 +73,7 @@ kill $ipid
 kill $vpid
 kill $spid
 # kill $mpid
+if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
 if [[ $dbms = "mongo" ]]; then
   cred="-u root -p pw --authenticationDatabase=admin"
