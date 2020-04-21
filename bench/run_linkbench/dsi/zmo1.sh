@@ -14,7 +14,7 @@ for ver in mo44pre mo440rc0 mo440rc1 ; do
   mv a.mo44.c${cnf} a.${ver}.c${cnf}
 done
 
-for ver in mo421 mo423 mo425 ; do
+for ver in mo421 mo422 mo423 mo425 mo426 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42
