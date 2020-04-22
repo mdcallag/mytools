@@ -16,7 +16,7 @@ for ver in mo44pre mo440rc0 mo440rc1 ; do
   sleep 1200
 done
 
-for ver in mo425 mo424 mo423 mo422 mo421 ; do
+for ver in mo426 mo425 mo424 mo423 mo422 mo421 ; do
   cnf=5
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42

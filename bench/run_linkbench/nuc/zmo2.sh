@@ -18,7 +18,7 @@ done
 done
 
 for cnf in 5 6 ; do
-for ver in mo425 mo424 mo423 mo422 mo421 ; do
+for ver in mo426 mo425 mo424 mo423 mo422 mo421 ; do
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42
   ln -s $bdir/$ver $bdir/mo42

@@ -17,7 +17,7 @@ done
 done
 
 for dc in mo42.6 mo42.5 ; do
-for ver in mo425 mo424 mo423 mo422 mo421 ; do
+for ver in mo426 mo425 mo424 mo423 mo422 mo421 ; do
   rm $mbd/mo42
   ln -s $mbd/$ver $mbd/mo42
   mkdir $rdir/perf.${ver}
