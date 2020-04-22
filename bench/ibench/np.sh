@@ -294,6 +294,11 @@ for n in $( seq 1 $dop ) ; do
   done
 done
 
+bash rth.sh $dop "Insert rt"               > o.rt.c.insert
+bash rth.sh $dop "Insert rt" | tr ',' '\t' > o.rt.t.insert
+bash rth.sh $dop "Query rt"                > o.rt.c.query
+bash rth.sh $dop "Query rt" | tr ',' '\t'  > o.rt.t.query
+
 echo >> o.res.$sfx
 echo "CPU seconds" >> o.res.$sfx
 
