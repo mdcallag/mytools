@@ -264,8 +264,13 @@ echo >> o.res.$sfx
 du -hs $ddir >> o.res.$sfx
 
 echo >> o.res.$sfx
-ps auxww | grep mysqld | grep -v mysqld_safe | grep -v grep >> o.res.$sfx
-ps aux | grep mongod | grep -v grep >> o.res.$sfx
+if [[ $dbms == "mongo" ]]; then
+  ps aux | grep mongod | grep "\-\-config" | grep -v grep | tail -1 >> o.res.$sfx
+elif [[ $dbms == "mysql" ]]; then
+  ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep | tail -1 >> o.res.$sfx
+else
+  ps aux | grep postgres | grep -v grep | tail -1 >> o.res.$sfx
+fi
 
 echo >> o.res.$sfx
 echo "Max insert" >> o.res.$sfx
