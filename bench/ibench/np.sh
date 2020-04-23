@@ -118,7 +118,7 @@ for n in $( seq 1 $dop ) ; do
   fi
 
   if [[ $ips = 0 ]] ; then
-    rpr=100000
+    rpr=10000
   else
     rpr=$(( ips * 10 ))
   fi
