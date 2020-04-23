@@ -26,7 +26,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rt.query
 done
 
-for y in l q1000 q1000 ; do
+for y in l q1000 q100 ; do
 rm -f $odir/mrg.$y.rate.insert
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
@@ -37,7 +37,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rate.insert
 done
 
-for y in q1000 q1000 ; do
+for y in q1000 q100 ; do
 rm -f $odir/mrg.$y.rate.query
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
