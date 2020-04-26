@@ -24,7 +24,7 @@ done
 done
 
 for dc in mo44.6b40 mo44.5b40 ; do
-for ver in mo44pre mo440rc0 mo440rc1 ; do
+for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
   rm $mbd/mo44
   ln -s $mbd/$ver $mbd/mo44
   mkdir perf.${ver}
