@@ -40,7 +40,7 @@ function do_rx56 {
   echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=rx.$rmemt.dop$dop.c$cnf
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh rocksdb "" $dmyfb/bin/mysql /data/m/fbmy $dev 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" $dmyfb/bin/mysql /data/m/fbmy $dev 1 $dop mysql no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmyfb; bash down.sh; cd $dgit
   rdir=${dop}u/$rmemt.rx56.c${cnf}
   mkdir -p $rdir
@@ -57,7 +57,7 @@ function do_in80 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy80/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy80/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmy80; bash down.sh; cd $dgit
   rdir=${dop}u/$rmemt.in80.c${cnf}
   mkdir -p $rdir
@@ -74,7 +74,7 @@ function do_in57 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy57/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy57/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmy57; bash down.sh; cd $dgit
   rdir=${dop}u/$rmemt.in57.c${cnf}
   mkdir -p $rdir
@@ -91,7 +91,7 @@ function do_in56 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy56/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy56/bin/mysql /data/m/my $dev 1 $dop mysql no no 0 no $rmem no $qsecs none >& a.$sfx; sleep 10
   cd $dmy56; bash down.sh; cd $dgit
   rdir=${dop}u/$rmemt.in56.c${cnf}
   mkdir -p $rdir
