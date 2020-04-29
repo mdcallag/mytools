@@ -5,7 +5,7 @@ dev=$4
 wdop=$5
 ldop=$6
 
-for ver in mo44pre mo440rc0 mo440rc1 ; do
+for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo44
