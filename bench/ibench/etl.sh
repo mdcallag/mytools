@@ -5,6 +5,7 @@ ddir=$4
 mrows=$5
 tag=$6
 uname=$7
+ncpu=$8
 
 lres=$d/l/o.res.dop${dop}.ns${ns}
 q1000res=$d/q1000/o.res.dop${dop}.ns${ns}
@@ -30,6 +31,7 @@ function from_by {
   fname=$1
   off1=$2
   off2=$3
+  offq=$4
 
   rps=$( head -$off1 $fname   | tail -1 | awk '{ print $2 }' )
   rkbps=$( head -$off1 $fname | tail -1 | awk '{ print $3 }' )
@@ -41,9 +43,24 @@ function from_by {
   csps=$( head -$off2 $fname  | tail -1 | awk '{ print $2 }' )
   cpups=$( head -$off2 $fname | tail -1 | awk '{ print $3 }' )
   cspq=$( head -$off2 $fname  | tail -1 | awk '{ print $4 }' )
-  cpupq=$( head -$off2 $fname | tail -1 | awk '{ print $5 }' )
 
-  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpq,$csps,$cpups,$cspq,$cpupq,"
+  # inserts/s for load and queries/s for q1000 and 100
+  qps=$( head -1 $fname | awk '{ print $cn }' cn=$offq )
+  nsecs=$( head -1 $fname | awk '{ print $5 }' )
+
+  # Benchmark client CPU seconds
+  ccpu=$( grep "^client:" $fname | awk '{ print $6 }' )
+
+  # Client CPU microseconds / query
+  ccpupq=$( echo "scale=6; ( $ccpu * 1000000.0) / ( $qps * $nsecs )" | bc | awk '{ printf "%.0f", $1 }' )
+
+  # Total CPU seconds
+  tcpu=$( echo "scale=6; ( $cpups / 100.0 ) * $nsecs * $ncpu" | bc | awk '{ printf "%.1f", $1 }' )
+
+  # Total CPU microseconds / query
+  cpupq=$( echo "scale=6; ( $tcpu * 1000000.0 ) / ( $qps * $nsecs )" | bc | awk '{ printf "%.0f", $1 }' )
+
+  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpq,$csps,$cpups,$cspq,$cpupq,$ccpupq,"
 }
 
 function ddir_sz {
@@ -124,39 +141,39 @@ function get_scans {
   echo "$s2,$mrps,$rps,$rmbps,$wmbps,$rpo,$rkbpo,$csps,$cpups,$cspo,$mcpupo,$tag"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,dbgb,vsz,rss,maxop,p50,p99,tag"
+echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,ccpupq,dbgb,vsz,rss,maxop,p50,p90,tag"
 
 # echo load
 from_hdr_i $lres
 echo -n "0,"
-from_by $lres 5 8
+from_by $lres 5 8 7
 ddir_sz $lres $ddir
 dbms_vsz_rss $lres $uname
 get_max $lres "Max insert"
 get_ptile $lres 50th 6
-get_ptile $lres 99th 6
+get_ptile $lres 90th 6
 echo $tag
 
 # echo q1000
 from_hdr_i $q1000res
 from_hdr_q $q1000res
-from_by $q1000res 12 15
+from_by $q1000res 12 15 13
 ddir_sz $q1000res $ddir
 dbms_vsz_rss $q1000res $uname
 get_max $q1000res "Max query"
 get_ptile $q1000res 50th 8
-get_ptile $q1000res 99th 8
+get_ptile $q1000res 90th 8
 echo $tag
 
 # echo q100
 from_hdr_i $q100res
 from_hdr_q $q100res
-from_by $q100res 12 15
+from_by $q100res 12 15 13
 ddir_sz $q100res $ddir
 dbms_vsz_rss $q100res $uname
 get_max $q100res "Max query"
 get_ptile $q100res 50th 8
-get_ptile $q100res 99th 8
+get_ptile $q100res 90th 8
 echo $tag
 
 echo "secs,mrps,rps,rmbps,wmbps,rpo,rkbpo,csps,cpups,cspo,Mcpupo,tag"

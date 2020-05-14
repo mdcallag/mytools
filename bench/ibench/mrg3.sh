@@ -6,15 +6,15 @@ bdir=$( dirname $0 )
 farr=("$@")
 f1=${farr[0]}
 
-#ips     qps     rps     rkbps   wkbps   rpq     rkbpq   wkbpq   csps    cpups   cspq    cpupq   	dbgb    vsz     rss     maxop   p50     p99     tag
-#5041.3	0       0.3     3       197213  0.000   0.000   3.910   18387   71.1    0.365   0.001409        64      25.1    23.3    0.477   8348.6  3050.4  80m.mo425.c5b
+#ips     qps     rps     rkbps   wkbps   rpq     rkbpq   wkbpq   csps    cpups   cspq    cpupq   ccpupq  dbgb    vsz     rss     maxop   p50     p90     tag
+#1846.5        0       0.0     0       252327  0.000   0.000   1.315   21711   63.0    0.113   53      2       55      NA      NA      0.458   28103.5 4253.4  pg12.c7b40
 
 for l in 2 3 4; do
   head -1 $f1 > mrg.q$l
   for f in "$@"; do
     if [ $f != "BREAK" ]; then
       head -${l} $f | tail -1 | \
-        awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); $12=sprintf("%.0f", $12 * 1000000); $17=sprintf("%.0f", $17); $18=sprintf("%.0f", $18); print $0 }'
+        awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); $18=sprintf("%.0f", $18); $19=sprintf("%.0f", $19); print $0 }'
     else
       echo "-"
     fi
