@@ -16,13 +16,13 @@ import json
 import sys
 
 remap = {
-  "file size in bytes" : "Msize",
-  "file bytes available for reuse" : "Mreuse",
-  "bytes currently in the cache" : "Mcache",
-  "bytes read into cache" : "GBread",
-  "bytes written from cache" : "GBwrite",
-  "pages read into cache" : "Mpread",
-  "pages written from cache" : "Mpwrite" }
+  "file size in MB" : "Msize",
+  "file MB available for reuse" : "Mreuse",
+  "MB currently in the cache" : "Mcache",
+  "GB read into cache" : "GBread",
+  "GB written from cache" : "GBwrite",
+  "million pages read into cache" : "Mpread",
+  "million pages written from cache" : "Mpwrite" }
 
 def print_one(n, o):
   print('%.0f\t' % (o['block-manager']['file size in bytes'] / (1024 * 1024)), end='')
