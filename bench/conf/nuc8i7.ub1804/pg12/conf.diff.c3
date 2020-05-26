@@ -8,6 +8,7 @@ checkpoint_completion_target = 0.9      # checkpoint target duration, 0.0 - 1.0
 checkpoint_warning = 1800s               # 0 disables
 max_wal_size = 32GB
 wal_sync_method = fdatasync		# the default is the first option
+wal_level='replica'                     # to log what replication needs
 full_page_writes = off			# recover from partial page writes
 wal_compression = off                    # enable compression of full-page writes
 track_io_timing = on
