@@ -1,0 +1,59 @@
+[mysqld]
+sql_mode=no_engine_substitution,no_unsigned_subtraction
+default_tmp_storage_engine=MyISAM
+tmpdir=/data/m/fbmy/data
+query_cache_size=0
+query_cache_type=0
+# slow_query_log_file=/data/m/fbmy/slow.log
+long_query_time=5
+# skip_log_bin
+log_bin=/data/m/fbmy/binlogs/bl
+max_binlog_size=128M
+sync_binlog=0
+server_id=77
+datadir=/data/m/fbmy/data
+
+rocksdb
+default-storage-engine=rocksdb
+skip-innodb
+default-tmp-storage-engine=MyISAM
+binlog_format=ROW
+collation-server=latin1_bin
+transaction-isolation=READ-COMMITTED
+
+rocksdb_flush_log_at_trx_commit=2
+rocksdb_max_total_wal_size=4G
+rocksdb_wal_dir=/data/m/fbmy/txlogs
+
+# x1
+# default=512m
+rocksdb_block_cache_size=8G
+
+# x2b
+rocksdb_max_background_jobs=8
+
+# default compaction_pri=kMinOverlappingRatio
+
+# x3
+# default is disabled
+#rocksdb_default_cf_options=level_compaction_dynamic_level_bytes=true
+
+# x4
+# default is no bloom
+#rocksdb_default_cf_options=level_compaction_dynamic_level_bytes=true;block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};optimize_filters_for_hits=true
+
+# x5
+# default format_version is 4
+#rocksdb_default_cf_options=level_compaction_dynamic_level_bytes=true;block_based_table_factory={format_version=5;cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};optimize_filters_for_hits=true
+
+# x6c
+# default=64m,2
+rocksdb_default_cf_options=level_compaction_dynamic_level_bytes=true;block_based_table_factory={format_version=4;cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};optimize_filters_for_hits=true;write_buffer_size=128m;max_write_buffer_number=4;max_bytes_for_level_base=512m
+
+# x7
+# default is OFF
+rocksdb_enable_write_thread_adaptive_yield=ON
+rocksdb_allow_concurrent_memtable_write=ON
+
+[mysqld_safe]
+malloc-lib=/usr/lib/libjemalloc.so
