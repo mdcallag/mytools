@@ -19,7 +19,11 @@ if [ "$#" -ge 1 ]; then
   fi
 fi
 
-numactl --interleave=all bin/mongod --config mongo.conf 
+rm -f mongo.keyfile
+openssl rand -base64 756 > mongo.keyfile
+chmod 400 mongo.keyfile
+
+numactl --interleave=all bin/mongod --config mongo.conf --keyFile mongo.keyfile
 
 sleep 5
 bin/mongo admin --eval "rs.initiate()"
