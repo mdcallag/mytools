@@ -20,8 +20,11 @@ short=${19}
 bulk=${20}
 secatend=${21}
 dbopt=${22}
+extra_insert=${23}
 
 mypy=python3
+#mypy="/media/ephemeral1/pypy-36-al2/bin/pypy3"
+#mypypy="LD_LIBRARY_PATH=/media/ephemeral1/pypy-36-al2/site-packages/psycopg2 /media/ephemeral1/pypy-36-al2/bin/pypy3"
 
 if [[ $short == "yes" ]]; then
 names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
@@ -29,7 +32,7 @@ else
 names=""
 fi
 
-sfx=dop${dop}.ns${ns}
+sfx=dop${dop}
 
 rm -f o.res.$sfx
 
@@ -85,6 +88,12 @@ ipid=$!
 top -w 200 -c -b -d 60 >& o.top.$sfx &
 tpid=$!
 
+dbpid=-1 # remove this to use perf
+if [ $dbpid -ne -1 ] ; then
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.data.$sfx.$ts ; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& o.perf.$sfx &
+  fpid=$!
+fi
+
 start_secs=$( date +%s )
 
 for n in $( seq 1 $dop ) ; do
@@ -117,14 +126,9 @@ for n in $( seq 1 $dop ) ; do
     db_args+=" --secondary_at_end"
   fi
 
-  if [[ $ips = 0 ]] ; then
-    rpr=10000
-  else
-    rpr=$(( ips * 10 ))
-  fi
-
-  echo iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.ns${ns}.${n} 
-  /usr/bin/time -o o.ctime.${sfx}.${n} $mypy iibench.py --dbms=$dbms --db_name=ib --rows_per_report=$rpr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.ns${ns}.${n} 2>&1 &
+  spr=3
+  echo $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.${n} 
+  /usr/bin/time -o o.ctime.${sfx}.${n} $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.${n} 2>&1 &
 
   pids[${n}]=$!
   
@@ -137,21 +141,33 @@ for n in $( seq 1 $dop ) ; do
   wait ${pids[${n}]} 
 done
 
+if [ $dbpid -ne -1 ]; then kill $fpid ; fi
+
 stop_secs=$( date +%s )
 tot_secs=$(( $stop_secs - $start_secs ))
+if [[ $tot_secs -eq 0 ]]; then tot_secs=1; fi
+
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
 insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
 
-total_query=$( for n in $( seq 1 $dop ); do awk '{ if (NF==9) print $0 }' o.ib.dop${dop}.ns${ns}.$n | tail -1 ; done | awk '{ tq += $7; } END { print tq }' )
+if [[ $extra_insert -gt 0 ]]; then
+  # Account for rows indexed if this step creates the index
+  insert_rate=$( echo "scale=1; ( $nr + $extra_insert ) / $tot_secs" | bc )
+  maxr=$(( ( $nr + $extra_insert ) / $dop ))
+fi
+
+echo rates
+total_query=$( for n in $( seq 1 $dop ); do awk '{ if (NF==10) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
 echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
 
+echo per interval
 # Compute average rates per interval using 10 intervals
-for x in 6 9 ; do
+for x in 3 5 ; do
 for n in $( seq 1 $dop ); do
-  f=o.ib.dop${dop}.ns3.$n
+  f=o.ib.dop${dop}.$n
   xa=$( wc -l $f | awk '{ print $1 }' ); xm=$(( $xa - 2 )); xp=$(( $xm / 10 ))
   for s in $( seq 0 9 ); do
     ha=$(( ($s * $xp) + $xp + 2 ))
@@ -274,35 +290,40 @@ fi
 
 echo >> o.res.$sfx
 echo "Max insert" >> o.res.$sfx
-grep -h "Insert rt" o.ib.dop${dop}.ns${ns}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
+grep -h "Insert rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
 echo "Max query" >> o.res.$sfx
-grep -h "Query rt" o.ib.dop${dop}.ns${ns}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
+grep -h "Query rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
 
 echo >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  grep "Insert rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
+  grep "Insert rt" o.ib.dop${dop}.${n} >> o.res.$sfx
 done
 
 echo >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  grep "Query rt" o.ib.dop${dop}.ns${ns}.${n} >> o.res.$sfx
+  grep "Query rt" o.ib.dop${dop}.${n} >> o.res.$sfx
 done
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  lines=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | wc -l )
+  lines=$( awk '{ if (NF == 10) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
-    off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-    i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $6 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-    q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.ns${ns}.$n | grep -v "Query rt" | grep -v total_seconds | awk '{ if (NF == 9) { print $9 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-    echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
+    if [[ $lines -ge 10 ]]; then
+      off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
+      i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 10) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 10) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
+    else
+      # not enough input lines
+      echo ${x}th, 0 / ${lines} = NA insert, NA query >> o.res.$sfx
+    fi
   done
 done
 
-bash rth.sh $dop "Insert rt"               > o.rt.c.insert
-bash rth.sh $dop "Insert rt" | tr ',' '\t' > o.rt.t.insert
-bash rth.sh $dop "Query rt"                > o.rt.c.query
-bash rth.sh $dop "Query rt" | tr ',' '\t'  > o.rt.t.query
+bash rth.sh . . $dop "Insert rt"               > o.rt.c.insert
+bash rth.sh . . $dop "Insert rt" | tr ',' '\t' > o.rt.t.insert
+bash rth.sh . . $dop "Query rt"                > o.rt.c.query
+bash rth.sh . . $dop "Query rt" | tr ',' '\t'  > o.rt.t.query
 
 echo >> o.res.$sfx
 echo "CPU seconds" >> o.res.$sfx

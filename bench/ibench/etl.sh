@@ -1,29 +1,22 @@
 d=$1
 dop=$2
-ns=$3
-ddir=$4
-mrows=$5
-tag=$6
-uname=$7
-ncpu=$8
-
-lres=$d/l/o.res.dop${dop}.ns${ns}
-q1000res=$d/q1000/o.res.dop${dop}.ns${ns}
-q100res=$d/q100/o.res.dop${dop}.ns${ns}
-
-scanf=$d/scan/o.ib.scan
+ddir=$3
+mrows=$4
+tag=$5
+uname=$6
+ncpu=$7
 
 function from_hdr_i {
   fname=$1
 
-  ips=$( head -1 $fname | awk '{ print $7 }' )
+  ips=$( head -1 $fname | awk '{ printf "%.0f", $7 }' )
   echo -n "$ips,"
 }
 
 function from_hdr_q {
   fname=$1
 
-  qps=$( head -1 $fname | awk '{ print $13 }' )
+  qps=$( head -1 $fname | awk '{ printf "%.0f", $13 }' )
   echo -n "$qps,"
 }
 
@@ -44,7 +37,7 @@ function from_by {
   cpups=$( head -$off2 $fname | tail -1 | awk '{ print $3 }' )
   cspq=$( head -$off2 $fname  | tail -1 | awk '{ print $4 }' )
 
-  # inserts/s for load and queries/s for q1000 and 100
+  # inserts/s for load and queries/s otherwise
   qps=$( head -1 $fname | awk '{ print $cn }' cn=$offq )
   nsecs=$( head -1 $fname | awk '{ print $5 }' )
 
@@ -106,80 +99,38 @@ function get_ptile {
   echo -n "$v,"
 }
 
-function get_scans {
-  fname=$1
-  field=$2
-  tag=$3
-
-  secs=$( head -${field} $fname | tail -1 | awk '{ print $4 }'  )
-  s2=$secs
-  if [[ $s2 -eq 0 ]]; then s2=1; fi
-  mrps=$( echo "scale=3; $mrows / $s2 " | bc | awk '{ printf "%.3f", $1 }' )
-
-  metf=$fname.met.q${field}
-
-  rps=$(   awk '/wGB/ { at=NR+1 } { if (at==NR && NF==10) { print $2; exit } }' $metf )
-  rmbps=$( awk '/wGB/ { at=NR+1 } { if (at==NR && NF==10) { print $3; exit } }' $metf )
-  wmbps=$( awk '/wGB/ { at=NR+1 } { if (at==NR && NF==10) { print $4; exit } }' $metf )
-  rpo=$(   awk '/wGB/ { at=NR+1 } { if (at==NR && NF==10) { print $5; exit } }' $metf )
-  rkbpo=$( awk '/wGB/ { at=NR+1 } { if (at==NR && NF==10) { print $6; exit } }' $metf )
-  if [ -z $rps ]; then rps="0"; fi
-  if [ -z $rmbps ]; then rmbps="0"; fi
-  if [ -z $wmbps ]; then wmbps="0"; fi
-  if [ -z $rpo ]; then rpo="0"; fi
-  if [ -z $rkbpo ]; then rkbpo="0"; fi
-
-  csps=$(     awk '/Mcpu/ { at=NR+1 } { if (at==NR && NF==6) { print $2; exit } }' $metf )
-  cpups=$(    awk '/Mcpu/ { at=NR+1 } { if (at==NR && NF==6) { print $3; exit } }' $metf )
-  cspo=$(     awk '/Mcpu/ { at=NR+1 } { if (at==NR && NF==6) { print $4; exit } }' $metf )
-  mcpupo=$(   awk '/Mcpu/ { at=NR+1 } { if (at==NR && NF==6) { print $5; exit } }' $metf )
-  if [ -z $csps ]; then csps="0"; fi
-  if [ -z $cpups ]; then cpups="0"; fi
-  if [ -z $cspo ]; then cspo="0"; fi
-  if [ -z $mcpupo ]; then mcpupo="0"; fi
-
-  echo "$s2,$mrps,$rps,$rmbps,$wmbps,$rpo,$rkbpo,$csps,$cpups,$cspo,$mcpupo,$tag"
-}
-
 echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,ccpupq,dbgb,vsz,rss,maxop,p50,p90,tag"
 
-# echo load
-from_hdr_i $lres
+l0res=$d/l.i0/o.res.dop${dop}
+lxres=$d/l.x/o.res.dop${dop}
+l1res=$d/l.i1/o.res.dop${dop}
+
+for f in $l0res $lxres $l1res ; do
+#echo load hdr_i $f 
+from_hdr_i $f
 echo -n "0,"
-from_by $lres 5 8 7
-ddir_sz $lres $ddir
-dbms_vsz_rss $lres $uname
-get_max $lres "Max insert"
-get_ptile $lres 50th 6
-get_ptile $lres 90th 6
+from_by $f 5 8 7
+ddir_sz $f $ddir
+dbms_vsz_rss $f $uname
+get_max $f "Max insert"
+get_ptile $f 50th 6
+get_ptile $f 90th 6
 echo $tag
+done
 
-# echo q1000
-from_hdr_i $q1000res
-from_hdr_q $q1000res
-from_by $q1000res 12 15 13
-ddir_sz $q1000res $ddir
-dbms_vsz_rss $q1000res $uname
-get_max $q1000res "Max query"
-get_ptile $q1000res 50th 8
-get_ptile $q1000res 90th 8
+loop=1
+for n in 100 100 200 200 400 400 600 600 800 800 1000 1000 ; do
+f="${d}/q.L${loop}.ips${n}/o.res.dop${dop}"
+# echo run $f 
+from_hdr_i $f
+from_hdr_q $f
+from_by $f 12 15 13
+ddir_sz $f $ddir
+dbms_vsz_rss $f $uname
+get_max $f "Max query"
+get_ptile $f 50th 8
+get_ptile $f 90th 8
 echo $tag
-
-# echo q100
-from_hdr_i $q100res
-from_hdr_q $q100res
-from_by $q100res 12 15 13
-ddir_sz $q100res $ddir
-dbms_vsz_rss $q100res $uname
-get_max $q100res "Max query"
-get_ptile $q100res 50th 8
-get_ptile $q100res 90th 8
-echo $tag
-
-echo "secs,mrps,rps,rmbps,wmbps,rpo,rkbpo,csps,cpups,cspo,Mcpupo,tag"
-get_scans $scanf 1 $tag
-get_scans $scanf 2 $tag
-get_scans $scanf 3 $tag
-get_scans $scanf 4 $tag
-get_scans $scanf 5 $tag
+loop=$(( $loop + 1 ))
+done
 

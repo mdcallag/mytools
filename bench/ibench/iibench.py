@@ -19,7 +19,7 @@
    A typical command line is:
      iibench.py --db_user=foo --db_password=bar --max_rows=1000000000
 
-   Results are printed after each rows_per_reports rows are inserted.
+   Results are printed after each secs_per_report (approximately)
    The output is:
      Legend:
        #rows = total number of rows inserted
@@ -48,7 +48,7 @@ __author__ = 'Mark Callaghan'
 import os
 import base64
 import string
-from multiprocessing import Queue, Process, Pipe, Array, Lock
+from multiprocessing import Queue, Process, Pipe, Value, Lock
 import optparse
 from datetime import datetime
 import time
@@ -127,9 +127,7 @@ DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
 DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
 DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
 DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
-DEFINE_integer('rows_per_report', 1000000,
-               '#rows per progress report printed to stdout. If this '
-               'is too small, some rates may be negative.')
+DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
 DEFINE_integer('rows_per_query', 10,
                'Number of rows per to fetch per query. Each query '
                'thread does one query per insert.')
@@ -139,6 +137,7 @@ DEFINE_integer('customers', 100000, '# customers')
 DEFINE_integer('max_price', 500, 'Maximum value for price column')
 DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
+DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
 DEFINE_integer('query_threads', 0, 'Number of query threads')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
@@ -229,6 +228,9 @@ def rthist_finish(obj, start):
   else:
     rt[9] += 1
 
+  # Convert to usecs as an int
+  return int(elapsed * 1000000.0)
+
 def rthist_result(obj, prefix):
   rt = obj['hist']
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
@@ -317,7 +319,7 @@ def create_table_mysql():
 
   ddl_sql = 'create table %s ( %s ) engine=%s %s' % (
       FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options)
-  print(ddl_sql)
+  # print(ddl_sql)
   cursor.execute(ddl_sql)
 
   cursor.close()
@@ -362,13 +364,13 @@ def create_table_postgres():
 
   ddl_sql = 'create table %s ( %s ) %s' % (
       FLAGS.table_name, ddl_sql, FLAGS.engine_options)
-  print(ddl_sql)
+  # print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
 
   # TODO: what is a good value for cache to reduce overhead?
   ddl_sql = 'alter sequence %s_transactionid_seq cache 1000' % (FLAGS.table_name)
-  print(ddl_sql)
+  # print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
 
@@ -551,7 +553,7 @@ def generate_insert_rows(rand_data_buf):
   else:
     assert False
 
-def Query(query_args, shared_arr, lock, result_q):
+def Query(query_args, shared_var, done_flag, lock, result_q):
 
   # block on this until main thread wants all processes to run
   lock.acquire()
@@ -572,8 +574,7 @@ def Query(query_args, shared_arr, lock, result_q):
 
   rthist = rthist_new()
 
-  done = False  
-  while not done:
+  while True:
     query_func = random.choice(query_args)
 
     try:
@@ -598,7 +599,9 @@ def Query(query_args, shared_arr, lock, result_q):
       else:
         assert False
 
-      rthist_finish(rthist, ts)
+      elapsed = rthist_finish(rthist, ts)
+      with shared_var[2].get_lock():
+        if elapsed > shared_var[2].value: shared_var[2].value = elapsed
 
     except:
       e = sys.exc_info()[0]
@@ -606,9 +609,9 @@ def Query(query_args, shared_arr, lock, result_q):
 
     loops += 1
     if (loops % 16) == 0:
-      shared_arr[1] = loops
-      if shared_arr[2] == 1:
-        done = True
+      shared_var[1].value = loops
+      if done_flag.value == 1:
+        break
 
   if FLAGS.dbms == 'mongo':
     pass
@@ -620,51 +623,15 @@ def Query(query_args, shared_arr, lock, result_q):
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
-def get_latest(counters, inserted):
-  total = 0
-  for c in counters:
-    total += c[1]
-    c[0] = inserted
-  return total
-
-def print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size):
-  now = time.time()
-  sum_queries = 0
-
-  if FLAGS.query_threads:
-    sum_queries = get_latest(counters, inserted)
-
-  nrows = inserted
-
-  print('%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
-      nrows,
-      now - prev_time,
-      now - start_time,
-      inserted / (now - start_time),
-      table_size,
-      FLAGS.rows_per_report / (now - prev_time),
-      sum_queries,
-      sum_queries / (now - start_time),
-      (sum_queries - prev_sum) / (now - prev_time)))
-  sys.stdout.flush()
-  return now, sum_queries
-
-def Insert(rounds, insert_q, counters, lock):
+def Insert(rounds, insert_q, lock):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
-
-  # generate insert rows in this loop and place into queue as they're
-  # generated.  The execution process will pull them off from here.
-  start_time = time.time()
-  prev_time = start_time
-  inserted = 0
   
-  for c in counters:
-    c[0] = inserted
-
-  prev_sum = 0
+  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
   table_size = 0
+  inserted = 0
+
   # we use the tail pointer for deletion - it tells us the first row in the
   # table where we should start deleting
   tail = 0
@@ -677,19 +644,16 @@ def Insert(rounds, insert_q, counters, lock):
     rounds_per_second = int(math.ceil(float(FLAGS.inserts_per_second) / FLAGS.rows_per_commit))
     if rounds_per_second < 1:
       rounds_per_second = 1
-    last_check = time.time()
+    last_rate_check = time.time()
     # print("rounds per second = %d" % rounds_per_second)
 
+  # generate insert rows in this loop and place into queue
   for r in range(rounds):
     rows = generate_insert_rows(rand_data_buf)
 
     insert_q.put(rows)
     inserted += FLAGS.rows_per_commit
     table_size += FLAGS.rows_per_commit
-
-    if (inserted % FLAGS.rows_per_report) == 0:
-      prev_time, prev_sum = print_stats(counters, inserted, prev_time, prev_sum,
-                                        start_time, table_size)
 
     # deletes - TODO support for MongoDB
     if FLAGS.with_max_table_rows:
@@ -706,21 +670,20 @@ def Insert(rounds, insert_q, counters, lock):
         table_size -= FLAGS.rows_per_commit
         tail += FLAGS.rows_per_commit
 
-    # optionally enforce write rate limit
+    # enforce write rate limit if set
+    now = time.time()
     if rounds_per_second and (r % rounds_per_second) == 0:
-      # print("check time on %d" % r)
-      now = time.time()
-      if now > last_check and now < (last_check + 0.95):
-        sleep_time = 1.0 - (now - last_check)
+      if now > last_rate_check and now < (last_rate_check + 0.95):
+        sleep_time = 1.0 - (now - last_rate_check)
         # print("sleep %s" % sleep_time)
         time.sleep(sleep_time)
-      last_check = time.time()
+      last_rate_check = time.time()
 
   # block until the queue is empty
   insert_q.put(insert_done)
   insert_q.close()
 
-def statement_executor(stmt_q, lock, result_q):
+def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
@@ -749,7 +712,7 @@ def statement_executor(stmt_q, lock, result_q):
       mongo_session = db_conn.start_session()
     mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
     collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
-    print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
+    # print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
   elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
   else:
@@ -799,11 +762,55 @@ def statement_executor(stmt_q, lock, result_q):
     else:
       assert False
     
-    rthist_finish(rthist, ts)
-    
+    elapsed = rthist_finish(rthist, ts)
+    with shared_var[2].get_lock():
+      if elapsed > shared_var[2].value: shared_var[2].value = elapsed
+
+    # This assumes that deletes aren't done. Maybe fix this, eventually.
+    shared_var[0].value = shared_var[0].value + FLAGS.rows_per_commit
+
+  done_flag.value = 1
   stmt_q.close()
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Insert rt:'))
+
+def sum_queries(shared_vars, inserted):
+  total = 0
+  max_q = 0
+
+  # All but the last have the number of queries completed per thread
+  for c in shared_vars[0:-1]:
+    total += c[1].value
+    c[0].value = inserted
+    v = c[2].value
+    c[2].value = -1
+    if v > max_q: max_q = v
+
+  return max_q, total
+
+def print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now):
+  sum_q = 0
+  max_q = 0
+  max_i = shared_vars[-1][2].value
+  shared_vars[-1][2].value = -1
+
+  if FLAGS.query_threads:
+    max_q, sum_q = sum_queries(shared_vars, inserted)
+
+  #old print('ins_row\ti_sec\tt_sec\tt_ips\ttot_row\ti_ips\tqueries\tt_qps\ti_qps\tmax_i\tmax_q')
+  #new print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query')
+
+  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d' % (
+      now - last_report,                                # i_sec
+      now - start_time,                                 # t_sec
+      (inserted - prev_inserted) / (now - last_report), # i_ips
+      inserted / (now - start_time),                    # t_ips
+      (sum_q - prev_sum) / (now - last_report),         # i_qps
+      sum_q / (now - start_time),                       # t_qps
+      max_i, max_q, inserted, sum_q))
+      #max_i, max_q, ws, sumq))
+  sys.stdout.flush()
+  return sum_q
 
 def run_benchmark():
   random.seed(FLAGS.seed)
@@ -813,12 +820,16 @@ def run_benchmark():
   lock = Lock()
   lock.acquire()
 
-  # Array of tuples, each tuple is (0, num_queries, shutdown flag)
-  #   0 might be changed to track number of inserts
-  #   num_queries returns number of queries done by query process
-  #   shutdown flag is set to 1 when Query process should stop
-  counters = []
+  # Array of tuple of Values, each tuple is ...
+  #   [0] tracks the number of inserts
+  #   [1] num_queries, returns number of queries done by query process
+  #   [2] max response time per interval for queries or insert (inserter is last index entry)
+  shared_vars = []
+
   query_args = []
+
+  # Flag to indicate that inserts are done
+  done_flag = Value('i', 0)
 
   if FLAGS.query_threads:
     query_args.append(generate_pdc_query)
@@ -826,18 +837,19 @@ def run_benchmark():
     query_args.append(generate_register_query)
 
     for i in range(FLAGS.query_threads):
-      counters.append(Array('i', [0,0,0]))
+      shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1)))
 
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, counters[i], lock, query_result)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, lock, query_result)))
 
   if not FLAGS.no_inserts:
     stmt_q = Queue(4)
     stmt_result = Queue()
-    insert_delete = Process(target=statement_executor, args=(stmt_q, lock, stmt_result))
-    inserter = Process(target=Insert, args=(rounds, stmt_q, counters, lock))
+    shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1)))
+    insert_delete = Process(target=statement_executor, args=(stmt_q, shared_vars[-1], done_flag, lock, stmt_result))
+    inserter = Process(target=Insert, args=(rounds, stmt_q, lock))
 
     # start up the insert execution process with this queue
     insert_delete.start()
@@ -861,49 +873,44 @@ def run_benchmark():
   lock.release()
   test_start = time.time()
 
-  if not FLAGS.no_inserts:
-    # block until the inserter is done
-    insert_delete.join()
-    
-    print(stmt_result.get())
-    sys.stdout.flush()
+  start_time = time.time()
+  last_report = start_time
+  inserted = 0
+  prev_inserted = 0
+  prev_sum = 0
+  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
+  table_size = 0
 
-    inserter.terminate()
-    sys.stdout.flush()
-    insert_delete.terminate()
+  while True:
+    time.sleep(FLAGS.secs_per_report)
 
-  else:
-    start_time = time.time()
-    prev_time = start_time
-    inserted = 0
-    for c in counters:
-      c[0] = 0
+    # print progress
+    inserted = shared_vars[-1][0].value
+    table_size = inserted
+    now = time.time()
+    prev_sum = print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now)
+    prev_inserted = inserted
+    last_report = now
 
-    prev_sum = 0
-    table_size = 0
-    sum_queries = 0
+    if done_flag.value == 1 or (FLAGS.max_seconds and (now - start_time) >= FLAGS.max_seconds):
+      done_flag.value = 1  # setting this might be redundant
 
-    while True:
-      time.sleep(10)
-      prev_time, prev_sum = \
-          print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size)
-      if prev_sum >= FLAGS.max_rows:
-        break
+      if not FLAGS.no_inserts:
+        insert_delete.join()
+        print(stmt_result.get())
+        sys.stdout.flush()
+        inserter.terminate()
+        sys.stdout.flush()
+        insert_delete.terminate()
+
+      # exit the while loop to continue shutting down
+      break
 
   if FLAGS.query_threads:
-    # Signal Query process to stop
-    for i in range(FLAGS.query_threads):
-      counters[i][2] = 1
-
-    for qthr in query_thr:
-      qthr.join()
-
-    for qthr in query_thr:
-      print(query_result.get())
+    for qthr in query_thr: qthr.join()
+    for qthr in query_thr: print(query_result.get())
     sys.stdout.flush()
-
-    for qthr in query_thr:
-      qthr.terminate()
+    for qthr in query_thr: qthr.terminate()
 
   if FLAGS.secondary_at_end:
     x_start = time.time()
@@ -919,7 +926,15 @@ def run_benchmark():
   print('Done')
 
 def main(argv):
-  print('#rows #seconds #total_seconds cum_ips table_size last_ips #queries cum_qps last_qps')
+  if FLAGS.with_max_table_rows:
+      print('Not supported: with_max_table_rows')
+      sys.exit(-1)
+
+  if FLAGS.max_seconds and FLAGS.no_inserts:
+      print('Cannot set max_seconds when no_inserts is set')
+      sys.exit(-1)
+
+  print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query')
   run_benchmark()
   return 0
 

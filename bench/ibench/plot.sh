@@ -17,8 +17,8 @@ f1=${farr[0]}
 for y in l q1000 q100 ; do
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
-    grep -v iibench $f/$y/o.ib.dop${dop}.ns${ns}.1 | grep -v seconds | awk '{ if (NF==9) { print $3, $6 }}' > $f/$y/gpi.6
-    grep -v iibench $f/$y/o.ib.dop${dop}.ns${ns}.1 | grep -v seconds | awk '{ if (NF==9) { print $3, $9 }}' > $f/$y/gpi.9
+    grep -v iibench $f/$y/o.ib.dop${dop}.ns${ns}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $3 }}' > $f/$y/gpi.6
+    grep -v iibench $f/$y/o.ib.dop${dop}.ns${ns}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $5 }}' > $f/$y/gpi.9
   fi
 done
 done

@@ -3,9 +3,7 @@ pfx=$2
 dop=$3
 grepme=$4
 
-ns=3
-
-if=$tag/$pfx/o.ib.dop${dop}.ns${ns}
+if=$tag/$pfx/o.ib.dop${dop}
 
 grep "${grepme}" ${if}.1 | head -1 | awk '{ for (x=3; x<NF; x++) { printf "%s,", $x }; printf "%s,tag\n", $NF }' 
 

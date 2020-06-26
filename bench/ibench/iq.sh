@@ -9,14 +9,11 @@ dbms=$8
 short=$9
 only1t=${10}
 bulk=${11}
-secatend=${12}
-nr=${13}
-scanonly=${14}
-# used to be hardwired to 5000 seconds
-querysecs=${15}
+nr=${12}
+querysecs=${13}
 # comma separate options specific to the engine, for Mongo can be "journal,transaction" or "transaction"
 # should otherwise be "none"
-dbopt=${16}
+dbopt=${14}
 
 if [[ $dbms == "mongo" ]] ; then 
 echo Use mongo
@@ -29,145 +26,67 @@ echo "dbms must be one of: mongo, mysql, postgres"
 exit -1
 fi
 
+vac=1
 ns=3
 
-# insert only
-bash np.sh $nr $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk $secatend $dbopt
-mkdir l
-mv o.* l
+# insert only without secondary indexes
+bash np.sh $nr $e "$eo" 0 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk no $dbopt 0 >& o.a
+mkdir l.i0
+mv o.* l.i0
 
-# TODO -- move this to a separate file
-# full scan
+# insert only -- short running, then create indexes
+bash np.sh 10000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr >& o.a
+mkdir l.x
+mv o.* l.x
+
+# insert only with secondary indexes. Insert 1/10 of what was inserted in the previous step.
+nr2=$( echo "$nr / 10" | bc )
+bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 >& o.a
+mkdir l.i1
+mv o.* l.i1
+
 ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
-sfx=dop${ntabs}.ns${ns}
+sfx=dop${ntabs}
 
-rm -f o.ib.scan
-rm -f o.ib.scan.*
-
-samp=2
-for explain in 0 1 ; do
-for q in 1 2 3 4 5 ; do
-
-  killall vmstat
-  killall iostat
-  vmstat $samp >& o.vm.$sfx.q$q.e${explain} &
-  vpid=$!
-  iostat -y -kx $samp >& o.io.$sfx.q$q.e${explain} &
-  ipid=$!
-
-  if [[ $dbms == "mongo" ]]; then
-    echo "no need to reset MongoDB replication as oplog is capped"
-    while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 30; done >& o.ps.$sfx &
-    spid=$!
-  elif [[ $dbms == "mysql" ]]; then
-    $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
-    while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
-    spid=$!
-  elif [[ $dbms == "postgres" ]]; then
-    # TODO postgres
-    echo "TODO: reset Postgres replication"
-    while :; do ps aux | grep postgres | grep -v grep; sleep 30; done >& o.ps.$sfx &
-    spid=$!
-  fi
-
-  start_secs=$( date +%s )
-  for i in $( seq 1 $ntabs ) ; do
-
-    txtmo[1]="db.pi$i.find"'({ data : { $eq : "" } }, { _id:1, data:1, customerid:1})'
-    txtmo[2]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, customerid:1}).sort({price:1, customerid:1})'
-    txtmo[3]="db.pi$i.find"'({ cashregisterid : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, cashregisterid:1, price:1, customerid:1}).sort({cashregisterid:1, price:1, customerid:1})'
-    txtmo[4]="db.pi$i.find"'({ price : { $gte : 0 }, customerid : { $lt : 0 } }, { _id:0, price:1, dateandtime:1, customerid:1}).sort({price:1, dateandtime:1, customerid:1})'
-    txtmo[5]="db.pi$i.find"'({ data : { $eq : "" } }, { _id:1, data:1, customerid:1})'
-
-    txtmy[1]="select transactionid,data,customerid from pi$i where customerid < 0"
-    txtmy[2]="select price,customerid from pi$i where price >= 0 and customerid < 0 order by price,customerid"
-    txtmy[3]="select cashregisterid,price,customerid from pi$i where cashregisterid >= 0 and customerid < 0 order by cashregisterid,price,customerid"
-    txtmy[4]="select price,dateandtime,customerid from pi$i where price >= 0 and customerid < 0 order by price,dateandtime,customerid"
-    txtmy[5]="select transactionid,data,customerid from pi$i where customerid < 0"
-
-    # Explain after running the query. Don't want explain time counted in query time.
-    if [[ $dbms == "mongo" ]] ; then 
-      echo with explain $explain, ${txtmo[$q]} >> o.ib.scan.$q.$i
-      moauth="--authenticationDatabase admin -u root -p pw"
-      if [[ $explain -eq 1 ]]; then
-        echo ${txtmo[$q]}".explain(\"executionStats\")" | $client $moauth ib >> o.ib.scan.$q.$i &
-      else
-        echo ${txtmo[$q]} | $client $moauth ib >> o.ib.scan.$q.$i 2>&1 &
-      fi
-    elif [[ $dbms == "mysql" ]] ; then 
-      echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
-      if [[ $explain -eq 1 ]]; then
-        $client -h127.0.0.1 -uroot -ppw ib -e "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
-      else
-        $client -h127.0.0.1 -uroot -ppw ib -e "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
-      fi
-    elif [[ $dbms == "postgres" ]] ; then 
-      echo with explain $explain, \"${txtmy[$q]}\" >> o.ib.scan.$q.$i
-      if [[ $explain -eq 1 ]]; then
-        PGPASSWORD="pw" $client -h 127.0.0.1 -U root ib -c "explain ${txtmy[$q]}" >> o.ib.scan.$q.$i &
-      else
-        PGPASSWORD="pw" $client -h 127.0.0.1 -U root ib -c "${txtmy[$q]}" >> o.ib.scan.$q.$i 2>&1 &
-      fi
-    else
-      echo "uknown dbms"
-      exit -1
-    fi
-    pids[${i}]=$!
+if [[ vac -eq 1 && $dbms == "postgres" ]] ; then
+  # Vaccum after load & index. Wait for vacuum to finish before starting read-write tests
+  pga="-h 127.0.0.1 -U root ib"
+  for n in $( seq 1 $ntabs ) ; do
+    PGPASSWORD="pw" $client $pga -x -c "vacuum (verbose) pi${n}" >& o.pgvac.pi${n} &
+    vpid[${n}]=$!
   done
 
-  for i in $( seq 1 $ntabs ) ; do
-    wait ${pids[${i}]}
+  for n in $( seq 1 $ntabs ) ; do
+    echo After load: wait for vacuum $n
+    wait ${vpid[${n}]}
   done
-
-  pmrows=$( echo "scale=0; $nr / 1000000.0" | bc )
-  if [[ $explain -eq 0 ]]; then
-    bash an.sh o.io.$sfx.q$q.e0 o.vm.$sfx.q$q.e0 $samp $dname $nr > o.ib.scan.met.q$q
-
-    # TODO - write one script that dumps per-dbms stats and reuse it
-    if [[ $dbms == "mongo" ]]; then
-      moauth="--authenticationDatabase admin -u root -p pw"
-      echo "db.serverStatus()" | $client $moauth > o.es.$sfx.$q
-      echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx.$q
-      echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx.$q
-    fi
-
-  fi
-
-  stop_secs=$( date +%s )
-  tot_secs=$(( $stop_secs - $start_secs ))
-  tot_secs2=$tot_secs
-  if [[ $tot_secs2 -eq 0 ]]; then tot_secs2=1; fi
-  mper=$( echo "scale=3; $nr / 1000000.0  / $tot_secs2 / $ntabs" | bc | awk '{ printf "%0.3f", $1 }' )
-  mtot=$( echo "scale=3; $nr / 1000000.0 / $tot_secs2"           | bc | awk '{ printf "%0.3f", $1 }' )
-  echo "Query $q scan $tot_secs seconds, $ntabs tables, $explain explain, $mper Mrps_per, $mtot Mrps_tot, $pmrows Mrows" >> o.ib.scan
-
-  kill $vpid
-  kill $ipid
-  kill $spid
-
-done
-done
-
-mkdir scan
-mv o.* scan
-
-if [[ $scanonly == "yes" ]]; then
-  if [[ $dbms == "mongo" ]] ; then 
-    cp -r $data/diagnostic.data l
-  fi
-  exit 0
+  mv o.pgvac.* l.i1
 fi
 
-# Run for querysecs seconds regardless of concurrency
-bash np.sh $(( $querysecs * 1000 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 1000 1 no $dbms $short 0 no $dbopt
-mkdir q1000
-mv o.* q1000
+shift 14
 
-# Run for querysecs seconds regardless of concurrency
-bash np.sh $(( $querysecs * 100 * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 100 100 1 no $dbms $short 0 no $dbopt
-mkdir q100
-mv o.* q100
+loop=1
+farr=("$@")
+
+for ips in "$@"; do
+  if [[ vac -eq 1 && $dbms == "postgres" ]] ; then
+    # Vaccum during read-write tests. Do not wait because that would be downtime.
+    pga="-h 127.0.0.1 -U root ib"
+    for n in $( seq 1 $ntabs ) ; do
+      PGPASSWORD="pw" $client $pga -x -c "vacuum (verbose) pi${n}" >& o.pgvac.pi${n} &
+    done
+    sleep 5
+  fi
+
+  # Run for querysecs seconds regardless of concurrency
+  echo Run with ips $ips
+  bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 >& o.a
+
+  rdir=q.L${loop}.ips${ips}
+  mkdir $rdir; mv o.* $rdir
+  loop=$(( $loop + 1 ))
+done
 
 mkdir end
 
@@ -211,8 +130,8 @@ for d in /proc/sys/vm/* ; do
 done
 
 mount -v > o.mount
-mv o.* l
+mv o.* l.i0
 
 if [[ $dbms == "mongo" ]] ; then 
-  cp -r $data/diagnostic.data l
+  cp -r $data/diagnostic.data l.i0
 fi
