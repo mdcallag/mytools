@@ -5,7 +5,7 @@ dev=$4
 wdop=$5
 ldop=$6
 
-for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
+for ver in mo440rc10 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo44
@@ -14,7 +14,7 @@ for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
   mv a.mo44.c${cnf} a.${ver}.c${cnf}
 done
 
-for ver in mo421 mo422 mo423 mo425 mo426 ; do
+for ver in mo421 mo422 mo423 mo425 mo426 mo427 mo428 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42
@@ -23,7 +23,7 @@ for ver in mo421 mo422 mo423 mo425 mo426 ; do
   mv a.mo42.c${cnf} a.${ver}.c${cnf}
 done
 
-for ver in mo4016 mo4017 mo4018 ; do
+for ver in mo4016 mo4017 mo4018 mo4019 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo40
@@ -31,14 +31,4 @@ for ver in mo4016 mo4017 mo4018 ; do
   bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo40.${cnf} no $bdir 16 16 16 16 16 16
   mv a.mo40.c${cnf} a.${ver}.c${cnf}
 done
-
-for ver in mo425 ; do
-  cnf=6b40
-  echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
-  rm $bdir/mo42
-  ln -s $bdir/$ver $bdir/mo42
-  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo42.${cnf} no $bdir 16 16 16 16 16 16
-  mv a.mo42.c${cnf} a.${ver}.c${cnf}
-done
-
 

@@ -60,7 +60,7 @@ echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=r.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& r.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=r.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf.scr ; sleep 60; done >& r.perf.$fn &
   fpid=$!
 fi
 

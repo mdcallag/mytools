@@ -23,21 +23,28 @@ def main(argv):
 
       for k,v in remap.items():
         print('%s\t:\t%s' % (v,k))
+      print('ncops\t:\tnum_central_objs_per_span', end='')
       print()
 
       for k,v in remap.items():
         print('%s\t' % v, end='')
-      print()
+      print('ncops\t')
 
       for x in sc:
         for k,v in x.items():
           if k in ('num_spans', 'num_thread_objs', 'num_central_objs', 'num_transfer_objs'):
-            print("%.3f\t" % (v/(1024*1024)), end='')
+            if (v >= 1024*1024):
+              print("%.1f\t" % (v/(1024*1024)), end='')
+            else:
+              print("%.5f\t" % (v/(1024*1024)), end='')
           elif k in ('free_bytes', 'allocated_bytes'):
             print("%.0f\t" % (v/(1024*1024)), end='')
           else:
             print("%s\t" % v, end='')
-        print()
+        if (x['num_spans'] > 0):
+          print('%.6f' % (x['num_central_objs'] / x['num_spans']))
+        else:
+          print('0')
   return 0
 
 if __name__ == '__main__':

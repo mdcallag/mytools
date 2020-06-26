@@ -5,8 +5,8 @@ dev=$4
 wdop=$5
 ldop=$6
 
-for cnf in 5b40 6b40 ; do
-for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
+for cnf in 5b40 6b40 7b40 ; do
+for ver in mo440rc10 ; do
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo44
   ln -s $bdir/$ver $bdir/mo44
@@ -15,8 +15,8 @@ for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
 done
 done
 
-for cnf in 5b40 6b40 ; do
-for ver in mo421 mo422 mo423 mo425 mo426 ; do
+for cnf in 5b40 6b40 7b40 ; do
+for ver in mo421 mo422 mo423 mo425 mo426 mo427 mo428 ; do
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42
   ln -s $bdir/$ver $bdir/mo42
@@ -25,8 +25,8 @@ for ver in mo421 mo422 mo423 mo425 mo426 ; do
 done
 done
 
-for cnf in 5b40 6b40 ; do
-for ver in mo4016 mo4017 mo4018 ; do
+for cnf in 5b40 6b40 7b40 ; do
+for ver in mo4016 mo4017 mo4018 mo4019 ; do
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo40
   ln -s $bdir/$ver $bdir/mo40

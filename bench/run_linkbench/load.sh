@@ -223,7 +223,7 @@ echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$max
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.pre.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.pre.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.pre.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& l.pre.perf.$fn &
   fpid=$!
 fi
 
@@ -265,7 +265,7 @@ du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.post.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.post.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.post.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& l.post.perf.$fn &
   fpid=$!
 fi
 
