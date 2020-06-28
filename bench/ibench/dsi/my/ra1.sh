@@ -7,7 +7,7 @@ dev=$6
 
 shift 6
 
-for dc in pg12.7b40 ; do
+for dc in pg12.8b40 ; do
 for ver in pg120 pg123 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
@@ -16,7 +16,7 @@ for ver in pg120 pg123 ; do
 done
 done
 
-for dc in in80.9b40 ; do
+for dc in in80.10b40 ; do
 for ver in my8018 my8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
@@ -25,7 +25,7 @@ for ver in my8018 my8020 ; do
 done
 done
 
-for dc in rx56.5b40 ; do
+for dc in rx56.7b40 ; do
   bash rall1.sh $dc $dop $nsecs $mbd/ibench $nr $nrt $dev no $mbd $@
 done
 

@@ -216,8 +216,9 @@ else
   echo dbms :: $dbms :: not supported
   exit 1
 fi
-
-echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
+while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& l.pre.ps2.$fn &
+spid2=$!
+echo "background jobs: $ipid $vpid $spid $spid2" > l.pre.o.$fn
 
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
@@ -243,6 +244,7 @@ links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $13 }' )
 counts=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $17 }' )
 
 kill $pblpid
+kill $spid2
 process_stats pre $start_secs $nodes $links $counts
 
 #

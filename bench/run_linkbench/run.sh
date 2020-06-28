@@ -55,7 +55,9 @@ else
   echo dbms :: $dbms :: not supported
   exit 1
 fi 
-echo "background jobs: $ipid $vpid $spid" > r.o.$fn
+while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& r.ps2.$fn &
+spid2=$!
+echo "background jobs: $ipid $vpid $spid $spid2" > r.o.$fn
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
 
 dbpid=-1 # remove this to use perf
@@ -72,6 +74,7 @@ fi
 kill $ipid
 kill $vpid
 kill $spid
+kill $spid2
 # kill $mpid
 if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
