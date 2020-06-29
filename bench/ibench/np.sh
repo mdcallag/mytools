@@ -85,7 +85,7 @@ vmstat 5 >& o.vm.$sfx &
 vpid=$!
 iostat -y -kx 5 >& o.io.$sfx &
 ipid=$!
-top -w 200 -c -b -d 60 >& o.top.$sfx &
+LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
 tpid=$!
 
 dbpid=-1 # remove this to use perf
@@ -126,7 +126,7 @@ for n in $( seq 1 $dop ) ; do
     db_args+=" --secondary_at_end"
   fi
 
-  spr=3
+  spr=1
   echo $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.${n} 
   /usr/bin/time -o o.ctime.${sfx}.${n} $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.${n} 2>&1 &
 
@@ -183,7 +183,7 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
 kill $spid >& /dev/null
-gzip o.top.$sfx 
+gzip -9 o.top.$sfx 
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx

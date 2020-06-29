@@ -216,9 +216,14 @@ else
   echo dbms :: $dbms :: not supported
   exit 1
 fi
+
 while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& l.pre.ps2.$fn &
 spid2=$!
-echo "background jobs: $ipid $vpid $spid $spid2" > l.pre.o.$fn
+
+LINES=40 top -b -d 60 -c -w >& l.pre.top.$fn &
+tpid=$!
+
+echo "background jobs: $ipid $vpid $spid $spid2 $tpid" > l.pre.o.$fn
 
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
@@ -245,6 +250,8 @@ counts=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $17 }' )
 
 kill $pblpid
 kill $spid2
+kill $tpid
+gzip -9 l.pre.top.$fn
 process_stats pre $start_secs $nodes $links $counts
 
 #
@@ -271,6 +278,9 @@ if [ $dbpid -ne -1 ] ; then
   fpid=$!
 fi
 
+LINES=40 top -b -d 60 -c -w >& l.post.top.$fn &
+tpid=$!
+
 start_secs=$( date +%s )
 if [[ $dbms = "mongo" ]]; then
   while :; do ps aux | grep mongod | grep -v grep; sleep 30; done >& l.post.ps.$fn &
@@ -295,6 +305,8 @@ else
   exit 1
 fi
 
+kill $tpid
+gzip -9 l.post.top.$fn
 if [ $dbpid -ne -1 ] ; then kill $fpid ; fi
 
 process_stats post $start_secs $nodes $links $counts
