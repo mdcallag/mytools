@@ -9,11 +9,12 @@ dbms=$8
 ddl=$9
 dbhost=${10}
 ldop=${11}
+heap=${12}
 
 vac=1
 
 echo Load at $( date )
-bash load.sh $fn $client $ddir $maxid $dname $ldop true $dbms $ddl $dbhost
+bash load.sh $fn $client $ddir $maxid $dname $ldop true $dbms $ddl $dbhost $heap
 
 if [[ $vac -eq 1 && $dbms == "postgres" ]]; then
   loop=1
@@ -32,7 +33,7 @@ fi
 
 # Warmup
 echo Warmup at $( date )
-bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $dbms $dbhost
+bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $dbms $dbhost $heap
 
 shift 11
 
@@ -50,7 +51,7 @@ if [[ $# -gt 0 ]]; then
     fi
 
     echo Run dop=$mydop at $( date )
-    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $dbms $dbhost
+    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $dbms $dbhost $heap
     loop=$(( $loop + 1 ))
   done
 fi

@@ -8,6 +8,9 @@ dbms_cnf=$7
 up=$8
 # /media/ephemeral1 or /home/mdcallag/d or ???
 dbms_pfx=$9
+# Java max heap size, -Xmx=$heap
+heap=${10}
+
 # then DOP for queries as sequence of 1+ integers
 
 dgit=$PWD
@@ -28,7 +31,7 @@ function do_rx56 {
   sfx=rx.c$cnf
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh rx56 $dmyfb/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh rx56 $dmyfb/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmyfb; bash down.sh; cd $dgit
   fi
@@ -46,7 +49,7 @@ function do_in80 {
   sfx=in.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy80; bash down.sh; cd $dgit
   fi
@@ -64,7 +67,7 @@ function do_in57 {
   sfx=in.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy57; bash down.sh; cd $dgit
   fi
@@ -82,7 +85,7 @@ function do_in56 {
   sfx=in.c$cnf
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy56; bash down.sh; cd $dgit
   fi
@@ -100,7 +103,7 @@ function do_pg12 {
   sfx=pg.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dpg12; bash down.sh; cd $dgit
   fi
@@ -118,7 +121,7 @@ function do_mo40 {
   sfx=mo.c$cnf
   cd $dmo40; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh mo40 $dmo40/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo40 $dmo40/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo40; bash down.sh; cd $dgit
   fi
@@ -136,7 +139,7 @@ function do_mo42 {
   sfx=mo.c$cnf
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh mo42 $dmo42/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo42 $dmo42/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo42; bash down.sh; cd $dgit
   fi
@@ -154,7 +157,7 @@ function do_mo44 {
   sfx=mo.c$cnf
   cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   echo start load and run at $( date )
-  cd $dgit; bash all.sh mo44 $dmo44/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo44 $dmo44/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo44; bash down.sh; cd $dgit
   fi
@@ -168,7 +171,7 @@ dbms=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $1 }' )
 cnf=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $2 }' )
 echo Run for dbms=$dbms and cnf=$cnf
 
-shift 9
+shift 10
 
 if [[ $dbms = "rx56" ]]; then
   do_rx56 $cnf $@
