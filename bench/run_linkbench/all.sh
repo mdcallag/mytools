@@ -35,7 +35,7 @@ fi
 echo Warmup at $( date )
 bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $dbms $dbhost $heap
 
-shift 11
+shift 12
 
 loop=1
 if [[ $# -gt 0 ]]; then
