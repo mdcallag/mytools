@@ -4,6 +4,7 @@ bdir=$3
 dev=$4
 wdop=$5
 ldop=$6
+heap=$7
 
 shift 7
 
