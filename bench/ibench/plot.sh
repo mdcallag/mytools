@@ -39,7 +39,12 @@ for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 
   echo "set ylabel \"IPS\"" >> do.gp
   echo "set title \"IPS vs Time for load\"" >> do.gp
 
-  echo "unset yrange" >> do.gp
+  # echo "unset yrange" >> do.gp
+  # get max value for y-axis
+  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.ips; done | sort -rn | head -1 )
+  maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
+  echo "set yrange [0:${maxy_adj}]" >> do.gp
+
   echo "set terminal dumb $th, $tw" >> do.gp
   echo "set output '${name}.$y.i.txt'" >> do.gp
   printf "plot " >> do.gp
@@ -51,11 +56,6 @@ for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 
   done
   echo >> do.gp
 
-  # get max value for y-axis
-  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.ips; done | sort -rn | head -1 )
-
-  maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
-  echo "set yrange [0:${maxy_adj}]" >> do.gp
   echo "set terminal png" >> do.gp
   echo "set output '${name}.$y.i.png'" >> do.gp
   printf "plot " >> do.gp
@@ -75,6 +75,11 @@ for y in q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1
   echo "set title \"QPS vs Time for workload $y\"" >> do.gp
 
   echo "unset yrange" >> do.gp
+  # get max value for y-axis
+  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.qps; done | sort -rn | head -1 )
+  maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
+  echo "set yrange [0:${maxy_adj}]" >> do.gp
+
   echo "set terminal dumb $th, $tw" >> do.gp
   echo "set output '${name}.$y.q.txt'" >> do.gp
   printf "plot " >> do.gp
@@ -86,11 +91,6 @@ for y in q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1
   done
   echo >> do.gp
 
-  # get max value for y-axis
-  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.qps; done | sort -rn | head -1 )
-
-  maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
-  echo "set yrange [0:${maxy_adj}]" >> do.gp
   echo "set terminal png" >> do.gp
   echo "set output '${name}.$y.q.png'" >> do.gp
   printf "plot " >> do.gp
