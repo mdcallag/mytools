@@ -23,6 +23,8 @@ for f in "$@"; do
   if [ $f != "BREAK" ]; then
     grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $3 }}' > $f/$y/gpi.ips
     grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $5 }}' > $f/$y/gpi.qps
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $7 }}' > $f/$y/gpi.imax
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==10) { print $2, $8 }}' > $f/$y/gpi.qmax
   fi
 done
 done
@@ -33,72 +35,46 @@ if [ $logscale == "y" ]; then
   echo "set logscale y" >> do.gp
 fi
 
-# for inserts
+lab=(IPS maxInsertUsecs QPS maxQueryUsecs)
+inp=(ips imax qps qmax)
 
 for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 ; do
-  echo "set ylabel \"IPS\"" >> do.gp
-  echo "set title \"IPS vs Time for load\"" >> do.gp
+for x in 0 1 2 3 ; do
+
+  if [[ $x -gt 1 && ( $y == "l.i0" || $y == "l.i1" ) ]] ; then
+    continue
+  fi
+
+  echo "set ylabel \"${lab[$x]}\"" >> do.gp
+  echo "set title \"${lab[$x]} vs Time for $y\"" >> do.gp
 
   # echo "unset yrange" >> do.gp
   # get max value for y-axis
-  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.ips; done | sort -rn | head -1 )
+  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.${inp[$x]}; done | sort -rn | head -1 )
   maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
   echo "set yrange [0:${maxy_adj}]" >> do.gp
 
   echo "set terminal dumb $th, $tw" >> do.gp
-  echo "set output '${name}.$y.i.txt'" >> do.gp
+  echo "set output '${name}.$y.${inp[$x]}.txt'" >> do.gp
   printf "plot " >> do.gp
   for f in "$@"; do
     if [ $f != "BREAK" ]; then
       asx=$( echo $f | sed "s/${remove}\.//g" )
-      printf "\"$f/$y/gpi.ips\" using 1:2 title \"$asx\", " >> do.gp
+      printf "\"$f/$y/gpi.${inp[$x]}\" using 1:2 title \"$asx\", " >> do.gp
     fi
   done
   echo >> do.gp
 
   echo "set terminal png" >> do.gp
-  echo "set output '${name}.$y.i.png'" >> do.gp
+  echo "set output '${name}.$y.${inp[$x]}.png'" >> do.gp
   printf "plot " >> do.gp
   for f in "$@"; do
     if [ $f != "BREAK" ]; then
       asx=$( echo $f | sed "s/${remove}\.//g" )
-      printf "\"$f/$y/gpi.ips\" using 1:2 title \"$asx\", " >> do.gp
+      printf "\"$f/$y/gpi.${inp[$x]}\" using 1:2 title \"$asx\", " >> do.gp
     fi
   done
   echo >> do.gp
 done
-
-# for queries
-
-for y in q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 ; do
-  echo "set ylabel \"QPS\"" >> do.gp
-  echo "set title \"QPS vs Time for workload $y\"" >> do.gp
-
-  echo "unset yrange" >> do.gp
-  # get max value for y-axis
-  maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.qps; done | sort -rn | head -1 )
-  maxy_adj=$( echo "scale=0; ($maxy * $sf)/1.0" | bc )
-  echo "set yrange [0:${maxy_adj}]" >> do.gp
-
-  echo "set terminal dumb $th, $tw" >> do.gp
-  echo "set output '${name}.$y.q.txt'" >> do.gp
-  printf "plot " >> do.gp
-  for f in "$@"; do
-    if [ $f != "BREAK" ]; then
-      asx=$( echo $f | sed "s/${remove}\.//g" )
-      printf "\"$f/$y/gpi.qps\" using 1:2 title \"$asx\", " >> do.gp
-    fi
-  done
-  echo >> do.gp
-
-  echo "set terminal png" >> do.gp
-  echo "set output '${name}.$y.q.png'" >> do.gp
-  printf "plot " >> do.gp
-  for f in "$@"; do
-    if [ $f != "BREAK" ]; then
-      asx=$( echo $f | sed "s/${remove}\.//g" )
-      printf "\"$f/$y/gpi.qps\" using 1:2 title \"$asx\", " >> do.gp
-    fi
-  done
-  echo >> do.gp
 done
+
