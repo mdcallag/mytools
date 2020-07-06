@@ -25,13 +25,14 @@ function from_by {
   off1=$2
   off2=$3
   offq=$4
+  offw=$5
 
   rps=$( head -$off1 $fname   | tail -1 | awk '{ print $2 }' )
   rkbps=$( head -$off1 $fname | tail -1 | awk '{ print $3 }' )
   wkbps=$( head -$off1 $fname | tail -1 | awk '{ print $4 }' )
   rpq=$( head -$off1 $fname   | tail -1 | awk '{ print $5 }' )
   rkbpq=$( head -$off1 $fname | tail -1 | awk '{ print $6 }' )
-  wkbpq=$( head -$off1 $fname | tail -1 | awk '{ print $7 }' )
+  wkbpi=$( head -$offw $fname | tail -1 | awk '{ print $7 }' )
 
   csps=$( head -$off2 $fname  | tail -1 | awk '{ print $2 }' )
   cpups=$( head -$off2 $fname | tail -1 | awk '{ print $3 }' )
@@ -53,7 +54,7 @@ function from_by {
   # Total CPU microseconds / query
   cpupq=$( echo "scale=6; ( $tcpu * 1000000.0 ) / ( $qps * $nsecs )" | bc | awk '{ printf "%.0f", $1 }' )
 
-  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpq,$csps,$cpups,$cspq,$cpupq,$ccpupq,"
+  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpi,$csps,$cpups,$cspq,$cpupq,$ccpupq,"
 }
 
 function ddir_sz {
@@ -99,7 +100,7 @@ function get_ptile {
   echo -n "$v,"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpq,csps,cpups,cspq,cpupq,ccpupq,dbgb,vsz,rss,maxop,p50,p90,tag"
+echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,ccpupq,dbgb,vsz,rss,maxop,p50,p90,tag"
 
 l0res=$d/l.i0/o.res.dop${dop}
 lxres=$d/l.x/o.res.dop${dop}
@@ -109,7 +110,7 @@ for f in $l0res $lxres $l1res ; do
 #echo load hdr_i $f 
 from_hdr_i $f
 echo -n "0,"
-from_by $f 5 8 7
+from_by $f 5 8 7 5
 ddir_sz $f $ddir
 dbms_vsz_rss $f $uname
 get_max $f "Max insert"
@@ -124,7 +125,7 @@ f="${d}/q.L${loop}.ips${n}/o.res.dop${dop}"
 # echo run $f 
 from_hdr_i $f
 from_hdr_q $f
-from_by $f 12 15 13
+from_by $f 12 15 13 5
 ddir_sz $f $ddir
 dbms_vsz_rss $f $uname
 get_max $f "Max query"

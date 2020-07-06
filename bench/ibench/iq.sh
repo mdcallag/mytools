@@ -26,7 +26,10 @@ echo "dbms must be one of: mongo, mysql, postgres"
 exit -1
 fi
 
-vac=1
+# if =1 then only vacuum once, after index create
+# if > 1 then vacuum after index create and before each read-write step (except the first)
+# vacuum after index create is blocking, others are not
+vac=2
 ns=3
 
 # insert only without secondary indexes
@@ -49,7 +52,7 @@ ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
 sfx=dop${ntabs}
 
-if [[ vac -eq 1 && $dbms == "postgres" ]] ; then
+if [[ vac -ge 1 && $dbms == "postgres" ]] ; then
   # Vaccum after load & index. Wait for vacuum to finish before starting read-write tests
   pga="-h 127.0.0.1 -U root ib"
   for n in $( seq 1 $ntabs ) ; do
@@ -70,7 +73,7 @@ loop=1
 farr=("$@")
 
 for ips in "$@"; do
-  if [[ vac -eq 1 && $dbms == "postgres" ]] ; then
+  if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
     # Vaccum during read-write tests. Do not wait because that would be downtime.
     pga="-h 127.0.0.1 -U root ib"
     for n in $( seq 1 $ntabs ) ; do

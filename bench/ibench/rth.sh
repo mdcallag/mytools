@@ -7,7 +7,7 @@ if=$tag/$pfx/o.ib.dop${dop}
 
 grep "${grepme}" ${if}.1 | head -1 | awk '{ for (x=3; x<NF; x++) { printf "%s,", $x }; printf "%s,tag\n", $NF }' 
 
-for i in $( seq 1 8 ); do
+for i in $( seq 1 $dop ); do
   grep "${grepme}" ${if}.${i} | tail -1
 done | \
   awk '{ for (x=3; x<NF; x++) { maxs=(NF-1); if ($NF > mnf) { mnf = $NF }; ts += $x; s[x] += $x; printf "%s,", $x}; printf "%.3f,t%s:%s\n", $NF, NR, "DBMS" } \
