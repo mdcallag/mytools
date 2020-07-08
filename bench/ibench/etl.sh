@@ -54,19 +54,20 @@ function from_by {
   # Total CPU microseconds / query
   cpupq=$( echo "scale=6; ( $tcpu * 1000000.0 ) / ( $qps * $nsecs )" | bc | awk '{ printf "%.0f", $1 }' )
 
-  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpi,$csps,$cpups,$cspq,$cpupq,$ccpupq,"
+  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpi,$csps,$cpups,$cspq,$cpupq,"
 }
 
 function ddir_sz {
   fname=$1
   ddir=$2
 
-  if grep $ddir $fname > /dev/null ; then
-    sz=$( grep $ddir $fname | head -1 | awk '{ print $1 }' | sed s/G//g )
-  else
-    sz=NA
-  fi
-  echo -n "$sz,"
+  # dbGB    0.103
+  sz1=$( grep dbGB $fname | awk '{ printf "%.1f", $2 }' )
+
+  # dbdirGB 0.314   /data/m/pg
+  sz2=$( grep dbdirGB $fname | awk '{ printf "%.1f", $2 }' )
+
+  echo -n "$sz1,$sz2,"
 }
 
 function dbms_vsz_rss {
@@ -80,7 +81,7 @@ function dbms_vsz_rss {
     vsz=NA
     rss=NA
   fi
-  echo -n "$vsz,$rss,"
+  echo -n "$rss,"
 }
 
 function get_max {
@@ -100,7 +101,7 @@ function get_ptile {
   echo -n "$v,"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,ccpupq,dbgb,vsz,rss,maxop,p50,p90,tag"
+echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p90,tag"
 
 l0res=$d/l.i0/o.res.dop${dop}
 lxres=$d/l.x/o.res.dop${dop}

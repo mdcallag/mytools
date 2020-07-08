@@ -9,11 +9,12 @@ dbms=$8
 short=$9
 only1t=${10}
 bulk=${11}
-nr=${12}
-querysecs=${13}
+nr1=${12}
+nr2=${13}
+querysecs=${14}
 # comma separate options specific to the engine, for Mongo can be "journal,transaction" or "transaction"
 # should otherwise be "none"
-dbopt=${14}
+dbopt=${15}
 
 if [[ $dbms == "mongo" ]] ; then 
 echo Use mongo
@@ -33,17 +34,16 @@ vac=2
 ns=3
 
 # insert only without secondary indexes
-bash np.sh $nr $e "$eo" 0 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk no $dbopt 0 >& o.a
+bash np.sh $nr1 $e "$eo" 0 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk no $dbopt 0 >& o.a
 mkdir l.i0
 mv o.* l.i0
 
 # insert only -- short running, then create indexes
-bash np.sh 10000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr >& o.a
+bash np.sh 10000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 >& o.a
 mkdir l.x
 mv o.* l.x
 
 # insert only with secondary indexes. Insert 1/10 of what was inserted in the previous step.
-nr2=$( echo "$nr / 10" | bc )
 bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 >& o.a
 mkdir l.i1
 mv o.* l.i1
@@ -67,7 +67,7 @@ if [[ vac -ge 1 && $dbms == "postgres" ]] ; then
   mv o.pgvac.* l.i1
 fi
 
-shift 14
+shift 15
 
 loop=1
 farr=("$@")

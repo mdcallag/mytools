@@ -26,6 +26,8 @@ mypy=python3
 #mypy="/media/ephemeral1/pypy-36-al2/bin/pypy3"
 #mypypy="LD_LIBRARY_PATH=/media/ephemeral1/pypy-36-al2/site-packages/psycopg2 /media/ephemeral1/pypy-36-al2/bin/pypy3"
 
+host=127.0.0.1
+
 if [[ $short == "yes" ]]; then
 names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
 else
@@ -39,18 +41,20 @@ rm -f o.res.$sfx
 maxr=$(( $nr / $dop ))
 
 moauth="--authenticationDatabase admin -u root -p pw"
-pgauth="--host 127.0.0.1"
+pgauth="--host $host"
 
 if [[ $dbms == "mongo" ]]; then
+  dbid=ib
   echo "no need to reset MongoDB replication as oplog is capped"
   while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "mysql" ]]; then
-  $client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+  dbid=ib
+  $client -uroot -ppw -A -h$host -e 'reset master'
   while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
 elif [[ $dbms == "postgres" ]]; then
-  # TODO postgres
+  dbid=ib
   echo "TODO: reset Postgres replication"
   while :; do ps aux | grep postgres | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
@@ -63,9 +67,9 @@ if [[ $setup == "yes" ]] ; then
     sleep 5
     $client $moauth ib --eval 'db.createCollection("foo")'
   elif [[ $dbms == "mysql" ]]; then
-    $client -uroot -ppw -A -h127.0.0.1 -e 'drop database ib'
+    $client -uroot -ppw -A -h$host -e 'drop database ib'
     sleep 5
-    $client -uroot -ppw -A -h127.0.0.1 -e 'create database ib'
+    $client -uroot -ppw -A -h$host -e 'create database ib'
   else
     echo "TODO: postgres"
     $client me -c 'drop database ib' $pgauth
@@ -78,7 +82,7 @@ killall vmstat
 killall iostat
 killall top
 
-$mypy mstat.py --db_user=root --db_password=pw --db_host=127.0.0.1 --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
+$mypy mstat.py --db_user=root --db_password=pw --db_host=$host --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
 mpid=$!
 
 vmstat 5 >& o.vm.$sfx &
@@ -127,11 +131,10 @@ for n in $( seq 1 $dop ) ; do
   fi
 
   spr=1
-  echo $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names > o.ib.dop${dop}.${n} 
-  /usr/bin/time -o o.ctime.${sfx}.${n} $mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=127.0.0.1 ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names >> o.ib.dop${dop}.${n} 2>&1 &
-
+  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names"
+  echo $cmdline > o.ib.dop${dop}.${n} 
+  /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
   pids[${n}]=$!
-  
   sleep 3
  
 done
@@ -140,6 +143,11 @@ for n in $( seq 1 $dop ) ; do
   # echo Wait for ${pids[${n}]} $n
   wait ${pids[${n}]} 
 done
+
+$client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts1.$sfx
+$client -uroot -ppw -A -h$host ib -e "select * from information_schema.innodb_tablestats where name like 'ib/%'\G" > o.ts2a.$sfx
+$client -uroot -ppw -A -h$host ib -e 'select * from pi1 limit 1' > o.ts2b.$sfx
+$client -uroot -ppw -A -h$host ib -e "select * from information_schema.innodb_tablestats where name like 'ib/%'\G" > o.ts2c.$sfx
 
 if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
@@ -199,22 +207,22 @@ done
 
 echo "db.stats()" | $client $moauth > o.dbstats.$sfx
 echo "db.oplog.rs.stats()" | $client $moauth local > o.oplog.$sfx
-echo "show dbs" | $client $moauth linkdb0 > o.dbs.$sfx
+echo "show dbs" | $client $moauth $dbid > o.dbs.$sfx
 
 elif [[ $dbms == "mysql" ]]; then
-$client -uroot -ppw -A -h127.0.0.1 -e 'show engine innodb status\G' > o.esi.$sfx
-$client -uroot -ppw -A -h127.0.0.1 -e 'show engine rocksdb status\G' > o.esr.$sfx
-$client -uroot -ppw -A -h127.0.0.1 -e 'show engine tokudb status\G' > o.est.$sfx
-$client -uroot -ppw -A -h127.0.0.1 -e 'show global status' > o.gs.$sfx
-$client -uroot -ppw -A -h127.0.0.1 -e 'show global variables' > o.gv.$sfx
-$client -uroot -ppw -A -h127.0.0.1 -e 'show memory status\G' > o.mem.$sfx
+$client -uroot -ppw -A -h$host -e 'show engine innodb status\G' > o.esi.$sfx
+$client -uroot -ppw -A -h$host -e 'show engine rocksdb status\G' > o.esr.$sfx
+$client -uroot -ppw -A -h$host -e 'show engine tokudb status\G' > o.est.$sfx
+$client -uroot -ppw -A -h$host -e 'show global status' > o.gs.$sfx
+$client -uroot -ppw -A -h$host -e 'show global variables' > o.gv.$sfx
+$client -uroot -ppw -A -h$host -e 'show memory status\G' > o.mem.$sfx
 
-$client -uroot -ppw -A -h127.0.0.1 ib -e 'show table status\G' > o.ts.$sfx
+$client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts.$sfx
 echo "sum of data and index length columns in GB" >> o.ts.$sfx
 cat o.ts.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 
-$client -uroot -ppw -A -h127.0.0.1 -e 'reset master'
+$client -uroot -ppw -A -h$host -e 'reset master'
 
 else
 echo "TODO reset replication state"
@@ -277,7 +285,13 @@ printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
 grep -v swpd o.vm.$sfx | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 } } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${query_rate} >> o.res.$sfx
 
 echo >> o.res.$sfx
-du -hs $ddir >> o.res.$sfx
+bash dbsize.sh $client $host o.dbsz.$sfx $dbid $dbms $ddir
+x0=$( cat o.dbsz.$sfx )
+printf "dbGB\t%.3f\n" $x0 >> o.res.$sfx
+
+du -bs $ddir > o.dbdirsz.$sfx
+x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' o.dbdirsz.$sfx )
+printf "dbdirGB\t%s\t${ddir}\n" $x1 >> o.res.$sfx
 
 echo >> o.res.$sfx
 if [[ $dbms == "mongo" ]]; then
