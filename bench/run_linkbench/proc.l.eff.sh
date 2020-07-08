@@ -8,7 +8,7 @@ username=$4
 if [[ $secORop == "sec" ]]; then
   echo "ips,secs,rps,rmbps,wmbps,csps,cpups,cutil,dutil,vsz,rss,cnf"
 else
-  echo "ips,secs,rpi,rkbpi,wkbpi,cspi,cpupi,csecpq,dsecpq,csec,dsec,dbgb,cnf"
+  echo "ips,secs,rpi,rkbpi,wkbpi,cspi,cpupi,csecpq,dsecpq,csec,dsec,dbgb1,dbgb2,cnf"
 fi
 
 nsecs=$( cat $ddir/l.$tag.r.* | grep "^Inserted in" | awk '{ print $3 }' )
@@ -26,7 +26,8 @@ csec=$( grep client: $ddir/l.$tag.r.* | head -1 | awk '{ print $6 }' )
 csec0=$( echo $csec | awk '{ printf "%.0f", $1 }' )
 #csec=0; csec0=0
 
-dbgb=$( cat $ddir/l.$tag.r.* | head -11 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
+dbgb1=$( grep "^dbGB" $ddir/l.$tag.r.* | awk '{ printf "%.1f", $2 }' )
+dbgb2=$( grep "^dbdirGB" $ddir/l.$tag.r.* | awk '{ printf "%.1f", $2 }' )
 
 if [[ $secORop == "sec" ]]; then
   rps=$( cat $ddir/l.$tag.r.* | head -3 | tail -1 | awk '{ printf "%.0f", $2 }' )
@@ -53,6 +54,6 @@ else
   cpupi=$( cat $ddir/l.$tag.r.* | head -6 | tail -1 | awk '{ printf "%.0f", $5 * 1000000.0 }' )
   csecpq=$( echo $csec $nsecs $ips | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
   dsecpq=$( echo $dsec $nsecs $ips | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
-  echo "$ips,$nsecs,$rpi,$rkbpi,$wkbpi,$cspi,$cpupi,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$ddir"
+  echo "$ips,$nsecs,$rpi,$rkbpi,$wkbpi,$cspi,$cpupi,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb1,$dbgb2,$ddir"
 fi
 

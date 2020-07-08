@@ -78,7 +78,13 @@ function process_stats {
   grep -v swpd l.$tag.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
-  head -4 l.$tag.sz1.$fn >> l.$tag.r.$fn
+  bash dbsize.sh $client $dbhost l.$tag.dbsz.$fn $dbid $dbms $ddir
+  x0=$( cat l.$tag.dbsz.$fn )
+  printf "dbGB\t%.3f\n" $x0 >> l.$tag.r.$fn
+
+  du -bs $ddir > l.$tag.dbdirsz.$fn
+  x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' l.$tag.dbdirsz.$fn )
+  printf "dbdirGB\t%s\t${ddir}\n" $x1 >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
   head -1 l.$tag.ps.$fn >> l.$tag.r.$fn
@@ -155,15 +161,18 @@ function process_stats {
 }
 
 if [[ $dbms = "mongo" ]]; then
+  dbid=linkdb0
   $client admin -u root -p pw --host ${dbhost} < $ddl.pre >& l.pre.ddl.$fn
 
 elif [[ $dbms = "mysql" ]]; then
+  dbid=linkdb0
   $client -uroot -ppw -h${dbhost} < $ddl.pre >& l.pre.ddl.$fn
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.pre.mstat.$fn &
   # mpid=$!
 elif [[ $dbms = "postgres" ]]; then
+  dbid=linkbench
   echo PG drop database
   $client me $pgauth -c "drop database if exists linkdb"
   sleep 5

@@ -16,7 +16,7 @@ function dt2s {
 if [[ $secORop == "sec" ]]; then
   echo "qps,secs,rps,rmbps,wmbps,csps,cpups,cutil,dutil,vsz,rss,cnf"
 else
-  echo "qps,secs,rpq,rkbpq,wkbpq,cspq,cpupq,csecpq,dsecpq,csec,dsec,dbgb,cnf"
+  echo "qps,secs,rpq,rkbpq,wkbpq,cspq,cpupq,csecpq,dsecpq,csec,dsec,dbgb1,dbgb2,cnf"
 fi
 
 nsecs=$( cat $ddir/r.r.*.$tag | head -1 | awk '{ print $12 }' )
@@ -30,7 +30,8 @@ dsec0=$( echo $dsec | awk '{ printf "%.0f", $1 }' )
 csec=$( grep client: $ddir/r.r.*.$tag | head -1 | awk '{ print $6 }' )
 csec0=$( echo $csec | awk '{ printf "%.0f", $1 }' )
 
-dbgb=$( cat $ddir/r.r.*.$tag | head -12 | tail -1 | awk '{ printf "%.1f", $1 / 1024 }' )
+dbgb1=$( grep "^dbGB" $ddir/r.r.*.$tag | awk '{ printf "%.1f", $2 }' )
+dbgb2=$( grep "^dbdirGB" $ddir/r.r.*.$tag | awk '{ printf "%.1f", $2 }' )
 
 if [[ $secORop == "sec" ]]; then
   rps=$( cat $ddir/r.r.*.$tag | head -4 | tail -1 | awk '{ printf "%.0f", $2 }' )
@@ -57,6 +58,6 @@ else
   cpupq=$( cat $ddir/r.r.*.$tag | head -7 | tail -1 | awk '{ printf "%.0f", $5 * 1000000.0 }' )
   csecpq=$( echo $csec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
   dsecpq=$( echo $dsec $nsecs $qps | awk '{ printf "%.1f", (($1 / ($2 * $3)) * 1000000) }' )
-  echo "$qps,$nsecs,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb,$ddir"
+  echo "$qps,$nsecs,$rpq,$rkbpq,$wkbpq,$cspq,$cpupq,$csecpq,$dsecpq,$csec0,$dsec0,$dbgb1,$dbgb2,$ddir"
 fi
 

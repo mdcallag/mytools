@@ -27,10 +27,8 @@ function do_rx56 {
   cnf=$1
   shift 1
 
-  echo "myrocks conf $cnf at $( date )"
   sfx=rx.c$cnf
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
   cd $dgit; bash all.sh rx56 $dmyfb/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmyfb; bash down.sh; cd $dgit
@@ -45,11 +43,9 @@ function do_in80 {
   cnf=$1
   shift 1
 
-  echo "innodb conf $cnf at $( date )"
   sfx=in.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
-  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy80; bash down.sh; cd $dgit
   fi
@@ -63,11 +59,9 @@ function do_in57 {
   cnf=$1
   shift 1
 
-  echo "innodb conf $cnf at $( date )"
   sfx=in.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
-  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy57; bash down.sh; cd $dgit
   fi
@@ -81,11 +75,9 @@ function do_in56 {
   cnf=$1
   shift 1
 
-  echo "innodb conf $cnf at $( date )"
   sfx=in.c$cnf
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
-  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my/data $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy56; bash down.sh; cd $dgit
   fi
@@ -99,10 +91,8 @@ function do_pg12 {
   cnf=$1
   shift 1
 
-  echo "postgres conf $cnf at $( date )"
   sfx=pg.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
   cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dpg12; bash down.sh; cd $dgit
@@ -117,10 +107,8 @@ function do_mo40 {
   cnf=$1
   shift 1
 
-  echo "mongo conf $cnf at $( date )"
   sfx=mo.c$cnf
   cd $dmo40; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
   cd $dgit; bash all.sh mo40 $dmo40/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo40; bash down.sh; cd $dgit
@@ -135,10 +123,8 @@ function do_mo42 {
   cnf=$1
   shift 1
 
-  echo "mongo conf $cnf at $( date )"
   sfx=mo.c$cnf
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
   cd $dgit; bash all.sh mo42 $dmo42/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo42; bash down.sh; cd $dgit
@@ -153,10 +139,8 @@ function do_mo44 {
   cnf=$1
   shift 1
 
-  echo "mongo conf $cnf at $( date )"
   sfx=mo.c$cnf
   cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  echo start load and run at $( date )
   cd $dgit; bash all.sh mo44 $dmo44/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo44; bash down.sh; cd $dgit
@@ -172,6 +156,8 @@ cnf=$( echo $dbms_cnf | tr '.' ' ' | awk '{ print $2 }' )
 echo Run for dbms=$dbms and cnf=$cnf
 
 shift 10
+
+echo start load and run at $( date ) for $dbms with $cnf
 
 if [[ $dbms = "rx56" ]]; then
   do_rx56 $cnf $@
@@ -191,3 +177,4 @@ elif [[ $dbms = "mo44" ]]; then
   do_mo44 $cnf $@
 fi
 
+echo done at $( date )

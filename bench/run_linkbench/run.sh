@@ -88,6 +88,7 @@ gzip -9 r.top.$fn
 if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
 if [[ $dbms = "mongo" ]]; then
+  szdbid=linkdb0
   cred="-u root -p pw --authenticationDatabase=admin"
   echo "db.serverStatus()" | $client $cred > r.srvstat.$fn
   echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $cred > r.srvstat1.$fn
@@ -103,6 +104,7 @@ if [[ $dbms = "mongo" ]]; then
   echo "show dbs" | $client $cred linkdb0 > r.dbs.$fn
 
 elif [[ $dbms = "mysql" ]]; then
+  szdbid=linkdb0
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > r.esi.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show engine rocksdb status\G' > r.esr.$fn
@@ -122,6 +124,7 @@ elif [[ $dbms = "mysql" ]]; then
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.table_statistics WHERE TABLE_NAME IN ("linktable", "nodetable", "counttable")' > r.tstat3.$fn
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.index_statistics' > r.istat3.$fn
 elif [[ $dbms = "postgres" ]]; then
+  szdbid=linkbench
   $client linkbench $pgauth -c 'show all' > r.pg.conf.$fn
   $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > r.pgs.bg.$fn
   $client linkbench $pgauth -x -c 'select * from pg_stat_database' > r.pgs.db.$fn
@@ -175,7 +178,13 @@ printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> r.r.$fn
 grep -v swpd r.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> r.r.$fn
 
 echo >> r.r.$fn
-head -4 r.sz1.$fn >> r.r.$fn
+bash dbsize.sh $client $dbhost r.dbsz.$fn $szdbid $dbms $ddir
+x0=$( cat r.dbsz.$fn )
+printf "dbGB\t%.3f\n" $x0 >> r.r.$fn
+
+du -bs $ddir > r.dbdirsz.$fn
+x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' r.dbdirsz.$fn )
+printf "dbdirGB\t%s\t${ddir}\n" $x1 >> r.r.$fn
 
 echo >> r.r.$fn
 head -1 r.ps.$fn >> r.r.$fn
