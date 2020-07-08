@@ -101,7 +101,7 @@ function get_ptile {
   echo -n "$v,"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p90,tag"
+echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
 
 l0res=$d/l.i0/o.res.dop${dop}
 lxres=$d/l.x/o.res.dop${dop}
@@ -116,7 +116,7 @@ ddir_sz $f $ddir
 dbms_vsz_rss $f $uname
 get_max $f "Max insert"
 get_ptile $f 50th 6
-get_ptile $f 90th 6
+get_ptile $f 99th 6
 echo $tag
 done
 
@@ -131,7 +131,7 @@ ddir_sz $f $ddir
 dbms_vsz_rss $f $uname
 get_max $f "Max query"
 get_ptile $f 50th 8
-get_ptile $f 90th 8
+get_ptile $f 99th 8
 echo $tag
 loop=$(( $loop + 1 ))
 done
