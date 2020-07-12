@@ -11,12 +11,12 @@ dbhost=${10}
 ldop=${11}
 heap=${12}
 
-vac=1
+vac=2
 
 echo Load at $( date )
 bash load.sh $fn $client $ddir $maxid $dname $ldop true $dbms $ddl $dbhost $heap
 
-if [[ $vac -eq 1 && $dbms == "postgres" ]]; then
+if [[ $vac -ge 1 && $dbms == "postgres" ]]; then
   loop=1
   for t in linktable counttable nodetable ; do
     $client linkbench -x -c "vacuum (verbose) linkdb0.$t" >& r.pgvac.$fn.INI.$t &
@@ -43,7 +43,7 @@ if [[ $# -gt 0 ]]; then
 
   for mydop in "${doparr[@]}" ; do
 
-    if [[ $vac -eq 1 && $dbms == "postgres" ]]; then
+    if [[ $vac -gt 1 && $dbms == "postgres" ]]; then
       for t in linktable counttable nodetable ; do
         $client linkbench -x -c "vacuum (verbose, skip_locked) linkdb0.$t" >& r.pgvac.$fn.L${loop}.P${mydop}.$t &
         sleep 1
