@@ -48,6 +48,12 @@ for x in 0 1 2 3 ; do
   echo "set ylabel \"${lab[$x]}\"" >> do.gp
   echo "set title \"${lab[$x]} vs Time for $y\"" >> do.gp
 
+  #if [[ ${inp[$x]} == "imax" || ${inp[$x]} == "qmax" ]]; then
+  #  echo "set logscale y" >> do.gp
+  #else
+  #  echo "unset logscale y" >> do.gp
+  #fi
+
   # echo "unset yrange" >> do.gp
   # get max value for y-axis
   maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.${inp[$x]}; done | sort -rn | head -1 )
