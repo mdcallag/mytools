@@ -4,13 +4,13 @@ qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 
 for f in "${ifiles[@]}" ; do
 for e in "$@" ; do
-  grep $e sum/mrg.$f
+  grep "$e\$" sum/mrg.$f
 done | awk '{ if (NF == 19) { printf "%s\t%s\n", $1, $19 } }' > sum/mrg.$f.ips
 done
 
 for f in "${qfiles[@]}" ; do
 for e in "$@" ; do
-  grep $e sum/mrg.$f
+  grep "$e\$" sum/mrg.$f
 done | awk '{ if (NF == 19) { printf "%s\t%s\n", $2, $19 } }' > sum/mrg.$f.qps
 done
 
@@ -99,6 +99,9 @@ cat <<TabEOF > z3
 <style type="text/css">
   table td#cmin { background-color:#FF9A9A }
   table td#cmax { background-color:#81FFA6 }
+  td {
+    text-align:right
+  }
 </style>
 <table border="1" cellpadding="8" >
 TabEOF

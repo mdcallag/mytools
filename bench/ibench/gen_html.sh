@@ -1,4 +1,5 @@
 title=$1
+m=$2
 
 cat <<HeaderEOF
 <!DOCTYPE html>
@@ -18,15 +19,6 @@ isections=( l.i0 l.x l.i1 )
 qsections=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 # Ugh, I didn't use the same filename pattern
 q2sections=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
-
-#tput.l.i0.ht
-#tput.l.i1.ht
-#tput.q.L10.ips800.ht
-#tput.q.L12.ips1000.ht
-#tput.q.L2.ips100.ht
-#tput.q.L4.ips200.ht
-#tput.q.L6.ips400.ht
-#tput.q.L8.ips600.ht
 
 sectionText=( \
 "l.i0: load without secondary indexes" \
@@ -69,7 +61,8 @@ cat <<SecEOF
 <li>${sectionText[$x]}
 <ul>
 <li><a href="#${sections[$x]}.graph">graph</a>
-<li><a href="#${sections[$x]}.data">data</a>
+<li><a href="#${sections[$x]}.metrics">metrics</a>
+<li><a href="#${sections[$x]}.rt">response time</a>
 </ul>
 SecEOF
 done
@@ -86,13 +79,9 @@ cat <<SumEOF
 <h1 id="summary">Summary</h1>
 <p>
 Results are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and queries/s for q*.2.
-The range of values is split into 3 parts: bottom 25%, middle 50%, top 25%.
-Values in the bottom 25% have a red background, values in the top 25% have a green background.
+The range of values is split into 3 parts: bottom 25&#37;, middle 50&#37;, top 25&#37;.
+Values in the bottom have a red background, values in the top have a green background.
 </p>
-<style type="text/css">
-  table td#cmin { background-color:#FF9A9A }
-  table td#cmax { background-color:#81FFA6 }
-</style>
 SumEOF
 
 cat tput.tab
@@ -105,17 +94,27 @@ x=$(( $sx - 1 ))
 sec=${isections[$x]}
 txt=${sectionText[$x]}
 
-cat <<ChIpsEOF
+cat <<H0IpsEOF
 <hr />
 <h1 id="${sec}.graph">${sec}</h1>
-<p>$txt</p>
-<img src = "ch.${sec}.ips.png" alt = "Image" />
-ChIpsEOF
+<p>$txt.
+H0IpsEOF
 
 if [[ $sec != "l.x" ]]; then
-cat <<ITputEOF
-<p>Graphs for performance per 1-second internval <a href="tput.${sec}.html">are here</a>.</p>
-ITputEOF
+cat <<H1IpsEOF
+ Graphs for performance per 1-second interval <a href="tput.${sec}.html">are here</a>.
+H1IpsEOF
+fi
+printf "</p>\n"
+
+cat << H2IpsEOF
+<p>Average throughput:</p>
+<img src = "ch.${sec}.ips.png" alt = "Image" />
+H2IpsEOF
+
+if [[ $sec != "l.x" ]]; then
+printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+cat rt${m}/mrg.${sec}.rt.insert.ht
 fi
 
 done
@@ -127,20 +126,26 @@ sec=${qsections[$x]}
 sec2=${q2sections[$x]}
 txt=${sectionText[$(( $x + 3))]}
 
-cat <<ChQpsEOF
+cat <<H0QpsEOF
 <hr />
 <h1 id="${sec}.graph">${sec}</h1>
-<p>$txt</p>
-<img src = "ch.${sec}.qps.png" alt = "Image" />
-ChQpsEOF
+<p>$txt. Graphs for performance per 1-second interval <a href="tput.${sec2}.html">are here</a>.</p>
+H0QpsEOF
 
-cat <<QTputEOF
-<p>Graphs for performance per 1-second internval <a href="tput.${sec2}.html">are here</a>.</p>
-QTputEOF
+cat <<H2QpsEOF
+<p>Average throughput:</p>
+<img src = "ch.${sec}.qps.png" alt = "Image" />
+H2QpsEOF
+
+printf "<p>Query response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+cat rt${m}/mrg.${sec2}.rt.query.ht
+
+printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+cat rt${m}/mrg.${sec2}.rt.insert.ht
 
 done
 
-# ----- Generate data sections
+# ----- Generate metrics sections
 
 for sx in $( seq ${#sections[@]}  ) ; do
 
@@ -148,9 +153,9 @@ x=$(( $sx - 1 ))
 sec=${sections[$x]}
 txt=${sectionText[$x]}
 
-cat <<SectionHeaderEOF
+cat <<MetricHeaderEOF
 <hr />
-<h1 id="${sec}.data">${sec}</h1>
+<h1 id="${sec}.metrics">${sec}</h1>
 <p>
 <ul>
 <li>$txt
@@ -158,9 +163,53 @@ cat <<SectionHeaderEOF
 </ul>
 </p>
 <pre>
-SectionHeaderEOF
+MetricHeaderEOF
 
 cat sum/mrg.${sec}
+echo "</pre>"
+
+done
+
+# ----- Generate response time sections
+
+for sx in $( seq ${#sections[@]}  ) ; do
+
+x=$(( $sx - 1 ))
+sec=${sections[$x]}
+txt=${sectionText[$x]}
+
+# Ugh, fixup because different naming pattern was used
+fsec=$sec
+if [[ $x -ge 3 ]]; then
+  fsec=${q2sections[$(( $x - 3 ))]}
+fi
+
+cat <<RtHeaderEOF
+<hr />
+<h1 id="${sec}.rt">${sec}</h1>
+<p>
+<ul>
+<li>$txt
+<li>Legend for results <a href="https://mdcallag.github.io/ibench-results.html">is here</a>.
+</ul>
+</p>
+RtHeaderEOF
+
+if [[ $sec == "l.x" ]]; then
+echo "<p>TODO - determine whether there is data for create index response time</p>"
+continue
+fi
+
+if [[ $x -ge 3 ]]; then
+echo "<p>Query response time histogram</p>"
+echo "<pre>"
+cat rt${m}/mrg.${fsec}.rt.query
+echo "</pre>"
+fi
+
+echo "<p>Insert response time histogram</p>"
+echo "<pre>"
+cat rt${m}/mrg.${fsec}.rt.insert
 echo "</pre>"
 
 done
