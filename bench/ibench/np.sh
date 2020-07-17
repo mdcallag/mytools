@@ -38,8 +38,6 @@ sfx=dop${dop}
 
 rm -f o.res.$sfx
 
-maxr=$(( $nr / $dop ))
-
 moauth="--authenticationDatabase admin -u root -p pw"
 pgauth="--host $host"
 
@@ -100,7 +98,17 @@ fi
 
 start_secs=$( date +%s )
 
-for n in $( seq 1 $dop ) ; do
+if [[ $secatend == "yes" && $only1t == "yes" ]]; then
+ # When there is only 1 table and indexes are to be created after inserts then only start
+ # the one client that will create the indexes. 
+ realdop=1
+else
+ realdop=$dop
+fi
+
+maxr=$(( $nr / $realdop ))
+
+for n in $( seq 1 $realdop ) ; do
 
   if [[ $setup == "yes" ]]; then
     setstr="--setup"
@@ -135,19 +143,20 @@ for n in $( seq 1 $dop ) ; do
   echo $cmdline > o.ib.dop${dop}.${n} 
   /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
   pids[${n}]=$!
-  sleep 3
+
+  # This is a hack. The longer sleep (10) is done to give the first client enough time to create the tables
+  if [[ $setup == "yes" && $n -eq 1 ]]; then
+    sleep 10
+  else 
+    sleep 3
+  fi
  
 done
 
-for n in $( seq 1 $dop ) ; do
+for n in $( seq 1 $realdop ) ; do
   # echo Wait for ${pids[${n}]} $n
   wait ${pids[${n}]} 
 done
-
-$client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts1.$sfx
-$client -uroot -ppw -A -h$host ib -e "select * from information_schema.innodb_tablestats where name like 'ib/%'\G" > o.ts2a.$sfx
-$client -uroot -ppw -A -h$host ib -e 'select * from pi1 limit 1' > o.ts2b.$sfx
-$client -uroot -ppw -A -h$host ib -e "select * from information_schema.innodb_tablestats where name like 'ib/%'\G" > o.ts2c.$sfx
 
 if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
@@ -156,25 +165,25 @@ tot_secs=$(( $stop_secs - $start_secs ))
 if [[ $tot_secs -eq 0 ]]; then tot_secs=1; fi
 
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
-insert_per=$( echo "scale=1; $insert_rate / $dop" | bc )
+insert_per=$( echo "scale=1; $insert_rate / $realdop" | bc )
 
 if [[ $extra_insert -gt 0 ]]; then
   # Account for rows indexed if this step creates the index
   insert_rate=$( echo "scale=1; ( $nr + $extra_insert ) / $tot_secs" | bc )
-  maxr=$(( ( $nr + $extra_insert ) / $dop ))
+  maxr=$(( ( $nr + $extra_insert ) / $realdop ))
 fi
 
 echo rates
-total_query=$( for n in $( seq 1 $dop ); do awk '{ if (NF==10) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
+total_query=$( for n in $( seq 1 $realdop ); do awk '{ if (NF==10) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
-echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
+echo $realdop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
 
 echo per interval
 # Compute average rates per interval using 10 intervals
 for x in 3 5 ; do
-for n in $( seq 1 $dop ); do
+for n in $( seq 1 $realdop ); do
   f=o.ib.dop${dop}.$n
   xa=$( wc -l $f | awk '{ print $1 }' ); xm=$(( $xa - 2 )); xp=$(( $xm / 10 ))
   for s in $( seq 0 9 ); do
@@ -198,7 +207,7 @@ echo "db.serverStatus()" | $client $moauth > o.es.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx
 
-for n in $( seq 1 $dop ) ; do
+for n in $( seq 1 $realdop ) ; do
   echo "db.pi${n}.stats()" | $client $moauth ib > o.tab${n}.$sfx
   echo "db.pi${n}.stats({indexDetails: true})" | $client $moauth ib > o.tab${n}.id.$sfx
   echo "db.pi${n}.latencyStats({histograms: true})" | $client $moauth ib > o.tab${n}.ls.$sfx
@@ -265,9 +274,9 @@ printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tips\t\tspi\n" >> o.res.$sfx
 
 iover=$( head -10 o.io.$sfx | grep Device | grep avgrq\-sz | wc -l )
 if [[ $iover -eq 1 ]]; then
-  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$dop r=$rpc >> o.res.$sfx
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$realdop r=$rpc >> o.res.$sfx
 else
-  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$dop r=$rpc >> o.res.$sfx
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${insert_rate} p=$realdop r=$rpc >> o.res.$sfx
 fi
 
 printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
@@ -276,9 +285,9 @@ grep -v swpd o.vm.$sfx | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 
 printf "\niostat, vmstat normalized by query rate\n" >> o.res.$sfx
 printf "samp\tr/s\trkb/s\twkb/s\tr/q\trkb/q\twkb/q\tqps\t\tspq\n" >> o.res.$sfx
 if [[ $iover -eq 1 ]]; then
-  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$dop r=$rpc >> o.res.$sfx
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $4; rkb += $6; wkb += $7; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$realdop r=$rpc >> o.res.$sfx
 else
-  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$dop r=$rpc >> o.res.$sfx
+  grep $dname o.io.$sfx | awk '{ if (NR>1) { rs += $2; rkb += $4; wkb += $5; c += 1 } } END { printf "%s\t%.1f\t%.0f\t%.0f\t%.3f\t%.3f\t%.3f\t%s\t\t%.6f\n", c, rs/c, rkb/c, wkb/c, rs/c/q, rkb/c/q, wkb/c/q, q, (p*r)/q }' q=${query_rate} p=$realdop r=$rpc >> o.res.$sfx
 fi
 
 printf "\nsamp\tcs/s\tcpu/c\tcs/q\tcpu/q\n" >> o.res.$sfx
@@ -309,17 +318,17 @@ echo "Max query" >> o.res.$sfx
 grep -h "Query rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
 
 echo >> o.res.$sfx
-for n in $( seq 1 $dop ) ; do
+for n in $( seq 1 $realdop ) ; do
   grep "Insert rt" o.ib.dop${dop}.${n} >> o.res.$sfx
 done
 
 echo >> o.res.$sfx
-for n in $( seq 1 $dop ) ; do
+for n in $( seq 1 $realdop ) ; do
   grep "Query rt" o.ib.dop${dop}.${n} >> o.res.$sfx
 done
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
-for n in $( seq 1 $dop ) ; do
+for n in $( seq 1 $realdop ) ; do
   lines=$( awk '{ if (NF == 10) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
     if [[ $lines -ge 10 ]]; then

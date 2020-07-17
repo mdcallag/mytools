@@ -39,7 +39,7 @@ mkdir l.i0
 mv o.* l.i0
 
 # insert only -- short running, then create indexes
-bash np.sh 10000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 >& o.a
+bash np.sh 100000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 >& o.a
 mkdir l.x
 mv o.* l.x
 
