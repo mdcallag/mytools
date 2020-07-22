@@ -1,5 +1,4 @@
-nr=$1
-e=$2
+nr=$1 e=$2
 eo=$3
 ns=$4
 client=$5
@@ -21,6 +20,8 @@ bulk=${20}
 secatend=${21}
 dbopt=${22}
 extra_insert=${23}
+npart=${24}
+perpart=${25}
 
 mypy=python3
 #mypy="/media/ephemeral1/pypy-36-al2/bin/pypy3"
@@ -32,6 +33,11 @@ if [[ $short == "yes" ]]; then
 names="--name_cash=caid --name_cust=cuid --name_ts=ts --name_price=prid --name_prod=prod"
 else
 names=""
+fi
+
+ntabs=8
+if [[ $only1t == "yes" ]]; then
+  ntabs=1
 fi
 
 sfx=dop${dop}
@@ -69,7 +75,6 @@ if [[ $setup == "yes" ]] ; then
     sleep 5
     $client -uroot -ppw -A -h$host -e 'create database ib'
   else
-    echo "TODO: postgres"
     $client me -c 'drop database ib' $pgauth
     sleep 5
     $client me -c 'create database ib' $pgauth
@@ -124,6 +129,10 @@ for n in $( seq 1 $realdop ) ; do
     tn="pi1"
   else
     tn="pi${n}"
+  fi
+
+  if [[ $npart -gt 0 ]]; then
+    setstr+=" --num_partitions=$npart --rows_per_partition=$perpart"
   fi
 
   if [[ $dbms == "mongo" ]]; then
@@ -207,7 +216,7 @@ echo "db.serverStatus()" | $client $moauth > o.es.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $moauth > o.es1.$sfx
 echo "db.serverStatus({tcmalloc:2}).tcmalloc.tcmalloc.formattedString" | $client $moauth > o.es2.$sfx
 
-for n in $( seq 1 $realdop ) ; do
+for n in $( seq 1 $ntabs ) ; do
   echo "db.pi${n}.stats()" | $client $moauth ib > o.tab${n}.$sfx
   echo "db.pi${n}.stats({indexDetails: true})" | $client $moauth ib > o.tab${n}.id.$sfx
   echo "db.pi${n}.latencyStats({histograms: true})" | $client $moauth ib > o.tab${n}.ls.$sfx
@@ -227,22 +236,40 @@ $client -uroot -ppw -A -h$host -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h$host -e 'show memory status\G' > o.mem.$sfx
 
 $client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts.$sfx
+$client -uroot -ppw -A -h$host ib -e 'show create table pi1\G' > o.create.$sfx
+$client -uroot -ppw -A -h$host information_schema -e 'select table_name, partition_name, table_rows from partitions where table_schema="ib"' > o.parts.$sfx
+
+#for t in $( seq 1 $ntabs ); do
+#for n in $( seq 0 $(( $npart - 1 )) ) ; do
+#  $client -uroot -ppw -A -h$host ib -e "select count(*) from pi${t} partition(p${n})"
+#done > o.partct.$sfx.$t
+#done
+
 echo "sum of data and index length columns in GB" >> o.ts.$sfx
 cat o.ts.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 
 $client -uroot -ppw -A -h$host -e 'reset master'
 
-else
+elif [[ $dbms == "postgres" ]]; then
 echo "TODO reset replication state"
 $client ib -c 'show all' > o.pg.conf
 $client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
 $client ib -x -c 'select * from pg_stat_database' > o.pgs.db
-$client ib -x -c 'select * from pg_stat_all_tables' > o.pgs.tabs
-$client ib -x -c 'select * from pg_stat_all_indexes' > o.pgs.idxs
-$client ib -x -c 'select * from pg_statio_all_tables' > o.pgi.tabs
-$client ib -x -c 'select * from pg_statio_all_indexes' > o.pgi.idxs
+$client ib -x -c "select * from pg_stat_all_tables where schemaname='public'" > o.pgs.tabs
+$client ib -x -c "select * from pg_stat_all_indexes where schemaname='public'" > o.pgs.idxs
+$client ib -x -c "select * from pg_statio_all_tables where schemaname='public'" > o.pgi.tabs
+$client ib -x -c "select * from pg_statio_all_indexes where schemaname='public'" > o.pgi.idxs
 $client ib -x -c 'select * from pg_statio_all_sequences' > o.pgi.seq
+
+$client ib -c '\d+ pi1' > o.pg.dplus
+if [[ $npart -gt 0 ]]; then
+  $client ib -c '\d pi1_p0' > o.pg.d
+fi
+
+else
+  echo "dbms unknown: $dbms"
+  exit -1
 fi
 
 du -hs $ddir > o.sz.$sfx

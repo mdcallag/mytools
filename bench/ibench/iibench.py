@@ -169,6 +169,11 @@ DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
 DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
+# MySQL & Postgres flags
+DEFINE_integer('num_partitions', 8, 'Use range partitioning when not 0')
+DEFINE_integer('rows_per_partition', 0,
+              'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
+
 # MongoDB flags
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
@@ -317,9 +322,22 @@ def create_table_mysql():
             'data varchar(4000), '\
             'primary key (transactionid) '
 
-  ddl_sql = 'create table %s ( %s ) engine=%s %s' % (
-      FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options)
-  # print(ddl_sql)
+  if FLAGS.num_partitions > 0:
+    if FLAGS.rows_per_partition > 0:
+      rows_per_part = FLAGS.rows_per_partition
+    else:
+      rows_per_part = FLAGS.max_rows / FLAGS.num_partitions
+
+    part_sql = 'partition by range( transactionid ) ('
+    for i in range(FLAGS.num_partitions - 1):
+      part_sql += ' partition p%d values less than (%d),\n' % (i, (i+1)*rows_per_part)
+    part_sql += ' partition p%d values less than (MAXVALUE)\n)' % (FLAGS.num_partitions - 1)
+  else:
+    part_sql = ""
+
+  ddl_sql = 'create table %s ( %s ) engine=%s %s %s' % (
+      FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options, part_sql)
+  #print(ddl_sql)
   cursor.execute(ddl_sql)
 
   cursor.close()
@@ -354,7 +372,12 @@ def create_table_postgres():
   cursor = conn.cursor()
   cursor.execute('drop table if exists %s' % FLAGS.table_name)
 
-  ddl_sql = 'transactionid bigserial primary key, '\
+  if FLAGS.num_partitions > 0:
+    part_sql = 'partition by range( transactionid )'
+  else:
+    part_sql = ''
+
+  col_sql = 'transactionid bigserial primary key, '\
             'dateandtime timestamp without time zone, '\
             'cashregisterid int not null, '\
             'customerid int not null, '\
@@ -362,14 +385,41 @@ def create_table_postgres():
             'price real not null, '\
             'data varchar(4000) '
 
-  ddl_sql = 'create table %s ( %s ) %s' % (
-      FLAGS.table_name, ddl_sql, FLAGS.engine_options)
-  # print(ddl_sql)
+  ddl_sql = 'create table %s ( %s ) %s %s' % (
+      FLAGS.table_name, col_sql, part_sql, FLAGS.engine_options)
+  #print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
 
+  seq_name = '%s_transactionid_seq' % FLAGS.table_name
+
+  if FLAGS.num_partitions > 0:
+    if FLAGS.rows_per_partition > 0:
+      rows_per_part = FLAGS.rows_per_partition
+    else:
+      rows_per_part = FLAGS.max_rows / FLAGS.num_partitions
+
+    low_val = 0
+    high_val = rows_per_part
+
+    for i in range(FLAGS.num_partitions):
+
+      if i < (FLAGS.num_partitions - 1):
+        range_sql = 'for values from (%d) to (%d)' % (low_val, high_val)
+      else:
+        range_sql = 'for values from (%d) to (MAXVALUE)' % (low_val)
+
+      ddl_sql = 'create table %s_p%d partition of %s %s ' % (
+          FLAGS.table_name, i, FLAGS.table_name, range_sql)
+      #print(ddl_sql)
+      cursor.execute(ddl_sql)
+      conn.commit()
+
+      low_val = high_val
+      high_val += rows_per_part
+
   # TODO: what is a good value for cache to reduce overhead?
-  ddl_sql = 'alter sequence %s_transactionid_seq cache 1000' % (FLAGS.table_name)
+  ddl_sql = 'alter sequence %s cache 1000' % (seq_name)
   # print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
