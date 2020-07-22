@@ -17,7 +17,7 @@ for ver in pg120 pg123 ; do
 done
 done
 
-for dc in in80.10b40 ; do
+for dc in in80.12b40 ; do
 for ver in my8018 my8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my80; ln -s $mbd/$ver $mbd/my80

@@ -22,7 +22,7 @@ for x in $( seq 2 16 ) ; do
   for inf in "$@"; do
     if [ $inf != "BREAK" ]; then
       head -${x} $inf | tail -1 | \
-        awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); print $0 }'
+        awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); if ($16 >= 10) { $16=sprintf("%.1f", $16) } print $0 }'
         # awk -v FS='\t' -v OFS='\t' '{ $1=sprintf("%.0f", $1); $2=sprintf("%.0f", $2); $3=sprintf("%.0f", $3); $18=sprintf("%.0f", $18); $19=sprintf("%.0f", $19); print $0 }'
     else
       echo "-"

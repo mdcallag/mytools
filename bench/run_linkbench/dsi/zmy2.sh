@@ -9,7 +9,7 @@ heap=$7
 shift 7
 
 for ver in my8018 my8020 ; do
-for cnf in 10b40s1 ; do
+for cnf in 12b40s1 ; do
   echo Run $cnf and $ver at $( date ) with $nrows rows and $nsecs secs
   rm $bdir/my80; ln -s $bdir/$ver $bdir/my80
   bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop in80.${cnf} no $bdir $heap "$@"
