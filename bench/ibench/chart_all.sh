@@ -6,15 +6,21 @@ ifiles=( l.i0 l.x l.i1 )
 qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 
 for f in "${ifiles[@]}" ; do
-for e in "$@" ; do
-  grep "$e\$" sum/mrg.$f
-done | awk '{ if (NF == 19) { printf "%s\t%s\n", $1, $19 } }' > sum/mrg.$f.ips
+  for e in "$@" ; do
+    grep "$e\$" sum/mrg.$f
+  done | awk '{ if (NF == 19) { printf "%s\t%s\n", $1, $19 } }' > sum/mrg.$f.ips
+
+  head -1 sum/mrg.$f > sum/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" sum/mrg.$f ; done >> sum/mrg.$f.some
 done
 
 for f in "${qfiles[@]}" ; do
-for e in "$@" ; do
-  grep "$e\$" sum/mrg.$f
-done | awk '{ if (NF == 19) { printf "%s\t%s\t%s\n", $1, $2, $19 } }' > sum/mrg.$f.qps
+  for e in "$@" ; do
+    grep "$e\$" sum/mrg.$f
+  done | awk '{ if (NF == 19) { printf "%s\t%s\t%s\n", $1, $2, $19 } }' > sum/mrg.$f.qps
+
+  head -1 sum/mrg.$f > sum/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" sum/mrg.$f ; done >> sum/mrg.$f.some
 done
 
 for f in "${ifiles[@]}" ; do
