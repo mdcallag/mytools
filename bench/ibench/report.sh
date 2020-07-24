@@ -14,4 +14,4 @@ m=40; rm -rf rt${m}; mkdir rt${m}; bash ~/git/mytools/bench/ibench/mrg.extra.sh 
 dop=8; bash ~/git/mytools/bench/ibench/chart_all.sh $dop $( cat ../ch.all.rc13 )
 m=40; bash ~/git/mytools/bench/ibench/chart_rt.sh $m $( cat ../ch.all.rc13 )
 m=40; mkdir -p report; bash ~/git/mytools/bench/ibench/plot_report.sh $m $dop $( cat ../ch.all.rc13 )
-m=40; mkdir -p report; bash ~/git/mytools/bench/ibench/gen_html.sh "${m}M docs and $dop clients" $m > report/x.html
+m=40; mkdir -p report; bash ~/git/mytools/bench/ibench/gen_html.sh "${m}M docs and $dop clients" $m ../config.ht > report/x.html

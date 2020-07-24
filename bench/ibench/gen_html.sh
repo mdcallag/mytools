@@ -94,7 +94,8 @@ cat <<SumEOF
 <p>
 Numbers are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and queries/s for q*.2.
 The range of values is split into 3 parts: bottom 25&#37;, middle 50&#37;, top 25&#37;.
-Values in the bottom have a red background, values in the top have a green background.
+Values in the bottom 25&#37; have a red background, values in the top 25&#37; have a green background and values in the middle have no color.
+A gray background is used for values that can be ignored because the DBMS did not sustain the target insert rate.
 </p>
 SumEOF
 
@@ -102,8 +103,9 @@ catme tput.tab
 
 cat <<Sum2EOF
 <p>
-Numbers are inserts/s. The read+write tests are setup to limit inserts to be no faster than the target rate listed in the first row.
-Cells that are not at least 95&#37; of the target have a red background as that indicates a failure to meet the SLA.
+Numbers are inserts/s.
+The read+write tests are setup so that the insert rate should match the target rate every second.
+Cells that are not at least 95&#37; of the target have a red background to indicate a failure to satisfy the target.
 The query rates for the read+write tests are listed above.
 </p>
 Sum2EOF
