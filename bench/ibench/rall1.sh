@@ -29,8 +29,10 @@ if [[ $npart -gt 0 ]] ; then
     ntabs=$dop
   fi
   perpart=$( echo $nins $npart $ntabs | awk '{ printf "%.0f", ($1 / $2) / $3 }' )
+  ps=part${npart}
 else
   perpart=0
+  ps=""
 fi
 
 dgit=$PWD
@@ -60,7 +62,7 @@ function do_rx56 {
   cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh rocksdb "" $dmyfb/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmyfb; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx56.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx56.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmyfb/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmyfb/etc/my.cnf $rdir
@@ -79,7 +81,7 @@ function do_in80 {
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh innodb "" $dmy80/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmy80; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in80.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in80.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmy80/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmy80/etc/my.cnf $rdir
@@ -98,7 +100,7 @@ function do_in57 {
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh innodb "" $dmy57/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmy57; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in57.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in57.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmy57/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmy57/etc/my.cnf $rdir
@@ -117,7 +119,7 @@ function do_in56 {
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh innodb "" $dmy56/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmy56; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in56.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in56.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmy56/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmy56/etc/my.cnf $rdir
@@ -136,7 +138,7 @@ function do_pg12 {
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dpg12; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg12.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg12.c${cnf}${ps}
   mkdir -p $rdir
   mv $dpg12/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
@@ -155,7 +157,7 @@ function do_mo40 {
   cd $dmo40; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh wiredtiger "" $dmo40/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmo40; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo40.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo40.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmo40/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmo40/mongo.conf $rdir
@@ -174,7 +176,7 @@ function do_mo42 {
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh wiredtiger "" $dmo42/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmo42; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo42.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo42.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmo42/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmo42/mongo.conf $rdir
@@ -193,7 +195,7 @@ function do_mo44 {
   cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh wiredtiger "" $dmo44/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs none $npart $perpart $@ >& a.$sfx; sleep 10
   cd $dmo44; bash down.sh; cd $dgit
-  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo44.c${cnf}
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo44.c${cnf}${ps}
   mkdir -p $rdir
   mv $dmo44/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dmo44/mongo.conf $rdir

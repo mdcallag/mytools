@@ -170,7 +170,7 @@ DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
 # MySQL & Postgres flags
-DEFINE_integer('num_partitions', 8, 'Use range partitioning when not 0')
+DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
 DEFINE_integer('rows_per_partition', 0,
               'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
 
