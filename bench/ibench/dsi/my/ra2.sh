@@ -25,8 +25,8 @@ for ver in pg120 pg123 ; do
 done
 done
 
-for dc in in80.12b40 in80.13b40 ; do
-for ver in my8018 my8020 ; do
+for dc in in80.14b40 in80.15b40 ; do
+for ver in my8018 my8020 my8021 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
   bash rall1.sh $dc $dop $nsecs $mbd/ibench $nr1 $nr2 $nrt $dev $only1t $mbd $npart $@
@@ -34,7 +34,7 @@ for ver in my8018 my8020 ; do
 done
 done
 
-for dc in in57.12b40 in57.13b40 ; do
+for dc in in57.14b40 in57.15b40 ; do
 for ver in my5731 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
@@ -44,7 +44,7 @@ done
 done
 
 if [[ $npart -eq 0 ]]; then
-  for dc in rx56.7b40 ; do
+  for dc in rx56.7b40 rx56.8b40 ; do
     bash rall1.sh $dc $dop $nsecs $mbd/ibench $nr1 $nr2 $nrt $dev $only1t $mbd $npart $@
   done
 fi
