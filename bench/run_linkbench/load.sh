@@ -230,7 +230,7 @@ fi
 while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& l.pre.ps2.$fn &
 spid2=$!
 
-LINES=40 top -b -d 60 -c -w >& l.pre.top.$fn &
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& l.pre.top.$fn &
 tpid=$!
 
 echo "background jobs: $ipid $vpid $spid $spid2 $tpid" > l.pre.o.$fn
@@ -288,7 +288,7 @@ if [ $dbpid -ne -1 ] ; then
   fpid=$!
 fi
 
-LINES=40 top -b -d 60 -c -w >& l.post.top.$fn &
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& l.post.top.$fn &
 tpid=$!
 
 start_secs=$( date +%s )

@@ -60,7 +60,7 @@ fi
 while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& r.ps2.$fn &
 spid2=$!
 
-LINES=40 top -b -d 60 -c -w >& r.top.$fn &
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& r.top.$fn &
 tpid=$!
 
 echo "background jobs: $ipid $vpid $spid $spid2" > r.o.$fn

@@ -92,7 +92,7 @@ vmstat 5 >& o.vm.$sfx &
 vpid=$!
 iostat -y -kx 5 >& o.io.$sfx &
 ipid=$!
-LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
+COLUMNS=400 LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
 tpid=$!
 
 dbpid=-1 # remove this to use perf

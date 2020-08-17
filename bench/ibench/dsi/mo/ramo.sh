@@ -11,5 +11,3 @@ ns=1800
 bash ramo1.sh  40000000 40000000  40m 8 $ns $mbd $dev $only1t $ips
 bash ramo2.sh 800000000 80000000 800m 8 $ns $mbd $dev $only1t $ips
 
-bash ramo2.sh 2000000000 80000000 2000m 8 $ns $mbd $dev $only1t $ips
-
