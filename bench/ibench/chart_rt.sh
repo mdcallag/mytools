@@ -6,19 +6,21 @@ ifiles=( l.i0 l.i1 )
 qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 q2files=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
 
+# head -1 because there can be dups in $@
 for f in "${ifiles[@]}" "${q2files[@]}" ; do
 outf="rt${m}/mrg.$f.rt.insert.some"
 head -1 rt${m}/mrg.$f.rt.insert > $outf
 for e in "$@" ; do
-  grep "$e\$" rt${m}/mrg.$f.rt.insert >> $outf
+  grep "$e\$" rt${m}/mrg.$f.rt.insert | head -1 >> $outf
 done 
 done
 
+# head -1 because there can be dups in $@
 for f in "${q2files[@]}" ; do
 outf="rt${m}/mrg.$f.rt.query.some"
 head -1 rt${m}/mrg.$f.rt.query > $outf
 for e in "$@" ; do
-  grep "$e\$" rt${m}/mrg.$f.rt.query >> $outf
+  grep "$e\$" rt${m}/mrg.$f.rt.query | head -1 >> $outf
 done 
 done
 
@@ -61,6 +63,11 @@ function make_table {
   gap4th=$( echo "$maxv $minv" | awk '{ printf "%.3f", ($1 - $2) / 4.0 }' )
   topq=$( echo "$maxv $gap4th" | awk '{ printf "%.0f", ($1 - $2) * 1000.0 }' )
   botq=$( echo "$minv $gap4th" | awk '{ printf "%.0f", ($1 + $2) * 1000.0 }' )
+
+  # use red for bottom quartile if minv is less than 80% of maxv
+  minv2=$( echo $minv | awk '{ printf "%.0f", $1 * 1000.0 }' )
+  maxv2=$( echo $maxv | awk '{ printf "%.0f", $1 * 0.8 * 1000.0 }' )
+  if [[ $minv2 -ge $maxv2 ]] ; then botq=0; fi
 
   r=1
   printf "<th>dbms</th>" >> $outf

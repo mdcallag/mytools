@@ -5,22 +5,24 @@ shift 1
 ifiles=( l.i0 l.x l.i1 )
 qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 
+# Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${ifiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" sum/mrg.$f
+    grep "$e\$" sum/mrg.$f | head -1
   done | awk '{ if (NF == 19) { printf "%s\t%s\n", $1, $19 } }' > sum/mrg.$f.ips
 
   head -1 sum/mrg.$f > sum/mrg.$f.some
-  for e in "$@" ; do grep "$e\$" sum/mrg.$f ; done >> sum/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
 done
 
+# Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${qfiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" sum/mrg.$f
+    grep "$e\$" sum/mrg.$f | head -1
   done | awk '{ if (NF == 19) { printf "%s\t%s\t%s\n", $1, $2, $19 } }' > sum/mrg.$f.qps
 
   head -1 sum/mrg.$f > sum/mrg.$f.some
-  for e in "$@" ; do grep "$e\$" sum/mrg.$f ; done >> sum/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
 done
 
 for f in "${ifiles[@]}" ; do
@@ -75,7 +77,7 @@ rm -f z1q; touch z1q
 for e in "$@" ; do
   printf "$e" > ztmp
   for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do
-    ips=$( grep "$e\$" sum/mrg.$f.qps | awk '{ print $1 }' )
+    ips=$( grep "$e\$" sum/mrg.$f.qps | head -1 | awk '{ print $1 }' )
     printf "\t${ips}" >> ztmp
   done
   echo >> ztmp
@@ -174,6 +176,12 @@ for c in $( seq 2 10 ) ; do
   gap4th=$( echo "scale=0; (0.25 * $gap)/1.0" | bc -l )
   topq[$c]=$(( $maxv - $gap4th ))
   botq[$c]=$(( $minv + $gap4th ))
+
+  # use red for bottom quartile if minv is less than 80% of maxv
+  minv2=$( echo $minv | awk '{ printf "%.0f", $1 * 1000.0 }' )
+  maxv2=$( echo $maxv | awk '{ printf "%.0f", $1 * 0.8 * 1000.0 }' )
+  if [[ $minv2 -ge $maxv2 ]] ; then botq[$c]=0; fi
+
   # echo "For col $c: minv $minv, maxv $maxv, gap $gap, gap4th $gap4th, topq ${topq[$c]}, botq ${botq[$c]}"
 done
 

@@ -96,6 +96,7 @@ Numbers are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and q
 The range of values is split into 3 parts: bottom 25&#37;, middle 50&#37;, top 25&#37;.
 Values in the bottom 25&#37; have a red background, values in the top 25&#37; have a green background and values in the middle have no color.
 A gray background is used for values that can be ignored because the DBMS did not sustain the target insert rate.
+Red backgrounds are not used when the minimum value is within 80&#37 of the max value.
 </p>
 SumEOF
 
@@ -139,7 +140,7 @@ cat <<H2IpsEOF
 H2IpsEOF
 
 if [[ $sec != "l.x" ]]; then
-printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
 catme rt${m}/mrg.${sec}.rt.insert.ht
 
 fi
@@ -174,10 +175,10 @@ cat <<H2QpsEOF
 <img src = "ch.${sec}.qps.png" alt = "Image" />
 H2QpsEOF
 
-printf "<p>Query response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+printf "<p>Query response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
 catme rt${m}/mrg.${sec2}.rt.query.ht
 
-printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background.</p>" 
+printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
 catme rt${m}/mrg.${sec2}.rt.insert.ht
 
 cat <<H3QpsEOF
