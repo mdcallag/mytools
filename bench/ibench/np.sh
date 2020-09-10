@@ -183,7 +183,7 @@ if [[ $extra_insert -gt 0 ]]; then
 fi
 
 echo rates
-total_query=$( for n in $( seq 1 $realdop ); do awk '{ if (NF==10) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
+total_query=$( for n in $( seq 1 $realdop ); do awk '{ if (NF==12) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
@@ -356,12 +356,12 @@ done
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $realdop ) ; do
-  lines=$( awk '{ if (NF == 10) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
+  lines=$( awk '{ if (NF == 12) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
     if [[ $lines -ge 10 ]]; then
       off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-      i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 10) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-      q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 10) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 12) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 12) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
       echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
     else
       # not enough input lines

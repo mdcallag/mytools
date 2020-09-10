@@ -56,6 +56,7 @@ import random
 import sys
 import math
 import timeit
+import traceback
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -176,6 +177,7 @@ DEFINE_integer('rows_per_partition', 0,
 
 # MongoDB flags
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
+DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
 DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
 DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
@@ -244,9 +246,8 @@ def rthist_result(obj, prefix):
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
   return res
 
-def get_conn():
+def fixup_options():
   if FLAGS.dbms == 'mongo':
-
     if FLAGS.dbopt != 'none':
       mopts = FLAGS.dbopt.split(',')
       for mopt in mopts:
@@ -254,7 +255,19 @@ def get_conn():
           FLAGS.mongo_j = True
         elif mopt == 'transaction':
           FLAGS.mongo_trx = True
+        elif mopt.startswith('r_'):
+          FLAGS.mongo_r = mopt[2:]
+        elif mopt.startswith('w_'):
+          w = mopt[2:]
+          try:
+            w = int(w)
+          except ValueError:
+            pass
+          FLAGS.mongo_w = w
+    print('Using Mongo w=%s, r=%s, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_r, FLAGS.mongo_j, FLAGS.mongo_trx))
 
+def get_conn():
+  if FLAGS.dbms == 'mongo':
     return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
   elif FLAGS.dbms == 'mysql':
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
@@ -266,6 +279,25 @@ def get_conn():
     conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
     conn.set_session(autocommit=True)
     return conn
+
+def get_mongo_session(db, db_conn):
+  if FLAGS.mongo_trx:
+    trx_opt = pymongo.client_session.TransactionOptions(
+        read_concern = pymongo.read_concern.ReadConcern(level="snapshot"),
+        write_concern = pymongo.write_concern.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j),
+        max_commit_time_ms=1000*180)
+    mongo_session = db_conn.start_session(causal_consistency=False,
+                                          default_transaction_options=trx_opt)
+    mongo_collection = db.get_collection(FLAGS.table_name)
+  else:
+    mongo_session = None
+    m_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
+    mongo_collection = db.get_collection(
+        FLAGS.table_name,
+        write_concern = pymongo.write_concern.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j),
+        read_concern = pymongo.read_concern.ReadConcern(FLAGS.mongo_r))
+
+  return mongo_session, mongo_collection
 
 def create_index_mongo():
   conn = get_conn()
@@ -287,6 +319,7 @@ def create_table_mongo():
   conn = get_conn()
   db = conn[FLAGS.db_name]
   db.drop_collection(FLAGS.table_name)
+  db.create_collection(FLAGS.table_name)
 
 def create_index_mysql():
   if FLAGS.num_secondary_indexes >= 1:
@@ -477,17 +510,18 @@ def generate_row(when, rand_data_buf):
   else:
     assert False
 
-def generate_pdc_query_mongo(conn, price):
+def generate_pdc_query_mongo(conn, price, mongo_session):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price }},
-                     projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_ts, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_ts, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_ts, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_ts, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
 
 def generate_pdc_query_mysql_pg(conn, price, force, table_name):
@@ -502,26 +536,27 @@ def generate_pdc_query_mysql_pg(conn, price, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(conn, table_name):
+def generate_pdc_query(conn, table_name, session):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_pdc_query_mongo(conn, price)
+    return generate_pdc_query_mongo(conn, price, session)
   elif FLAGS.dbms == 'mysql':
     return generate_pdc_query_mysql_pg(conn, price, True, table_name)
   else:
     return generate_pdc_query_mysql_pg(conn, price, False, table_name)
 
-def generate_market_query_mongo(conn, price):
+def generate_market_query_mongo(conn, price, mongo_session):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price}}, 
-                     projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
  
 def generate_market_query_mysql_pg(conn, price, force, table_name):
@@ -536,28 +571,29 @@ def generate_market_query_mysql_pg(conn, price, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(conn, table_name):
+def generate_market_query(conn, table_name, session):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_market_query_mongo(conn, price)
+    return generate_market_query_mongo(conn, price, session)
   elif FLAGS.dbms == 'mysql':
     return generate_market_query_mysql_pg(conn, price, True, table_name)
   else:
     return generate_market_query_mysql_pg(conn, price, False, table_name)
 
-def generate_register_query_mongo(conn, cashregisterid):
+def generate_register_query_mongo(conn, cashregisterid, mongo_session):
   return (
            conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
-                     projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_cash, pymongo.ASCENDING),
-                      (FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_cash, pymongo.ASCENDING),
-                      (FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_cash, pymongo.ASCENDING),
+                             (FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_cash, pymongo.ASCENDING),
+                             (FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
  
 def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
@@ -572,11 +608,11 @@ def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(conn, table_name):
+def generate_register_query(conn, table_name, session):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.dbms == 'mongo':
-    return generate_register_query_mongo(conn, cashregisterid)
+    return generate_register_query_mongo(conn, cashregisterid, session)
   elif FLAGS.dbms == 'mysql':
     return generate_register_query_mysql_pg(conn, cashregisterid, True, table_name)
   else:
@@ -616,9 +652,12 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
   loops = 0
 
   if FLAGS.dbms == 'mongo':
-    db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
+    db = db_conn[FLAGS.db_name]
+    db_thing = db[FLAGS.table_name]
+    mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     db_thing = db_conn.cursor()
+    mongo_session = None
   else:
     assert False
 
@@ -626,36 +665,65 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
 
   while True:
     query_func = random.choice(query_args)
+    ts = rthist_start(rthist)
 
-    try:
-      query = query_func(db_thing, FLAGS.table_name)
+    if FLAGS.dbms == 'mongo':
+      done = False
+      while not done:
+        try:
+          # TODO -- autocommit would be nice here
+          if mongo_session: mongo_session.start_transaction()
 
-      ts = rthist_start(rthist)
+          query = query_func(db_thing, FLAGS.table_name, mongo_session)
 
-      if FLAGS.dbms == 'mongo':
-        count = 0
-        for r in query:
-          count += 1
-        # if count: print('fetched %d' % count)
-        # print('fetched %d' % count)
-      elif FLAGS.dbms == 'mysql':
-        # print("Query is:", query)
+          count = 0
+          for r in query: count += 1
+          # if count: print('fetched %d' % count) print('fetched %d' % count)
+
+          if mongo_session: mongo_session.commit_transaction()
+          done = True
+
+        except pymongo.errors.PyMongoError as e:
+          if e.has_error_label("TransientTransactionError"):
+            shared_var[3].value += 1
+            if mongo_session.in_transaction: mongo_session.abort_transaction()
+          else:
+            print("Mongo error on query: ", e)
+            raise e
+
+    elif FLAGS.dbms == 'mysql':
+      # print("Query is:", query)
+      try:
+        query = query_func(db_thing, FLAGS.table_name, None)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
-      elif FLAGS.dbms == 'postgres':
-        # print("Query is:", query)
+      except MySQLdb.Error as e:
+        if e[0] != 2006:
+          #print("Ignoring MySQL exception: ", e)
+          shared_var[3].value += 1
+        else:
+          print("Query error: ", e)
+          raise e
+
+    elif FLAGS.dbms == 'postgres':
+      try:
+        query = query_func(db_thing, FLAGS.table_name, None)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
-      else:
-        assert False
+      except psycopg2.Error as e:
+        print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+        raise e
 
-      elapsed = rthist_finish(rthist, ts)
-      with shared_var[2].get_lock():
-        if elapsed > shared_var[2].value: shared_var[2].value = elapsed
+    else:
+      assert False
 
-    except:
-      e = sys.exc_info()[0]
-      print("Query exception: ", e)
+    elapsed = rthist_finish(rthist, ts)
+    with shared_var[2].get_lock():
+      if elapsed > shared_var[2].value: shared_var[2].value = elapsed
+
+    #except:
+    #  e = sys.exc_info()[0]
+    #  print("Query exception: ", e)
 
     loops += 1
     if (loops % 16) == 0:
@@ -757,12 +825,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
 
   if FLAGS.dbms == 'mongo':
     db = db_conn[FLAGS.db_name]
-    mongo_session = None
-    if FLAGS.mongo_trx:
-      mongo_session = db_conn.start_session()
-    mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
-    collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
-    # print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
+    mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
   else:
@@ -779,35 +842,40 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
     ts = rthist_start(rthist)
 
     if FLAGS.dbms == 'mongo':
-      try:
-        # res has type pymongo.InsertManyResult
-        if mongo_session:
-          mongo_session.start_transaction(write_concern=mongo_write_concern,
-                                          max_commit_time_ms=1000*180)                   
-        res = collection.insert_many(stmt, ordered=True,
-                                     bypass_document_validation=False, session=mongo_session)
-        assert len(res.inserted_ids) == len(stmt)
-        if mongo_session:
-          mongo_session.commit_transaction()
-      except pymongo.errors.PyMongoError as e:
-        print("Mongo error on insert: ", e)
-        raise e
+      done = False
+      while not done:
+        try:
+          # res has type pymongo.InsertManyResult
+          if mongo_session: mongo_session.start_transaction()
+          res = mongo_collection.insert_many(stmt, ordered=True,
+                                             bypass_document_validation=False, session=mongo_session)
+          assert len(res.inserted_ids) == len(stmt)
+
+          if mongo_session: mongo_session.commit_transaction()
+          done = True
+
+        except pymongo.errors.PyMongoError as e:
+          if e.has_error_label("TransientTransactionError"):
+            shared_var[3].value += 1
+            if mongo_session.in_transaction: mongo_session.abort_transaction()
+          else:
+            print("Mongo error on insert: ", e)
+            raise e
 
     elif FLAGS.dbms == 'mysql':
       try:
         cursor.execute(stmt)
       except MySQLdb.Error as e:
         if e[0] != 2006:
-          print("Ignoring MySQL exception: ", e)
+          # print("Ignoring MySQL exception: ", e)
+          shared_var[3].value += 1
         else:
           raise e
     elif FLAGS.dbms == 'postgres':
       try:
         cursor.execute(stmt)
       except psycopg2.Error as e:
-        print("Insert error: %s" % e.pgerror)
-        print("Insert error: %s" % e.pgcode)
-        print("Insert error: %s" % e.diag)
+        print("Insert error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
         raise e
     else:
       assert False
@@ -827,6 +895,8 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
 def sum_queries(shared_vars, inserted):
   total = 0
   max_q = 0
+  retry_q = 0
+  retry_i = 0
 
   # All but the last have the number of queries completed per thread
   for c in shared_vars[0:-1]:
@@ -835,8 +905,11 @@ def sum_queries(shared_vars, inserted):
     v = c[2].value
     c[2].value = -1
     if v > max_q: max_q = v
+    retry_q += c[3].value
 
-  return max_q, total
+  retry_i = shared_vars[-1][3].value
+
+  return max_q, total, retry_q, retry_i
 
 def print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now):
   sum_q = 0
@@ -844,20 +917,16 @@ def print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, tabl
   max_i = shared_vars[-1][2].value
   shared_vars[-1][2].value = -1
 
-  if FLAGS.query_threads:
-    max_q, sum_q = sum_queries(shared_vars, inserted)
+  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
 
-  #old print('ins_row\ti_sec\tt_sec\tt_ips\ttot_row\ti_ips\tqueries\tt_qps\ti_qps\tmax_i\tmax_q')
-  #new print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query')
-
-  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d' % (
+  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d\t%d\t%d' % (
       now - last_report,                                # i_sec
       now - start_time,                                 # t_sec
       (inserted - prev_inserted) / (now - last_report), # i_ips
       inserted / (now - start_time),                    # t_ips
       (sum_q - prev_sum) / (now - last_report),         # i_qps
       sum_q / (now - start_time),                       # t_qps
-      max_i, max_q, inserted, sum_q))
+      max_i, max_q, inserted, sum_q, retry_i, retry_q))
       #max_i, max_q, ws, sumq))
   sys.stdout.flush()
   return sum_q
@@ -874,6 +943,7 @@ def run_benchmark():
   #   [0] tracks the number of inserts
   #   [1] num_queries, returns number of queries done by query process
   #   [2] max response time per interval for queries or insert (inserter is last index entry)
+  #   [3] num_retries for Query and statement_executor to return number of times a transaction is retried
   shared_vars = []
 
   query_args = []
@@ -887,7 +957,7 @@ def run_benchmark():
     query_args.append(generate_register_query)
 
     for i in range(FLAGS.query_threads):
-      shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1)))
+      shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
 
     query_thr = []
     query_result = Queue()
@@ -897,7 +967,7 @@ def run_benchmark():
   if not FLAGS.no_inserts:
     stmt_q = Queue(4)
     stmt_result = Queue()
-    shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1)))
+    shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
     insert_delete = Process(target=statement_executor, args=(stmt_q, shared_vars[-1], done_flag, lock, stmt_result))
     inserter = Process(target=Insert, args=(rounds, stmt_q, lock))
 
@@ -969,10 +1039,11 @@ def run_benchmark():
     print('Created secondary indexes in %.1f seconds' % (x_end - x_start))
 
   test_end = time.time()
-  print('Totals: %.1f secs, %.1f rows/sec, %s rows' % (
+  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
+  print('Totals: %.1f secs, %.1f rows/sec, %s rows, %d insert retry, %d query retry' % (
       test_end - test_start,
       FLAGS.max_rows / (test_end - test_start),
-      FLAGS.max_rows))
+      FLAGS.max_rows, retry_i, retry_q))
   print('Done')
 
 def main(argv):
@@ -984,7 +1055,9 @@ def main(argv):
       print('Cannot set max_seconds when no_inserts is set')
       sys.exit(-1)
 
-  print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query')
+  fixup_options()
+
+  print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query\tretry_i\tretry_q')
   run_benchmark()
   return 0
 

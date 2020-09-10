@@ -85,6 +85,9 @@ function make_table {
       if [[ $v == "0.000" ]]; then
         printf "<td></td>" >> $outf
 
+      elif [[ $v == "nonzero" ]]; then
+        printf "<td>nonzero</td>" >> $outf
+
       elif [[ $c -eq 11 ]]; then
         # This is the "max" column
         v1000=$( echo $v | awk '{ printf "%.0f", $1 * 1000.0 }' )
