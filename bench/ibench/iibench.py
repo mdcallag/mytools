@@ -326,6 +326,10 @@ def create_index_mysql():
     conn = get_conn()
     cursor = conn.cursor()
 
+    # Comparing create index isn't apples-to-apples here. Eventuall I will revisit this.
+    # 1) I think that MySQL can create multiple indexes via one table scan. MongoDB and PG cannot.
+    # 2) Postgres can create an index with parallelism. I usually disable that in the config file.
+
     index_ddl = "alter table %s add index %s_marketsegment (price, customerid) " % (
                    FLAGS.table_name, FLAGS.table_name)
 
@@ -340,6 +344,20 @@ def create_index_mysql():
     cursor.execute(index_ddl)
     cursor.close()
     conn.close()
+
+    ddl = "create index %s_marketsegment on %s (price, customerid) " % (
+          FLAGS.table_name, FLAGS.table_name)
+    cursor.execute(ddl)
+
+    if FLAGS.num_secondary_indexes >= 2:
+      ddl = "create index %s_registersegment on %s (cashregisterid, price, customerid) " % (
+            FLAGS.table_name, FLAGS.table_name)
+      cursor.execute(ddl)
+
+    if FLAGS.num_secondary_indexes >= 3:
+      ddl = "create index %s_pdc on %s (price, dateandtime, customerid) " % (
+            FLAGS.table_name, FLAGS.table_name)
+      cursor.execute(ddl)
 
 def create_table_mysql():
   conn = get_conn()
