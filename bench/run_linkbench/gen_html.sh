@@ -84,6 +84,7 @@ cat <<ToCStartEOF
 <hr />
 <h1 id="toc">Contents</h1>
 <ul>
+<li><a href="#summary">Summary</a>
 ToCStartEOF
 
 for sx in $( seq ${#steps[@]}  ) ; do
