@@ -6,34 +6,36 @@ tsteps=( L1.P8 L2.P8 L3.P12 L4.P12 L5.P16 L6.P16 )
 # Get IPS and TPS per dbms in z.*.xps
 # Get all metrics per dbms in z*.eff.sec and z.*.eff.op
 
+# head -1 because there can be dups in searched file
+
 for f in "${lsteps[@]}" ; do
 for e in "$@" ; do
-  grep "$e\$" z1.${f}.eff.op 
+  grep "$e\$" z1.${f}.eff.op | head -1
 done | awk '{ if (NF == 14) { printf "%s\t%s\n", $1, $14 } }' > z.${f}.xps
 
 head -1 z1.${f}.eff.op > z.${f}.eff.op
-for e in "$@" ; do grep "$e\$" z1.${f}.eff.op ; done >> z.${f}.eff.op
+for e in "$@" ; do grep "$e\$" z1.${f}.eff.op | head -1 ; done >> z.${f}.eff.op
 
 head -1 z1.${f}.eff.sec > z.${f}.eff.sec
-for e in "$@" ; do grep "$e\$" z1.${f}.eff.sec ; done >> z.${f}.eff.sec
+for e in "$@" ; do grep "$e\$" z1.${f}.eff.sec | head -1 ; done >> z.${f}.eff.sec
 done
 
 for f in "${tsteps[@]}" ; do
 for e in "$@" ; do
-  grep "$e\$" z3.r.eff.op.${f}
+  grep "$e\$" z3.r.eff.op.${f} | head -1
 done | awk '{ if (NF == 14) { printf "%s\t%s\n", $1, $14 } }' > z.${f}.xps
 
 head -1 z3.r.eff.op.${f} > z.${f}.eff.op
-for e in "$@" ; do grep "$e\$" z3.r.eff.op.${f} ; done >> z.${f}.eff.op
+for e in "$@" ; do grep "$e\$" z3.r.eff.op.${f} | head -1 ; done >> z.${f}.eff.op
 
 head -1 z3.r.eff.sec.${f} > z.${f}.eff.sec
-for e in "$@" ; do grep "$e\$" z3.r.eff.sec.${f} ; done >> z.${f}.eff.sec
+for e in "$@" ; do grep "$e\$" z3.r.eff.sec.${f} | head -1 ; done >> z.${f}.eff.sec
 
 head -1 z4.r.rt.link.${f} > z.${f}.rt.link
-for e in "$@" ; do grep "$e\$" z4.r.rt.link.${f} ; done >> z.${f}.rt.link
+for e in "$@" ; do grep "$e\$" z4.r.rt.link.${f} | head -1 ; done >> z.${f}.rt.link
 
 head -1 z4.r.rt.node.${f} > z.${f}.rt.node
-for e in "$@" ; do grep "$e\$" z4.r.rt.node.${f} ; done >> z.${f}.rt.node
+for e in "$@" ; do grep "$e\$" z4.r.rt.node.${f} | head -1 ; done >> z.${f}.rt.node
 
 done
 
