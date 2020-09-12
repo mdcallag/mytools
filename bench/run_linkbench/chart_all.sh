@@ -111,7 +111,7 @@ done > z2.tab
 
 cat <<TabEOF > z2.1
 <table border="1" cellpadding="8" >
-<tr><th>dbms</th><th>l.pre</th><th>l.post</th><th>L1.P8</th><th>L2.P8</th><th>L3.P8</th><th>L4.P8</th><th>L5.P8</th><th>L6.P8</th></tr>
+<tr><th>dbms</th><th>l.pre</th><th>l.post</th><th>L1.P8</th><th>L2.P8</th><th>L3.P12</th><th>L4.P12</th><th>L5.P16</th><th>L6.P16</th></tr>
 TabEOF
 
 cat z2.1 z2.tab > z2.tmp
