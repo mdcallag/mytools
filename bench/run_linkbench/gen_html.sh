@@ -145,14 +145,14 @@ cat <<H0XpsEOF
 H0XpsEOF
 
 cat <<H1XpsEOF
-<p>HW performance results normalized by throughput. Legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a></p>
+<p>HW performance results normalized by throughput. The legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a></p>
 <pre>
 H1XpsEOF
 catme z.${s}.eff.op
 printf "</pre>\n"
 
 cat <<H2XpsEOF
-<p>HW performance results not normalized by throughput. Legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a></p>
+<p>HW performance results not normalized by throughput. The legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a></p>
 <pre>
 H2XpsEOF
 catme z.${s}.eff.sec
@@ -161,16 +161,16 @@ printf "</pre>\n"
 if [[ $x -gt 1 ]]; then
 
 cat <<H3XpsEOF
-<p>Reponse time for Link operations. Legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>
-Entries in the header that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
+<p>Reponse time for Link operations. The legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.
+Metric names that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
 <pre>
 H3XpsEOF
 catme z.${s}.rt.link
 printf "</pre>\n"
 
 cat <<H4XpsEOF
-<p>Reponse time for Node operations. Legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>
-Entries in the header that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
+<p>Reponse time for Node operations. The legend <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.
+Metric names that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
 <pre>
 H4XpsEOF
 catme z.${s}.rt.node
@@ -195,7 +195,7 @@ cat <<MetricH1EOF
 <p>$tTxt</p>
 <p>
 HW performance results for all DBMS tested, not just the ones listed above. Most are normaolized by throughput.
-Legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.</p>
+The legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.</p>
 </p>
 <pre>
 MetricH1EOF
@@ -210,7 +210,7 @@ echo "</pre>"
 cat <<MetricH2EOF
 <p>
 HW performance results for all DBMS tested, not just the ones listed above. Not normalized by throughput.
-Legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.</p>
+The legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.</p>
 </p>
 <pre>
 MetricH2EOF
@@ -242,11 +242,11 @@ cat <<RtH1EOF
 <p>
 <ul>
 <li>$tTxt
-<li>Legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.
-<li>Entries in the header that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
+<li>The legend for results <a href="https://mdcallag.github.io/linkbench-results.html">is here</a>.
+<li>Metric names that end with <b>9</b> are p99, <b>x</b> are max and <b>m</b> are mean. All values are in milliseconds.</p>
 </ul>
 </p>
-<p>Response time for Link operations.</p>
+<p>Response time for Link transactions.</p>
 <pre>
 RtH1EOF
 
@@ -254,7 +254,7 @@ catme z4.r.rt.link.${s}
 echo "</pre>"
 
 cat <<RtH2EOF
-<p>Response time for Node operations.</p>
+<p>Response time for Node transactions.</p>
 <pre>
 RtH2EOF
 
