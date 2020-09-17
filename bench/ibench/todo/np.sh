@@ -155,18 +155,18 @@ for n in $( seq 1 $realdop ) ; do
 
     if [[ $dbms == "mongo" ]]; then
       cmdline="$mypy llt.py --dbms=mongo --db_name=ib --db_host=127.0.0.1 --mongo_w=1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mocols --rows_per_query=1000 $xs"
-      echo $cmdline > o.llt
-      $cmdline >& o.llt &
+      echo $cmdline > o.llt.$n
+      $cmdline >& o.llt.$n &
       qpids[${n}]=$!
     elif [[ $dbms == "postgres" ]]; then
       cmdline="$mypy llt.py --dbms=postgres --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mycols --rows_per_query=1000 $xs"
-      echo $cmdline > o.llt
-      $cmdline >& o.llt &
+      echo $cmdline > o.llt.$n
+      $cmdline >& o.llt.$n &
       qpids[${n}]=$!
     else
       cmdline="$mypy llt.py --dbms=mysql --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mycols --rows_per_query=1000 $xs"
-      echo $cmdline > o.llt
-      $cmdline >& o.llt &
+      echo $cmdline > o.llt.$n
+      $cmdline >& o.llt.$n &
       qpids[${n}]=$!
     fi
   fi
