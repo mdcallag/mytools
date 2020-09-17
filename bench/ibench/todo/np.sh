@@ -154,19 +154,19 @@ for n in $( seq 1 $realdop ) ; do
     mycols="transactionid,cashregisterid,customerid,dateandtime,price,productid,data"
 
     if [[ $dbms == "mongo" ]]; then
-      cmdline="$mypy llt.py --dbms=mongo --db_name=ib --db_host=127.0.0.1 --mongo_w=1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mocols --rows_per_query=1000 $xs"
+      cmdline="$mypy llt.py --dbms=mongo --db_name=ib --db_host=127.0.0.1 --mongo_w=1 --db_user=root --db_password=pw --table_name=${tn} --columns=$mocols --rows_per_query=1000 $xs"
       echo $cmdline > o.llt.$n
-      $cmdline >& o.llt.$n &
+      $cmdline >> o.llt.$n 2>&1 &
       qpids[${n}]=$!
     elif [[ $dbms == "postgres" ]]; then
-      cmdline="$mypy llt.py --dbms=postgres --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mycols --rows_per_query=1000 $xs"
+      cmdline="$mypy llt.py --dbms=postgres --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=${tn} --columns=$mycols --rows_per_query=1000 $xs"
       echo $cmdline > o.llt.$n
-      $cmdline >& o.llt.$n &
+      $cmdline >> o.llt.$n 2>&1 &
       qpids[${n}]=$!
     else
-      cmdline="$mypy llt.py --dbms=mysql --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=pi1 --columns=$mycols --rows_per_query=1000 $xs"
+      cmdline="$mypy llt.py --dbms=mysql --db_name=ib --db_host=127.0.0.1 --db_user=root --db_password=pw --table_name=${tn} --columns=$mycols --rows_per_query=1000 $xs"
       echo $cmdline > o.llt.$n
-      $cmdline >& o.llt.$n &
+      $cmdline >> o.llt.$n 2>&1 &
       qpids[${n}]=$!
     fi
   fi

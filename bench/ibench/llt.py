@@ -385,7 +385,7 @@ def print_stats(t_queries, i_queries, start_time, now, prev_now, max_q, retries,
       i_queries / (now - prev_now),                     # i_qps
       t_queries / (now - start_time),                   # t_qps
       max_q, retries, restarts, commits))
-  # sys.stdout.flush()
+  sys.stdout.flush()
 
 def main(argv):
   global pk_name
