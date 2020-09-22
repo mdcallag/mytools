@@ -9,23 +9,49 @@ dbms=$8
 ddl=$9
 dbhost=${10}
 ldop=${11}
+heap=${12}
+
+vac=2
 
 echo Load at $( date )
-bash load.sh $fn $client $ddir $maxid $dname $ldop true $dbms $ddl $dbhost
+bash load.sh $fn $client $ddir $maxid $dname $ldop true $dbms $ddl $dbhost $heap
+
+if [[ $vac -ge 1 && $dbms == "postgres" ]]; then
+  loop=1
+  for t in linktable counttable nodetable ; do
+    $client linkbench -x -c "vacuum (verbose) linkdb0.$t" >& r.pgvac.$fn.INI.$t &
+    vpid[${loop}]=$!
+    loop=$(( $loop + 1 ))
+    sleep 1
+  done
+
+  for n in 1 2 3 ; do
+    echo After load: wait for vacuum $n
+    wait ${vpid[${n}]}
+  done
+fi
 
 # Warmup
 echo Warmup at $( date )
-bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $dbms $dbhost
+bash run.sh $fn.W.P${wdop} $client $ddir $maxid $dname $wdop $secs $dbms $dbhost $heap
 
-shift 11
+shift 12
 
 loop=1
 if [[ $# -gt 0 ]]; then
   doparr=( "$@" )
 
   for mydop in "${doparr[@]}" ; do
+
+    if [[ $vac -gt 1 && $dbms == "postgres" ]]; then
+      for t in linktable counttable nodetable ; do
+        $client linkbench -x -c "vacuum (verbose, skip_locked) linkdb0.$t" >& r.pgvac.$fn.L${loop}.P${mydop}.$t &
+        sleep 1
+      done
+    fi
+
     echo Run dop=$mydop at $( date )
-    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $dbms $dbhost
+    bash run.sh $fn.L${loop}.P${mydop} $client $ddir $maxid $dname $mydop $secs $dbms $dbhost $heap
     loop=$(( $loop + 1 ))
   done
 fi

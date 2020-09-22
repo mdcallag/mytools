@@ -4,41 +4,34 @@ bdir=$3
 dev=$4
 wdop=$5
 ldop=$6
+heap=$7
 
-for ver in mo44pre mo440rc0 mo440rc1 mo440rc2 ; do
+shift 7
+
+for ver in mo440rc11 mo440rc10 mo440rc9 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo44
   ln -s $bdir/$ver $bdir/mo44
-  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo44.${cnf} no $bdir 16 16 16 16 16 16
+  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo44.${cnf} no $bdir $heap "$@"
   mv a.mo44.c${cnf} a.${ver}.c${cnf}
 done
 
-for ver in mo421 mo422 mo423 mo425 mo426 ; do
+for ver in mo428 mo427 mo426 mo425 mo423 mo422 mo421 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo42
   ln -s $bdir/$ver $bdir/mo42
-  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo42.${cnf} no $bdir 16 16 16 16 16 16
+  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo42.${cnf} no $bdir $heap "$@"
   mv a.mo42.c${cnf} a.${ver}.c${cnf}
 done
 
-for ver in mo4016 mo4017 mo4018 ; do
+for ver in mo4019 mo4018 mo4017 mo4016 ; do
   cnf=5b40
   echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
   rm $bdir/mo40
   ln -s $bdir/$ver $bdir/mo40
-  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo40.${cnf} no $bdir 16 16 16 16 16 16
+  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo40.${cnf} no $bdir $heap "$@"
   mv a.mo40.c${cnf} a.${ver}.c${cnf}
 done
-
-for ver in mo425 ; do
-  cnf=6b40
-  echo Run $cnf and $ver at $( date ) for $nrows rows and $nsecs secs
-  rm $bdir/mo42
-  ln -s $bdir/$ver $bdir/mo42
-  bash rall.sh $nrows $dev $wdop $nsecs 127.0.0.1 $ldop mo42.${cnf} no $bdir 16 16 16 16 16 16
-  mv a.mo42.c${cnf} a.${ver}.c${cnf}
-done
-
 

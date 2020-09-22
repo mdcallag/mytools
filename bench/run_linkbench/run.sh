@@ -7,6 +7,7 @@ dop=$6
 secs=$7
 dbms=$8
 dbhost=$9
+heap=${10}
 
 if [[ $dbms = "mysql" ]]; then
   echo Skip mstat
@@ -55,16 +56,24 @@ else
   echo dbms :: $dbms :: not supported
   exit 1
 fi 
-echo "background jobs: $ipid $vpid $spid" > r.o.$fn
+
+while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& r.ps2.$fn &
+spid2=$!
+
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& r.top.$fn &
+tpid=$!
+
+echo "background jobs: $ipid $vpid $spid $spid2" > r.o.$fn
+
 echo " config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r" >> r.o.$fn
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=r.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& r.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=r.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf.scr ; sleep 60; done >& r.perf.$fn &
   fpid=$!
 fi
 
-if ! /usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1 ; then
+if ! HEAPSIZE=$heap /usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1 ; then
   echo Run failed
   exit 1
 fi
@@ -72,10 +81,14 @@ fi
 kill $ipid
 kill $vpid
 kill $spid
+kill $spid2
+kill $tpid
+gzip -9 r.top.$fn
 # kill $mpid
 if [ $dbpid -ne -1 ]; then kill $fpid ; fi
 
 if [[ $dbms = "mongo" ]]; then
+  szdbid=linkdb0
   cred="-u root -p pw --authenticationDatabase=admin"
   echo "db.serverStatus()" | $client $cred > r.srvstat.$fn
   echo "db.serverStatus({tcmalloc:2}).tcmalloc" | $client $cred > r.srvstat1.$fn
@@ -91,6 +104,7 @@ if [[ $dbms = "mongo" ]]; then
   echo "show dbs" | $client $cred linkdb0 > r.dbs.$fn
 
 elif [[ $dbms = "mysql" ]]; then
+  szdbid=linkdb0
   $client -uroot -ppw -A -h${dbhost} -e 'reset master'
   $client -uroot -ppw -A -h${dbhost} -e 'show engine innodb status\G' > r.esi.$fn
   $client -uroot -ppw -A -h${dbhost} -e 'show engine rocksdb status\G' > r.esr.$fn
@@ -110,6 +124,7 @@ elif [[ $dbms = "mysql" ]]; then
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.table_statistics WHERE TABLE_NAME IN ("linktable", "nodetable", "counttable")' > r.tstat3.$fn
   $client -uroot -ppw -A -h${dbhost} -E -e 'SELECT * FROM information_schema.index_statistics' > r.istat3.$fn
 elif [[ $dbms = "postgres" ]]; then
+  szdbid=linkbench
   $client linkbench $pgauth -c 'show all' > r.pg.conf.$fn
   $client linkbench $pgauth -x -c 'select * from pg_stat_bgwriter' > r.pgs.bg.$fn
   $client linkbench $pgauth -x -c 'select * from pg_stat_database' > r.pgs.db.$fn
@@ -163,7 +178,13 @@ printf "\nsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n" >> r.r.$fn
 grep -v swpd r.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> r.r.$fn
 
 echo >> r.r.$fn
-head -4 r.sz1.$fn >> r.r.$fn
+bash dbsize.sh $client $dbhost r.dbsz.$fn $szdbid $dbms $ddir
+x0=$( cat r.dbsz.$fn )
+printf "dbGB\t%.3f\n" $x0 >> r.r.$fn
+
+du -bs $ddir > r.dbdirsz.$fn
+x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' r.dbdirsz.$fn )
+printf "dbdirGB\t%s\t${ddir}\n" $x1 >> r.r.$fn
 
 echo >> r.r.$fn
 head -1 r.ps.$fn >> r.r.$fn

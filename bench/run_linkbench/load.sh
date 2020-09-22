@@ -8,6 +8,7 @@ gennodes=$7
 dbms=$8
 ddl=$9
 dbhost=${10}
+heap=${11}
 
 pgauth="--host 127.0.0.1"
 
@@ -77,7 +78,13 @@ function process_stats {
   grep -v swpd l.$tag.vm.$fn | grep -v procs | awk '{ cs += $12; cpu += $13 + $14; c += 1 } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=$ips >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
-  head -4 l.$tag.sz1.$fn >> l.$tag.r.$fn
+  bash dbsize.sh $client $dbhost l.$tag.dbsz.$fn $dbid $dbms $ddir
+  x0=$( cat l.$tag.dbsz.$fn )
+  printf "dbGB\t%.3f\n" $x0 >> l.$tag.r.$fn
+
+  du -bs $ddir > l.$tag.dbdirsz.$fn
+  x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' l.$tag.dbdirsz.$fn )
+  printf "dbdirGB\t%s\t${ddir}\n" $x1 >> l.$tag.r.$fn
 
   echo >> l.$tag.r.$fn
   head -1 l.$tag.ps.$fn >> l.$tag.r.$fn
@@ -154,15 +161,18 @@ function process_stats {
 }
 
 if [[ $dbms = "mongo" ]]; then
+  dbid=linkdb0
   $client admin -u root -p pw --host ${dbhost} < $ddl.pre >& l.pre.ddl.$fn
 
 elif [[ $dbms = "mysql" ]]; then
+  dbid=linkdb0
   $client -uroot -ppw -h${dbhost} < $ddl.pre >& l.pre.ddl.$fn
   echo Skip mstat
   # ps aux | grep python | grep mstat\.py | awk '{ print $2 }' | xargs kill -9 2> /dev/null
   # python mstat.py --loops 1000000 --interval 15 --db_user=root --db_password=pw --db_host=${dbhost} >& l.pre.mstat.$fn &
   # mpid=$!
 elif [[ $dbms = "postgres" ]]; then
+  dbid=linkbench
   echo PG drop database
   $client me $pgauth -c "drop database if exists linkdb"
   sleep 5
@@ -217,13 +227,19 @@ else
   exit 1
 fi
 
-echo "background jobs: $ipid $vpid $spid" > l.pre.o.$fn
+while :; do ps aux | grep FacebookLinkBench | grep -v grep; sleep 30; done >& l.pre.ps2.$fn &
+spid2=$!
+
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& l.pre.top.$fn &
+tpid=$!
+
+echo "background jobs: $ipid $vpid $spid $spid2 $tpid" > l.pre.o.$fn
 
 echo "-c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l" >> l.pre.o.$fn
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.pre.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.pre.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.pre.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& l.pre.perf.$fn &
   fpid=$!
 fi
 
@@ -231,7 +247,7 @@ fi
 # for f in $( ls l.post.perf.data.* | grep -v \.rep | tail -50 ); do echo $f; perf script -i $f > $f.ps; ~/git/FlameGraph/stackcollapse-perf.pl $f.ps | ~/git/FlameGraph/flamegraph.pl > $f.svg ; done
 
 start_secs=$( date +%s )
-if ! /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
+if ! HEAPSIZE=$heap /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
   echo Load failed
   exit 1
 fi
@@ -243,6 +259,9 @@ links=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $13 }' )
 counts=$( grep "LOAD PHASE COMPLETED" l.pre.o.$fn | awk '{ print $17 }' )
 
 kill $pblpid
+kill $spid2
+kill $tpid
+gzip -9 l.pre.top.$fn
 process_stats pre $start_secs $nodes $links $counts
 
 #
@@ -265,9 +284,12 @@ du -sm --apparent-size $ddir/* >> l.post.asz2.$fn
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.post.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --stdio -i $tsf > $tsf.rep ; sleep 20; done >& l.post.perf.$fn &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=l.post.perf.data.$fn.$ts; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& l.post.perf.$fn &
   fpid=$!
 fi
+
+COLUMNS=400 LINES=40 top -b -d 60 -c -w >& l.post.top.$fn &
+tpid=$!
 
 start_secs=$( date +%s )
 if [[ $dbms = "mongo" ]]; then
@@ -293,6 +315,8 @@ else
   exit 1
 fi
 
+kill $tpid
+gzip -9 l.post.top.$fn
 if [ $dbpid -ne -1 ] ; then kill $fpid ; fi
 
 process_stats post $start_secs $nodes $links $counts

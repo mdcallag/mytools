@@ -19,7 +19,7 @@
    A typical command line is:
      iibench.py --db_user=foo --db_password=bar --max_rows=1000000000
 
-   Results are printed after each rows_per_reports rows are inserted.
+   Results are printed after each secs_per_report (approximately)
    The output is:
      Legend:
        #rows = total number of rows inserted
@@ -48,7 +48,7 @@ __author__ = 'Mark Callaghan'
 import os
 import base64
 import string
-from multiprocessing import Queue, Process, Pipe, Array, Lock
+from multiprocessing import Queue, Process, Pipe, Value, Lock
 import optparse
 from datetime import datetime
 import time
@@ -56,6 +56,7 @@ import random
 import sys
 import math
 import timeit
+import traceback
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -127,9 +128,7 @@ DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
 DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
 DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
 DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
-DEFINE_integer('rows_per_report', 1000000,
-               '#rows per progress report printed to stdout. If this '
-               'is too small, some rates may be negative.')
+DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
 DEFINE_integer('rows_per_query', 10,
                'Number of rows per to fetch per query. Each query '
                'thread does one query per insert.')
@@ -139,6 +138,7 @@ DEFINE_integer('customers', 100000, '# customers')
 DEFINE_integer('max_price', 500, 'Maximum value for price column')
 DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
+DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
 DEFINE_integer('query_threads', 0, 'Number of query threads')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
@@ -170,8 +170,14 @@ DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
 DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
+# MySQL & Postgres flags
+DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
+DEFINE_integer('rows_per_partition', 0,
+              'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
+
 # MongoDB flags
 DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
+DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
 DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
 DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
 DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
@@ -229,6 +235,9 @@ def rthist_finish(obj, start):
   else:
     rt[9] += 1
 
+  # Convert to usecs as an int
+  return int(elapsed * 1000000.0)
+
 def rthist_result(obj, prefix):
   rt = obj['hist']
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
@@ -237,9 +246,8 @@ def rthist_result(obj, prefix):
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
   return res
 
-def get_conn():
+def fixup_options():
   if FLAGS.dbms == 'mongo':
-
     if FLAGS.dbopt != 'none':
       mopts = FLAGS.dbopt.split(',')
       for mopt in mopts:
@@ -247,7 +255,19 @@ def get_conn():
           FLAGS.mongo_j = True
         elif mopt == 'transaction':
           FLAGS.mongo_trx = True
+        elif mopt.startswith('r_'):
+          FLAGS.mongo_r = mopt[2:]
+        elif mopt.startswith('w_'):
+          w = mopt[2:]
+          try:
+            w = int(w)
+          except ValueError:
+            pass
+          FLAGS.mongo_w = w
+    print('Using Mongo w=%s, r=%s, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_r, FLAGS.mongo_j, FLAGS.mongo_trx))
 
+def get_conn():
+  if FLAGS.dbms == 'mongo':
     return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
   elif FLAGS.dbms == 'mysql':
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
@@ -259,6 +279,25 @@ def get_conn():
     conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
     conn.set_session(autocommit=True)
     return conn
+
+def get_mongo_session(db, db_conn):
+  if FLAGS.mongo_trx:
+    trx_opt = pymongo.client_session.TransactionOptions(
+        read_concern = pymongo.read_concern.ReadConcern(level="snapshot"),
+        write_concern = pymongo.write_concern.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j),
+        max_commit_time_ms=1000*180)
+    mongo_session = db_conn.start_session(causal_consistency=False,
+                                          default_transaction_options=trx_opt)
+    mongo_collection = db.get_collection(FLAGS.table_name)
+  else:
+    mongo_session = None
+    m_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
+    mongo_collection = db.get_collection(
+        FLAGS.table_name,
+        write_concern = pymongo.write_concern.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j),
+        read_concern = pymongo.read_concern.ReadConcern(FLAGS.mongo_r))
+
+  return mongo_session, mongo_collection
 
 def create_index_mongo():
   conn = get_conn()
@@ -280,11 +319,16 @@ def create_table_mongo():
   conn = get_conn()
   db = conn[FLAGS.db_name]
   db.drop_collection(FLAGS.table_name)
+  db.create_collection(FLAGS.table_name)
 
 def create_index_mysql():
   if FLAGS.num_secondary_indexes >= 1:
     conn = get_conn()
     cursor = conn.cursor()
+
+    # Comparing create index isn't apples-to-apples here. Eventually I will revisit this.
+    # 1) I think that MySQL can create multiple indexes via one table scan. MongoDB and PG cannot.
+    # 2) Postgres can create an index with parallelism. I usually disable that in the config file.
 
     index_ddl = "alter table %s add index %s_marketsegment (price, customerid) " % (
                    FLAGS.table_name, FLAGS.table_name)
@@ -315,9 +359,22 @@ def create_table_mysql():
             'data varchar(4000), '\
             'primary key (transactionid) '
 
-  ddl_sql = 'create table %s ( %s ) engine=%s %s' % (
-      FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options)
-  print(ddl_sql)
+  if FLAGS.num_partitions > 0:
+    if FLAGS.rows_per_partition > 0:
+      rows_per_part = FLAGS.rows_per_partition
+    else:
+      rows_per_part = FLAGS.max_rows / FLAGS.num_partitions
+
+    part_sql = 'partition by range( transactionid ) ('
+    for i in range(FLAGS.num_partitions - 1):
+      part_sql += ' partition p%d values less than (%d),\n' % (i, (i+1)*rows_per_part)
+    part_sql += ' partition p%d values less than (MAXVALUE)\n)' % (FLAGS.num_partitions - 1)
+  else:
+    part_sql = ""
+
+  ddl_sql = 'create table %s ( %s ) engine=%s %s %s' % (
+      FLAGS.table_name, ddl_sql, FLAGS.engine, FLAGS.engine_options, part_sql)
+  #print(ddl_sql)
   cursor.execute(ddl_sql)
 
   cursor.close()
@@ -352,7 +409,12 @@ def create_table_postgres():
   cursor = conn.cursor()
   cursor.execute('drop table if exists %s' % FLAGS.table_name)
 
-  ddl_sql = 'transactionid bigserial primary key, '\
+  if FLAGS.num_partitions > 0:
+    part_sql = 'partition by range( transactionid )'
+  else:
+    part_sql = ''
+
+  col_sql = 'transactionid bigserial primary key, '\
             'dateandtime timestamp without time zone, '\
             'cashregisterid int not null, '\
             'customerid int not null, '\
@@ -360,15 +422,42 @@ def create_table_postgres():
             'price real not null, '\
             'data varchar(4000) '
 
-  ddl_sql = 'create table %s ( %s ) %s' % (
-      FLAGS.table_name, ddl_sql, FLAGS.engine_options)
-  print(ddl_sql)
+  ddl_sql = 'create table %s ( %s ) %s %s' % (
+      FLAGS.table_name, col_sql, part_sql, FLAGS.engine_options)
+  #print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
 
+  seq_name = '%s_transactionid_seq' % FLAGS.table_name
+
+  if FLAGS.num_partitions > 0:
+    if FLAGS.rows_per_partition > 0:
+      rows_per_part = FLAGS.rows_per_partition
+    else:
+      rows_per_part = FLAGS.max_rows / FLAGS.num_partitions
+
+    low_val = 0
+    high_val = rows_per_part
+
+    for i in range(FLAGS.num_partitions):
+
+      if i < (FLAGS.num_partitions - 1):
+        range_sql = 'for values from (%d) to (%d)' % (low_val, high_val)
+      else:
+        range_sql = 'for values from (%d) to (MAXVALUE)' % (low_val)
+
+      ddl_sql = 'create table %s_p%d partition of %s %s ' % (
+          FLAGS.table_name, i, FLAGS.table_name, range_sql)
+      #print(ddl_sql)
+      cursor.execute(ddl_sql)
+      conn.commit()
+
+      low_val = high_val
+      high_val += rows_per_part
+
   # TODO: what is a good value for cache to reduce overhead?
-  ddl_sql = 'alter sequence %s_transactionid_seq cache 1000' % (FLAGS.table_name)
-  print(ddl_sql)
+  ddl_sql = 'alter sequence %s cache 1000' % (seq_name)
+  # print(ddl_sql)
   cursor.execute(ddl_sql)
   conn.commit()
 
@@ -425,17 +514,18 @@ def generate_row(when, rand_data_buf):
   else:
     assert False
 
-def generate_pdc_query_mongo(conn, price):
+def generate_pdc_query_mongo(conn, price, mongo_session):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price }},
-                     projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_ts, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_ts, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_ts, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_ts, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
 
 def generate_pdc_query_mysql_pg(conn, price, force, table_name):
@@ -450,26 +540,27 @@ def generate_pdc_query_mysql_pg(conn, price, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(conn, table_name):
+def generate_pdc_query(conn, table_name, session):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_pdc_query_mongo(conn, price)
+    return generate_pdc_query_mongo(conn, price, session)
   elif FLAGS.dbms == 'mysql':
     return generate_pdc_query_mysql_pg(conn, price, True, table_name)
   else:
     return generate_pdc_query_mysql_pg(conn, price, False, table_name)
 
-def generate_market_query_mongo(conn, price):
+def generate_market_query_mongo(conn, price, mongo_session):
   return (
            conn.find({FLAGS.name_price: {'$gte' : price}}, 
-                     projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
  
 def generate_market_query_mysql_pg(conn, price, force, table_name):
@@ -484,28 +575,29 @@ def generate_market_query_mysql_pg(conn, price, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(conn, table_name):
+def generate_market_query(conn, table_name, session):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_market_query_mongo(conn, price)
+    return generate_market_query_mongo(conn, price, session)
   elif FLAGS.dbms == 'mysql':
     return generate_market_query_mysql_pg(conn, price, True, table_name)
   else:
     return generate_market_query_mysql_pg(conn, price, False, table_name)
 
-def generate_register_query_mongo(conn, cashregisterid):
+def generate_register_query_mongo(conn, cashregisterid, mongo_session):
   return (
            conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
-                     projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0})
-               .sort([(FLAGS.name_cash, pymongo.ASCENDING),
-                      (FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
-               .limit(FLAGS.rows_per_query)
-               .hint([(FLAGS.name_cash, pymongo.ASCENDING),
-                      (FLAGS.name_price, pymongo.ASCENDING),
-                      (FLAGS.name_cust, pymongo.ASCENDING)])
+                     projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
+                     sort = [(FLAGS.name_cash, pymongo.ASCENDING),
+                             (FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     limit = FLAGS.rows_per_query,
+                     hint = [(FLAGS.name_cash, pymongo.ASCENDING),
+                             (FLAGS.name_price, pymongo.ASCENDING),
+                             (FLAGS.name_cust, pymongo.ASCENDING)],
+                     session = mongo_session)
          )
  
 def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
@@ -520,11 +612,11 @@ def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
         'LIMIT %d' % (FLAGS.table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(conn, table_name):
+def generate_register_query(conn, table_name, session):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.dbms == 'mongo':
-    return generate_register_query_mongo(conn, cashregisterid)
+    return generate_register_query_mongo(conn, cashregisterid, session)
   elif FLAGS.dbms == 'mysql':
     return generate_register_query_mysql_pg(conn, cashregisterid, True, table_name)
   else:
@@ -551,7 +643,7 @@ def generate_insert_rows(rand_data_buf):
   else:
     assert False
 
-def Query(query_args, shared_arr, lock, result_q):
+def Query(query_args, shared_var, done_flag, lock, result_q):
 
   # block on this until main thread wants all processes to run
   lock.acquire()
@@ -564,51 +656,84 @@ def Query(query_args, shared_arr, lock, result_q):
   loops = 0
 
   if FLAGS.dbms == 'mongo':
-    db_thing = db_conn[FLAGS.db_name][FLAGS.table_name]
+    db = db_conn[FLAGS.db_name]
+    db_thing = db[FLAGS.table_name]
+    mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     db_thing = db_conn.cursor()
+    mongo_session = None
   else:
     assert False
 
   rthist = rthist_new()
 
-  done = False  
-  while not done:
+  while True:
     query_func = random.choice(query_args)
+    ts = rthist_start(rthist)
 
-    try:
-      query = query_func(db_thing, FLAGS.table_name)
+    if FLAGS.dbms == 'mongo':
+      done = False
+      while not done:
+        try:
+          # TODO -- autocommit would be nice here
+          if mongo_session: mongo_session.start_transaction()
 
-      ts = rthist_start(rthist)
+          query = query_func(db_thing, FLAGS.table_name, mongo_session)
 
-      if FLAGS.dbms == 'mongo':
-        count = 0
-        for r in query:
-          count += 1
-        # if count: print('fetched %d' % count)
-        # print('fetched %d' % count)
-      elif FLAGS.dbms == 'mysql':
-        # print("Query is:", query)
+          count = 0
+          for r in query: count += 1
+          # if count: print('fetched %d' % count) print('fetched %d' % count)
+
+          if mongo_session: mongo_session.commit_transaction()
+          done = True
+
+        except pymongo.errors.PyMongoError as e:
+          if e.has_error_label("TransientTransactionError"):
+            shared_var[3].value += 1
+            if mongo_session.in_transaction: mongo_session.abort_transaction()
+          else:
+            print("Mongo error on query: ", e)
+            raise e
+
+    elif FLAGS.dbms == 'mysql':
+      # print("Query is:", query)
+      try:
+        query = query_func(db_thing, FLAGS.table_name, None)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
-      elif FLAGS.dbms == 'postgres':
-        # print("Query is:", query)
+      except MySQLdb.Error as e:
+        if e[0] != 2006:
+          #print("Ignoring MySQL exception: ", e)
+          shared_var[3].value += 1
+        else:
+          print("Query error: ", e)
+          raise e
+
+    elif FLAGS.dbms == 'postgres':
+      try:
+        query = query_func(db_thing, FLAGS.table_name, None)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
-      else:
-        assert False
+      except psycopg2.Error as e:
+        print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+        raise e
 
-      rthist_finish(rthist, ts)
+    else:
+      assert False
 
-    except:
-      e = sys.exc_info()[0]
-      print("Query exception: ", e)
+    elapsed = rthist_finish(rthist, ts)
+    with shared_var[2].get_lock():
+      if elapsed > shared_var[2].value: shared_var[2].value = elapsed
+
+    #except:
+    #  e = sys.exc_info()[0]
+    #  print("Query exception: ", e)
 
     loops += 1
     if (loops % 16) == 0:
-      shared_arr[1] = loops
-      if shared_arr[2] == 1:
-        done = True
+      shared_var[1].value = loops
+      if done_flag.value == 1:
+        break
 
   if FLAGS.dbms == 'mongo':
     pass
@@ -620,51 +745,15 @@ def Query(query_args, shared_arr, lock, result_q):
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
-def get_latest(counters, inserted):
-  total = 0
-  for c in counters:
-    total += c[1]
-    c[0] = inserted
-  return total
-
-def print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size):
-  now = time.time()
-  sum_queries = 0
-
-  if FLAGS.query_threads:
-    sum_queries = get_latest(counters, inserted)
-
-  nrows = inserted
-
-  print('%d %.1f %.1f %.1f %d %.1f %.0f %.1f %.1f' % (
-      nrows,
-      now - prev_time,
-      now - start_time,
-      inserted / (now - start_time),
-      table_size,
-      FLAGS.rows_per_report / (now - prev_time),
-      sum_queries,
-      sum_queries / (now - start_time),
-      (sum_queries - prev_sum) / (now - prev_time)))
-  sys.stdout.flush()
-  return now, sum_queries
-
-def Insert(rounds, insert_q, counters, lock):
+def Insert(rounds, insert_q, lock):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
-
-  # generate insert rows in this loop and place into queue as they're
-  # generated.  The execution process will pull them off from here.
-  start_time = time.time()
-  prev_time = start_time
-  inserted = 0
   
-  for c in counters:
-    c[0] = inserted
-
-  prev_sum = 0
+  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
   table_size = 0
+  inserted = 0
+
   # we use the tail pointer for deletion - it tells us the first row in the
   # table where we should start deleting
   tail = 0
@@ -677,19 +766,16 @@ def Insert(rounds, insert_q, counters, lock):
     rounds_per_second = int(math.ceil(float(FLAGS.inserts_per_second) / FLAGS.rows_per_commit))
     if rounds_per_second < 1:
       rounds_per_second = 1
-    last_check = time.time()
+    last_rate_check = time.time()
     # print("rounds per second = %d" % rounds_per_second)
 
+  # generate insert rows in this loop and place into queue
   for r in range(rounds):
     rows = generate_insert_rows(rand_data_buf)
 
     insert_q.put(rows)
     inserted += FLAGS.rows_per_commit
     table_size += FLAGS.rows_per_commit
-
-    if (inserted % FLAGS.rows_per_report) == 0:
-      prev_time, prev_sum = print_stats(counters, inserted, prev_time, prev_sum,
-                                        start_time, table_size)
 
     # deletes - TODO support for MongoDB
     if FLAGS.with_max_table_rows:
@@ -706,21 +792,20 @@ def Insert(rounds, insert_q, counters, lock):
         table_size -= FLAGS.rows_per_commit
         tail += FLAGS.rows_per_commit
 
-    # optionally enforce write rate limit
+    # enforce write rate limit if set
+    now = time.time()
     if rounds_per_second and (r % rounds_per_second) == 0:
-      # print("check time on %d" % r)
-      now = time.time()
-      if now > last_check and now < (last_check + 0.95):
-        sleep_time = 1.0 - (now - last_check)
+      if now > last_rate_check and now < (last_rate_check + 0.95):
+        sleep_time = 1.0 - (now - last_rate_check)
         # print("sleep %s" % sleep_time)
         time.sleep(sleep_time)
-      last_check = time.time()
+      last_rate_check = time.time()
 
   # block until the queue is empty
   insert_q.put(insert_done)
   insert_q.close()
 
-def statement_executor(stmt_q, lock, result_q):
+def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
@@ -744,12 +829,7 @@ def statement_executor(stmt_q, lock, result_q):
 
   if FLAGS.dbms == 'mongo':
     db = db_conn[FLAGS.db_name]
-    mongo_session = None
-    if FLAGS.mongo_trx:
-      mongo_session = db_conn.start_session()
-    mongo_write_concern = pymongo.WriteConcern(w=FLAGS.mongo_w, j=FLAGS.mongo_j)
-    collection = db.get_collection(FLAGS.table_name, write_concern=mongo_write_concern)
-    print('Using Mongo w=%d, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_j, FLAGS.mongo_trx))
+    mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
   else:
@@ -766,44 +846,94 @@ def statement_executor(stmt_q, lock, result_q):
     ts = rthist_start(rthist)
 
     if FLAGS.dbms == 'mongo':
-      try:
-        # res has type pymongo.InsertManyResult
-        if mongo_session:
-          mongo_session.start_transaction(write_concern=mongo_write_concern,
-                                          max_commit_time_ms=1000*180)                   
-        res = collection.insert_many(stmt, ordered=True,
-                                     bypass_document_validation=False, session=mongo_session)
-        assert len(res.inserted_ids) == len(stmt)
-        if mongo_session:
-          mongo_session.commit_transaction()
-      except pymongo.errors.PyMongoError as e:
-        print("Mongo error on insert: ", e)
-        raise e
+      done = False
+      while not done:
+        try:
+          # res has type pymongo.InsertManyResult
+          if mongo_session: mongo_session.start_transaction()
+          res = mongo_collection.insert_many(stmt, ordered=True,
+                                             bypass_document_validation=False, session=mongo_session)
+          assert len(res.inserted_ids) == len(stmt)
+
+          if mongo_session: mongo_session.commit_transaction()
+          done = True
+
+        except pymongo.errors.PyMongoError as e:
+          if e.has_error_label("TransientTransactionError"):
+            shared_var[3].value += 1
+            if mongo_session.in_transaction: mongo_session.abort_transaction()
+          else:
+            print("Mongo error on insert: ", e)
+            raise e
 
     elif FLAGS.dbms == 'mysql':
       try:
         cursor.execute(stmt)
       except MySQLdb.Error as e:
         if e[0] != 2006:
-          print("Ignoring MySQL exception: ", e)
+          # print("Ignoring MySQL exception: ", e)
+          shared_var[3].value += 1
         else:
           raise e
     elif FLAGS.dbms == 'postgres':
       try:
         cursor.execute(stmt)
       except psycopg2.Error as e:
-        print("Insert error: %s" % e.pgerror)
-        print("Insert error: %s" % e.pgcode)
-        print("Insert error: %s" % e.diag)
+        print("Insert error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
         raise e
     else:
       assert False
     
-    rthist_finish(rthist, ts)
-    
+    elapsed = rthist_finish(rthist, ts)
+    with shared_var[2].get_lock():
+      if elapsed > shared_var[2].value: shared_var[2].value = elapsed
+
+    # This assumes that deletes aren't done. Maybe fix this, eventually.
+    shared_var[0].value = shared_var[0].value + FLAGS.rows_per_commit
+
+  done_flag.value = 1
   stmt_q.close()
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Insert rt:'))
+
+def sum_queries(shared_vars, inserted):
+  total = 0
+  max_q = 0
+  retry_q = 0
+  retry_i = 0
+
+  # All but the last have the number of queries completed per thread
+  for c in shared_vars[0:-1]:
+    total += c[1].value
+    c[0].value = inserted
+    v = c[2].value
+    c[2].value = -1
+    if v > max_q: max_q = v
+    retry_q += c[3].value
+
+  retry_i = shared_vars[-1][3].value
+
+  return max_q, total, retry_q, retry_i
+
+def print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now):
+  sum_q = 0
+  max_q = 0
+  max_i = shared_vars[-1][2].value
+  shared_vars[-1][2].value = -1
+
+  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
+
+  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d\t%d\t%d' % (
+      now - last_report,                                # i_sec
+      now - start_time,                                 # t_sec
+      (inserted - prev_inserted) / (now - last_report), # i_ips
+      inserted / (now - start_time),                    # t_ips
+      (sum_q - prev_sum) / (now - last_report),         # i_qps
+      sum_q / (now - start_time),                       # t_qps
+      max_i, max_q, inserted, sum_q, retry_i, retry_q))
+      #max_i, max_q, ws, sumq))
+  sys.stdout.flush()
+  return sum_q
 
 def run_benchmark():
   random.seed(FLAGS.seed)
@@ -813,12 +943,17 @@ def run_benchmark():
   lock = Lock()
   lock.acquire()
 
-  # Array of tuples, each tuple is (0, num_queries, shutdown flag)
-  #   0 might be changed to track number of inserts
-  #   num_queries returns number of queries done by query process
-  #   shutdown flag is set to 1 when Query process should stop
-  counters = []
+  # Array of tuple of Values, each tuple is ...
+  #   [0] tracks the number of inserts
+  #   [1] num_queries, returns number of queries done by query process
+  #   [2] max response time per interval for queries or insert (inserter is last index entry)
+  #   [3] num_retries for Query and statement_executor to return number of times a transaction is retried
+  shared_vars = []
+
   query_args = []
+
+  # Flag to indicate that inserts are done
+  done_flag = Value('i', 0)
 
   if FLAGS.query_threads:
     query_args.append(generate_pdc_query)
@@ -826,18 +961,19 @@ def run_benchmark():
     query_args.append(generate_register_query)
 
     for i in range(FLAGS.query_threads):
-      counters.append(Array('i', [0,0,0]))
+      shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
 
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, counters[i], lock, query_result)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, lock, query_result)))
 
   if not FLAGS.no_inserts:
     stmt_q = Queue(4)
     stmt_result = Queue()
-    insert_delete = Process(target=statement_executor, args=(stmt_q, lock, stmt_result))
-    inserter = Process(target=Insert, args=(rounds, stmt_q, counters, lock))
+    shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
+    insert_delete = Process(target=statement_executor, args=(stmt_q, shared_vars[-1], done_flag, lock, stmt_result))
+    inserter = Process(target=Insert, args=(rounds, stmt_q, lock))
 
     # start up the insert execution process with this queue
     insert_delete.start()
@@ -861,49 +997,44 @@ def run_benchmark():
   lock.release()
   test_start = time.time()
 
-  if not FLAGS.no_inserts:
-    # block until the inserter is done
-    insert_delete.join()
-    
-    print(stmt_result.get())
-    sys.stdout.flush()
+  start_time = time.time()
+  last_report = start_time
+  inserted = 0
+  prev_inserted = 0
+  prev_sum = 0
+  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
+  table_size = 0
 
-    inserter.terminate()
-    sys.stdout.flush()
-    insert_delete.terminate()
+  while True:
+    time.sleep(FLAGS.secs_per_report)
 
-  else:
-    start_time = time.time()
-    prev_time = start_time
-    inserted = 0
-    for c in counters:
-      c[0] = 0
+    # print progress
+    inserted = shared_vars[-1][0].value
+    table_size = inserted
+    now = time.time()
+    prev_sum = print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now)
+    prev_inserted = inserted
+    last_report = now
 
-    prev_sum = 0
-    table_size = 0
-    sum_queries = 0
+    if done_flag.value == 1 or (FLAGS.max_seconds and (now - start_time) >= FLAGS.max_seconds):
+      done_flag.value = 1  # setting this might be redundant
 
-    while True:
-      time.sleep(10)
-      prev_time, prev_sum = \
-          print_stats(counters, inserted, prev_time, prev_sum, start_time, table_size)
-      if prev_sum >= FLAGS.max_rows:
-        break
+      if not FLAGS.no_inserts:
+        insert_delete.join()
+        print(stmt_result.get())
+        sys.stdout.flush()
+        inserter.terminate()
+        sys.stdout.flush()
+        insert_delete.terminate()
+
+      # exit the while loop to continue shutting down
+      break
 
   if FLAGS.query_threads:
-    # Signal Query process to stop
-    for i in range(FLAGS.query_threads):
-      counters[i][2] = 1
-
-    for qthr in query_thr:
-      qthr.join()
-
-    for qthr in query_thr:
-      print(query_result.get())
+    for qthr in query_thr: qthr.join()
+    for qthr in query_thr: print(query_result.get())
     sys.stdout.flush()
-
-    for qthr in query_thr:
-      qthr.terminate()
+    for qthr in query_thr: qthr.terminate()
 
   if FLAGS.secondary_at_end:
     x_start = time.time()
@@ -912,14 +1043,25 @@ def run_benchmark():
     print('Created secondary indexes in %.1f seconds' % (x_end - x_start))
 
   test_end = time.time()
-  print('Totals: %.1f secs, %.1f rows/sec, %s rows' % (
+  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
+  print('Totals: %.1f secs, %.1f rows/sec, %s rows, %d insert retry, %d query retry' % (
       test_end - test_start,
       FLAGS.max_rows / (test_end - test_start),
-      FLAGS.max_rows))
+      FLAGS.max_rows, retry_i, retry_q))
   print('Done')
 
 def main(argv):
-  print('#rows #seconds #total_seconds cum_ips table_size last_ips #queries cum_qps last_qps')
+  if FLAGS.with_max_table_rows:
+      print('Not supported: with_max_table_rows')
+      sys.exit(-1)
+
+  if FLAGS.max_seconds and FLAGS.no_inserts:
+      print('Cannot set max_seconds when no_inserts is set')
+      sys.exit(-1)
+
+  fixup_options()
+
+  print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query\tretry_i\tretry_q')
   run_benchmark()
   return 0
 

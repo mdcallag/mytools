@@ -21,11 +21,11 @@ maxr=$(( $nr / $dop ))
 
 printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $dop ) ; do
-  lines=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | wc -l )
+  lines=$( awk '{ if (NF == 10) { print $3 } }' o.ib.dop${dop}.ns${ns}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
     off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-    i_nth=$( awk '{ if (NF == 9) { print $6 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
-    q_nth=$( awk '{ if (NF == 9) { print $9 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
+    i_nth=$( awk '{ if (NF == 10) { print $3 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
+    q_nth=$( awk '{ if (NF == 10) { print $5 } }' o.ib.dop${dop}.ns${ns}.${n} | sort -rnk 1,1 | head -${off} | tail -1 )
     echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
   done
 done

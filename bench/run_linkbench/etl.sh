@@ -21,78 +21,78 @@ done
 
 for t in pre post ; do
 for x in op sec ; do
-head -1 p.l.$t.eff.$x.t.${f1} > z1.l.$t.eff.$x
+head -1 $rdir/p.l.$t.eff.$x.t.${f1} > $rdir/z1.l.$t.eff.$x
 for d in "$@"; do
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    tail -1 p.l.$t.eff.$x.t.$d | sed "s/${strippfx}\.//g"
+    tail -1 $rdir/p.l.$t.eff.$x.t.$d | sed "s/${strippfx}\.//g"
   fi
-done >> z1.l.$t.eff.$x
+done >> $rdir/z1.l.$t.eff.$x
 if [[ $display == "yes" ]]; then
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    echo z1.l.$t.eff.$x
-    cat z1.l.$t.eff.$x
+    echo $rdir/z1.l.$t.eff.$x
+    cat $rdir/z1.l.$t.eff.$x
   fi
 fi
 done
 done
 
-head -1 p.l.rt.t.${f1} > z2.l.rt
+head -1 $rdir/p.l.rt.t.${f1} > $rdir/z2.l.rt
 for d in "$@"; do
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    tail -1 p.l.rt.t.$d | sed "s/${strippfx}\.//g"
+    tail -1 $rdir/p.l.rt.t.$d | sed "s/${strippfx}\.//g"
   fi
-done >> z2.l.rt
+done >> $rdir/z2.l.rt
 if [[ $display == "yes" ]]; then
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    echo z2.l.rt
-    cat z2.l.rt
+    echo $rdir/z2.l.rt
+    cat $rdir/z2.l.rt
   fi
 fi
 
 if [ $loadonly == "yes" ]; then exit 0; fi
 
 for x in op sec ; do
-head -1 p.r.eff.$x.$tag.t.${f1} > z3.r.eff.$x.$tag
+head -1 $rdir/p.r.eff.$x.$tag.t.${f1} > $rdir/z3.r.eff.$x.$tag
 for d in "$@"; do
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    tail -1 p.r.eff.$x.$tag.t.$d | sed "s/${strippfx}\.//g"
+    tail -1 $rdir/p.r.eff.$x.$tag.t.$d | sed "s/${strippfx}\.//g"
   fi
-done >> z3.r.eff.$x.$tag
+done >> $rdir/z3.r.eff.$x.$tag
 if [[ $display == "yes" ]]; then
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    echo z3.r.eff.$x.$tag
-    cat z3.r.eff.$x.$tag
+    echo $rdir/z3.r.eff.$x.$tag
+    cat $rdir/z3.r.eff.$x.$tag
   fi
 fi
 done
 
 for x in node link; do
-head -1 p.r.rt.$x.$tag.t.${f1} > z4.r.rt.$x.$tag
+head -1 $rdir/p.r.rt.$x.$tag.t.${f1} > $rdir/z4.r.rt.$x.$tag
 for d in "$@"; do
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    tail -1 p.r.rt.$x.$tag.t.$d | sed "s/${strippfx}\.//g"
+    tail -1 $rdir/p.r.rt.$x.$tag.t.$d | sed "s/${strippfx}\.//g"
   fi
-done >> z4.r.rt.$x.$tag
+done >> $rdir/z4.r.rt.$x.$tag
 if [[ $display == "yes" ]]; then
   if [ $d == "BREAK" ]; then
     echo "-"
   else
-    echo z4.r.rt.$x.$tag
-    cat z4.r.rt.$x.$tag
+    echo $rdir/z4.r.rt.$x.$tag
+    cat $rdir/z4.r.rt.$x.$tag
   fi
 fi
 done
