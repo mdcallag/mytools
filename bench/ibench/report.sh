@@ -10,8 +10,13 @@ m=$2
 # bash ~/git/mytools/bench/ibench/mrg3.sh 40m $( cat o.a )
 # cd ..
 
-m=40; rm -rf rt${m}; mkdir rt${m}; bash ~/git/mytools/bench/ibench/mrg.extra.sh rt${m} ${m}m $( cat o.${m}m )
-dop=8; bash ~/git/mytools/bench/ibench/chart_all.sh $dop $( cat ../ch.all.rc13 )
-m=40; bash ~/git/mytools/bench/ibench/chart_rt.sh $m $( cat ../ch.all.rc13 )
-m=40; dop=8; mkdir -p report; bash ~/git/mytools/bench/ibench/plot_report.sh $m $dop $( cat ../ch.all.rc13 )
-m=40; dop=8; mkdir -p report; bash ~/git/mytools/bench/ibench/gen_html.sh "${m}M docs and $dop clients" $m ../config.ht > report/all.html
+echo A
+rm -rf rt${m}; mkdir rt${m}; bash ~/git/mytools/bench/ibench/mrg.extra.sh rt${m} ${m}m $( cat o.${m}m )
+echo B
+bash ~/git/mytools/bench/ibench/chart_all.sh $dop $( cat ch.all )
+echo C
+bash ~/git/mytools/bench/ibench/chart_rt.sh $m $( cat ch.all)
+echo D
+mkdir -p report; bash ~/git/mytools/bench/ibench/plot_report.sh $m $dop $( cat ch.all )
+echo E
+mkdir -p report; bash ~/git/mytools/bench/ibench/gen_html.sh "${m}M docs and $dop client(s)" $m config.ht > report/all.html
