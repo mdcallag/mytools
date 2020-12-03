@@ -55,7 +55,6 @@ An overview of the insert benchmark <a href="http://smalldatum.blogspot.com/2017
 and a short update <a href="http://smalldatum.blogspot.com/2020/07/updates-for-insert-benchmark.html">is here</a>.
 Below, by <b>DBMS</b>, I mean DBMS+version.config.
 An example is <b>my8020.c10b40</b> where <b>my</b> means MySQL, 8020 is version 8.0.20 and c10b40 is the name for the configuration file.
-All configurations are <a href="https://github.com/mdcallag/mytools/tree/master/bench/conf/dsi.aws">stored here</a>.
 </p>
 IntroEOF
 
