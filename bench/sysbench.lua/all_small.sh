@@ -15,10 +15,10 @@ usepk=${14}
 
 concurrency="1 2"
 
-# warm the cache but results will wiped
+# warm the cache 
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $engine $setup 0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk "2"
-rm -rf sb.*.point-query.pre.*
+#rm -rf sb.*.point-query.pre.*
 
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $engine 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $concurrency

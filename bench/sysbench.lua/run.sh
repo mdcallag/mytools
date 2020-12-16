@@ -13,6 +13,11 @@ ddir=${12}
 dname=${13}
 usepk=${14}
 
+samp=2
+
+realdop=$( cat /proc/cpuinfo  | grep "^processor" | wc -l )
+echo $realdop CPUs
+
 testArgs="--rand-type=uniform"
 
 if [[ $testType == "read-only" || $testType == "read-only.pre" ]]; then
@@ -85,15 +90,42 @@ topt="--mysql-table-options=$tableoptions"
 fi
 
 ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare"
-echo $ex > sb.prepare.$sfx
-time $ex >> sb.prepare.$sfx 2>&1
+echo $ex > sb.prepare.o.$sfx
+
+for x in $( seq 1 $ntabs ); do
+  echo Drop table sbtest${x} >> sb.prepare.o.$sfx
+  $client -uroot -ppw -h$hp test -e "drop table if exists sbtest${x}" >> sb.prepare.o.$sfx 2>&1
+done
+
+killall vmstat
+killall iostat
+vmstat $samp 10000 >& sb.prepare.vm.$sfx &
+vmpid=$!
+iostat -kx $samp 10000 >& sb.prepare.io.$sfx &
+iopid=$!
+start_secs=$( date +'%s' )
+
+time $ex >> sb.prepare.o.$sfx 2>&1
+status=$?
+if [[ $status != 0 ]]; then
+  echo sysbench prepare failed, see sb.prepare.o.$sfx
+  exit -1
+fi
+
+stop_secs=$( date +'%s' )
+tot_secs=$(( $stop_secs - $start_secs ))
+mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
+rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
+echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" > sb.prepare.o.$sfx
+
+kill $vmpid
+kill $iopid
+bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
 
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 fi
 
 shift 14
-
-samp=2
 
 # --- Do full scan without sysbench and then finish ---
 if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
@@ -122,11 +154,12 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   stop_secs=$( date +'%s' )
   tot_secs=$(( $stop_secs - $start_secs ))
   mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
+  rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
   echo "Scan seconds is $tot_secs for $ntabs tables, $mrps Mrps" > sb.r.qps.$sfx
 
   kill $vmpid
   kill $iopid
-  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $samp $dname $(( $ntabs * $nr )) > sb.met.nt${ntabs}.$sfx
+  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $dname $rps $realdop > sb.met.nt${ntabs}.$sfx
 
   for n in $( seq 1 $ntabs ); do
     $client -uroot -ppw -h$hp test -e "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.nt$n.$sfx &
@@ -162,8 +195,8 @@ $ex >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
 kill $iopid
-queries=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $2 }' )
-bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $samp $dname $queries > sb.met.nt${nt}.$sfx
+qps=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' )
+bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $dname $qps $realdop > sb.met.nt${nt}.$sfx
 
 $client -uroot -ppw -h$hp test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
 $client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
@@ -185,17 +218,23 @@ echo "all" >> sb.sz.$sfx
 du -hs ${ddir}/* >> sb.sz.$sfx
 
 if [[ $cleanup == 1 ]]; then
+
 echo Cleanup
-./sysbench --test=$sysbdir/${lua} --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --table-size=$nr --tables=$ntabs cleanup
+echo Cleanup > sb.cleanup.$sfx
+for x in $( seq 1 $ntabs ); do
+  echo Drop table sbtest${x} >> sb.cleanup.$sfx
+  $client -uroot -ppw -h$hp test -e "drop table if exists sbtest${x}" >> sb.prepare.$sfx 2>&1
+done
+
 fi
 
 for nt in "$@"; do
-  grep transactions: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%s\t", $1 }' 
+  grep transactions: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr '(' ' ' | awk '{ printf "%s\t", $1 }' 
+  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.qps.$sfx
 echo "$engine $testType range=$range" >> sb.r.qps.$sfx
 
