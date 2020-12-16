@@ -97,15 +97,15 @@ for x in $( seq 1 $ntabs ); do
   $client -uroot -ppw -h$hp test -e "drop table if exists sbtest${x}" >> sb.prepare.o.$sfx 2>&1
 done
 
-killall vmstat
-killall iostat
+killall vmstat >& /dev/null
+killall iostat >& /dev/null
 vmstat $samp 10000 >& sb.prepare.vm.$sfx &
 vmpid=$!
 iostat -kx $samp 10000 >& sb.prepare.io.$sfx &
 iopid=$!
 start_secs=$( date +'%s' )
 
-time $ex >> sb.prepare.o.$sfx 2>&1
+/usr/bin/time -o sb.prepare.time.$sfx $ex >> sb.prepare.o.$sfx 2>&1
 status=$?
 if [[ $status != 0 ]]; then
   echo sysbench prepare failed, see sb.prepare.o.$sfx
@@ -134,8 +134,8 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   #done
   #if [[ $ntabs -lt $maxconcur ]]; then maxconcur=$ntabs; fi
 
-  killall vmstat
-  killall iostat
+  killall vmstat >& /dev/null
+  killall iostat >& /dev/null
   vmstat $samp 10000 >& sb.vm.nt${ntabs}.$sfx &
   vmpid=$!
   iostat -kx $samp 10000 >& sb.io.nt${ntabs}.$sfx &
@@ -182,8 +182,8 @@ for nt in "$@"; do
 echo Run for $nt threads
 
 echo Run for nt $nt at $( date )
-killall vmstat
-killall iostat
+killall vmstat >& /dev/null
+killall iostat >& /dev/null
 vmstat $samp 10000 >& sb.vm.nt${nt}.$sfx &
 vmpid=$!
 iostat -kx $samp 10000 >& sb.io.nt${nt}.$sfx &
@@ -191,6 +191,7 @@ iopid=$!
 
 ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs $sysbdir/share/sysbench/$lua run"
 echo $ex > sb.o.nt${nt}.${sfx}
+echo "$realdop CPUs" >> sb.o.nt${nt}.${sfx}
 $ex >> sb.o.nt${nt}.${sfx} 2>&1
 
 kill $vmpid
@@ -198,10 +199,10 @@ kill $iopid
 qps=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' )
 bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $dname $qps $realdop > sb.met.nt${nt}.$sfx
 
-$client -uroot -ppw -h$hp test -e "show engine $engine status\G" > sb.es.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" > sb.is.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show global variables" > sb.gv.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show global status\G" > sb.gs.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show engine $engine status\G" >& sb.es.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" >& sb.is.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show global variables" >& sb.gv.nt${nt}.$sfx
+$client -uroot -ppw -h$hp test -e "show global status\G" >& sb.gs.nt${nt}.$sfx
 $client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
 
 $client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
