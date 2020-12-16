@@ -13,7 +13,7 @@ ddir=${12}
 dname=${13}
 usepk=${14}
 
-concurrency="1 2"
+concurrency="1 2 3 4"
 
 # warm the cache 
 echo point-query.pre
