@@ -1,7 +1,7 @@
 ntabs=$1
 nr=$2
 secs=$3
-engine=$4
+dbAndCreds=$4
 setup=$5
 cleanup=$6
 testType=$7
@@ -13,18 +13,22 @@ ddir=${12}
 dname=${13}
 usepk=${14}
 
-samp=2
+#echo $@
+shift 14
 
-realdop=$( cat /proc/cpuinfo  | grep "^processor" | wc -l )
-echo $realdop CPUs
+samp=1
+nsamp=10000000
 
-testArgs="--rand-type=uniform"
+realdop=$( cat /proc/cpuinfo | grep "^processor" | wc -l )
+#echo $realdop CPUs
+
+testArgs=(--rand-type=uniform)
 
 if [[ $testType == "read-only" || $testType == "read-only.pre" ]]; then
   lua="oltp_read_only.lua"
 elif [[ $testType == "read-only-count" ]]; then
   lua="oltp_read_only_count.lua"
-  testArgs="--skip-trx"
+  testArgs=(--rand-type=uniform --skip-trx)
 elif [[ $testType == "read-write" ]]; then
   lua="oltp_read_write.lua"
 elif [[ $testType == "write-only" ]]; then
@@ -39,21 +43,21 @@ elif [[ $testType == "update-one" ]]; then
 elif [[ $testType == "update-nonindex" ]]; then
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-special" ]]; then
-  testArgs="--rand-type=special"
+  testArgs=(--rand-type=special)
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-index" ]]; then
   lua="oltp_update_index.lua"
 elif [[ $testType == "update-rate" ]]; then
   lua="oltp_update_rate.lua"
-  testArgs="--update-rate=1000"
+  testArgs=(--rand-type=uniform --update-rate=1000)
 elif [[ $testType == "point-query" || $testType == "point-query.pre" ]]; then
   lua="oltp_point_select.lua"
-  testArgs="--skip-trx"
+  testArgs=(--rand-type=uniform --skip-trx)
 elif [[ $testType == "random-points" || $testType == "random-points.pre" ]]; then
-  testArgs="--rand-type=uniform --random-points=$range --skip-trx"
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx)
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "hot-points" ]]; then
-  testArgs="--rand-type=uniform --random-points=$range --hot-points --skip-trx"
+  testArgs=(--rand-type=uniform --random-points=$range --hot-points --skip-trx)
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
@@ -64,48 +68,71 @@ echo Did not recognize testType $testType
 exit 1
 fi
 
-if [[ $engine == "myisam" ]]; then
-  testArgs="$testArgs --skip-trx"
+IFS=","; read -ra dbA <<< "$dbAndCreds"
+if [[ ${dbA[0]} == "mysql" ]]; then
+  if [[ ${#dbA[@]} -ne 6 ]]; then
+    echo "For MySQL expect 6 args (mysql,user,password,host,db,engine) got ${#dbA[@]} args from $dbAndCreds"
+    exit -1
+  fi
+
+  sbDbCreds=(--mysql-user=${dbA[1]} --mysql-password=${dbA[2]} --mysql-host=${dbA[3]} --mysql-db=${dbA[4]})
+  export MYSQL_PWD=${dbA[2]}
+  clientArgs=(-u${dbA[1]} -h${dbA[3]} ${dbA[4]})
+  engine=${dbA[5]}
+  engineArg="--mysql-storage-engine=$engine"
+  sqlF=e
+  driver="mysql"
+  $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
+
+elif [[ ${dbA[0]} == "postgres" ]]; then
+  if [[ ${#dbA[@]} -ne 5 ]]; then
+    echo "For Postgres expect 5 args (postgres,user,password,host,db) got ${#dbA[@]} args from $dbAndCreds"
+    exit -1
+  fi
+  sbDbCreds=(--pgsql-user=${dbA[1]} --pgsql-password=${dbA[2]} --pgsql-host=${dbA[3]} --pgsql-db=${dbA[4]})
+  export PGPASSWORD=${dbA[2]}
+  clientArgs=(-U${dbA[1]} -h${dbA[3]} ${dbA[4]})
+  engine="pgsql"
+  engineArg=""
+  sqlF=c
+  driver="pgsql"
+
+else
+  echo Could not parse dbAndCreds :: $dbAndCreds :: and first arg is ${dbA[0]}
+  exit -1
 fi
 
 prepareArgs=""
 if [[ $usepk -eq 0 ]]; then
-  prepareArgs="$prepareArgs --secondary "
+  prepareArgs="--secondary "
 fi
 
-dbcreds="--mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test"
-sfx="nr${nr}.range${range}.${engine}.${testType}"
-
-hp=127.0.0.1
-$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
+sfx="${testType}"
 
 # --- Setup ---
 
 if [[ $setup == 1 ]]; then
-echo Setup
 
-topt=""
-if [[ $tableoptions != none ]]; then
-topt="--mysql-table-options=$tableoptions"
-fi
-
-ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine $topt --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare"
-echo $ex > sb.prepare.o.$sfx
+echo Setup for $ntabs tables > sb.prepare.o.$sfx
+echo Setup for $ntabs tables
 
 for x in $( seq 1 $ntabs ); do
   echo Drop table sbtest${x} >> sb.prepare.o.$sfx
-  $client -uroot -ppw -h$hp test -e "drop table if exists sbtest${x}" >> sb.prepare.o.$sfx 2>&1
+  $client "${clientArgs[@]}" -${sqlF} "drop table if exists sbtest${x}" >> sb.prepare.o.$sfx 2>&1
+  echo Done drop >> sb.prepare.o.$sfx
 done
 
 killall vmstat >& /dev/null
 killall iostat >& /dev/null
-vmstat $samp 10000 >& sb.prepare.vm.$sfx &
+vmstat $samp $nsamp >& sb.prepare.vm.$sfx &
 vmpid=$!
-iostat -kx $samp 10000 >& sb.prepare.io.$sfx &
+iostat -y -kx $samp $nsamp >& sb.prepare.io.$sfx &
 iopid=$!
 start_secs=$( date +'%s' )
 
-/usr/bin/time -o sb.prepare.time.$sfx $ex >> sb.prepare.o.$sfx 2>&1
+exA=(--db-driver=$driver $setupArgs $engineArg --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare)
+echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
+$sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
 status=$?
 if [[ $status != 0 ]]; then
   echo sysbench prepare failed, see sb.prepare.o.$sfx
@@ -122,27 +149,24 @@ kill $vmpid
 kill $iopid
 bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
 
-$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
+if [[ $driver == "mysql" ]]; then
+  $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
 fi
 
-shift 14
+fi
 
 # --- Do full scan without sysbench and then finish ---
 if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
-  #for nt in "$@"; do
-  #  maxconcur=$nt
-  #done
-  #if [[ $ntabs -lt $maxconcur ]]; then maxconcur=$ntabs; fi
-
+  sfxn="$sfx.dop${ntabs}"
   killall vmstat >& /dev/null
   killall iostat >& /dev/null
-  vmstat $samp 10000 >& sb.vm.nt${ntabs}.$sfx &
+  vmstat $samp $nsamp >& sb.vm.$sfxn &
   vmpid=$!
-  iostat -kx $samp 10000 >& sb.io.nt${ntabs}.$sfx &
+  iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
   iopid=$!
 
   for n in $( seq 1 $ntabs ); do
-    $client -uroot -ppw -h$hp test -e "select count(*) from sbtest$n where length(pad) < 0" > sb.o.nt$n.$sfx &
+    $client "${clientArgs[@]}" -${sqlF} "select count(*) from sbtest$n where length(pad) < 0" > sb.o.$sfxn.p$n &
     pids[${n}]=$!
   done
   start_secs=$( date +'%s' )
@@ -155,22 +179,21 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   tot_secs=$(( $stop_secs - $start_secs ))
   mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
   rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
-  echo "Scan seconds is $tot_secs for $ntabs tables, $mrps Mrps" > sb.r.qps.$sfx
+  echo "Scan seconds is $tot_secs for $ntabs tables, $mrps Mrps" > sb.r.qps.$sfxn
 
   kill $vmpid
   kill $iopid
-  bash an.sh sb.io.nt${ntabs}.$sfx sb.vm.nt${ntabs}.$sfx $dname $rps $realdop > sb.met.nt${ntabs}.$sfx
+  bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $rps $realdop > sb.met.$sfxn
 
   for n in $( seq 1 $ntabs ); do
-    $client -uroot -ppw -h$hp test -e "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.nt$n.$sfx &
-    pids[${n}]=$!
+    $client "${clientArgs[@]}" -${sqlF} "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.$sfxn.p$n
   done
 
-  du -hs $ddir > sb.sz.$sfx
-  echo "with apparent size " >> sb.sz.$sfx
-  du -hs --apparent-size $ddir >> sb.sz.$sfx
-  echo "all" >> sb.sz.$sfx
-  du -hs ${ddir}/* >> sb.sz.$sfx
+  du -hs $ddir > sb.sz.$sfxn
+  echo "with apparent size " >> sb.sz.$sfxn
+  du -hs --apparent-size $ddir >> sb.sz.$sfxn
+  echo "all" >> sb.sz.$sfxn
+  du -hs ${ddir}/* >> sb.sz.$sfxn
   exit 0
 fi
 
@@ -179,36 +202,48 @@ fi
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
 for nt in "$@"; do
-echo Run for $nt threads
+echo Run for $nt threads at $( date )
 
-echo Run for nt $nt at $( date )
+sfxn="$sfx.dop${nt}"
 killall vmstat >& /dev/null
 killall iostat >& /dev/null
-vmstat $samp 10000 >& sb.vm.nt${nt}.$sfx &
+vmstat $samp $nsamp >& sb.vm.$sfxn &
 vmpid=$!
-iostat -kx $samp 10000 >& sb.io.nt${nt}.$sfx &
+iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
 iopid=$!
 
-ex="$sysbdir/bin/sysbench --db-driver=mysql $dbcreds --mysql-storage-engine=$engine --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $testArgs $sysbdir/share/sysbench/$lua run"
-echo $ex > sb.o.nt${nt}.${sfx}
-echo "$realdop CPUs" >> sb.o.nt${nt}.${sfx}
-$ex >> sb.o.nt${nt}.${sfx} 2>&1
+exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $sysbdir/share/sysbench/$lua run)
+echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
+echo "$realdop CPUs" >> sb.o.$sfxn
+$sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
 
 kill $vmpid
 kill $iopid
-qps=$( grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' )
-bash an.sh sb.io.nt${nt}.$sfx sb.vm.nt${nt}.$sfx $dname $qps $realdop > sb.met.nt${nt}.$sfx
+qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
+bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $qps $realdop > sb.met.$sfxn
 
-$client -uroot -ppw -h$hp test -e "show engine $engine status\G" >& sb.es.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show indexes from sbtest1\G" >& sb.is.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show global variables" >& sb.gv.nt${nt}.$sfx
-$client -uroot -ppw -h$hp test -e "show global status\G" >& sb.gs.nt${nt}.$sfx
-$client -uroot -ppw -h$hp -e 'reset master' 2> /dev/null
+if [[ $driver == "mysql" ]]; then
+  $client "${clientArgs[@]}" -e "show engine $engine status\G" >& sb.es.$sfx
+  $client "${clientArgs[@]}" -e "show indexes from sbtest1\G" >& sb.is.$sfx
+  $client "${clientArgs[@]}" -e "show global variables" >& sb.gv.$sfx
+  $client "${clientArgs[@]}" -e "show global status\G" >& sb.gs.$sfx
+  $client "${clientArgs[@]}" -e "show table status\G" >& sb.ts.$sfx
+  $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
 
-$client -uroot -ppw -h$hp test -e "show table status\G" > sb.ts.nt${nt}.$sfx
-echo "sum of data and index length columns in GB" >> sb.ts.nt${nt}.$sfx
-cat sb.ts.nt${nt}.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.nt${nt}.$sfx
-cat sb.ts.nt${nt}.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.nt${nt}.$sfx
+elif [[ $driver == "pgsql" ]]; then
+  $client "${clientArg[@]}" -c 'show all' > sb.pg.conf.$sfx
+  $client "${clientArg[@]}" -x -c 'select * from pg_stat_bgwriter' > sb.pgs.bg.$sfx
+  $client "${clientArg[@]}" -x -c 'select * from pg_stat_database' > sb.pgs.db.$sfx
+  $client "${clientArg[@]}" -x -c "select * from pg_stat_all_tables where schemaname='public'" > sb.pgs.tabs.$sfx
+  $client "${clientArg[@]}" -x -c "select * from pg_stat_all_indexes where schemaname='public'" > sb.pgs.idxs.$sfx
+  $client "${clientArg[@]}" -x -c "select * from pg_statio_all_tables where schemaname='public'" > sb.pgi.tabs.$sfx
+  $client "${clientArg[@]}" -x -c "select * from pg_statio_all_indexes where schemaname='public'" > sb.pgi.idxs.$sfx
+  $client "${clientArg[@]}" -x -c 'select * from pg_statio_all_sequences' > sb.pgi.seq.$sfx
+fi
+
+echo "sum of data and index length columns in GB" >> sb.ts.$sfx
+cat sb.ts.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.$sfx
+cat sb.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> sb.ts.$sfx
 
 done
 
@@ -224,33 +259,33 @@ echo Cleanup
 echo Cleanup > sb.cleanup.$sfx
 for x in $( seq 1 $ntabs ); do
   echo Drop table sbtest${x} >> sb.cleanup.$sfx
-  $client -uroot -ppw -h$hp test -e "drop table if exists sbtest${x}" >> sb.prepare.$sfx 2>&1
+  $client "${clientArgs[@]}" -${sqlF} "drop table if exists sbtest${x}" >> sb.prepare.$sfx 2>&1
 done
 
 fi
 
 for nt in "$@"; do
-  grep transactions: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%s\t", $1 }' 
+  grep transactions: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%.0f\t", $1 }' 
 done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-  grep queries: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%s\t", $1 }' 
+  grep queries: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%.0f\t", $1 }' 
 done > sb.r.qps.$sfx
 echo "$engine $testType range=$range" >> sb.r.qps.$sfx
 
 for nt in "$@"; do
-  grep avg: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
+  grep avg: sb.o.$sfx.dop${nt} | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rtavg.$sfx
 echo "$engine $testType range=$range" >> sb.r.rtavg.$sfx
 
 for nt in "$@"; do
-  grep max: sb.o.nt${nt}.$sfx | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
+  grep max: sb.o.$sfx.dop${nt} | awk '{ print $2 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rtmax.$sfx
 echo "$engine $testType range=$range" >> sb.r.rtmax.$sfx
 
 for nt in "$@"; do
-  grep percentile: sb.o.nt${nt}.$sfx | awk '{ print $3 }' | awk '{ printf "%s\t", $1 }' 
+  grep percentile: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rt95.$sfx
 echo "$engine $testType range=$range" >> sb.r.rt95.$sfx
 
