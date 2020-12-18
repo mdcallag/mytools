@@ -50,7 +50,7 @@ elif [[ $testType == "update-index" ]]; then
 elif [[ $testType == "update-rate" ]]; then
   lua="oltp_update_rate.lua"
   testArgs=(--rand-type=uniform --update-rate=1000)
-elif [[ $testType == "point-query" || $testType == "point-query.pre" ]]; then
+elif [[ $testType == "point-query" || $testType == "point-query.pre" || $testType == "point-query.warm" ]]; then
   lua="oltp_point_select.lua"
   testArgs=(--rand-type=uniform --skip-trx)
 elif [[ $testType == "random-points" || $testType == "random-points.pre" ]]; then
