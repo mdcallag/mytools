@@ -32,8 +32,23 @@ function dbms_down() {
   cd $bdir; bash down.sh $cnf >& o.down; cd $cdir
 }
 
+dbcreds=postgres,root,pw,127.0.0.1,ib
+for dcnf in pg131 pg130 pg124 pg123 pg122 pg121 pg120 ; do
+  dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
+  cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
+
+  dbdir=$basedir/$dbms
+  client=$dbdir/bin/psql
+  echo Run for $dbms with $cnf config from $dbdir
+
+  dbms_up $dbdir $cnf
+  bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 1 $client none $sysbdir $datadir $devname $usepk $@
+  mkdir x.$dcnf; mv sb.* x.$dcnf; cp $dbdir/etc/cnf.diff $dbdir/o.ini x.$dcnf
+  dbms_down $dbdir $cnf 
+done
+
 dbcreds=mysql,root,pw,127.0.0.1,test,innodb
-for dcnf in my8022.x1 my8021.x1 my8020.x1 my8019.x1 my8018.x1 ; do
+for dcnf in my8022.x1 my8021.x1 my8020.x1 my8019.x1 my8018.x1 my8017.x1 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 
@@ -46,5 +61,3 @@ for dcnf in my8022.x1 my8021.x1 my8020.x1 my8019.x1 my8018.x1 ; do
   mkdir x.$dcnf; mv sb.* x.$dcnf; cp $dbdir/etc/my.cnf $dbdir/o.ini x.$dcnf
   dbms_down $dbdir $cnf 
 done
-
-

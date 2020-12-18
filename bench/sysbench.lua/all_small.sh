@@ -19,7 +19,7 @@ shift 14
 # warm the cache 
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk "2"
-#rm -rf sb.*.point-query.pre.*
+rm -f sb.*.point-query.pre.*
 
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@

@@ -172,7 +172,7 @@ if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
   start_secs=$( date +'%s' )
 
   for n in $( seq 1 $ntabs ); do
-    echo Wait for ${pids[${n}]} at $( date )
+    # echo Wait for ${pids[${n}]} at $( date )
     wait ${pids[${n}]}
   done
   stop_secs=$( date +'%s' )
@@ -231,14 +231,14 @@ if [[ $driver == "mysql" ]]; then
   $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
 
 elif [[ $driver == "pgsql" ]]; then
-  $client "${clientArg[@]}" -c 'show all' > sb.pg.conf.$sfx
-  $client "${clientArg[@]}" -x -c 'select * from pg_stat_bgwriter' > sb.pgs.bg.$sfx
-  $client "${clientArg[@]}" -x -c 'select * from pg_stat_database' > sb.pgs.db.$sfx
-  $client "${clientArg[@]}" -x -c "select * from pg_stat_all_tables where schemaname='public'" > sb.pgs.tabs.$sfx
-  $client "${clientArg[@]}" -x -c "select * from pg_stat_all_indexes where schemaname='public'" > sb.pgs.idxs.$sfx
-  $client "${clientArg[@]}" -x -c "select * from pg_statio_all_tables where schemaname='public'" > sb.pgi.tabs.$sfx
-  $client "${clientArg[@]}" -x -c "select * from pg_statio_all_indexes where schemaname='public'" > sb.pgi.idxs.$sfx
-  $client "${clientArg[@]}" -x -c 'select * from pg_statio_all_sequences' > sb.pgi.seq.$sfx
+  $client "${clientArgs[@]}" -c 'show all' > sb.pg.conf.$sfx
+  $client "${clientArgs[@]}" -x -c 'select * from pg_stat_bgwriter' > sb.pgs.bg.$sfx
+  $client "${clientArgs[@]}" -x -c 'select * from pg_stat_database' > sb.pgs.db.$sfx
+  $client "${clientArgs[@]}" -x -c "select * from pg_stat_all_tables where schemaname='public'" > sb.pgs.tabs.$sfx
+  $client "${clientArgs[@]}" -x -c "select * from pg_stat_all_indexes where schemaname='public'" > sb.pgs.idxs.$sfx
+  $client "${clientArgs[@]}" -x -c "select * from pg_statio_all_tables where schemaname='public'" > sb.pgi.tabs.$sfx
+  $client "${clientArgs[@]}" -x -c "select * from pg_statio_all_indexes where schemaname='public'" > sb.pgi.idxs.$sfx
+  $client "${clientArgs[@]}" -x -c 'select * from pg_statio_all_sequences' > sb.pgi.seq.$sfx
 fi
 
 echo "sum of data and index length columns in GB" >> sb.ts.$sfx
