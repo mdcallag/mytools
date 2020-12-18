@@ -20,6 +20,9 @@ shift 14
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk "2"
 
+# sleep to let some background activity get done: InnoDB purge, RocksDB compaction, page writeback, etc
+sleep 60
+
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
@@ -30,6 +33,30 @@ for range in 10 100 10000 ; do
 echo read-only.pre range $range
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only.pre   $range $client $tableoptions $sysbdir $ddir $dname $usepk $@
 done
+
+echo points-covered-pk.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-pk.pre    100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-notcovered-pk.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-pk.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-covered-si.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si.pre    100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-notcovered-si.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-si.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-covered-pk.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk.pre    100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-notcovered-pk.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-pk.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-covered-si.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si.pre    100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-notcovered-si.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
 echo update-inlist
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-inlist   100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
@@ -49,6 +76,9 @@ bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-one     
 echo update-zipf
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-zipf      100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
+echo write-only
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        write-only      $range $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
 for range in 10 100 ; do
 echo read-write range $range
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      $range $client $tableoptions $sysbdir $ddir $dname $usepk $@
@@ -59,8 +89,6 @@ echo read-only range $range
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only       $range $client $tableoptions $sysbdir $ddir $dname $usepk $@
 done
 
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        write-only      $range $client $tableoptions $sysbdir $ddir $dname $usepk $@
-
 echo point-query
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query     100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
@@ -69,6 +97,30 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points  
 
 echo hot-points
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        hot-points      100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-covered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-pk    100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-notcovered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-pk 100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-covered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si    100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo points-notcovered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-si 100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-covered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-notcovered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-pk  100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-covered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si     100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+
+echo range-notcovered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
 echo delete
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        delete          100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
