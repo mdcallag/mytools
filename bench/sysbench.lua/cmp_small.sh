@@ -39,7 +39,6 @@ for dcnf in my5649.x6d my5731.x6d my8022.x6d my8021.x6d my8020.x6d my8019.x6d my
   mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
 done
-exit 0
 
 dbcreds=postgres,root,pw,127.0.0.1,ib
 for dcnf in pg131.x5 pg130.x5 pg124.x5 pg123.x5 pg122.x5 pg121.x5 pg120.x5 ; do
