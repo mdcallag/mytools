@@ -162,7 +162,7 @@ if [[ $driver == "mysql" ]]; then
 elif [[ $driver == "pgsql" ]]; then
   for x in $( seq 1 $ntabs ); do
     echo Vacuum analyze table sbtest${x} >> sb.prepare.o.$sfx
-    $client "${clientArgs[@]}" -${sqlF} "vacuum analyze verbose sbtest${x}" >> sb.prepare.o.$sfx 2>&1
+    $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" >> sb.prepare.o.$sfx 2>&1
     pids[${n}]=$!
   done
 
