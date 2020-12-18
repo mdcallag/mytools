@@ -42,8 +42,8 @@ elif [[ $testType == "update-one" ]]; then
   nr=1
 elif [[ $testType == "update-nonindex" ]]; then
   lua="oltp_update_non_index.lua"
-elif [[ $testType == "update-special" ]]; then
-  testArgs=(--rand-type=special)
+elif [[ $testType == "update-zipf" ]]; then
+  testArgs=(--rand-type=zipfian)
   lua="oltp_update_non_index.lua"
 elif [[ $testType == "update-index" ]]; then
   lua="oltp_update_index.lua"
@@ -61,8 +61,6 @@ elif [[ $testType == "hot-points" ]]; then
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
-elif [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
-  lua=none
 else
 echo Did not recognize testType $testType
 exit 1
@@ -107,7 +105,7 @@ if [[ $usepk -eq 0 ]]; then
   prepareArgs="--secondary "
 fi
 
-sfx="${testType}"
+sfx="${testType}.range${range}"
 
 # --- Setup ---
 
@@ -151,53 +149,31 @@ bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepa
 
 if [[ $driver == "mysql" ]]; then
   $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
-fi
-
-fi
-
-# --- Do full scan without sysbench and then finish ---
-if [[ $testType == "full-scan.pre" || $testType == "full-scan.post" ]]; then
-  sfxn="$sfx.dop${ntabs}"
-  killall vmstat >& /dev/null
-  killall iostat >& /dev/null
-  vmstat $samp $nsamp >& sb.vm.$sfxn &
-  vmpid=$!
-  iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
-  iopid=$!
-
-  for n in $( seq 1 $ntabs ); do
-    $client "${clientArgs[@]}" -${sqlF} "select count(*) from sbtest$n where length(pad) < 0" > sb.o.$sfxn.p$n &
+  for x in $( seq 1 $ntabs ); do
+    echo Analyze table sbtest${x} >> sb.prepare.o.$sfx
+    $client "${clientArgs[@]}" -${sqlF} "analyze table sbtest${x}" >> sb.prepare.o.$sfx 2>&1
     pids[${n}]=$!
   done
-  start_secs=$( date +'%s' )
 
-  for n in $( seq 1 $ntabs ); do
-    # echo Wait for ${pids[${n}]} at $( date )
+  for x in $( seq 1 $ntabs ); do
     wait ${pids[${n}]}
   done
-  stop_secs=$( date +'%s' )
-  tot_secs=$(( $stop_secs - $start_secs ))
-  mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
-  rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
-  echo "Scan seconds is $tot_secs for $ntabs tables, $mrps Mrps" > sb.r.qps.$sfxn
 
-  kill $vmpid
-  kill $iopid
-  bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $rps $realdop > sb.met.$sfxn
-
-  for n in $( seq 1 $ntabs ); do
-    $client "${clientArgs[@]}" -${sqlF} "explain select count(*) from sbtest$n where length(pad) < 0" >> sb.o.$sfxn.p$n
+elif [[ $driver == "pgsql" ]]; then
+  for x in $( seq 1 $ntabs ); do
+    echo Vacuum analyze table sbtest${x} >> sb.prepare.o.$sfx
+    $client "${clientArgs[@]}" -${sqlF} "vacuum analyze verbose sbtest${x}" >> sb.prepare.o.$sfx 2>&1
+    pids[${n}]=$!
   done
 
-  du -hs $ddir > sb.sz.$sfxn
-  echo "with apparent size " >> sb.sz.$sfxn
-  du -hs --apparent-size $ddir >> sb.sz.$sfxn
-  echo "all" >> sb.sz.$sfxn
-  du -hs ${ddir}/* >> sb.sz.$sfxn
-  exit 0
+  for x in $( seq 1 $ntabs ); do
+    wait ${pids[${n}]}
+  done
 fi
 
-# --- Otherwise run sysbench tests ---
+fi
+
+# --- run sysbench tests ---
 
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
@@ -212,7 +188,7 @@ vmpid=$!
 iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
 iopid=$!
 
-exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --time=$secs $sysbdir/share/sysbench/$lua run)
+exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
 echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
 echo "$realdop CPUs" >> sb.o.$sfxn
 $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
