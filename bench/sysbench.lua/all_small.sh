@@ -26,8 +26,10 @@ sleep 60
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
-echo random-points.pre
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points.pre 100  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+for range in 10 100 1000 ; do
+echo random-points.pre range $range
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points.pre $range  $client $tableoptions $sysbdir $ddir $dname $usepk $@
+done
 
 for range in 10 100 10000 ; do
 echo read-only.pre range $range
@@ -92,8 +94,10 @@ done
 echo point-query
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query     100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
-echo random-points
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points   100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
+for range in 10 100 1000 ; do
+echo random-points range $range
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points $range   $client $tableoptions $sysbdir $ddir $dname $usepk $@
+done
 
 echo hot-points
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        hot-points      100    $client $tableoptions $sysbdir $ddir $dname $usepk $@

@@ -212,10 +212,30 @@ vmpid=$!
 iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
 iopid=$!
 
+dbpid=-1 # remove this to use perf
+#dbpid=$( pidof mysqld )
+if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then
+  while :; do
+    ts=$( date +'%b%d.%H%M%S' ); tsf=sb.perf.data.$sfx.$ts
+    perf record -a -F 99 -g -p $dbpid -o $tsf.perf -- sleep 10
+    sleep 5
+  done >& sb.perf.$sfx &
+  fpid=$!
+fi
+
 exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
 echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
 echo "$realdop CPUs" >> sb.o.$sfxn
-$sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
+/usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
+
+if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then 
+  kill $fpid
+  for f in sb.perf.data.$sfx.*.perf ; do
+    perf report --no-children --stdio -i $f > $f.rep 
+    perf script -i $f | gzip > $f.scr.gz
+    rm -f $f
+  done
+fi
 
 kill $vmpid
 kill $iopid
