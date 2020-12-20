@@ -97,7 +97,7 @@ tpid=$!
 
 dbpid=-1 # remove this to use perf
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.data.$sfx.$ts ; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& o.perf.$sfx &
+  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.data.$sfx.$ts ; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 > $tsf.scr ; rm -f $tsf; sleep 60; done >& o.perf.$sfx &
   fpid=$!
 fi
 
