@@ -51,7 +51,7 @@ for dcnf in pg131.x5 pg130.x5 pg124.x5 pg123.x5 pg122.x5 pg121.x5 pg120.x5 ; do
 
   dbms_up $dbdir $cnf
   bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 1 $client none $sysbdir $datadir $devname $usepk $@
-  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/cnf.diff $dbdir/o.ini* x.$dcnf.pk${usepk}
+  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/conf.diff $dbdir/o.ini* x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
 done
 
