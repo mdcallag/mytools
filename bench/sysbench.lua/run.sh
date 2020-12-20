@@ -165,7 +165,7 @@ stop_secs=$( date +'%s' )
 tot_secs=$(( $stop_secs - $start_secs ))
 mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
 rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
-echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" > sb.prepare.o.$sfx
+echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" >> sb.prepare.o.$sfx
 
 kill $vmpid
 kill $iopid
