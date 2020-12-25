@@ -13,6 +13,7 @@ for f in $( ls -rt $bdir/${pfx}.* ); do
   for odir in "$@"; do
     cat $odir/$basef | cut -f 1-${ncols} | awk '{ printf "%s\t%s\n", $0, odir }' odir=$odir
   done
+  echo ""
 
 done
 
