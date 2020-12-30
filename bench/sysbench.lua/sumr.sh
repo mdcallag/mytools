@@ -26,7 +26,8 @@ for f in $( ls -rt $bdir/${pfx}.* | grep -v point-query.warm ); do
         # echo base ${baseCols[$colno]} my $myCol for col $colno
         echo $myCol ${baseCols[$colno]} | awk '{ printf "%.2f\t", $1 / $2 }'
       done
-      cat $odir/$basef | cut -f ${ncols}- | awk '{ printf "%s\n", $0 }'
+      # cat $odir/$basef | cut -f ${ncols}- | awk '{ printf "%s\n", $0 }'
+      echo $odir
     done
   fi
 
