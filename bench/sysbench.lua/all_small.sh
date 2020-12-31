@@ -20,9 +20,6 @@ shift 14
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk "2"
 
-# sleep to let some background activity get done: InnoDB purge, RocksDB compaction, page writeback, etc
-sleep 60
-
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $@
 
