@@ -61,28 +61,28 @@ elif [[ $testType == "hot-points" ]]; then
   lua="oltp_inlist_select.lua"
 elif [[ $testType == "points-covered-pk" || $testType == "points-covered-pk.pre" ]]; then
   lua="oltp_points_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx)
 elif [[ $testType == "points-covered-si" || $testType == "points-covered-si.pre" ]]; then
   lua="oltp_points_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --on-id=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false)
 elif [[ $testType == "points-notcovered-pk" || $testType == "points-notcovered-pk.pre" ]]; then
   lua="oltp_points_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --covered=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --covered=false)
 elif [[ $testType == "points-notcovered-si" || $testType == "points-notcovered-si.pre" ]]; then
   lua="oltp_points_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --on-id=false --covered=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false --covered=false)
 elif [[ $testType == "range-covered-pk" || $testType == "range-covered-pk.pre" ]]; then
   lua="oltp_range_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx)
 elif [[ $testType == "range-covered-si" || $testType == "range-covered-si.pre" ]]; then
   lua="oltp_range_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --on-id=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false)
 elif [[ $testType == "range-notcovered-pk" || $testType == "range-notcovered-pk.pre" ]]; then
   lua="oltp_range_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --covered=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --covered=false)
 elif [[ $testType == "range-notcovered-si" || $testType == "range-notcovered-si.pre" ]]; then
   lua="oltp_range_covered.lua"
-  testArgs=(--rand-type=uniform --skip-trx --on-id=false --covered=false)
+  testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false --covered=false)
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
 else
