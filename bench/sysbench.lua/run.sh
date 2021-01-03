@@ -258,6 +258,13 @@ if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then
     sleep 5
   done >& sb.perf.$sfx &
   fpid=$!
+
+  while :; do
+    ts=$( date +'%b%d.%H%M%S' ); tsf=sb.plist.$sfx.$ts
+    $client "${clientArgs[@]}" -e "show full processlist" >& $tsf
+    sleep 5
+  done >& sb.plist.$sfx &
+  plpid=$!
 fi
 
 exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
@@ -267,6 +274,7 @@ echo "$realdop CPUs" >> sb.o.$sfxn
 
 if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then 
   kill $fpid
+  kill $plpid
   for f in sb.perf.data.$sfx.*.perf ; do
     perf report --no-children --stdio -i $f > $f.rep 
     perf script -i $f | gzip > $f.scr.gz
