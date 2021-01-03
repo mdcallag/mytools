@@ -41,7 +41,8 @@ dpg12=${dbms_pfx}/pg12
 dmy80=${dbms_pfx}/my80
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
-dmyfb=${dbms_pfx}/fbmy56
+dmyfb56=${dbms_pfx}/fbmy56
+dmyfb80=${dbms_pfx}/fbmy80
 dmo40=${dbms_pfx}/mo40
 dmo42=${dbms_pfx}/mo42
 dmo44=${dbms_pfx}/mo44
@@ -60,13 +61,32 @@ function do_rx56 {
 
   echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=rx.$rmemt.dop$dop.c$cnf
-  cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh rocksdb "" $dmyfb/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dmyfb; bash down.sh; cd $dgit
+  cd $dmyfb56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" $dmyfb56/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dmyfb56; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx56.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmyfb/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
-  cp $dmyfb/etc/my.cnf $rdir
+  mv $dmyfb56/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
+  cp $dmyfb56/etc/my.cnf $rdir
+}
+
+function do_rx80 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=rx.$rmemt.dop$dop.c$cnf
+  cd $dmyfb80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" $dmyfb80/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dmyfb80; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx80.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmyfb80/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
+  cp $dmyfb80/etc/my.cnf $rdir
 }
 
 function do_in80 {
@@ -206,6 +226,8 @@ mkdir -p $brdir
 
 if [[ $dbms == "rx56" ]]; then
   do_rx56 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "rx80" ]]; then
+  do_rx80 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg12" ]]; then
   do_pg12 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in80" ]]; then
