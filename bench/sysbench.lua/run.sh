@@ -12,9 +12,10 @@ sysbdir=${11}
 ddir=${12}
 dname=${13}
 usepk=${14}
+postwrite=${15}
 
 #echo $@
-shift 14
+shift 15
 
 samp=1
 nsamp=10000000
@@ -133,7 +134,7 @@ sfx="${testType}.range${range}.pk${usepk}"
 
 # --- Setup ---
 
-if [[ $setup == 1 ]]; then
+if [[ $setup -eq 1 ]]; then
 
 echo Setup for $ntabs tables > sb.prepare.o.$sfx
 echo Setup for $ntabs tables
@@ -170,67 +171,6 @@ echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" >> sb.p
 kill $vmpid
 kill $iopid
 bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
-
-# Sleep for 60 + 60 seconds per 10M rows
-sleepSecs=$( echo $nr $ntabs | awk '{ printf "%.0f", ((($1 * $2) / 10000000) + 1) * 60 }' )
-echo sleepSecs is $sleepSecs >> sb.prepare.o.$sfx
-
-# One of the goals here is to flush dirty data (b-tree writeback, LSM compaction), but without shutting down the DBMS
-
-if [[ $driver == "mysql" ]]; then
-  $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
-
-  if [[ $engine == "innodb" ]]; then
-    maxDirty=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct"' | awk '{ print $2 }' )
-    maxDirtyLwm=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct_lwm"' | awk '{ print $2 }' )
-    # This option is only in 8.0.18+
-    idlePct=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_idle_flush_pct"' 2> /dev/null | awk '{ print $2 }' )
-
-    echo "Reduce max_dirty to 0 to flush InnoDB buffer pool" >> sb.prepare.o.$sfx
-    $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct_lwm=0' >> sb.prepare.o.$sfx 2>&1
-    $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct=0' >> sb.prepare.o.$sfx 2>&1
-    echo "Increase idle_pct to 100 to flush InnoDB buffer pool" >> sb.prepare.o.$sfx
-    $client "${clientArgs[@]}" -e 'set global innodb_idle_flush_pct=100' >> sb.prepare.o.$sfx 2>&1
-  fi
-
-  for x in $( seq 1 $ntabs ); do
-    echo Analyze table sbtest${x} >> sb.prepare.o.$sfx
-    /usr/bin/time -o sb.prepare.times.a${x} $client "${clientArgs[@]}" -${sqlF} "analyze table sbtest${x}" >> sb.prepare.o.$sfx 2>&1 &
-    pids[${n}]=$!
-  done
-
-  for x in $( seq 1 $ntabs ); do
-    wait ${pids[${n}]}
-  done
-
-  echo "Sleep for $sleepSecs" >> sb.prepare.o.$sfx
-  sleep $sleepSecs
-
-  if [[ $engine == "innodb" ]]; then
-    echo "Reset max_dirty to $maxDirty and lwm to $maxDirtyLwm" >> sb.prepare.o.$sfx
-    $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct=$maxDirty" >> sb.prepare.o.$sfx 2>&1
-    $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct_lwm=$maxDirtyLwm" >> sb.prepare.o.$sfx 2>&1
-    echo "Reset idle_pct to $idlePct" >> sb.prepare.o.$sfx
-    $client "${clientArgs[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> sb.prepare.o.$sfx 2>&1
-  fi
-
-elif [[ $driver == "pgsql" ]]; then
-  for x in $( seq 1 $ntabs ); do
-    echo Vacuum analyze table sbtest${x} >> sb.prepare.o.$sfx
-    /usr/bin/time -o sb.prepare.times.va${x}.$sfx $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" >> sb.prepare.o.$sfx 2>&1 &
-    pids[${n}]=$!
-  done
-
-  for x in $( seq 1 $ntabs ); do
-    wait ${pids[${n}]}
-  done
-
-  echo Checkpoint >> sb.prepare.o.$sfx
-  /usr/bin/time -o sb.prepare.times.cp.$sfx $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.prepare.o.$sfx 2>&1 &
-
-  echo "Sleep for $sleepSecs" >> sb.prepare.o.$sfx
-  sleep $sleepSecs
-fi
 
 fi
 
@@ -317,6 +257,83 @@ echo "with apparent size " >> sb.sz.$sfx
 du -hs --apparent-size $ddir >> sb.sz.$sfx
 echo "all" >> sb.sz.$sfx
 du -hs ${ddir}/* >> sb.sz.$sfx
+
+# --- Postwrite ---
+
+if [[ $postwrite -eq 1 ]]; then
+  # This is optional and can be run after a test step
+  # Goals:
+  #  1) Flush dirty data (b-tree writeback, LSM compaction), but without shutting down the DBMS
+  #  2) Get LSM tree into deterministic state
+  #  3) Collect stats
+
+  # Sleep for 60 + 60 seconds per 10M rows
+  sleepSecs=$( echo $nr $ntabs | awk '{ printf "%.0f", ((($1 * $2) / 10000000) + 1) * 60 }' )
+  echo sleepSecs is $sleepSecs > sb.o.pw.$sfx
+
+  if [[ $driver == "mysql" ]]; then
+    $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
+
+    if [[ $engine == "innodb" ]]; then
+      maxDirty=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct"' | awk '{ print $2 }' )
+      maxDirtyLwm=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct_lwm"' | awk '{ print $2 }' )
+      # This option is only in 8.0.18+
+      idlePct=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_idle_flush_pct"' 2> /dev/null | awk '{ print $2 }' )
+
+      echo "Reduce max_dirty to 0 to flush InnoDB buffer pool" >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct_lwm=0' >> sb.o.pw.$sfx 2>&1
+      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct=0' >> sb.o.pw.$sfx 2>&1
+      echo "Increase idle_pct to 100 to flush InnoDB buffer pool" >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e 'set global innodb_idle_flush_pct=100' >> sb.o.pw.$sfx 2>&1
+
+    elif [[ $engine == "rocksdb" ]]; then
+      echo Enable flush memtable and L0 >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> sb.o.pw.$sfx 2>&1
+      sleep 30
+    fi
+
+    for x in $( seq 1 $ntabs ); do
+      echo Analyze table sbtest${x} >> sb.o.pw.$sfx
+      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "analyze table sbtest${x}" >> sb.o.pw.$sfx 2>&1
+    done
+
+    echo "Sleep for $sleepSecs with engine $engine" >> sb.o.pw.$sfx
+    sleep $sleepSecs
+
+    if [[ $engine == "innodb" ]]; then
+      echo "Reset max_dirty to $maxDirty and lwm to $maxDirtyLwm" >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct=$maxDirty" >> sb.o.pw.$sfx 2>&1
+      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct_lwm=$maxDirtyLwm" >> sb.o.pw.$sfx 2>&1
+      echo "Reset idle_pct to $idlePct" >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> sb.o.pw.$sfx 2>&1
+
+    elif [[ $engine == "rocksdb" ]]; then
+      echo Disable flush memtable and L0 >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=0' >> sb.o.pw.$sfx 2>&1
+    fi
+
+  elif [[ $driver == "pgsql" ]]; then
+    for x in $( seq 1 $ntabs ); do
+      echo Vacuum analyze table sbtest${x} >> sb.o.pw.$sfx
+      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" > sb.o.pw.$sfx.a2${x} 2>&1 &
+      pids[${n}]=$!
+    done
+
+    for x in $( seq 1 $ntabs ); do
+      wait ${pids[${n}]}
+    done
+
+    echo Checkpoint >> sb.o.pw.$sfx
+    /usr/bin/time -o sb.o.pw.$sfx.cp $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.o.pw.$sfx.cp2 2>&1 &
+    cpid=$!
+
+    echo "Sleep for $sleepSecs" >> sb.o.pw.$sfx
+    sleep $sleepSecs
+
+    wait $cpid
+  fi
+
+fi # if postwrite ...
 
 if [[ $cleanup == 1 ]]; then
 

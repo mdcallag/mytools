@@ -1,9 +1,13 @@
-pfx=$1 bdir=$2
+pfx=$1
+bdir=$2
 dop=$3
 
 shift 3
 
-for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm ); do
+function work() {
+  f=$1
+  shift 1
+
   basef=$( basename $f )
   echo $basef
 
@@ -13,6 +17,7 @@ for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm ); do
   cat $f | awk '{ if (NR == 3) { printf "%s\t%s\t%.0f\t%s\n", $7, $8, $9, bdir } }' bdir=$bdir
 
   for odir in "$@"; do
+    #echo TODO f :: $f :: and basef :: $basef :: and odir :: $odir ::
     cat $odir/$basef | awk '{ if (NR == 6) { printf "%s\t", $5 } }'
     cat $odir/$basef | awk '{ if (NR == 3) { printf "%s\t%s\t%.0f\t%s\n", $7, $8, $9, odir } }' odir=$odir
   done
@@ -40,5 +45,14 @@ for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm ); do
   done
 
   echo ""
+}
+
+# there should only be one such file, so this loop isn't required
+for f in $( ls -rt $bdir/sb.prepare.met.* ); do
+  work $f "$@"
+done
+
+for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm ); do
+  work $f "$@"
 done
 
