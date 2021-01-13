@@ -21,7 +21,7 @@ shift 14
 
 # This does load, runs a query test and then does "postwrite" work
 echo point-query.pre
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk 1 "2"
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk 1 $ntabs
 
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
@@ -126,8 +126,11 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-s
 echo range-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
 
+echo scan
+bash run.sh $ntabs $nrows $insertsecs $dbAndCreds 0     0        scan                 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $ntabs
+
 echo delete
-bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        delete          100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        delete               100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
 
 echo insert
-bash run.sh $ntabs $nrows $insertsecs $dbAndCreds 0     $cleanup insert          100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
+bash run.sh $ntabs $nrows $insertsecs $dbAndCreds 0     $cleanup insert               100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $@
