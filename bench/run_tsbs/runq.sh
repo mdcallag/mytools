@@ -9,9 +9,8 @@ rDir=$7
 pWarm=$8
 dbms=$9
 name=${10}
-fastMaxQ=${11}
-slowMaxQ=${12}
-maxSecs=${13}
+maxSecs=${11}
+nworkers=${12}
 
 pInt=0
 monSecs=1
@@ -44,19 +43,19 @@ ipid=$!
 vmstat $monSecs        >& ${rDir}/vm.$sfx &
 vpid=$!
 
-if [[ $qt == "groupby-orderby-limit" ]] ; then
-  echo Start $qt for $dbName at $( date ) with $slowMaxQ queries
-  echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${slowMaxQ} --max-total-duration=$maxSecs" > ${rDir}/exp.${name}.${qt} 
-  echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${slowMaxQ} --show-explain" >> ${rDir}/exp.${name}.${qt} 
-  ./tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${slowMaxQ} --show-explain >> ${rDir}/exp.${name}.${qt} 
-  ./tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${slowMaxQ} --max-total-duration=$maxSecs > ${rDir}/res.${name}.${qt} 
+if [[ $maxSecs == "none" ]]; then
+  maxArg=""
 else
-  echo Start $qt for $dbName at $( date ) with $fastMaxQ queries
-  echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${fastMaxQ} --max-total-duration=$maxSecs" > ${rDir}/exp.${name}.${qt} 
-  echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${fastMaxQ} --show-explain" >> ${rDir}/exp.${name}.${qt} 
-  ./tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${fastMaxQ} --show-explain >> ${rDir}/exp.${name}.${qt} 
-  ./tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --max-queries=${fastMaxQ} --max-total-duration=$maxSecs > ${rDir}/res.${name}.${qt} 
+  maxArg="--max-total-duration=$maxSecs"
 fi
+
+echo Start $qt for $dbName at $( date ) with $maxSecs timeout and $nworkers workers with $qDir dir
+
+echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --show-explain" > ${rDir}/exp.${name}.${qt} 
+./tsbs_run_queries_${dbms}     $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --show-explain >> ${rDir}/exp.${name}.${qt} 
+
+echo "tsbs_run_queries_${dbms} $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --workers=$nworkers $maxArg" > ${rDir}/res.${name}.${qt} 
+./tsbs_run_queries_${dbms}     $xa --file=${qDir}/q.${dbms}.${name}.${qt} $hdr --workers=$nworkers $maxArg >> ${rDir}/res.${name}.${qt} 
 
 kill $ipid
 kill $vpid
