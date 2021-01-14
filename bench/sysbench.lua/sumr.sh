@@ -35,24 +35,30 @@ for f in $( ls -rt $bdir/${pfx}.* | grep -v point-query.warm ); do
   basef=$( basename $f )
   echo $basef
 
+  # scan only has one column
+  isScan=$( echo $f | grep .scan. | wc -l )
+  if [[ $isScan -eq 1 ]]; then
+    ucols=1
+  else
+    ucols=$ncols
+  fi
+
   if [[ $ratio -eq 0 ]]; then
-    cat $f | cut -f 1-${ncols} | awk '{ printf "%s\t%s\n", $0, bdir }' bdir=$bdir
+    cat $f | cut -f 1-${ucols} | awk '{ printf "%s\t%s\n", $0, bdir }' bdir=$bdir
     for odir in "$@"; do
-      cat $odir/$basef | cut -f 1-${ncols} | awk '{ printf "%s\t%s\n", $0, odir }' odir=$odir
+      cat $odir/$basef | cut -f 1-${ucols} | awk '{ printf "%s\t%s\n", $0, odir }' odir=$odir
     done
 
   else
     baseCols=()
-    for colno in $( seq 1 $ncols ); do
-      baseCols[$colno]=$( cat $f | cut -f 1-${ncols} | awk '{ print $cno }' cno=$colno )
+    for colno in $( seq 1 $ucols ); do
+      baseCols[$colno]=$( cat $f | cut -f 1-${ucols} | awk '{ print $cno }' cno=$colno )
     done
     for odir in "$@"; do
-      for colno in $( seq 1 $ncols ); do
-        myCol=$( cat $odir/$basef | cut -f 1-${ncols} | awk '{ print $cno }' cno=$colno )
-        # echo base ${baseCols[$colno]} my $myCol for col $colno
-        echo $myCol ${baseCols[$colno]} | awk '{ printf "%.2f\t", $1 / $2 }'
+      for colno in $( seq 1 $ucols ); do
+        myCol=$( cat $odir/$basef | cut -f 1-${ucols} | awk '{ print $cno }' cno=$colno )
+        echo $myCol ${baseCols[$colno]} | awk '{ if ($1 == 0 && $2 == 0) { print "1\t" } else if ($2 == 0) { print "inf\t" } else { printf "%.2f\t", $1/$2 }}'
       done
-      # cat $odir/$basef | cut -f ${ncols}- | awk '{ printf "%s\n", $0 }'
       echo $odir
     done
   fi
