@@ -6,8 +6,7 @@ mkdir -p /data/m/my/data
 mkdir -p /data/m/my/binlogs
 mkdir -p /data/m/my/txlogs
 
-rm -rf var
-mkdir var
+rm -rf var; mkdir var
 
 csfx=def
 if [ "$#" -ge 1 ]; then

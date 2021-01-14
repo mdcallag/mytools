@@ -2,13 +2,18 @@ bdir=/data/m/pg
 
 echo "stop and remove files"
 bin/pg_ctl -D $bdir stop
-rm -rf $bdir; mkdir -p $bdir
+rm -rf $bdir/*
 rm -f logfile; touch logfile
 killall mysqld mongod
 
 if [ "$#" -ge 1 ]; then
+  if [ -f conf.diff.c${1} ]; then
     cp conf.diff.c${1} conf.diff
-fi 
+  else
+    echo conf.diff.c${1} does not exist
+    exit 1
+  fi
+fi
 
 echo "init"
 bin/initdb --data-checksums -D $bdir >& o.ini.1
