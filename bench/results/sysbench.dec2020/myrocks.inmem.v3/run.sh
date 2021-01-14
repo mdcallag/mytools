@@ -86,17 +86,12 @@ elif [[ $testType == "range-notcovered-si" || $testType == "range-notcovered-si.
   testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false --covered=false)
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
-elif [[ $testType == "scan" ]]; then
-  lua="oltp_scan.lua"
 else
 echo Did not recognize testType $testType
 exit 1
 fi
 
-oldIFS="$IFS"
 IFS=","; read -ra dbA <<< "$dbAndCreds"
-IFS="$oldIFS"
-
 if [[ ${dbA[0]} == "mysql" ]]; then
   if [[ ${#dbA[@]} -ne 6 ]]; then
     echo "For MySQL expect 6 args (mysql,user,password,host,db,engine) got ${#dbA[@]} args from $dbAndCreds"
@@ -145,7 +140,7 @@ echo Setup for $ntabs tables > sb.prepare.o.$sfx
 echo Setup for $ntabs tables
 
 for x in $( seq 1 $ntabs ); do
-  echo Drop table sbtest$x >> sb.prepare.o.$sfx
+  echo Drop table sbtest${x} >> sb.prepare.o.$sfx
   $client "${clientArgs[@]}" -${sqlF} "drop table if exists sbtest${x}" >> sb.prepare.o.$sfx 2>&1
   echo Done drop >> sb.prepare.o.$sfx
 done
@@ -184,14 +179,7 @@ fi
 rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
 for nt in "$@"; do
-
-if [[ $testType == "scan" && $nt -gt $ntabs ]]; then
-  echo Skip because scan is limited to $ntabs threads
-  continue
-else
-  echo Run for $nt threads at $( date )
-fi
-
+echo Run for $nt threads at $( date )
 
 sfxn="$sfx.dop${nt}"
 killall vmstat >& /dev/null
@@ -219,12 +207,7 @@ if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then
   plpid=$!
 fi
 
-if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $sysbdir/share/sysbench/$lua run)
-else
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
-fi
-
+exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
 echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
 echo "$realdop CPUs" >> sb.o.$sfxn
 /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
@@ -369,17 +352,7 @@ done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-if [[ $testType == "scan" ]]; then
-  # For scan print millions of rows per second scanned rather than QPS
-  if [[ $nt -gt $ntabs ]]; then
-    printf "0\t"
-  else
-    nsecs=$( cat sb.o.$sfx.dop${nt} | grep "time elapsed:" | awk '{ print $3 }' | sed 's/s$//' )
-    echo $nr $ntabs $nsecs | awk '{ printf "%.3f\t", ($1 * $2) / 1000000.0 / $3 }'
-  fi
-else
   grep queries: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%.0f\t", $1 }' 
-fi
 done > sb.r.qps.$sfx
 echo "$engine $testType range=$range" >> sb.r.qps.$sfx
 
