@@ -20,6 +20,19 @@ function from_hdr_q {
   echo -n "$qps,"
 }
 
+# old
+#       0   1   2     3     4   5     6     7    8     9   10    11    12    13  14    15  16  17  18
+#echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
+
+# new
+#       0   1   2     3   4     5   6     7   8     9   10    11   12    13    14    15  16    17  18  19  20
+#echo "ips,qps,rps,rmbps,wps,wmbps,rpq,rkbpq,wpi,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
+
+#iostat, vmstat normalized by insert rate
+#1 	2	3	4	5	6	7	8	9	10
+#nsamp   r/s     rMB/s   w/s     wMB/s   r/i     rKB/i   w/i     wKB/i   ips
+#38      0.0     0.0     38.3    15.4    0.000   0.000   0.000   0.153   103092.7
+
 function from_by {
   fname=$1
   off1=$2
@@ -28,11 +41,13 @@ function from_by {
   offw=$5
 
   rps=$( head -$off1 $fname   | tail -1 | awk '{ print $2 }' )
-  rkbps=$( head -$off1 $fname | tail -1 | awk '{ print $3 }' )
-  wkbps=$( head -$off1 $fname | tail -1 | awk '{ print $4 }' )
-  rpq=$( head -$off1 $fname   | tail -1 | awk '{ print $5 }' )
-  rkbpq=$( head -$off1 $fname | tail -1 | awk '{ print $6 }' )
-  wkbpi=$( head -$offw $fname | tail -1 | awk '{ print $7 }' )
+  rmbps=$( head -$off1 $fname | tail -1 | awk '{ print $3 }' )
+  wps=$( head -$off1 $fname   | tail -1 | awk '{ print $4 }' )
+  wmbps=$( head -$off1 $fname | tail -1 | awk '{ print $5 }' )
+  rpq=$( head -$off1 $fname   | tail -1 | awk '{ print $6 }' )
+  rkbpq=$( head -$off1 $fname | tail -1 | awk '{ print $7 }' )
+  wpi=$( head -$offw $fname   | tail -1 | awk '{ print $8 }' )
+  wkbpi=$( head -$offw $fname | tail -1 | awk '{ print $9 }' )
 
   csps=$( head -$off2 $fname  | tail -1 | awk '{ print $2 }' )
   cpups=$( head -$off2 $fname | tail -1 | awk '{ print $3 }' )
@@ -54,7 +69,7 @@ function from_by {
   # Total CPU microseconds / query
   cpupq=$( echo "scale=6; ( $tcpu * 1000000.0 ) / ( $qps * $nsecs )" | bc | awk '{ printf "%.0f", $1 }' )
 
-  echo -n "$rps,$rkbps,$wkbps,$rpq,$rkbpq,$wkbpi,$csps,$cpups,$cspq,$cpupq,"
+  echo -n "$rps,$rmbps,$wps,$wmbps,$rpq,$rkbpq,$wpi,$wkbpi,$csps,$cpups,$cspq,$cpupq,"
 }
 
 function ddir_sz {
@@ -101,7 +116,10 @@ function get_ptile {
   echo -n "$v,"
 }
 
-echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
+#       0   1   2     3     4   5     6     7    8     9   10    11    12    13  14    15  16  17  18
+#echo "ips,qps,rps,rkbps,wkbps,rpq,rkbpq,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
+#       0   1   2     3   4     5   6     7   8     9   10    11   12    13    14    15  16    17  18  19  20
+echo "ips,qps,rps,rmbps,wps,wmbps,rpq,rkbpq,wpi,wkbpi,csps,cpups,cspq,cpupq,dbgb1,dbgb2,rss,maxop,p50,p99,tag"
 
 l0res=$d/l.i0/o.res.dop${dop}
 lxres=$d/l.x/o.res.dop${dop}

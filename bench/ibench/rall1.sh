@@ -37,7 +37,9 @@ else
 fi
 
 dgit=$PWD
+dpg11=${dbms_pfx}/pg11
 dpg12=${dbms_pfx}/pg12
+dpg13=${dbms_pfx}/pg13
 dmy80=${dbms_pfx}/my80
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
@@ -146,6 +148,25 @@ function do_in56 {
   cp $dmy56/etc/my.cnf $rdir
 }
 
+function do_pg11 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=pg.$rmemt.dop$dop.c$cnf
+  cd $dpg11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dpg11; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg11.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dpg11/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
+  cp $dpg11/conf.diff $rdir
+}
+
 function do_pg12 {
   dop=$1
   cnf=$2
@@ -163,6 +184,25 @@ function do_pg12 {
   mkdir -p $rdir
   mv $dpg12/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
+}
+
+function do_pg13 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=pg.$rmemt.dop$dop.c$cnf
+  cd $dpg13; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dpg13; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg13.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dpg13/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
+  cp $dpg13/conf.diff $rdir
 }
 
 function do_mo40 {
@@ -228,8 +268,12 @@ if [[ $dbms == "rx56" ]]; then
   do_rx56 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "rx80" ]]; then
   do_rx80 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "pg11" ]]; then
+  do_pg11 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg12" ]]; then
   do_pg12 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "pg13" ]]; then
+  do_pg13 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in57" ]]; then

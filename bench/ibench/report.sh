@@ -5,6 +5,13 @@ m=$2
 
 # dop=X; m=Y; for d in ${m}m.* ; do bash ~/git/mytools/bench/ibench/etl.sh $d $dop /data $m $d ec2\-user 16 > $d/o.sum.c.$d ; cat $d/o.sum.c.$d | tr ',' '\t' > $d/o.sum.t.$d; done
 # cp ${m}m.*/o.sum.t.* sum
+
+#dop=1; for m in 20 100 500 ; do for d in ${m}m.* ; do bash ~/git/mytools/bench/ibench/etl.sh $d $dop /data $m $d mdcallag 4 > $d/o.sum.c.$d ; cat $d/o.sum.c.$d | tr ',' '\t' > $d/o.sum.t.$d; done; cp ${m}m.*/o.sum.t.* sum.${m}m; done
+# m=500; for d in a a2 in pg rx latest; do mkdir -p res.$d; bash ../../mrg3.sh ${m}m $( cat o.$d ); mv mrg.* res.$d; done
+
+# d=latest; for f in l.i0 l.x l.i1 q100.1 q100.2 q200.1 q200.2 q400.1 q400.2 q600.1 q600.2 q800.1 q800.2 q1000.1 q1000.2 ; do cat res.$d/mrg.$f | awk -f ../../sum_met.awk > res.$d/rel.$f ; done
+# d=latest; for f in l.i0 l.x l.i1 q100.2 q200.2 q800.2 q1000.2; do echo; echo $f ; cat res.$d/mrg.$f ; done
+
 # cd sum
 # ls | grep sum | grep -v grep > o.a
 # bash ~/git/mytools/bench/ibench/mrg3.sh 40m $( cat o.a )
