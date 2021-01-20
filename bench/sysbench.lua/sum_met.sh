@@ -41,11 +41,11 @@ function work() {
     o4=$( cat $odir/$basef | awk '{ if (NR == 3) { printf "%s", $8 } }' )
     o5=$( cat $odir/$basef | awk '{ if (NR == 3) { printf "%.0f", $9 } }' )
 
-    r1=$( echo $o1 $b1 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.3f", $1/$2 }}' )
-    r2=$( echo $o2 $b2 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.3f", $1/$2 }}' )
-    r3=$( echo $o3 $b3 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.3f", $1/$2 }}' )
-    r4=$( echo $o4 $b4 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.3f", $1/$2 }}' )
-    r5=$( echo $o5 $b5 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.3f", $1/$2 }}' )
+    r1=$( echo $o1 $b1 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.2f", $1/$2 }}' )
+    r2=$( echo $o2 $b2 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.2f", $1/$2 }}' )
+    r3=$( echo $o3 $b3 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.2f", $1/$2 }}' )
+    r4=$( echo $o4 $b4 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.2f", $1/$2 }}' )
+    r5=$( echo $o5 $b5 | awk '{ if ($1 == 0 && $2 == 0) { print "1" } else if ($2 == 0) { print "inf" } else { printf "%.2f", $1/$2 }}' )
 
     printf "%s\t\t%s\t%s\t%s\t%s\t%s\n" $r1 $r2 $r3 $r4 $r5 $odir
   done
