@@ -17,12 +17,12 @@ function work() {
   echo "--- absolute"
   printf "cpu/o\t\tr/o\trKB/o\twKB/o\to/s\tdbms\n"
   cat $f | awk '{ if (NR == 6) { printf "%s\t", $5 } }'
-  cat $f | awk '{ if (NR == 3) { printf "%.3f\t%.3f\t%.3f\t%.0f\t%s\n", $6, $7, $8, $9, bdir } }' bdir=$bdir
+  cat $f | awk '{ if (NR == 3) { printf "%.6g\t%.6g\t%.6g\t%.0f\t%s\n", $6, $7, $8, $9, bdir } }' bdir=$bdir
 
   for odir in "$@"; do
     #echo TODO f :: $f :: and basef :: $basef :: and odir :: $odir ::
     cat $odir/$basef | awk '{ if (NR == 6) { printf "%s\t", $5 } }'
-    cat $odir/$basef | awk '{ if (NR == 3) { printf "%.3f\t%.3f\t%.3f\t%.0f\t%s\n", $6, $7, $8, $9, odir } }' odir=$odir
+    cat $odir/$basef | awk '{ if (NR == 3) { printf "%.6g\t%.6g\t%.6g\t%.0f\t%s\n", $6, $7, $8, $9, odir } }' odir=$odir
   done
 
   echo "--- relative to first result"
