@@ -386,16 +386,19 @@ def create_index_postgres():
     cursor = conn.cursor()
 
     # TODO: should fillfactor be set?
+    # ddl = "create index %s_marketsegment on %s (price, customerid) with (deduplicate_items=off)" % (
     ddl = "create index %s_marketsegment on %s (price, customerid) " % (
           FLAGS.table_name, FLAGS.table_name)
     cursor.execute(ddl)
 
     if FLAGS.num_secondary_indexes >= 2:
+      #ddl = "create index %s_registersegment on %s (cashregisterid, price, customerid) with (deduplicate_items=off)" % (
       ddl = "create index %s_registersegment on %s (cashregisterid, price, customerid) " % (
             FLAGS.table_name, FLAGS.table_name)
       cursor.execute(ddl)
 
     if FLAGS.num_secondary_indexes >= 3:
+      #ddl = "create index %s_pdc on %s (price, dateandtime, customerid) with (deduplicate_items=off)" % (
       ddl = "create index %s_pdc on %s (price, dateandtime, customerid) " % (
             FLAGS.table_name, FLAGS.table_name)
       cursor.execute(ddl)

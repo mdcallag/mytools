@@ -239,6 +239,19 @@ $client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts.$sfx
 $client -uroot -ppw -A -h$host ib -e 'show create table pi1\G' > o.create.$sfx
 $client -uroot -ppw -A -h$host information_schema -e 'select table_name, partition_name, table_rows from partitions where table_schema="ib"' > o.parts.$sfx
 
+for tname in \
+  innodb_buffer_page innodb_buffer_page_lru innodb_buffer_pool_stats \
+  innodb_cached_indexes innodb_indexes innodb_metrics \
+  innodb_tables innodb_tablespaces innodb_tablespaces_brief innodb_tablestats ; do
+  $client -uroot -ppw -A -h$host information_schema -e "select * from $tname\G" > o.is.$tname
+done
+
+for tname in \
+  table_io_waits_summary_by_index_usage table_io_waits_summary_by_table \
+  file_summary_by_event_name file_summary_by_instance ; do
+  $client -uroot -ppw -A -h$host performance_schema -e "select * from $tname\G" > o.ps.$tname
+done
+
 #for t in $( seq 1 $ntabs ); do
 #for n in $( seq 0 $(( $npart - 1 )) ) ; do
 #  $client -uroot -ppw -A -h$host ib -e "select count(*) from pi${t} partition(p${n})"
