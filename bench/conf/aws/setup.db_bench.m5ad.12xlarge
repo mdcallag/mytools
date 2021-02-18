@@ -1,0 +1,28 @@
+sudo mkfs.xfs /dev/nvme1n1
+sudo mkfs.xfs /dev/nvme2n1
+sudo mkdir /n1
+sudo mkdir /n2
+sudo mount -o noatime,nodiratime,discard,noauto /dev/nvme1n1 /n1
+sudo mount -o noatime,nodiratime,discard,noauto /dev/nvme2n1 /n2
+df -h
+sudo chown ubuntu /n1
+sudo chown ubuntu /n2
+
+sudo apt update
+sudo apt install -y libgflags-dev libsnappy-dev liblz4-dev libzstd-dev
+sudo apt install -y gcc g++ gdb make sysstat
+
+mkdir /n1/d
+mkdir -p /n2/d/rx
+
+cd /n1
+mkdir git
+cd git
+git clone https://github.com/facebook/rocksdb.git
+cd rocksdb
+for v in 4 11 12 13 14 15 16 17 ; do echo $v at $( date ); git checkout v6${v} ; make clean; DEBUG_LEVEL=0 make db_bench V=1 VERBOSE=1 -j12 >& bld.6${v} ; cp -f db_bench /n1/d/db_bench.v6${v}; done
+
+cd /n1/git
+git clone https://github.com/mdcallag/mytools.git
+cd /n1/git/mytools/bench/rocksdb.db_bench/
+
