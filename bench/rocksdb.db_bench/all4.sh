@@ -160,12 +160,14 @@ seed="--seed="
 seedval=$( date +%s )
 fi
 
+ps aux | grep db_bench | grep -v grep
+
 echo Run fillrandom $keys keys $( date )
-vmstat 10 >& o.vm.fillseq.$sfx &
+vmstat 10 >& o.vm.fillrandom.$sfx &
 vpid=$!
-iostat -kx 10 >& o.io.fillseq.$sfx &
+iostat -kx 10 >& o.io.fillrandom.$sfx &
 ipid=$!
-while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.ow.$sfx &
+while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.fillrandom.$sfx &
 ppid=$!
 ${dbbench} --db=$dbdir --benchmarks=fillrandom $f1 $f2 ${seed}${seedval} >& o.fillrandom.$sfx
 estat=$?
@@ -281,4 +283,6 @@ for t in readseq readrandom ; do grep "^$t" o.ro.$sfx; done >> o.res.$sfx
 for r in 1 10 100 ; do
   grep "^seekrandom" o.sr${r}.$sfx >> o.res.$sfx
 done
+
+ps aux | grep db_bench | grep -v grep
 
