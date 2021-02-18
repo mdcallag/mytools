@@ -5,11 +5,14 @@ shift 1
 ifiles=( l.i0 l.x l.i1 )
 qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 
+#ips     qps     rps     rmbps   wps     wmbps   rpq     rkbpq   wpi     wkbpi   csps    cpups   cspq    cpupq   dbgb1   dbgb2   rss     maxop   p50     p99     tag
+#139860  0       1238    4.8     51.3    32.2    0.009   0.035   0.000   0.236   15177   45.7    0.109   13      1.3     41.8    2.0     0.265   143193  18274   my5649.cx6d
+
 # Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${ifiles[@]}" ; do
   for e in "$@" ; do
     grep "$e\$" sum/mrg.$f | head -1
-  done | awk '{ if (NF == 19) { printf "%s\t%s\n", $1, $19 } }' > sum/mrg.$f.ips
+  done | awk '{ if (NF == 21) { printf "%s\t%s\n", $1, $21 } }' > sum/mrg.$f.ips
 
   head -1 sum/mrg.$f > sum/mrg.$f.some
   for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
@@ -19,7 +22,7 @@ done
 for f in "${qfiles[@]}" ; do
   for e in "$@" ; do
     grep "$e\$" sum/mrg.$f | head -1
-  done | awk '{ if (NF == 19) { printf "%s\t%s\t%s\n", $1, $2, $19 } }' > sum/mrg.$f.qps
+  done | awk '{ if (NF == 21) { printf "%s\t%s\t%s\n", $1, $2, $21 } }' > sum/mrg.$f.qps
 
   head -1 sum/mrg.$f > sum/mrg.$f.some
   for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
