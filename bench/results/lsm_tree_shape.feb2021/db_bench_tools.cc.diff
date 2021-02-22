@@ -1,0 +1,221 @@
+diff --git a/tools/db_bench_tool.cc b/tools/db_bench_tool.cc
+index 46f885345..d85c3ebd3 100644
+--- a/tools/db_bench_tool.cc
++++ b/tools/db_bench_tool.cc
+@@ -107,6 +107,10 @@ DEFINE_string(
+     "readreverse,"
+     "compact,"
+     "compactall,"
++    "compact0,"
++    "compact1,"
++    "flush,"
++    "waitforcompaction,"
+     "multireadrandom,"
+     "mixgraph,"
+     "readseq,"
+@@ -196,9 +200,14 @@ DEFINE_string(
+     "Meta operations:\n"
+     "\tcompact     -- Compact the entire DB; If multiple, randomly choose one\n"
+     "\tcompactall  -- Compact the entire DB\n"
++    "\tcompact0  -- compact L0 into L1\n"
++    "\tcompact1  -- compact L1 into L2\n"
++    "\tflush - flush the memtable\n"
++    "\twaitforcompaction - pause until compaction is (probably) done\n"
+     "\tstats       -- Print DB stats\n"
+     "\tresetstats  -- Reset DB stats\n"
+     "\tlevelstats  -- Print the number of files and bytes per level\n"
++    "\tmemstats  -- Print memtable stats\n"
+     "\tsstables    -- Print sstable info\n"
+     "\theapprofile -- Dump a heap profile (if supported by this port)\n"
+     "\treplay      -- replay the trace file specified with trace_file\n"
+@@ -3057,6 +3066,7 @@ class Benchmark {
+           }
+         }
+       }
++      fprintf(stdout, "test is: %s\n", name.c_str());
+ 
+       // Both fillseqdeterministic and filluniquerandomdeterministic
+       // fill the levels except the max level with UNIQUE_RANDOM
+@@ -3208,6 +3218,14 @@ class Benchmark {
+         method = &Benchmark::Compact;
+       } else if (name == "compactall") {
+         CompactAll();
++      } else if (name == "compact0") {
++        CompactLevel(0);
++      } else if (name == "compact1") {
++        CompactLevel(1);
++      } else if (name == "flush") {
++        Flush();
++      } else if (name == "waitforcompaction") {
++        WaitForCompaction();
+       } else if (name == "crc32c") {
+         method = &Benchmark::Crc32c;
+       } else if (name == "xxhash") {
+@@ -3243,6 +3261,13 @@ class Benchmark {
+         VerifyDBFromDB(FLAGS_truth_db);
+       } else if (name == "levelstats") {
+         PrintStats("rocksdb.levelstats");
++      } else if (name == "memstats") {
++        PrintStatsWithKey("rocksdb.num-immutable-mem-table");
++        PrintStatsWithKey("rocksdb.cur-size-active-mem-table");
++        PrintStatsWithKey("rocksdb.cur-size-all-mem-tables");
++        PrintStatsWithKey("rocksdb.size-all-mem-tables");
++        PrintStatsWithKey("rocksdb.num-entries-active-mem-table");
++        PrintStatsWithKey("rocksdb.num-entries-imm-mem-tables");
+       } else if (name == "sstables") {
+         PrintStats("rocksdb.sstables");
+       } else if (name == "stats_history") {
+@@ -7253,6 +7278,129 @@ class Benchmark {
+     for (const auto& db_with_cfh : multi_dbs_) {
+       db_with_cfh.db->CompactRange(CompactRangeOptions(), nullptr, nullptr);
+     }
++    fprintf(stdout, "compactall\n");
++  }
++
++  void WaitForCompaction() {
++    // This is an imperfect way of waiting for compaction. The loop and sleep
++    // is done because a thread that finishes a compaction job should get a
++    // chance to pickup a new compaction job.
++    for (int i=0; i < 10; i++ ) {
++      if (db_.db != nullptr) {
++        db_.db->PauseBackgroundWork();
++        db_.db->ContinueBackgroundWork();
++      } else {
++        for (const auto& db_with_cfh : multi_dbs_)
++          db_with_cfh.db->PauseBackgroundWork();
++        for (const auto& db_with_cfh : multi_dbs_)
++          db_with_cfh.db->ContinueBackgroundWork();
++      }
++      sleep(1);
++    }
++  }
++
++  bool CompactLevelHelper(DBWithColumnFamilies& db_with_cfh, int from_level) {
++    std::vector<LiveFileMetaData> files;
++    db_with_cfh.db->GetLiveFilesMetaData(&files);
++
++    assert(from_level == 0 || from_level == 1);
++
++    int real_from_level = from_level;
++    if (real_from_level > 0) {
++      // With dynamic leveled compaction the first level with data beyond L0
++      // might not be L1.
++      real_from_level = std::numeric_limits<int>::max();
++
++      for (auto& f : files) {
++        if (f.level > 0 && f.level < real_from_level)
++          real_from_level = f.level;
++      }
++
++      if (real_from_level == std::numeric_limits<int>::max()) {
++        fprintf(stdout, "compact%d found 0 files to compact\n", from_level);
++        return true;
++      }
++    }
++
++    // The goal is to compact from from_level to the level that follows it,
++    // and with dynamic leveled compaction the next level might not be
++    // real_from_level+1
++    int next_level = std::numeric_limits<int>::max();
++
++    std::vector<std::string> files_to_compact;
++    for (auto& f : files) {
++      if (f.level == real_from_level)
++        files_to_compact.push_back(f.name);
++      else if (f.level > real_from_level && f.level < next_level)
++        next_level = f.level;
++    }
++
++    if (files_to_compact.empty()) {
++      fprintf(stdout, "compact%d found 0 files to compact\n", from_level);
++      return true;
++    }
++
++    // This can occur when there was no data beyond from_level
++    if (next_level == std::numeric_limits<int>::max())
++      next_level = from_level + 1;
++
++    fprintf(stdout, "compact%d found %d files to compact from L%d to l%d\n",
++            from_level, static_cast<int>(files_to_compact.size()),
++            real_from_level, next_level);
++
++    rocksdb::CompactionOptions options;
++    // Lets RocksDB use the configured compression for this level
++    options.compression = rocksdb::kDisableCompressionOption;
++
++    rocksdb::ColumnFamilyDescriptor cfDesc;
++    db_with_cfh.db->DefaultColumnFamily()->GetDescriptor(&cfDesc);
++    options.output_file_size_limit = cfDesc.options.target_file_size_base;
++
++    Status status = db_with_cfh.db->CompactFiles(options, files_to_compact,
++                                                 next_level);
++    if (!status.ok()) {
++        // This can fail for valid reasons including the operation was aborted
++        // or a filename is invalid because background compaction removed it.
++        // Having read the current cases for which an error is raised I prefer
++        // not to figure out whether an exception should be thrown here.
++        fprintf(stderr, "compact%d CompactFiles failed: %s\n", from_level,
++                status.ToString().c_str());
++        return false;
++    }
++    return true;
++  }
++
++  void CompactLevel(int from_level) {
++    if (db_.db != nullptr) {
++      while (!CompactLevelHelper(db_, from_level))
++        WaitForCompaction();
++    }
++    for (auto& db_with_cfh : multi_dbs_) {
++      while (!CompactLevelHelper(db_with_cfh, from_level))
++        WaitForCompaction();
++    }
++  }
++
++  void Flush() {
++    FlushOptions flush_opt;
++    flush_opt.wait = true;
++
++    if (db_.db != nullptr) {
++      Status s = db_.db->Flush(flush_opt, db_.cfh);
++      if (!s.ok()) {
++        fprintf(stderr, "Flush failed: %s\n", s.ToString().c_str());
++        exit(1);
++      }
++    } else {
++      for (const auto& db_with_cfh : multi_dbs_) {
++        Status s = db_with_cfh.db->Flush(flush_opt, db_with_cfh.cfh);
++        if (!s.ok()) {
++          fprintf(stderr, "Flush failed: %s\n", s.ToString().c_str());
++          exit(1);
++        }
++      }
++    }
++    fprintf(stdout, "flush memtable\n");
+   }
+ 
+   void ResetStats() {
+@@ -7317,6 +7465,23 @@ class Benchmark {
+     fprintf(stdout, "\n%s\n", stats.c_str());
+   }
+ 
++  void PrintStatsWithKey(const char* key) {
++    if (db_.db != nullptr) {
++      PrintStatsWithKey(db_.db, key);
++    }
++    for (const auto& db_with_cfh : multi_dbs_) {
++      PrintStatsWithKey(db_with_cfh.db, key);
++    }
++  }
++
++  void PrintStatsWithKey(DB* db, const char* key) {
++    std::string stats;
++    if (!db->GetProperty(key, &stats)) {
++      stats = "(failed)";
++    }
++    fprintf(stdout, "\n%s: %s\n", key, stats.c_str());
++  }
++
+   void Replay(ThreadState* thread) {
+     if (db_.db != nullptr) {
+       Replay(thread, &db_);
