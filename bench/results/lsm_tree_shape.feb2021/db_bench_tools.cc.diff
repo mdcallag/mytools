@@ -1,8 +1,8 @@
 diff --git a/tools/db_bench_tool.cc b/tools/db_bench_tool.cc
-index 46f885345..d85c3ebd3 100644
+index 46f885345..f7fe6d8ab 100644
 --- a/tools/db_bench_tool.cc
 +++ b/tools/db_bench_tool.cc
-@@ -107,6 +107,10 @@ DEFINE_string(
+@@ -107,6 +107,12 @@ DEFINE_string(
      "readreverse,"
      "compact,"
      "compactall,"
@@ -10,10 +10,12 @@ index 46f885345..d85c3ebd3 100644
 +    "compact1,"
 +    "flush,"
 +    "waitforcompaction,"
++    "sleep10,"
++    "sleep60,"
      "multireadrandom,"
      "mixgraph,"
      "readseq,"
-@@ -196,9 +200,14 @@ DEFINE_string(
+@@ -196,9 +202,16 @@ DEFINE_string(
      "Meta operations:\n"
      "\tcompact     -- Compact the entire DB; If multiple, randomly choose one\n"
      "\tcompactall  -- Compact the entire DB\n"
@@ -21,6 +23,8 @@ index 46f885345..d85c3ebd3 100644
 +    "\tcompact1  -- compact L1 into L2\n"
 +    "\tflush - flush the memtable\n"
 +    "\twaitforcompaction - pause until compaction is (probably) done\n"
++    "\tsleep10 - sleep for 10 seconds to let background threads do their thing\n"
++    "\tsleep60 - sleep for 60 seconds to let background threads do their thing\n"
      "\tstats       -- Print DB stats\n"
      "\tresetstats  -- Reset DB stats\n"
      "\tlevelstats  -- Print the number of files and bytes per level\n"
@@ -28,7 +32,7 @@ index 46f885345..d85c3ebd3 100644
      "\tsstables    -- Print sstable info\n"
      "\theapprofile -- Dump a heap profile (if supported by this port)\n"
      "\treplay      -- replay the trace file specified with trace_file\n"
-@@ -3057,6 +3066,7 @@ class Benchmark {
+@@ -3057,6 +3070,7 @@ class Benchmark {
            }
          }
        }
@@ -36,7 +40,7 @@ index 46f885345..d85c3ebd3 100644
  
        // Both fillseqdeterministic and filluniquerandomdeterministic
        // fill the levels except the max level with UNIQUE_RANDOM
-@@ -3208,6 +3218,14 @@ class Benchmark {
+@@ -3208,6 +3222,18 @@ class Benchmark {
          method = &Benchmark::Compact;
        } else if (name == "compactall") {
          CompactAll();
@@ -48,10 +52,26 @@ index 46f885345..d85c3ebd3 100644
 +        Flush();
 +      } else if (name == "waitforcompaction") {
 +        WaitForCompaction();
++      } else if (name == "sleep10") {
++        Sleep(10);
++      } else if (name == "sleep60") {
++        Sleep(60);
        } else if (name == "crc32c") {
          method = &Benchmark::Crc32c;
        } else if (name == "xxhash") {
-@@ -3243,6 +3261,13 @@ class Benchmark {
+@@ -3237,12 +3263,25 @@ class Benchmark {
+         method = &Benchmark::TimeSeries;
+       } else if (name == "stats") {
+         PrintStats("rocksdb.stats");
++        PrintStatsWithKey("rocksdb.num-immutable-mem-table");
++        PrintStatsWithKey("rocksdb.cur-size-active-mem-table");
++        PrintStatsWithKey("rocksdb.cur-size-all-mem-tables");
++        PrintStatsWithKey("rocksdb.size-all-mem-tables");
++        PrintStatsWithKey("rocksdb.num-entries-active-mem-table");
++        PrintStatsWithKey("rocksdb.num-entries-imm-mem-tables");
+       } else if (name == "resetstats") {
+         ResetStats();
+       } else if (name == "verify") {
          VerifyDBFromDB(FLAGS_truth_db);
        } else if (name == "levelstats") {
          PrintStats("rocksdb.levelstats");
@@ -65,29 +85,68 @@ index 46f885345..d85c3ebd3 100644
        } else if (name == "sstables") {
          PrintStats("rocksdb.sstables");
        } else if (name == "stats_history") {
-@@ -7253,6 +7278,129 @@ class Benchmark {
+@@ -7253,6 +7292,168 @@ class Benchmark {
      for (const auto& db_with_cfh : multi_dbs_) {
        db_with_cfh.db->CompactRange(CompactRangeOptions(), nullptr, nullptr);
      }
 +    fprintf(stdout, "compactall\n");
 +  }
 +
-+  void WaitForCompaction() {
++  void WaitForCompactionHelper(DBWithColumnFamilies& db) {
 +    // This is an imperfect way of waiting for compaction. The loop and sleep
 +    // is done because a thread that finishes a compaction job should get a
 +    // chance to pickup a new compaction job.
-+    for (int i=0; i < 10; i++ ) {
-+      if (db_.db != nullptr) {
-+        db_.db->PauseBackgroundWork();
-+        db_.db->ContinueBackgroundWork();
-+      } else {
-+        for (const auto& db_with_cfh : multi_dbs_)
-+          db_with_cfh.db->PauseBackgroundWork();
-+        for (const auto& db_with_cfh : multi_dbs_)
-+          db_with_cfh.db->ContinueBackgroundWork();
++
++    // Give background threads a chance to wake
++    fprintf(stdout, "waitforcompaction: started\n");
++    sleep(5);
++
++    std::vector<std::string> keys = { DB::Properties::kMemTableFlushPending,
++                                      DB::Properties::kNumRunningFlushes,
++                                      DB::Properties::kCompactionPending,
++                                      DB::Properties::kNumRunningCompactions };
++
++    while (true) {
++      bool retry = false;
++
++      for (const auto& k : keys) {
++        uint64_t v;
++        if (!db.db->GetIntProperty(k, &v)) {
++          fprintf(stderr, "waitforcompaction: GetIntProperty(%s) failed", k.c_str());
++          exit(1);
++        } else if (v > 0) {
++          fprintf(stdout, "waitforcompaction: active(%s). Sleep 10 seconds\n",
++                  k.c_str());
++          sleep(10);
++          retry = true;
++          break;
++        }
 +      }
-+      sleep(1);
++
++      if (!retry) {
++        fprintf(stdout, "waitforcompaction: finished\n");
++        return;
++      }
 +    }
++  }
++
++  void WaitForCompaction() {
++
++    // I am skeptical that this check race free. I hope that checking twice
++    // reduces the chance.
++    if (db_.db != nullptr) {
++      WaitForCompactionHelper(db_);
++      WaitForCompactionHelper(db_);
++    } else {
++      for (auto& db_with_cfh : multi_dbs_) {
++        WaitForCompactionHelper(db_with_cfh);
++        WaitForCompactionHelper(db_with_cfh);
++      }
++    }
++  }
++
++  void Sleep(int secs) {
++    sleep(secs);
 +  }
 +
 +  bool CompactLevelHelper(DBWithColumnFamilies& db_with_cfh, int from_level) {
@@ -195,7 +254,7 @@ index 46f885345..d85c3ebd3 100644
    }
  
    void ResetStats() {
-@@ -7317,6 +7465,23 @@ class Benchmark {
+@@ -7317,6 +7518,23 @@ class Benchmark {
      fprintf(stdout, "\n%s\n", stats.c_str());
    }
  
