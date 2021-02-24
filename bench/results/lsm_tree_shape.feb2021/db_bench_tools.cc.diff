@@ -1,5 +1,5 @@
 diff --git a/tools/db_bench_tool.cc b/tools/db_bench_tool.cc
-index 46f885345..f7fe6d8ab 100644
+index 46f885345..bb23d909f 100644
 --- a/tools/db_bench_tool.cc
 +++ b/tools/db_bench_tool.cc
 @@ -107,6 +107,12 @@ DEFINE_string(
@@ -188,13 +188,13 @@ index 46f885345..f7fe6d8ab 100644
 +    if (files_to_compact.empty()) {
 +      fprintf(stdout, "compact%d found 0 files to compact\n", from_level);
 +      return true;
++    } else if (next_level == std::numeric_limits<int>::max()) {
++      // There is no data beyond real_from_level. So we are done.
++      fprintf(stdout, "compact%d found no data beyond L%d\n", from_level, real_from_level);
++      return true;
 +    }
 +
-+    // This can occur when there was no data beyond from_level
-+    if (next_level == std::numeric_limits<int>::max())
-+      next_level = from_level + 1;
-+
-+    fprintf(stdout, "compact%d found %d files to compact from L%d to l%d\n",
++    fprintf(stdout, "compact%d found %d files to compact from L%d to L%d\n",
 +            from_level, static_cast<int>(files_to_compact.size()),
 +            real_from_level, next_level);
 +
