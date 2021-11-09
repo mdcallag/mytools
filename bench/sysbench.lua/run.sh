@@ -13,9 +13,10 @@ ddir=${12}
 dname=${13}
 usepk=${14}
 postwrite=${15}
+prepstmt=${16}
 
 #echo $@
-shift 15
+shift 16
 
 samp=1
 nsamp=10000000
@@ -192,7 +193,6 @@ else
   echo Run for $nt threads at $( date )
 fi
 
-
 sfxn="$sfx.dop${nt}"
 killall vmstat >& /dev/null
 killall iostat >& /dev/null
@@ -219,10 +219,16 @@ if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then
   plpid=$!
 fi
 
+# Optionally disable use of prepared statements
+useps=""
+if [[ $prepstmt == 0 ]]; then
+  useps="--db-ps-mode=disable"
+fi
+
 if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $sysbdir/share/sysbench/$lua run)
 else
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $sysbdir/share/sysbench/$lua run)
 fi
 
 echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
