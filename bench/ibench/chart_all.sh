@@ -1,6 +1,8 @@
 dop=$1
+m=$2
+resdir=$3
 
-shift 1
+shift 3
 
 ifiles=( l.i0 l.x l.i1 )
 qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
@@ -11,21 +13,21 @@ qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
 # Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${ifiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" sum/mrg.$f | head -1
-  done | awk '{ if (NF == 21) { printf "%s\t%s\n", $1, $21 } }' > sum/mrg.$f.ips
+    grep "$e\$" $resdir/mrg.$f | head -1
+  done | awk '{ if (NF == 21) { printf "%s\t%s\n", $1, $21 } }' > $resdir/mrg.$f.ips
 
-  head -1 sum/mrg.$f > sum/mrg.$f.some
-  for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
+  head -1 $resdir/mrg.$f > $resdir/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" $resdir/mrg.$f | head -1 ; done >> $resdir/mrg.$f.some
 done
 
 # Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${qfiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" sum/mrg.$f | head -1
-  done | awk '{ if (NF == 21) { printf "%s\t%s\t%s\n", $1, $2, $21 } }' > sum/mrg.$f.qps
+    grep "$e\$" $resdir/mrg.$f | head -1
+  done | awk '{ if (NF == 21) { printf "%s\t%s\t%s\n", $1, $2, $21 } }' > $resdir/mrg.$f.qps
 
-  head -1 sum/mrg.$f > sum/mrg.$f.some
-  for e in "$@" ; do grep "$e\$" sum/mrg.$f | head -1 ; done >> sum/mrg.$f.some
+  head -1 $resdir/mrg.$f > $resdir/mrg.$f.some
+  for e in "$@" ; do grep "$e\$" $resdir/mrg.$f | head -1 ; done >> $resdir/mrg.$f.some
 done
 
 for f in "${ifiles[@]}" ; do
@@ -43,7 +45,7 @@ set yrange [0:]
 set title "$tmsg"
 set output "ch.$f.ips.png"
 set term png
-plot "sum/mrg.$f.ips" using 1:xtic(2) notitle with boxes
+plot "$resdir/mrg.$f.ips" using 1:xtic(2) notitle with boxes
 GpEOF
 
 done > do.ch
@@ -59,7 +61,7 @@ set style data histograms
 set yrange [0:]
 set output "ch.$f.qps.png"
 set term png
-plot "sum/mrg.$f.qps" using 2:xtic(3) title "QPS", "" using 1 title "IPS"
+plot "$resdir/mrg.$f.qps" using 2:xtic(3) title "QPS", "" using 1 title "IPS"
 GpEOF
 
 done >> do.ch
@@ -71,16 +73,16 @@ mv ch*.png report
 # Generate summary table in HTML format
 
 # Get IPS from insert-only tests and QPS from read+write tests
-awk '{ printf "%s\t%s\n", $2, $1 }' sum/mrg.l.i0.ips > z1
-for f in l.x l.i1 ; do awk '{ print $1 }' sum/mrg.${f}.ips > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
-for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do awk '{ print $2 }' sum/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
+awk '{ printf "%s\t%s\n", $2, $1 }' $resdir/mrg.l.i0.ips > z1
+for f in l.x l.i1 ; do awk '{ print $1 }' $resdir/mrg.${f}.ips > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
+for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do awk '{ print $2 }' $resdir/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
 
 # Get IPS from read+write tests
 rm -f z1q; touch z1q
 for e in "$@" ; do
   printf "$e" > ztmp
   for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do
-    ips=$( grep "$e\$" sum/mrg.$f.qps | head -1 | awk '{ print $1 }' )
+    ips=$( grep "$e\$" $resdir/mrg.$f.qps | head -1 | awk '{ print $1 }' )
     printf "\t${ips}" >> ztmp
   done
   echo >> ztmp

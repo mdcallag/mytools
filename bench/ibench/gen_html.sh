@@ -1,6 +1,8 @@
 title=$1
 m=$2
 conf=$3
+resdir=$4
+rtdir=$5
 
 function catme {
   fn=$1
@@ -143,7 +145,7 @@ H2IpsEOF
 
 if [[ $sec != "l.x" ]]; then
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For the <b>max</b> column values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec}.rt.insert.ht
+catme $rtdir/mrg.${sec}.rt.insert.ht
 
 fi
 
@@ -154,7 +156,7 @@ Performance metrics for the DBMS listed above. Some are normalized by throughput
 <pre>
 H3IpsEOF
 
-catme sum/mrg.${sec}.some
+catme $resdir/mrg.${sec}.some
 echo "</pre>"
 
 done
@@ -178,10 +180,10 @@ cat <<H2QpsEOF
 H2QpsEOF
 
 printf "<p>Query response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec2}.rt.query.ht
+catme $rtdir/mrg.${sec2}.rt.query.ht
 
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec2}.rt.insert.ht
+catme $rtdir/mrg.${sec2}.rt.insert.ht
 
 cat <<H3QpsEOF
 <p>
@@ -190,7 +192,7 @@ Performance metrics for the DBMS listed above. Some are normalized by throughput
 <pre>
 H3QpsEOF
 
-catme sum/mrg.${sec}.some
+catme $resdir/mrg.${sec}.some
 echo "</pre>"
 done
 
@@ -212,7 +214,7 @@ Performance metrics for all DBMS, not just the ones listed above. Some are norma
 <pre>
 MetricHeaderEOF
 
-catme sum/mrg.${sec}
+catme $resdir/mrg.${sec}
 echo "</pre>"
 
 done
@@ -251,13 +253,13 @@ fi
 if [[ $x -ge 3 ]]; then
 echo "<p>Query response time histogram</p>"
 echo "<pre>"
-catme rt${m}/mrg.${fsec}.rt.query
+catme $rtdir/mrg.${fsec}.rt.query
 echo "</pre>"
 fi
 
 echo "<p>Insert response time histogram</p>"
 echo "<pre>"
-catme rt${m}/mrg.${fsec}.rt.insert
+catme $rtdir/mrg.${fsec}.rt.insert
 echo "</pre>"
 
 done

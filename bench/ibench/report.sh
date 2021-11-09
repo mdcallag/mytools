@@ -1,29 +1,61 @@
-dop=$1
-m=$2
+prep=$1
+dop=$2
+# Number of docs loaded
+m=$3
+# mdcallag, ec2\-user, etc
+user=$4
+# number of cpu cores on database host
+ncpu=$5
+etldirs=$6
 
-# Steps to process results:
+# ch.all.nocomp, etc
+ch=$7
+# config.ht.nocomp, etc
+ht=$8
 
-# dop=X; m=Y; for d in ${m}m.* ; do bash ~/git/mytools/bench/ibench/etl.sh $d $dop /data $m $d ec2\-user 16 > $d/o.sum.c.$d ; cat $d/o.sum.c.$d | tr ',' '\t' > $d/o.sum.t.$d; done
-# cp ${m}m.*/o.sum.t.* sum
+bdir=~/git/mytools/bench/ibench
+rtdir="rt.${etldirs}"
+resdir="res.${etldirs}"
+sumdir="sum.${m}m.dop${dop}"
 
-#dop=1; for m in 20 100 500 ; do for d in ${m}m.* ; do bash ~/git/mytools/bench/ibench/etl.sh $d $dop /data $m $d mdcallag 4 > $d/o.sum.c.$d ; cat $d/o.sum.c.$d | tr ',' '\t' > $d/o.sum.t.$d; done; cp ${m}m.*/o.sum.t.* sum.${m}m; done
-# m=500; for d in a a2 in pg rx latest; do mkdir -p res.$d; bash ../../mrg3.sh ${m}m $( cat o.$d ); mv mrg.* res.$d; done
+if [[ $prep -eq 1 ]]; then
 
+mkdir -p $sumdir
+
+for d in ${m}m.* ; do
+  bash $bdir/etl.sh $d $dop /data $m $d $user $ncpu > $d/o.sum.c.$d
+  cat $d/o.sum.c.$d | tr ',' '\t' > $d/o.sum.t.$d
+done
+cp ${m}m.*/o.sum.t.* $sumdir
+
+rm -rf $resdir; mkdir -p $resdir
+bash $bdir/mrg3.sh $sumdir $resdir ${m}m $( cat $etldirs )
+
+# TODO - delete this
 # d=latest; for f in l.i0 l.x l.i1 q100.1 q100.2 q200.1 q200.2 q400.1 q400.2 q600.1 q600.2 q800.1 q800.2 q1000.1 q1000.2 ; do cat res.$d/mrg.$f | awk -f ../../sum_met.awk > res.$d/rel.$f ; done
 # d=latest; for f in l.i0 l.x l.i1 q100.2 q200.2 q800.2 q1000.2; do echo; echo $f ; cat res.$d/mrg.$f ; done
 
+# TODO - delete this
 # cd sum
 # ls | grep sum | grep -v grep > o.a
 # bash ~/git/mytools/bench/ibench/mrg3.sh 40m $( cat o.a )
 # cd ..
 
+fi
+
+rm -rf report; mkdir -p report
 echo A
-rm -rf rt${m}; mkdir rt${m}; bash ~/git/mytools/bench/ibench/mrg.extra.sh rt${m} ${m}m $( cat o.${m}m )
+rm -rf $rtdir; mkdir $rtdir; bash $bdir/mrg.extra.sh $rtdir ${m}m $( cat $etldirs )
 echo B
-bash ~/git/mytools/bench/ibench/chart_all.sh $dop $( cat ch.all )
+bash $bdir/chart_all.sh $dop $m $resdir $( cat $ch )
 echo C
-bash ~/git/mytools/bench/ibench/chart_rt.sh $m $( cat ch.all)
+bash $bdir/chart_rt.sh $m $rtdir $( cat $ch )
 echo D
-mkdir -p report; bash ~/git/mytools/bench/ibench/plot_report.sh $m $dop $( cat ch.all )
+bash $bdir/plot_report.sh $m $dop $( cat $ch )
 echo E
-mkdir -p report; bash ~/git/mytools/bench/ibench/gen_html.sh "${m}M docs and $dop client(s)" $m config.ht > report/all.html
+bash $bdir/gen_html.sh "${m}M docs and $dop client(s)" $m $ht $resdir $rtdir > report/all.html
+
+mv z1 z1f z1q z2 z3 ztmp tput.tab do.ch tput_hdr iput.tab report
+mv do.gp.* report
+rm -rf report.$etldirs; mv report report.$etldirs
+

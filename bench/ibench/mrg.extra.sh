@@ -3,14 +3,14 @@ remove=$2
 
 shift 2
 
-bdir=$( dirname $0 )
-
 farr=("$@")
 f1=${farr[0]}
+# f1=$sdir/o.sum.t.${farr[0]}
 
 for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 ; do
 head -1 ${f1}/$y/o.rt.t.insert > $odir/mrg.$y.rt.insert
 for f in "$@"; do
+  # fn=$sdir/o.sum.t.$f
   if [ $f != "BREAK" ]; then
     grep pct: $f/$y/o.rt.t.insert | sed "s/DBMS/$f/g" | sed "s/pct\:${remove}\.//g"
   else
