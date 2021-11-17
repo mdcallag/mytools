@@ -27,22 +27,19 @@ cat <<HeaderEOF
 <body>
 HeaderEOF
 
-sections=( l.i0 l.x l.i1 q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
+sections=( l.i0 l.x l.i1 q100.1 q500.1 q1000.1 )
 isections=( l.i0 l.x l.i1 )
-qsections=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
+qsections=( q100.1 q500.1 q1000.1 )
 # Ugh, I didn't use the same filename pattern
-q2sections=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
+q2sections=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
 
 sectionText=( \
 "l.i0: load without secondary indexes" \
 "l.x: create secondary indexes" \
 "l.i1: continue load after secondary indexes created" \
-"q100.2: range queries with 100 insert/s per client, 2nd loop" \
-"q200.2: range queries with 200 insert/s per client, 2nd loop" \
-"q400.2: range queries with 400 insert/s per client, 2nd loop" \
-"q600.2: range queries with 600 insert/s per client, 2nd loop" \
-"q800.2: range queries with 800 insert/s per client, 2nd loop" \
-"q1000.2: range queries with 1000 insert/s per client, 2nd loop" \
+"q100.1: range queries with 100 insert/s per client" \
+"q500.1: range queries with 500 insert/s per client" \
+"q1000.1: range queries with 1000 insert/s per client" \
 )
 
 # ----- Generate Intro
