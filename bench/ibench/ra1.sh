@@ -18,8 +18,7 @@ fi
 shift 10
 
 if [[ $npart -eq 0 ]]; then
-#for dc in rx56.x9a0 rx56.x9a1 rx56.x9a2 ; do
-for dc in rx56.x13a rx56.x13b ; do
+for dc in rx56.y9a rx56.y9b rx56.y9c rx56.y9c0 rx56.y9c1 rx56.y9c2 rx56.y13a rx56.y13b ; do
 for ver in fbmy5635 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/fbmy56; ln -s $mbd/$ver $mbd/fbmy56
@@ -32,7 +31,7 @@ done
 fi
 
 if [[ $npart -eq 0 ]]; then
-for dc in rx80.x9a ; do
+for dc in rx80.y9c ; do
 for ver in fbmy8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/fbmy80; ln -s $mbd/$ver $mbd/fbmy80

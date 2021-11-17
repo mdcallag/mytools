@@ -5,7 +5,7 @@ resdir=$3
 shift 3
 
 ifiles=( l.i0 l.x l.i1 )
-qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
+qfiles=( q100.1 q500.1 q1000.1 )
 
 #ips     qps     rps     rmbps   wps     wmbps   rpq     rkbpq   wpi     wkbpi   csps    cpups   cspq    cpupq   dbgb1   dbgb2   rss     maxop   p50     p99     tag
 #139860  0       1238    4.8     51.3    32.2    0.009   0.035   0.000   0.236   15177   45.7    0.109   13      1.3     41.8    2.0     0.265   143193  18274   my5649.cx6d
@@ -75,13 +75,13 @@ mv ch*.png report
 # Get IPS from insert-only tests and QPS from read+write tests
 awk '{ printf "%s\t%s\n", $2, $1 }' $resdir/mrg.l.i0.ips > z1
 for f in l.x l.i1 ; do awk '{ print $1 }' $resdir/mrg.${f}.ips > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
-for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do awk '{ print $2 }' $resdir/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
+for f in q100.1 q500.1 q1000.1 ; do awk '{ print $2 }' $resdir/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
 
 # Get IPS from read+write tests
 rm -f z1q; touch z1q
 for e in "$@" ; do
   printf "$e" > ztmp
-  for f in q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 ; do
+  for f in q100.1 q500.1 q1000.1 ; do
     ips=$( grep "$e\$" $resdir/mrg.$f.qps | head -1 | awk '{ print $1 }' )
     printf "\t${ips}" >> ztmp
   done
@@ -110,7 +110,7 @@ cat <<TabEOF > tput_hdr
 TabEOF
 
 cat tput_hdr > iput.tab
-printf "<tr><th>dbms</th><th>q100.2</th><th>q200.2</th><th>q400.2</th><th>q600.2</th><th>q800.2</th><th>q1000.2</th></tr>\n" >> iput.tab
+printf "<tr><th>dbms</th><th>q100.1</th><th>q500.1</th><th>q1000.1</th></tr>\n" >> iput.tab
 
 # accessed by dbms.columnNumber, 0 = did not sustain target insert rate, 1 = sustained target insert rate
 declare -A sla
@@ -123,7 +123,7 @@ for e in "$@" ; do
   printf "<tr><td>$dbms</td>"
 
   c=2
-  for rate in 100 200 400 600 800 1000 ; do
+  for rate in 100 500 1000 ; do
     trate=$(( $dop * $rate ))
     t95=$( echo $trate | awk '{ printf "%.0f", ( 0.95 * $1 ) }' )
     val=$( get_row_col $r $c z1q )
@@ -141,7 +141,7 @@ for e in "$@" ; do
 
   r=$(( $r + 1 ))
 done >> iput.tab
-printf "<tr><td>target</td><td id="cgray">$(( 100 * $dop ))</td><td id="cgray">$(( 200 * $dop ))</td><td id="cgray">$(( 400 * $dop ))</td><td id="cgray">$(( 600 * $dop ))</td><td id="cgray">$(( 800 * $dop ))</td><td id="cgray">$(( 1000 * $dop ))</td></tr>\n" >> iput.tab
+printf "<tr><td>target</td><td id="cgray">$(( 100 * $dop ))</td><td id="cgray">$(( 500 * $dop ))</td><td id="cgray">$(( 1000 * $dop ))</td></tr>\n" >> iput.tab
 printf "</table>\n" >> iput.tab
 
 function filter_by_sla {
@@ -214,6 +214,6 @@ done
 done > z2
 
 cat tput_hdr > z3
-printf "<tr><th>dbms</th><th>l.i0</th><th>l.x</th><th>l.i1</th><th>q100.2</th><th>q200.2</th><th>q400.2</th><th>q600.2</th><th>q800.2</th><th>q1000.2</th></tr>\n" >> z3
+printf "<tr><th>dbms</th><th>l.i0</th><th>l.x</th><th>l.i1</th><th>q100.1</th><th>q500.1</th><th>q1000.1</th></tr>\n" >> z3
 cat z3 z2 > tput.tab
 printf "</table>\n" >> tput.tab

@@ -17,7 +17,7 @@ f1=$sumdir/o.sum.t.${farr[0]}
 # ips     qps     rps     rkbps   wkbps   rpq     rkbpq   wkbpq   csps    cpups   cspq    cpupq   ccpupq  dbgb    vsz     rss     maxop   p50     p90     tag
 # 1846.5        0       0.0     0       252327  0.000   0.000   1.315   21711   63.0    0.113   53      2       55      NA      NA      0.458   28103.5 4253.4  pg12.c7b40
 
-linemap=( none none l.i0 l.x l.i1 q100.1 q100.2 q200.1 q200.2 q400.1 q400.2 q600.1 q600.2 q800.1 q800.2 q1000.1 q1000.2 )
+linemap=( none none l.i0 l.x l.i1 q100.1 q500.1 q1000.1 )
 
 for x in $( seq 2 16 ) ; do
   outf="mrg.${linemap[$x]}"
