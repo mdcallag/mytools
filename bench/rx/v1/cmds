@@ -12,6 +12,7 @@ sudo mkfs.xfs /dev/sdb
 sudo mkdir /data; sudo chown me /data; mkdir -p /data/m/rx
 sudo mount -o discard,defaults /dev/sdb /data/m
 sudo chown me /data/m
+ulimit -n 1
 
 sudo fio --filename=/dev/sdb --direct=1 --rw=randread --bs=4k --ioengine=libaio --iodepth=256 --runtime=300 --numjobs=8 --time_based --group_reporting --name=iops-test-job --eta-newline=1 --eta-interval=1 --readonly --eta=always >& o
 
