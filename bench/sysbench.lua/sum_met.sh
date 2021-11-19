@@ -1,3 +1,11 @@
+# Can be run like:
+#   bash ../sum_met.sh sb.met x.fbmy5635.y9a.pk1 1 x.fbmy5635.y9b.pk1 x.fbmy5635.y9c.pk1
+# where
+#   processes files that start with "sb.met"
+#   uses results from x.fbmy5635.y9a.pk1 as the base
+#   assumes tests were run with dop=1
+#   compares the base with results in x.fbmy5635.y9[bc].pk1
+
 pfx=$1
 bdir=$2
 dop=$3

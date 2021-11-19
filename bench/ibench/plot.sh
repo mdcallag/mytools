@@ -18,7 +18,7 @@ bdir=$( dirname $0 )
 farr=("$@")
 f1=${farr[0]}
 
-for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 ; do
+for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
     grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==12 || NF==10) { print $2, $3 }}' > $f/$y/gpi.ips
@@ -38,7 +38,7 @@ fi
 lab=(IPS maxInsertUsecs QPS maxQueryUsecs)
 inp=(ips imax qps qmax)
 
-for y in l.i0 l.i1 q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 ; do
+for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
 for x in 0 1 2 3 ; do
 
   if [[ $x -gt 1 && ( $y == "l.i0" || $y == "l.i1" ) ]] ; then

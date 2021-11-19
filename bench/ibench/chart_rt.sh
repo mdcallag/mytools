@@ -1,26 +1,27 @@
 m=$1
+rtdir=$2
 
-shift 1
+shift 2
 
 ifiles=( l.i0 l.i1 )
-qfiles=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
-q2files=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
+qfiles=( q100.1 q500.1 q1000.1 )
+q2files=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
 
 # head -1 because there can be dups in $@
 for f in "${ifiles[@]}" "${q2files[@]}" ; do
-outf="rt${m}/mrg.$f.rt.insert.some"
-head -1 rt${m}/mrg.$f.rt.insert > $outf
+outf="$rtdir/mrg.$f.rt.insert.some"
+head -1 $rtdir/mrg.$f.rt.insert > $outf
 for e in "$@" ; do
-  grep "$e\$" rt${m}/mrg.$f.rt.insert | head -1 >> $outf
+  grep "$e\$" $rtdir/mrg.$f.rt.insert | head -1 >> $outf
 done 
 done
 
 # head -1 because there can be dups in $@
 for f in "${q2files[@]}" ; do
-outf="rt${m}/mrg.$f.rt.query.some"
-head -1 rt${m}/mrg.$f.rt.query > $outf
+outf="$rtdir/mrg.$f.rt.query.some"
+head -1 $rtdir/mrg.$f.rt.query > $outf
 for e in "$@" ; do
-  grep "$e\$" rt${m}/mrg.$f.rt.query | head -1 >> $outf
+  grep "$e\$" $rtdir/mrg.$f.rt.query | head -1 >> $outf
 done 
 done
 
@@ -38,8 +39,8 @@ function make_table {
   f=$1
   y=$2
 
-  inf="rt${m}/mrg.$f.rt.$y.some"
-  outf="rt${m}/mrg.$f.rt.$y.ht"
+  inf="$rtdir/mrg.$f.rt.$y.some"
+  outf="$rtdir/mrg.$f.rt.$y.ht"
   nRows=$( wc -l $inf | awk '{ print $1 }' )
 
   printf "<style type=\"text/css\">\n" > $outf

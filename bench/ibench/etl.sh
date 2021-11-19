@@ -139,7 +139,7 @@ echo $tag
 done
 
 loop=1
-for n in 100 100 200 200 400 400 600 600 800 800 1000 1000 ; do
+for n in 100 500 1000 ; do
 f="${d}/q.L${loop}.ips${n}/o.res.dop${dop}"
 # echo run $f 
 from_hdr_i $f

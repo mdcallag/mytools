@@ -6,7 +6,7 @@ bdir=$( dirname $0 )
 shift 2
 
 itests=( l.i0 l.i1 )
-qtests=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
+qtests=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
 
 for x in "$@"; do
   echo bash $bdir/plot.sh 200 50 $x $dop ${m}m n 1.2 ${m}m.$x 

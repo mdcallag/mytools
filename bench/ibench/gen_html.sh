@@ -1,6 +1,8 @@
 title=$1
 m=$2
 conf=$3
+resdir=$4
+rtdir=$5
 
 function catme {
   fn=$1
@@ -25,22 +27,19 @@ cat <<HeaderEOF
 <body>
 HeaderEOF
 
-sections=( l.i0 l.x l.i1 q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
+sections=( l.i0 l.x l.i1 q100.1 q500.1 q1000.1 )
 isections=( l.i0 l.x l.i1 )
-qsections=( q100.2 q200.2 q400.2 q600.2 q800.2 q1000.2 )
+qsections=( q100.1 q500.1 q1000.1 )
 # Ugh, I didn't use the same filename pattern
-q2sections=( q.L2.ips100 q.L4.ips200 q.L6.ips400 q.L8.ips600 q.L10.ips800 q.L12.ips1000 )
+q2sections=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
 
 sectionText=( \
 "l.i0: load without secondary indexes" \
 "l.x: create secondary indexes" \
 "l.i1: continue load after secondary indexes created" \
-"q100.2: range queries with 100 insert/s per client, 2nd loop" \
-"q200.2: range queries with 200 insert/s per client, 2nd loop" \
-"q400.2: range queries with 400 insert/s per client, 2nd loop" \
-"q600.2: range queries with 600 insert/s per client, 2nd loop" \
-"q800.2: range queries with 800 insert/s per client, 2nd loop" \
-"q1000.2: range queries with 1000 insert/s per client, 2nd loop" \
+"q100.1: range queries with 100 insert/s per client" \
+"q500.1: range queries with 500 insert/s per client" \
+"q1000.1: range queries with 1000 insert/s per client" \
 )
 
 # ----- Generate Intro
@@ -143,7 +142,7 @@ H2IpsEOF
 
 if [[ $sec != "l.x" ]]; then
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For the <b>max</b> column values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec}.rt.insert.ht
+catme $rtdir/mrg.${sec}.rt.insert.ht
 
 fi
 
@@ -154,7 +153,7 @@ Performance metrics for the DBMS listed above. Some are normalized by throughput
 <pre>
 H3IpsEOF
 
-catme sum/mrg.${sec}.some
+catme $resdir/mrg.${sec}.some
 echo "</pre>"
 
 done
@@ -178,10 +177,10 @@ cat <<H2QpsEOF
 H2QpsEOF
 
 printf "<p>Query response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec2}.rt.query.ht
+catme $rtdir/mrg.${sec2}.rt.query.ht
 
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
-catme rt${m}/mrg.${sec2}.rt.insert.ht
+catme $rtdir/mrg.${sec2}.rt.insert.ht
 
 cat <<H3QpsEOF
 <p>
@@ -190,7 +189,7 @@ Performance metrics for the DBMS listed above. Some are normalized by throughput
 <pre>
 H3QpsEOF
 
-catme sum/mrg.${sec}.some
+catme $resdir/mrg.${sec}.some
 echo "</pre>"
 done
 
@@ -212,7 +211,7 @@ Performance metrics for all DBMS, not just the ones listed above. Some are norma
 <pre>
 MetricHeaderEOF
 
-catme sum/mrg.${sec}
+catme $resdir/mrg.${sec}
 echo "</pre>"
 
 done
@@ -251,13 +250,13 @@ fi
 if [[ $x -ge 3 ]]; then
 echo "<p>Query response time histogram</p>"
 echo "<pre>"
-catme rt${m}/mrg.${fsec}.rt.query
+catme $rtdir/mrg.${fsec}.rt.query
 echo "</pre>"
 fi
 
 echo "<p>Insert response time histogram</p>"
 echo "<pre>"
-catme rt${m}/mrg.${fsec}.rt.insert
+catme $rtdir/mrg.${fsec}.rt.insert
 echo "</pre>"
 
 done

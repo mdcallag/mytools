@@ -17,49 +17,31 @@ fi
 
 shift 10
 
-for dc in in56.x6d ; do
-for ver in my5649 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/my56; ln -s $mbd/$ver $mbd/my56
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv ${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} ${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  sleep 600
-done
-done
-
-for dc in in57.x6d ; do
-for ver in my5731 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv ${dop}u.1t${only1t}/${nrt}.in57.c${cnf}${ps} ${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  sleep 600
-done
-done
-
-exit 0
-
 if [[ $npart -eq 0 ]]; then
-  for dc in rx56.x6a ; do
-    bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  done
+for dc in rx56.y9a rx56.y9b rx56.y9c rx56.y9c0 rx56.y9c1 rx56.y9c2 rx56.y13a rx56.y13b ; do
+for ver in fbmy5635 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/fbmy56; ln -s $mbd/$ver $mbd/fbmy56
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.rx56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
 fi
 
 if [[ $npart -eq 0 ]]; then
-  for dc in rx80.x6a ; do
-    bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  done
-fi
-
-for dc in pg11.x5 ; do
-for ver in pg1110 ; do
+for dc in rx80.y9c ; do
+for ver in fbmy8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/pg11; ln -s $mbd/$ver $mbd/pg11
+  rm $mbd/fbmy80; ln -s $mbd/$ver $mbd/fbmy80
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg11.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.rx80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
   sleep 600
 done
 done
+fi
 
 for dc in pg12.x5 ; do
 for ver in pg124 ; do
@@ -67,46 +49,62 @@ for ver in pg124 ; do
   rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg12.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
   sleep 600
 done
 done
 
 for dc in pg13.x5 ; do
-for ver in pg131 ; do
+for ver in pg134 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg13; ln -s $mbd/$ver $mbd/pg13
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg13.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
   sleep 600
 done
 done
 
-for dc in in56.x6d ; do
+for dc in pg14.x5 ; do
+for ver in pg140 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg14; ln -s $mbd/$ver $mbd/pg14
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg14.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in in80.y8 ; do
+for ver in my8027 my8026 my8023 my8022 my8020 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in in57.y8 ; do
+for ver in my5735 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in57.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in in56.y8 ; do
 for ver in my5649 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my56; ln -s $mbd/$ver $mbd/my56
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv ${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} ${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  sleep 600
-done
-done
-
-for dc in in57.x6d ; do
-for ver in my5731 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv ${dop}u.1t${only1t}/${nrt}.in57.c${cnf}${ps} ${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  sleep 600
-done
-done
-
-for dc in in80.x6d ; do
-for ver in my8021 my8022 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv ${dop}u.1t${only1t}/${nrt}.in80.c${cnf}${ps} ${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
   sleep 600
 done
 done
