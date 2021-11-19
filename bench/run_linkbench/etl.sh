@@ -7,6 +7,8 @@ username=$6
 
 shift 6
 
+echo etl for $username
+
 bdir=$( dirname $0 )
 
 farr=("$@")

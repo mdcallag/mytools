@@ -18,7 +18,8 @@ dpg12=${dbms_pfx}/pg12
 dmy80=${dbms_pfx}/my80
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
-dmyfb=${dbms_pfx}/fbmy56
+dmyfb56=${dbms_pfx}/fbmy56
+dmyfb80=${dbms_pfx}/fbmy80
 dmo40=${dbms_pfx}/mo40
 dmo42=${dbms_pfx}/mo42
 dmo44=${dbms_pfx}/mo44
@@ -28,15 +29,31 @@ function do_rx56 {
   shift 1
 
   sfx=rx.c$cnf
-  cd $dmyfb; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh rx56 $dmyfb/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dmyfb56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash all.sh rx56 $dmyfb56/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
-    cd $dmyfb; bash down.sh; cd $dgit
+    cd $dmyfb56; bash down.sh; cd $dgit
   fi
   rdir=a.rx56.c${cnf}
   mkdir -p $rdir
-  mv $dmyfb/o.ini.* l.* r.* a.$sfx $rdir
-  cp $dmyfb/etc/my.cnf $rdir
+  mv $dmyfb56/o.ini.* l.* r.* a.$sfx $rdir
+  cp $dmyfb56/etc/my.cnf $rdir
+}
+
+function do_rx80 {
+  cnf=$1
+  shift 1
+
+  sfx=rx.c$cnf
+  cd $dmyfb80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash all.sh rx80 $dmyfb80/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  if [[ $up != 1 ]]; then
+    cd $dmyfb80; bash down.sh; cd $dgit
+  fi
+  rdir=a.rx80.c${cnf}
+  mkdir -p $rdir
+  mv $dmyfb80/o.ini.* l.* r.* a.$sfx $rdir
+  cp $dmyfb80/etc/my.cnf $rdir
 }
 
 function do_in80 {
@@ -161,6 +178,8 @@ echo start load and run at $( date ) for $dbms with $cnf
 
 if [[ $dbms = "rx56" ]]; then
   do_rx56 $cnf $@
+elif [[ $dbms = "rx80" ]]; then
+  do_rx80 $cnf $@
 elif  [[ $dbms = "in80" ]]; then
   do_in80 $cnf $@
 elif  [[ $dbms = "in57" ]]; then
