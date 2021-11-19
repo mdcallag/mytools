@@ -181,13 +181,15 @@ for v in $@ ; do
     # Use an alternate test sequence
     env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
     # With overwriteandwait the test doesn't end until compaction has caught up
-    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting 
+    # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
+    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite
+    env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
     # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
     env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
     env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
+    # env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
     env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
   fi
 

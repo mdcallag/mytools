@@ -297,11 +297,8 @@ function summarize_result {
   # happen then empty output from grep when searching for "Sum" will cause
   # syntax errors.
   version=$( grep ^RocksDB: $test_out | awk '{ print $3 }' )
-  date=$( grep ^Date: $test_out | awk '{ print $6 "-" $3 "-" $4 "T" $5 ".000" }' )
-  iso_date=$( month_to_num $date )
-  tz=$( date "+%z" )
-  iso_tz="${tz:0:3}:${tz:3:2}"
-  iso_date="$iso_date$iso_tz"
+  date=$( grep ^Date: $test_out | awk '{ print $6 "-" $3 "-" $4 "T" $5 }' )
+  my_date=$( month_to_num $date )
   uptime=$( grep ^Uptime\(secs $test_out | tail -1 | awk '{ printf "%.0f", $2 }' )
   stall_pct=$( grep "^Cumulative stall" $test_out| tail -1  | awk '{  print $5 }' )
   nstall=$( grep ^Stalls\(count\):  $test_out | tail -1 | awk '{ print $2 + $4 + $6 + $8 + $10 + $14 + $18 + $20 }' )
@@ -355,7 +352,7 @@ function summarize_result {
       >> $report
   fi
 
-  echo -e "$ops_sec\t$mb_sec\t$sum_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_secs\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$test_name\t$iso_date\t$version\t$job_id" \
+  echo -e "$ops_sec\t$mb_sec\t$sum_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_secs\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$test_name\t$my_date\t$version\t$job_id" \
     >> $report
 }
 
@@ -554,13 +551,24 @@ function run_fillseq {
   summarize_result $log_file_name $test_name fillseq
 }
 
-function run_flush_mt_l0 {
+function run_lsm {
   # This flushes the memtable and L0 to get the LSM tree into a deterministic
   # state for read-only tests that will follow.
   echo "Flush memtable, wait, compact L0, wait"
-  log_file_name=$output_dir/benchmark_flush.log
+  job=$1
+
+  if [ $job = flush_mt_l0 ]; then
+    benchmarks=levelstats,flush,waitforcompaction,compact0,waitforcompaction,memstats,levelstats
+  elif [ $job = waitforcompaction ]; then
+    benchmarks=levelstats,waitforcompaction,memstats,levelstats
+  else
+    echo Job unknown: $job
+    exit $EXIT_NOT_COMPACTION_TEST
+  fi
+
+  log_file_name=$output_dir/benchmark_${job}.log
   time_cmd=$( get_time_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=levelstats,flush,waitforcompaction,compact0,waitforcompaction,memstats,levelstats \
+  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks \
        --use_existing_db=1 \
        --sync=0 \
        $params_w \
@@ -790,7 +798,9 @@ for job in ${jobs[@]}; do
   if [ $job = bulkload ]; then
     run_bulkload
   elif [ $job = flush_mt_l0 ]; then
-    run_flush_mt_l0
+    run_lsm flush_mt_l0
+  elif [ $job = waitforcompaction ]; then
+    run_lsm waitforcompaction
   elif [ $job = fillseq_disable_wal ]; then
     run_fillseq 1
   elif [ $job = fillseq_enable_wal ]; then

@@ -28,12 +28,13 @@ v6.26.0 \
 
 # versions=( 6.26.0 6.23.3 6.24.2 6.25.3 )
 secs=1800
-secs_ro=600
+secs_ro=1800
 cache_mb=$(( 1024 * 12 ))
 nkeys=200000000
 
 nt=8
-for orig in no yes ; do
+# for orig in no yes ; do
+for orig in no ; do
 for cm in 1 0 ; do
 odir=bm.nt${nt}.orig${orig}.cm${cm}
 echo Run with $odir at $( date )
