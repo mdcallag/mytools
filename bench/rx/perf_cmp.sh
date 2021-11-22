@@ -176,19 +176,23 @@ for v in $@ ; do
   env "${benchargs2[@]}"                    bash b.sh waitforcompaction
 
   # Read-only tests
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
+  # Skipping this for now because --multiread_batched isn't supported on older 6.X releases
+  # env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh revrange
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
 
   # Read-mostly tests
-  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
   env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
 
   # Write-only tests
   # With overwriteandwait the test doesn't end until compaction has caught up
   # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
   # This creates much compaction debt, a warning if tests are added after it
-  env "${benchargs2[@]}" NUMDURATION=$nsecs    bash b.sh overwrite
+  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite
 
   cp $dbdir/LOG* $my_odir
 done
