@@ -9,7 +9,6 @@ mb_wps=${MB_WPS:-2}
 nthreads=${NTHREADS:-16}
 comp_type=${COMP_TYPE:-lz4}
 ml2_comp=${ML2_COMP:-3}
-original=${ORIGINAL:-yes}
 write_buf_mb=${WRITE_BUF_MB:-32}
 sst_mb=${SST_MB:-32}
 l1_mb=${L1_MB:-128}
@@ -52,7 +51,6 @@ function usage() {
   echo -e "\tNTHREADS - number of user threads"
   echo -e "\tCOMP_TYPE - compression type (zstd, lz4, none, etc)"
   echo -e "\tML2_COMP - min_level_to_compress"
-  echo -e "\tORIGINAL - if yes run original sequence of benchmarks"
   echo -e "\tWRITE_BUF_MB - size of write buffer in MB"
   echo -e "\tSST_MB - target_file_size_base in MB"
   echo -e "\tL1_MB - max_bytes_for_level_base in MB"
@@ -74,7 +72,6 @@ function dump_env() {
   echo -e "nthreads\t$nthreads" >> $odir/args
   echo -e "comp_type\t$comp_type" >> $odir/args
   echo -e "ml2_comp\t$ml2_comp" >> $odir/args
-  echo -e "original\t$original" >> $odir/args
   echo -e "write_buf_mb\t$write_buf_mb" >> $odir/args
   echo -e "sst_mb\t$sst_mb" >> $odir/args
   echo -e "l1_mb\t$l1_mb" >> $odir/args
@@ -166,36 +163,32 @@ for v in $@ ; do
   rm -rf $my_odir
   rm -rf $dbdir/*
 
-  # TODO: start & stop iostat & vmstat per test and save results to $my_odir
+  # Load in key order
+  env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
 
-  if [[ $original == "yes" ]]; then
-    # Use the original sequence of tests
-    env "${benchargs1[@]}" bash b.sh bulkload 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
-    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting 
-  else
-    # Use an alternate test sequence
-    env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
-    # Write 15% of the keys. The goal is to get some compaction to Lmax.
-    p15=$( echo $NUM_KEYS | awk '{ printf "%.0f", $1 / 15.0 }' )
-    env "${benchargs2[@]}" WRITES=$p15        bash b.sh overwrite
-    # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
-    env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
-    env "${benchargs2[@]}"                    bash b.sh waitforcompaction
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
-    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
-    # With overwriteandwait the test doesn't end until compaction has caught up
-    # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
-    # This creates much compaction debt, a warning if tests are added after it
-    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite
-  fi
+  # Write 10% of the keys. The goal is to randomize keys prior to Lmax
+  p10=$( echo $NUM_KEYS | awk '{ printf "%.0f", $1 / 10.0 }' )
+  env "${benchargs2[@]}" WRITES=$p10        bash b.sh overwritesome
+
+  # These are not supported by older versions
+  # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
+  env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
+  env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+
+  # Read-only tests
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
+  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
+
+  # Read-mostly tests
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
+
+  # Write-only tests
+  # With overwriteandwait the test doesn't end until compaction has caught up
+  # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
+  # This creates much compaction debt, a warning if tests are added after it
+  env "${benchargs2[@]}" NUMDURATION=$nsecs    bash b.sh overwrite
 
   cp $dbdir/LOG* $my_odir
 done

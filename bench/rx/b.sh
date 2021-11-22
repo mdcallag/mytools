@@ -818,6 +818,9 @@ for job in ${jobs[@]}; do
     run_fillseq 0
   elif [ $job = overwrite ]; then
     run_change overwrite overwrite overwrite
+  elif [ $job = overwritesome ]; then
+    # This uses a different name for overwrite results so it can be run twice in one benchmark run.
+    run_change overwritesome overwrite overwrite
   elif [ $job = overwriteandwait ]; then
     run_change overwriteandwait overwrite overwrite,waitforcompaction
   elif [ $job = updaterandom ]; then
