@@ -5,6 +5,10 @@ for t in $( cat ../rx.tags  ); do
   git checkout me_${t} > ../bld.${t} 2> ../e.${t}
   git branch -a | grep "^\*" > ../bld.${t}
   tail -1 ../bld.${t}
+
+  mv build_tools build_tools.orig
+  ln -s build_tools.6221 build_tools
+
   echo STEP make clean >> ../bld.${t}
   make clean >> ../bld.${t} 2>& 1
   echo STEP make all >> ../bld.${t}
@@ -12,4 +16,7 @@ for t in $( cat ../rx.tags  ); do
   ldd db_bench
   mv db_bench ../db_bench.${t}
   tail -2 ../bld.${t}
+
+  rm build_tools
+  mv build_tools.orig build_tools
 done
