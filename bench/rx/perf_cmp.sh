@@ -167,7 +167,7 @@ for v in $@ ; do
   env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
-  p10=$( echo $NUM_KEYS | awk '{ printf "%.0f", $1 / 10.0 }' )
+  p10=$( echo $nkeys | awk '{ printf "%.0f", $1 / 10.0 }' )
   env "${benchargs2[@]}" WRITES=$p10        bash b.sh overwritesome
 
   # These are not supported by older versions
