@@ -170,25 +170,31 @@ for v in $@ ; do
 
   if [[ $original == "yes" ]]; then
     # Use the original sequence of tests
-    env "${benchargs1[@]}" bash tools/b.sh bulkload 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh readrandom 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh multireadrandom --multiread_batched 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh fwdrange 
-    env "${benchargs2[@]}" DURATION=$nsecs    bash tools/b.sh overwrite 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash tools/b.sh readwhilewriting 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash tools/b.sh fwdrangewhilewriting 
+    env "${benchargs1[@]}" bash b.sh bulkload 
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
+    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite 
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting 
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting 
   else
     # Use an alternate test sequence
-    env "${benchargs1[@]}" bash tools/b.sh fillseq_disable_wal
-    # With overwriteandwait the test doesn't end until compaction has caught up
-    env "${benchargs2[@]}" DURATION=$nsecs    bash tools/b.sh overwriteandwait
-    env "${benchargs3[@]}" DURATION=$nsecs    bash tools/b.sh readwhilewriting 
-    env "${benchargs3[@]}" DURATION=$nsecs    bash tools/b.sh fwdrangewhilewriting 
+    env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
+    # Write 15% of the keys. The goal is to get some compaction to Lmax.
+    p15=$( echo $NUM_KEYS | awk '{ printf "%.0f", $1 / 15.0 }' )
+    env "${benchargs2[@]}" WRITES=$p15        bash b.sh overwrite
     # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
-    env "${benchargs2[@]}"                    bash tools/b.sh flush_mt_l0
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh readrandom 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh multireadrandom --multiread_batched 
-    env "${benchargs2[@]}" DURATION=$nsecs_ro bash tools/b.sh fwdrange 
+    env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
+    env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched 
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom 
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange 
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+    env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
+    # With overwriteandwait the test doesn't end until compaction has caught up
+    # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
+    # This creates much compaction debt, a warning if tests are added after it
+    env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite
   fi
 
   cp $dbdir/LOG* $my_odir

@@ -55,6 +55,7 @@ function display_usage() {
   echo -e "\tCOMPRESSION_TYPE\t\t(default: zstd)"
   echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: none)"
   echo -e "\tDURATION\t\t\tNumber of seconds for which the test runs"
+  echo -e "\tWRITES\t\t\tNumber of writes for which the test runs"
   echo -e "\tWRITE_BUFFER_SIZE_MB\t\tThe size of the write buffer in MB (default: 128)"
   echo -e "\tTARGET_FILE_SIZE_BASE_MB\t\tThe value for target_file_size_base in MB (default: 128)"
   echo -e "\tMAX_BYTES_FOR_LEVEL_BASE_MB\t\tThe value for max_bytes_for_level_base in MB (default: 128)"
@@ -124,6 +125,7 @@ compression_max_dict_bytes=${COMPRESSION_MAX_DICT_BYTES:-0}
 compression_type=${COMPRESSION_TYPE:-zstd}
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
 duration=${DURATION:-0}
+writes=${WRITES:-0}
 
 num_keys=${NUM_KEYS:-8000000000}
 key_size=${KEY_SIZE:-20}
@@ -163,7 +165,9 @@ fi
 
 o_direct_flags=""
 if [ ! -z $USE_O_DIRECT ]; then
-  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
+  # TODO: deal with flags only supported in new versions, like prepopulate_block_cache
+  #o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
+  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction"
 fi
 
 const_params="
@@ -213,8 +217,12 @@ l0_config="
   --level0_file_num_compaction_trigger=4 \
   --level0_stop_writes_trigger=20"
 
+# You probably don't want to set both --writes and --duration
 if [ $duration -gt 0 ]; then
   const_params="$const_params --duration=$duration"
+fi
+if [ $writes -gt 0 ]; then
+  const_params="$const_params --writes=$writes"
 fi
 
 params_w="$l0_config \
@@ -275,6 +283,21 @@ function month_to_num() {
     echo $date_str
 }
 
+function start_stats {
+  output=$1
+  iostat -y -mx 1  >& $output.io &
+  vmstat 1 >& $output.vm &
+}
+
+function stop_stats {
+  output=$1
+  killall iostat
+  killall vmstat
+  sleep 1
+  gzip $output.io
+  gzip $output.vm
+}
+
 function summarize_result {
   test_out=$1
   test_name=$2
@@ -285,11 +308,8 @@ function summarize_result {
   # happen then empty output from grep when searching for "Sum" will cause
   # syntax errors.
   version=$( grep ^RocksDB: $test_out | awk '{ print $3 }' )
-  date=$( grep ^Date: $test_out | awk '{ print $6 "-" $3 "-" $4 "T" $5 ".000" }' )
-  iso_date=$( month_to_num $date )
-  tz=$( date "+%z" )
-  iso_tz="${tz:0:3}:${tz:3:2}"
-  iso_date="$iso_date$iso_tz"
+  date=$( grep ^Date: $test_out | awk '{ print $6 "-" $3 "-" $4 "T" $5 }' )
+  my_date=$( month_to_num $date )
   uptime=$( grep ^Uptime\(secs $test_out | tail -1 | awk '{ printf "%.0f", $2 }' )
   stall_pct=$( grep "^Cumulative stall" $test_out| tail -1  | awk '{  print $5 }' )
   nstall=$( grep ^Stalls\(count\):  $test_out | tail -1 | awk '{ print $2 + $4 + $6 + $8 + $10 + $14 + $18 + $20 }' )
@@ -343,7 +363,7 @@ function summarize_result {
       >> $report
   fi
 
-  echo -e "$ops_sec\t$mb_sec\t$sum_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_secs\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$test_name\t$iso_date\t$version\t$job_id" \
+  echo -e "$ops_sec\t$mb_sec\t$sum_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_secs\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$test_name\t$my_date\t$version\t$job_id" \
     >> $report
 }
 
@@ -528,26 +548,38 @@ function run_fillseq {
        --disable_wal=$1 \
        --seed=$( date +%s ) \
        2>&1 | tee -a $log_file_name"
-
   if [[ "$job_id" != "" ]]; then
     echo "Job ID: ${job_id}" > $log_file_name
     echo $cmd | tee -a $log_file_name
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
 
   # The constant "fillseq" which we pass to db_bench is the benchmark name.
   summarize_result $log_file_name $test_name fillseq
 }
 
-function run_flush_mt_l0 {
+function run_lsm {
   # This flushes the memtable and L0 to get the LSM tree into a deterministic
   # state for read-only tests that will follow.
   echo "Flush memtable, wait, compact L0, wait"
-  log_file_name=$output_dir/benchmark_flush.log
+  job=$1
+
+  if [ $job = flush_mt_l0 ]; then
+    benchmarks=levelstats,flush,waitforcompaction,compact0,waitforcompaction,memstats,levelstats
+  elif [ $job = waitforcompaction ]; then
+    benchmarks=levelstats,waitforcompaction,memstats,levelstats
+  else
+    echo Job unknown: $job
+    exit $EXIT_NOT_COMPACTION_TEST
+  fi
+
+  log_file_name=$output_dir/benchmark_${job}.log
   time_cmd=$( get_time_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=levelstats,flush,waitforcompaction,compact0,waitforcompaction,memstats,levelstats \
+  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks \
        --use_existing_db=1 \
        --sync=0 \
        $params_w \
@@ -560,7 +592,9 @@ function run_flush_mt_l0 {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   # Don't summarize, the log doesn't have the output needed for it
 }
 
@@ -585,7 +619,9 @@ function run_change {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name ${output_name}.t${num_threads}.s${syncval} $grep_name
 }
 
@@ -606,7 +642,9 @@ function run_filluniquerandom {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name filluniquerandom filluniquerandom
 }
 
@@ -626,7 +664,9 @@ function run_readrandom {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name readrandom.t${num_threads} readrandom
 }
 
@@ -647,7 +687,9 @@ function run_multireadrandom {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name multireadrandom.t${num_threads} multireadrandom
 }
 
@@ -670,7 +712,9 @@ function run_readwhile {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name readwhile${operation}.t${num_threads} readwhile${operation}
 }
 
@@ -692,7 +736,9 @@ function run_rangewhile {
        --seed=$( date +%s ) \
        2>&1 | tee -a $log_file_name"
   echo $cmd | tee $log_file_name
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name ${full_name}.t${num_threads} seekrandomwhile${operation}
 }
 
@@ -716,7 +762,9 @@ function run_range {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
   summarize_result $log_file_name ${full_name}.t${num_threads} seekrandom
 }
 
@@ -736,7 +784,9 @@ function run_randomtransaction {
   else
     echo $cmd | tee $log_file_name
   fi
+  start_stats $log_file_name.stats
   eval $cmd
+  stop_stats $log_file_name.stats
 }
 
 function now() {
@@ -759,7 +809,9 @@ for job in ${jobs[@]}; do
   if [ $job = bulkload ]; then
     run_bulkload
   elif [ $job = flush_mt_l0 ]; then
-    run_flush_mt_l0
+    run_lsm flush_mt_l0
+  elif [ $job = waitforcompaction ]; then
+    run_lsm waitforcompaction
   elif [ $job = fillseq_disable_wal ]; then
     run_fillseq 1
   elif [ $job = fillseq_enable_wal ]; then
