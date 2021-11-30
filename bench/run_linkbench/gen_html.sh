@@ -36,17 +36,14 @@ cat <<StyleEOF
 </style>
 StyleEOF
 
-steps=( l.pre l.post L1.P8 L2.P8 L3.P12 L4.P12 L5.P16 L6.P16 )
+steps=( l.pre l.post L1.P1 L2.P1 L3.P1 )
 
 stepTxt=( \
 "l.pre: load ${m} million rows (documents) without secondary index on Linktable" \
 "l.post: create secondary index on Linktable" \
-"L1.P8: transactions with 8 clients, run for $nsecs seconds" \
-"L2.P8: transactions with 8 clients, run for $nsecs seconds" \
-"L3.P12: transactions with 12 clients, run for $nsecs seconds" \
-"L4.P12: transactions with 12 clients, run for $nsecs seconds" \
-"L5.P16: transactions with 16 clients, run for $nsecs seconds" \
-"L6.P16: transactions with 16 clients, run for $nsecs seconds" \
+"L1.P1: transactions with 1 clients, run for $nsecs seconds" \
+"L2.P1: transactions with 1 clients, run for $nsecs seconds" \
+"L3.P1: transactions with 1 clients, run for $nsecs seconds" \
 )
 
 opTxt=( \
@@ -120,8 +117,8 @@ cat <<SumEOF
 Numbers are inserts/s for l.pre, indexed rows/s for l.post and transactions/s for the transaction tests (L*.P*).
 The range of values is split into 3 steps: bottom 25&#37;, middle 50&#37;, top 25&#37;.
 Values in the bottom have a red background, values in the top have a green background.
-The <b>l</b> in l.pre and l.post stands for <b>load</b>. The <b>L</b> in L1.* to L6.* stands for <b>loop</b> and the transaction tests are run in that sequence.
-The <b>P</b> in L*.P8, L*.P12 and L*.P16 stands for <b>parallel</b> and represents the number of concurrent clients.
+The <b>l</b> in l.pre and l.post stands for <b>load</b>. The <b>L</b> in L1.* stands for <b>loop</b> and the transaction tests are run in that sequence.
+The <b>P</b> in L*.P1 stands for <b>parallel</b> and represents the number of concurrent clients.
 </p>
 SumEOF
 

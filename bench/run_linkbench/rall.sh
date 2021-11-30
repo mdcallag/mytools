@@ -24,13 +24,17 @@ dmo40=${dbms_pfx}/mo40
 dmo42=${dbms_pfx}/mo42
 dmo44=${dbms_pfx}/mo44
 
+# This can be overridden if a different Linkbench jar file is used, usually to get a different version of the MySQL Java Connector
+jdbc="FacebookLinkBench.jar"
+
 function do_rx56 {
   cnf=$1
   shift 1
 
   sfx=rx.c$cnf
   cd $dmyfb56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh rx56 $dmyfb56/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  jdbc2="FacebookLinkBench.jar.cj508"
+  cd $dgit; bash all.sh rx56 $dmyfb56/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $jdbc2 $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmyfb56; bash down.sh; cd $dgit
   fi
@@ -46,7 +50,7 @@ function do_rx80 {
 
   sfx=rx.c$cnf
   cd $dmyfb80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh rx80 $dmyfb80/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh rx80 $dmyfb80/bin/mysql /data/m/fbmy $maxid $dname $wdop $secs mysql lb.myrocks $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmyfb80; bash down.sh; cd $dgit
   fi
@@ -62,7 +66,7 @@ function do_in80 {
 
   sfx=in.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in80 $dmy80/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy80; bash down.sh; cd $dgit
   fi
@@ -78,7 +82,7 @@ function do_in57 {
 
   sfx=in.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh in57 $dmy57/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy57; bash down.sh; cd $dgit
   fi
@@ -94,7 +98,8 @@ function do_in56 {
 
   sfx=in.c$cnf
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  jdbc2="FacebookLinkBench.jar.cj508"
+  cd $dgit; bash all.sh in56 $dmy56/bin/mysql /data/m/my $maxid $dname $wdop $secs mysql lb.innodb $dbhost $ldop $heap $jdbc2 $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmy56; bash down.sh; cd $dgit
   fi
@@ -110,7 +115,7 @@ function do_pg12 {
 
   sfx=pg.c$cnf
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh pg12 $dpg12/bin/psql /data/m/pg $maxid $dname $wdop $secs postgres lb.postgres $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dpg12; bash down.sh; cd $dgit
   fi
@@ -126,7 +131,7 @@ function do_mo40 {
 
   sfx=mo.c$cnf
   cd $dmo40; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh mo40 $dmo40/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo40 $dmo40/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo40; bash down.sh; cd $dgit
   fi
@@ -142,7 +147,7 @@ function do_mo42 {
 
   sfx=mo.c$cnf
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh mo42 $dmo42/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo42 $dmo42/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo42; bash down.sh; cd $dgit
   fi
@@ -158,7 +163,7 @@ function do_mo44 {
 
   sfx=mo.c$cnf
   cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash all.sh mo44 $dmo44/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $@ >& a.$sfx; sleep 10
+  cd $dgit; bash all.sh mo44 $dmo44/bin/mongo /data/m/mo $maxid $dname $wdop $secs mongo lb.mongo $dbhost $ldop $heap $jdbc $@ >& a.$sfx; sleep 10
   if [[ $up != 1 ]]; then
     cd $dmo44; bash down.sh; cd $dgit
   fi

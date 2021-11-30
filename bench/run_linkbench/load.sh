@@ -9,6 +9,9 @@ dbms=$8
 ddl=$9
 dbhost=${10}
 heap=${11}
+jdbc=${12}
+
+# The default for the jdbc arg is "FacebookLinkBench.jar"
 
 pgauth="--host 127.0.0.1"
 
@@ -237,7 +240,7 @@ fi
 # for f in $( ls l.post.perf.data.* | grep -v \.rep | tail -50 ); do echo $f; perf script -i $f > $f.ps; ~/git/FlameGraph/stackcollapse-perf.pl $f.ps | ~/git/FlameGraph/flamegraph.pl > $f.svg ; done
 
 start_secs=$( date +%s )
-if ! HEAPSIZE=$heap /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
+if ! HEAPSIZE=$heap LINKBENCH_JAR=$jdbc /usr/bin/time -o l.pre.time.$fn bash bin/linkbench -c config/${props} -Dloaders=$dop -Dgenerate_nodes=$gennodes -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dload_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -l  >> l.pre.o.$fn 2>&1 ; then
   echo Load failed
   exit 1
 fi

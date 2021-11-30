@@ -8,6 +8,9 @@ secs=$7
 dbms=$8
 dbhost=$9
 heap=${10}
+jdbc=${11}
+
+# The default for the jdbc arg is "FacebookLinkBench.jar"
 
 if [[ $dbms = "mysql" ]]; then
   echo Skip mstat
@@ -73,7 +76,7 @@ if [ $dbpid -ne -1 ] ; then
   fpid=$!
 fi
 
-if ! HEAPSIZE=$heap /usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1 ; then
+if ! HEAPSIZE=$heap LINKBENCH_JAR=$jdbc /usr/bin/time -o r.time.$fn bash bin/linkbench -c config/${props} -Drequests=5000000000 -Drequesters=$dop -Dmaxtime=$secs -Dmaxid1=$maxid -Dprogressfreq=10 -Ddisplayfreq=10 -Dreq_progress_interval=100000 -Dhost=${dbhost} $logarg -Ddbid=linkdb0 -r >> r.o.$fn 2>&1 ; then
   echo Run failed
   exit 1
 fi
