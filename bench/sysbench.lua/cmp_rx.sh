@@ -27,9 +27,8 @@ function dbms_down() {
 }
 
 dbcreds=mysql,root,pw,127.0.0.1,test,rocksdb
-# for dcnf in fbmy5635.x9a fbmy8020.x9a ; do
-# for dcnf in fbmy5635.x9a0 fbmy5635.x9a1 fbmy5635.x9a2 ; do
-for dcnf in fbmy5635.x13a fbmy5635.x13b ; do
+#for dcnf in fbmy5635.y9a fbmy5635.y9b fbmy5635.y9c fbmy5635.y9c0 fbmy5635.y9c1 fbmy5635.y9c2 fbmy5635.y13a fbmy5635.y13b fbmy8020.y9c ; do
+for dcnf in fbmy5635.y9c fbmy8020.y9c ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 

@@ -83,9 +83,9 @@ echo write-only
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        write-only      $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo read-write range 10
-bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      10 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      10  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 echo read-write range 100 and do postwrite
-bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1 $@
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1    $prepstmt $@
 
 for range in 10 100 10000 ; do
 echo read-only range $range
