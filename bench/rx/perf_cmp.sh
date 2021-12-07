@@ -80,9 +80,6 @@ else
   fi
 fi
 
-# Arguments for tests run after the load
-post_load_args=( MB_WRITE_PER_SEC=$mb_wps )
-
 # This is separate because leveled compaction uses it after the load
 # while universal uses it during and after the load.
 comp_args=( MIN_LEVEL_TO_COMPRESS=$ml2_comp )
@@ -139,9 +136,6 @@ function dump_env {
   echo "Base args" > $odir/args
   echo "${base_args[@]}" | tr ' ' '\n' >> $odir/args
 
-  echo -e "\nPost-load args" >> $odir/args
-  echo "${post_load_args[@]}" | tr ' ' '\n' >> $odir/args
-
   echo -e "\nCompression args" >> $odir/args
   echo "${comp_args[@]}" | tr ' ' '\n' >> $odir/args
 
@@ -157,6 +151,8 @@ function dump_env {
   echo "${benchargs1[@]}" | tr ' ' '\n' >> $odir/args
   echo -e "\nbenchargs2:" >> $odir/args
   echo "${benchargs2[@]}" | tr ' ' '\n' >> $odir/args
+  echo -e "\nbenchargs3:" >> $odir/args
+  echo "${benchargs3[@]}" | tr ' ' '\n' >> $odir/args
 }
 
 if [ $# -lt 3 ]; then
@@ -234,6 +230,9 @@ for v in $@ ; do
     benchargs2+=("${comp_args[@]}")
   fi
 
+  benchargs3=("${benchargs2[@]}")
+  benchargs3+=( MB_WRITE_PER_SEC=$mb_wps )
+
   dump_env
 
   echo Run benchmark for $v at $( date ) with results at $my_odir
@@ -264,10 +263,10 @@ for v in $@ ; do
   env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange
   env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
 
-  # Read-mostly tests
-  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
-  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
-  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+  # Read-mostly tests with a rate-limited writer
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
+  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
 
   # Write-only tests
   # With overwriteandwait the test doesn't end until compaction has caught up
