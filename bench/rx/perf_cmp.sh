@@ -1,38 +1,96 @@
 dbdir=$1
 odir=$2
 
-nkeys=${NKEYS:-1000000}
-cache_mb=${CACHE_MB:-128}
+# Benchmark configuration
 nsecs=${NSECS:-65}
 nsecs_ro=${NSECS_RO:-65}
-mb_wps=${MB_WPS:-2}
+nkeys=${NKEYS:-1000000}
 nthreads=${NTHREADS:-16}
+key_bytes=${KEY_BYTES:-20}
+value_bytes=${VALUE_BYTES:-400}
+mb_wps=${MB_WPS:-2}
+write_amp_estimate=${WRITE_AMP_ESTIMATE:-20}
+
+# RocksDB configuration
+subcomp=${SUBCOMP:-1}
 comp_type=${COMP_TYPE:-lz4}
-ml2_comp=${ML2_COMP:-3}
 write_buf_mb=${WRITE_BUF_MB:-32}
 sst_mb=${SST_MB:-32}
 l1_mb=${L1_MB:-128}
 max_bg_jobs=${MAX_BG_JOBS:-8}
-cache_meta=${CACHE_META:-1}
-pending_ratio=${PENDING_RATIO:-"0.5"}
-write_amp_estimate=${WRITE_AMP_ESTIMATE:-20}
-
-key_bytes=${KEY_BYTES:-20}
-value_bytes=${VALUE_BYTES:-400}
-
 stats_seconds=${STATS_SECONDS:-20}
+cache_meta=${CACHE_META:-1}
+# DIRECT_IO doesn't need a default
+cache_mb=${CACHE_MB:-128}
+pending_ratio=${PENDING_RATIO:-"0.5"}
+ml2_comp=${ML2_COMP:-"-1"}
 
-direct_flags=""
+# Leveled compaction configuration
+level_comp_start=${LEVEL_COMP_START:-4}
+level_comp_slow=${LEVEL_COMP_SLOW:-20}
+level_comp_stop=${LEVEL_COMP_STOP:-30}
+
+# Universal compaction configuration
+univ_comp_start=${UNIV_COMP_START:-8}
+univ_comp_slow=${UNIV_COMP_SLOW:-20}
+univ_comp_stop=${UNIV_COMP_STOP:-30}
+univ_min_merge_width=${UNIV_MIN_MERGE_WIDTH:-2}
+univ_max_merge_width=${UNIV_MAX_MERGE_WIDTH:-20}
+univ_size_ratio=${UNIV_SIZE_RATIO:-1}
+univ_max_size_amp=${UNIV_MAX_SIZE_AMP:-200}
+
+# Arguments used for all tests
+base_args=( NUM_KEYS=$nkeys )
+base_args+=( NUM_THREADS=$nthreads )
+base_args+=( KEY_SIZE=$key_bytes )
+base_args+=( VALUE_SIZE=$value_bytes )
+
+base_args+=( SUBCOMPACTIONS=$subcomp )
+base_args+=( COMPRESSION_TYPE=$comp_type )
+base_args+=( WRITE_BUFFER_SIZE_MB=$write_buf_mb )
+base_args+=( TARGET_FILE_SIZE_BASE_MB=$sst_mb )
+base_args+=( MAX_BYTES_FOR_LEVEL_BASE_MB=$l1_mb )
+base_args+=( MAX_BACKGROUND_JOBS=$max_bg_jobs )
+base_args+=( STATS_INTERVAL_SECONDS=$stats_seconds )
+base_args+=( CACHE_INDEX_AND_FILTER_BLOCKS=$cache_meta )
+
 if [ ! -z $DIRECT_IO ]; then
-  direct_flags="USE_O_DIRECT=1"
+  base_flags+=( USE_O_DIRECT=1 )
 fi
 
-cacheb=$(( $cache_mb * 1024 * 1024 ))
+if [ ! -z $CACHE_MB ]; then
+  cacheb=$(( $CACHE_MB * 1024 * 1024 ))
+  base_args+=( CACHE_SIZE=$cacheb )
+fi
+
+if [ -z $UNIV ]; then
+  base_args+=( LEVEL0_FILE_NUM_COMPACTION_TRIGGER=$level_comp_start )
+  base_args+=( LEVEL0_SLOWDOWN_WRITES_TRIGGER=$level_comp_slow )
+  base_args+=( LEVEL0_STOP_WRITES_TRIGGER=$level_comp_stop )
+else
+  base_args+=( LEVEL0_FILE_NUM_COMPACTION_TRIGGER=$univ_comp_start )
+  base_args+=( LEVEL0_SLOWDOWN_WRITES_TRIGGER=$univ_comp_slow )
+  base_args+=( LEVEL0_STOP_WRITES_TRIGGER=$univ_comp_stop )
+  base_args+=( UNIVERSAL_MIN_MERGE_WIDTH=$univ_min_merge_width )
+  base_args+=( UNIVERSAL_MAX_MERGE_WIDTH=$univ_max_merge_width )
+  base_args+=( UNIVERSAL_SIZE_RATIO=$univ_size_ratio )
+  base_args+=( UNIVERSAL_MAX_SIZE_AMP=$univ_max_size_amp )
+  if [ ! -z $UNIV_ALLOW_TRIVIAL_MOVE ]; then
+    base_args+=( UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 )
+  fi
+fi
+
+# Arguments for tests run after the load
+post_load_args=( MB_WRITE_PER_SEC=$mb_wps )
+
+# This is separate because leveled compaction uses it after the load
+# while universal uses it during and after the load.
+comp_args=( MIN_LEVEL_TO_COMPRESS=$ml2_comp )
 
 # Values for published results: 
 # NUM_KEYS=900,000,000 CACHE_SIZE=6,442,450,944 DURATION=5400 MB_WRITE_PER_SEC=2 
 
-function usage() {
+function usage {
   echo "usage: perf_cmp.sh db_dir output_dir version+"
   echo -e "\tdb_dir - create RocksDB database in this directory"
   echo -e "\toutput_dir - write output from performance tests in this directory"
@@ -60,25 +118,45 @@ function usage() {
   echo -e "\tPENDING_RATIO - used to estimate write-stall limits"
   echo -e "\tWRITE_AMP_ESTIMATE\t\tEstimate for the write-amp that will occur. Used to compute write-stall limits"
   echo -e "\tSTATS_SECONDS\t\tValue for stats_interval_seconds"
+  echo -e "\tSUBCOMP\t\tValue for subcompactions"
+  echo -e "\tOptions specific to leveled compaction:"
+  echo -e "\t\tLEVEL_COMP_START\tValue for level0_file_num_compaction_trigger"
+  echo -e "\t\tLEVEL_COMP_SLOW\tValue for level0_slowdown_writes_trigger"
+  echo -e "\t\tLEVEL_COMP_STOP\tValue for level0_stop_writes_trigger"
+  echo -e "\tOptions specific to universal compaction:"
+  echo -e "\t\tUNIV_COMP_START\tValue for level0_file_num_compaction_trigger"
+  echo -e "\t\tUNIV_COMP_SLOW\tValue for level0_slowdown_writes_trigger"
+  echo -e "\t\tUNIV_COMP_STOP\tValue for level0_stop_writes_trigger"
+  echo -e "\t\tUNIV\t\tUse universal compaction when set to anything, otherwise use leveled"
+  echo -e "\t\tUNIV_MIN_MERGE_WIDTH\tValue of min_merge_width option for universal"
+  echo -e "\t\tUNIV_MAX_MERGE_WIDTH\tValue of min_merge_width option for universal"
+  echo -e "\t\tUNIV_SIZE_RATIO\tValue of size_ratio option for universal"
+  echo -e "\t\tUNIV_MAX_SIZE_AMP\tmax_size_amplification_percent for universal"
+  echo -e "\t\tUNIV_ALLOW_TRIVIAL_MOVE\tSet allow_trivial_move to true for universal, default is false"
 }
 
-function dump_env() {
-  echo -e "dbdir\tdbdir" >> $odir/args
-  echo -e "nkeys\t$nkeys" >> $odir/args
-  echo -e "cache_mb\t$cache_mb" >> $odir/args
+function dump_env {
+  echo "Base args" > $odir/args
+  echo "${base_args[@]}" | tr ' ' '\n' >> $odir/args
+
+  echo -e "\nPost-load args" >> $odir/args
+  echo "${post_load_args[@]}" | tr ' ' '\n' >> $odir/args
+
+  echo -e "\nCompression args" >> $odir/args
+  echo "${comp_args[@]}" | tr ' ' '\n' >> $odir/args
+
+  echo -e "\nOther args" >> $odir/args
+  echo -e "dbdir\t$dbdir" >> $odir/args
   echo -e "nsecs\t$nsecs" >> $odir/args
   echo -e "nsecs_ro\t$nsecs_ro" >> $odir/args
-  echo -e "mb_wps\t$mb_wps" >> $odir/args
-  echo -e "nthreads\t$nthreads" >> $odir/args
-  echo -e "comp_type\t$comp_type" >> $odir/args
-  echo -e "ml2_comp\t$ml2_comp" >> $odir/args
-  echo -e "write_buf_mb\t$write_buf_mb" >> $odir/args
-  echo -e "sst_mb\t$sst_mb" >> $odir/args
-  echo -e "l1_mb\t$l1_mb" >> $odir/args
-  echo -e "max_bg_jobs\t$max_bg_jobs" >> $odir/args
-  echo -e "cache_meta\t$cache_meta" >> $odir/args
   echo -e "pending_ratio\t$pending_ratio" >> $odir/args
   echo -e "write_amp_estimate\t$write_amp_estimate" >> $odir/args
+  echo -e "univ\t$UNIV" >> $odir/args
+
+  echo -e "\nbenchargs1:" >> $odir/args
+  echo "${benchargs1[@]}" | tr ' ' '\n' >> $odir/args
+  echo -e "\nbenchargs2:" >> $odir/args
+  echo "${benchargs2[@]}" | tr ' ' '\n' >> $odir/args
 }
 
 if [ $# -lt 3 ]; then
@@ -95,7 +173,6 @@ if [ -d $odir ]; then
   exit 1
 fi
 mkdir $odir
-dump_env
 
 # The goal is to make the limits large enough so that:
 # 1) there aren't write stalls after every L0->L1 compaction
@@ -116,10 +193,6 @@ dump_env
 # soft_pending_compaction_bytes_limit = estimated-db-size * pending_bytes_ratio
 #     where estimated-db-size ignores compression
 # hard_pending_compaction_bytes_limit = 2 * soft_pending_compaction_bytes_limit
-
-# TODO: will this ever be configurable?
-# Use this to estimate sizeof(L0)
-compaction_trigger=4
 
 pending_ratio=${PENDING_RATIO:-"0.5"}
 write_amp_estimate=${WRITE_AMP_ESTIMATE:-20}
@@ -146,15 +219,22 @@ echo Test versions: $@ >> $odir/args
 
 for v in $@ ; do
   my_odir=$odir/$v
-  benchargs1=( OUTPUT_DIR=$my_odir DB_DIR=$dbdir WAL_DIR=$dbdir COMPRESSION_TYPE=$comp_type DB_BENCH_NO_SYNC=1 NUM_KEYS=$nkeys CACHE_SIZE=$cacheb )
-  benchargs1+=( WRITE_BUFFER_SIZE_MB=$write_buf_mb TARGET_FILE_SIZE_BASE_MB=$sst_mb MAX_BYTES_FOR_LEVEL_BASE_MB=$l1_mb MAX_BACKGROUND_JOBS=$max_bg_jobs )
-  benchargs1+=( CACHE_INDEX_AND_FILTER_BLOCKS=$cache_meta NUM_THREADS=$nthreads $direct_flags )
+  benchargs1=("${base_args[@]}")
+
+  benchargs1+=( OUTPUT_DIR=$my_odir DB_DIR=$dbdir WAL_DIR=$dbdir DB_BENCH_NO_SYNC=1 )
   benchargs1+=( SOFT_PENDING_COMPACTION_BYTES_LIMIT_IN_GB=$soft_bytes HARD_PENDING_COMPACTION_BYTES_LIMIT_IN_GB=$hard_bytes )
-  benchargs1+=( KEY_SIZE=$key_bytes VALUE_SIZE=$value_bytes STATS_INTERVAL_SECONDS=$stats_seconds )
+  if [ ! -z $UNIV ]; then
+    benchargs1+=( "${comp_args[@]}" UNIVERSAL=1 )
+  fi
+
   benchargs2=("${benchargs1[@]}")
-  benchargs2+=( MIN_LEVEL_TO_COMPRESS=$ml2_comp PENDING_BYTES_RATIO=$pending_ratio )
-  benchargs3=("${benchargs2[@]}")
-  benchargs3+=( MB_WRITE_PER_SEC=$mb_wps PENDING_BYTES_RATIO=$pending_ratio )
+  benchargs2+=("${post_load_args[@]}")
+  benchargs2+=( PENDING_BYTES_RATIO=$pending_ratio )
+  if [ -z $UNIV ]; then
+    benchargs2+=("${comp_args[@]}")
+  fi
+
+  dump_env
 
   echo Run benchmark for $v at $( date ) with results at $my_odir
   rm -f db_bench
@@ -164,6 +244,7 @@ for v in $@ ; do
   rm -rf $dbdir/*
 
   # Load in key order
+  echo env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
   env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
@@ -184,9 +265,9 @@ for v in $@ ; do
   env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
 
   # Read-mostly tests
-  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
-  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
-  env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
+  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
+  env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
 
   # Write-only tests
   # With overwriteandwait the test doesn't end until compaction has caught up

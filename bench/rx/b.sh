@@ -65,6 +65,16 @@ function display_usage() {
   echo -e "\tSOFT_PENDING_COMPACTION_BYTES_LIMIT_IN_GB\tThe value for soft_pending_compaction_bytes_limit in GB"
   echo -e "\tHARD_PENDING_COMPACTION_BYTES_LIMIT_IN_GB\tThe value for hard_pending_compaction_bytes_limit in GB"
   echo -e "\tSTATS_INTERVAL_SECONDS\tValue for stats_interval_seconds"
+  echo -e "\tSUBCOMPACTIONS\t\tValue for subcompactions"
+  echo -e "\tLEVEL0_FILE_NUM_COMPACTION_TRIGGER\tValue for level0_file_num_compaction_trigger"
+  echo -e "\tLEVEL0_SLOWDOWN_WRITES_TRIGGER\tValue for level0_slowdown_writes_trigger"
+  echo -e "\tLEVEL0_STOP_WRITES_TRIGGER\tValue for level0_stop_writes_trigger"
+  echo -e "\tUNIVERSAL\t\tUse universal compaction when set to anything, otherwise use leveled"
+  echo -e "\tUNIVERSAL_MIN_MERGE_WIDTH\tValue of min_merge_width option for universal"
+  echo -e "\tUNIVERSAL_MAX_MERGE_WIDTH\tValue of min_merge_width option for universal"
+  echo -e "\tUNIVERSAL_SIZE_RATIO\tValue of size_ratio option for universal"
+  echo -e "\tUNIVERSAL_MAX_SIZE_AMP\tmax_size_amplification_percent for universal"
+  echo -e "\tUNIVERSAL_ALLOW_TRIVIAL_MOVE\tSet allow_trivial_move to true for universal, default is false"
 }
 
 if [ $# -lt 1 ]; then
@@ -136,6 +146,7 @@ target_file_mb=${TARGET_FILE_SIZE_BASE_MB:-128}
 l1_mb=${MAX_BYTES_FOR_LEVEL_BASE_MB:-1024}
 max_background_jobs=${MAX_BACKGROUND_JOBS:-16}
 stats_interval_seconds=${STATS_INTERVAL_SECONDS:-60}
+subcompactions=${SUBCOMPACTIONS:-1}
 
 cache_index_and_filter=${CACHE_INDEX_AND_FILTER_BLOCKS:-0}
 if [[ $cache_index_and_filter -eq 0 ]]; then
@@ -170,7 +181,18 @@ if [ ! -z $USE_O_DIRECT ]; then
   o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction"
 fi
 
-const_params="
+univ_min_merge_width=${UNIVERSAL_MIN_MERGE_WIDTH:-2}
+univ_max_merge_width=${UNIVERSAL_MAX_MERGE_WIDTH:-8}
+univ_size_ratio=${UNIVERSAL_SIZE_RATIO:-1}
+univ_max_size_amp=${UNIVERSAL_MAX_SIZE_AMP:-200}
+
+if [ ! -z $UNIVERSAL_ALLOW_TRIVIAL_MOVE ]; then
+  univ_allow_trivial_move=1
+else
+  univ_allow_trivial_move=0
+fi
+
+const_params_base="
   --db=$DB_DIR \
   --wal_dir=$WAL_DIR \
   \
@@ -185,13 +207,9 @@ const_params="
   --compression_ratio=0.5 \
   --compression_type=$compression_type \
   --min_level_to_compress=$min_level_to_compress \
-  --level_compaction_dynamic_level_bytes=true \
   --bytes_per_sync=$((8 * M)) \
   $cache_meta_flags \
   $o_direct_flags \
-  $soft_pending_arg \
-  $hard_pending_arg \
-  --pin_l0_filter_and_index_blocks_in_cache=1 \
   --benchmark_write_rate_limit=$(( 1024 * 1024 * $mb_written_per_sec )) \
   \
   --write_buffer_size=$(( $write_buffer_mb * M)) \
@@ -210,12 +228,48 @@ const_params="
   --memtablerep=skip_list \
   --bloom_bits=10 \
   --open_files=-1 \
+  --subcompactions=$subcompactions \
   \
   $bench_args"
 
+level_const_params="
+  $const_params_base \
+  --compaction_style=0 \
+  --level_compaction_dynamic_level_bytes=true \
+  --pin_l0_filter_and_index_blocks_in_cache=1 \
+  $soft_pending_arg \
+  $hard_pending_arg \
+"
+
+# TODO:
+#   pin_l0_filter_and..., is this OK?
+univ_const_params="
+  $const_params_base \
+  --compaction_style=1 \
+  --pin_l0_filter_and_index_blocks_in_cache=1 \
+  --universal_min_merge_width=$univ_min_merge_width \
+  --universal_max_merge_width=$univ_max_merge_width \
+  --universal_size_ratio=$univ_size_ratio \
+  --universal_max_size_amplification_percent=$univ_max_size_amp \
+  --universal_allow_trivial_move=$univ_allow_trivial_move \
+"
+
+if [ -z $UNIVERSAL ]; then
+const_params="$level_const_params"
+l0_file_num_compaction_trigger=${LEVEL0_FILE_NUM_COMPACTION_TRIGGER:-4}
+l0_slowdown_writes_trigger=${LEVEL0_SLOWDOWN_WRITES_TRIGGER:-20}
+l0_stop_writes_trigger=${LEVEL0_STOP_WRITES_TRIGGER:-30}
+else
+const_params="$univ_const_params"
+l0_file_num_compaction_trigger=${LEVEL0_FILE_NUM_COMPACTION_TRIGGER:-8}
+l0_slowdown_writes_trigger=${LEVEL0_SLOWDOWN_WRITES_TRIGGER:-20}
+l0_stop_writes_trigger=${LEVEL0_STOP_WRITES_TRIGGER:-30}
+fi
+
 l0_config="
-  --level0_file_num_compaction_trigger=4 \
-  --level0_stop_writes_trigger=20"
+  --level0_file_num_compaction_trigger=$l0_file_num_compaction_trigger \
+  --level0_slowdown_writes_trigger=$l0_slowdown_writes_trigger \
+  --level0_stop_writes_trigger=$l0_stop_writes_trigger"
 
 # You probably don't want to set both --writes and --duration
 if [ $duration -gt 0 ]; then
@@ -535,13 +589,21 @@ function run_fillseq {
     test_name=fillseq.wal_enabled.v${value_size}
   fi
 
+  # For Leveled compaction hardwire this to 0 so that data that is trivial-moved
+  # to larger levels (3, 4, etc) will be compressed.
+  if [ -z $UNIVERSAL ]; then
+    ml2c=0
+  else
+    ml2c=$min_level_to_compress
+  fi
+
   echo "Loading $num_keys keys sequentially"
   time_cmd=$( get_time_cmd $log_file_name.time )
   cmd="$time_cmd ./db_bench --benchmarks=fillseq \
        --use_existing_db=0 \
        --sync=0 \
        $params_fillseq \
-       --min_level_to_compress=0 \
+       --min_level_to_compress=$ml2c \
        --threads=1 \
        --memtablerep=vector \
        --allow_concurrent_memtable_write=false \
