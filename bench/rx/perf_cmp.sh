@@ -252,8 +252,12 @@ for v in $@ ; do
 
   # These are not supported by older versions
   # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
-  env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
-  env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+  if [ -z $UNIV ]; then
+    env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
+  else
+    # For universal don't compact L0 as can have too many sorted runs
+    env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+  fi
 
   # Read-only tests
   # Skipping this for now because --multiread_batched isn't supported on older 6.X releases

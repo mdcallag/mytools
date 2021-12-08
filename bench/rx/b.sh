@@ -655,7 +655,13 @@ function run_lsm {
     echo $cmd | tee $log_file_name
   fi
   start_stats $log_file_name.stats
-  eval $cmd
+  # There is a long story but the NeedsCompaction method implemented by compaction pickers
+  # can return true in cases where event-driven compactions don't get schedule. So this
+  # will kill db_bench after 20 minutes to recover from that case.
+  eval $cmd &
+  epid=$!
+  ( sleep 1200; kill $epid ) &
+  wait $epid
   stop_stats $log_file_name.stats
   # Don't summarize, the log doesn't have the output needed for it
 }
