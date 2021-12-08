@@ -371,7 +371,7 @@ function summarize_result {
   mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
 
   flush_wgb=$( grep "^Flush(GB)" $test_out | tail -1 | awk '{ print $3 }' | tr ',' ' ' | awk '{ print $1 }' )
-  sum_wgb=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ print $3 }' )
+  sum_wgb=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
   cmb_ps=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ print $6 }' )
   if [[ "$sum_wgb" == "" || "$flush_wgb" == "" || "$flush_wgb" == "0.000" ]]; then
     wamp=""
@@ -380,7 +380,7 @@ function summarize_result {
   fi
   c_secs=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ print $15 }' )
 
-  sum_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.1f", $3 / 1024.0 }' )
+  sum_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f%s", $3, $4 }' )
   usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
   p50=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
   p99=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.0f", $7 }' )
