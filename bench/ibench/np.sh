@@ -239,8 +239,9 @@ $client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts.$sfx
 $client -uroot -ppw -A -h$host ib -e 'show create table pi1\G' > o.create.$sfx
 $client -uroot -ppw -A -h$host information_schema -e 'select table_name, partition_name, table_rows from partitions where table_schema="ib"' > o.parts.$sfx
 
+# TODO: used to dump innodb_buffer_page and innodb_buffer_page_lru but that can be too much outpout
 for tname in \
-  innodb_buffer_page innodb_buffer_page_lru innodb_buffer_pool_stats \
+  innodb_buffer_pool_stats \
   innodb_cached_indexes innodb_indexes innodb_metrics \
   innodb_tables innodb_tablespaces innodb_tablespaces_brief innodb_tablestats ; do
   $client -uroot -ppw -A -h$host information_schema -e "select * from $tname\G" > o.is.$tname

@@ -173,7 +173,8 @@ function filter_by_sla {
 
 nRows=$( wc -l z1 | awk '{ print $1 }' )
 
-for c in $( seq 2 10 ) ; do
+# For c in first to last column with data, depends on the number of query tests. This is hardwired for 3.
+for c in $( seq 2 7 ) ; do
   minv=$( awk 'BEGIN { mv=999999999 } { if ($x < mv) { mv=$x } } END { print mv }' x=$c z1 )
   filter_by_sla z1 z1f $c "$@"
   maxv=$( awk 'BEGIN { mv=0 }         { if ($x > mv) { mv=$x } } END { print mv }' x=$c z1f )
@@ -194,7 +195,8 @@ done
 
 for r in $( seq 1 $nRows ); do
 dbms=$( get_row_col $r 1 z1 )
-for c in $( seq 1 10 ); do
+# TODO: this (=7) assumes there are 3 query steps
+for c in $( seq 1 7 ); do
   val=$( get_row_col $r $c z1 )
   if [[ $c -eq 1 ]]; then
     printf "<tr><td>%s</td> " $val

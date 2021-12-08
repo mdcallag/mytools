@@ -1,3 +1,6 @@
+# Example command line:
+#   m=20; for z in pg all my fbmy ; do bash ../../report.sh 1 1 $m mdcallag 4 x.${m}m.${z}.etldirs x.${m}m.${z}.ch x.${m}m.${z}.config.ht ; done
+
 prep=$1
 dop=$2
 # Number of docs loaded
