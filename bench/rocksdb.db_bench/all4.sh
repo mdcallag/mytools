@@ -171,118 +171,15 @@ while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.fillrandom.$sfx &
 ppid=$!
 ${dbbench} --db=$dbdir --benchmarks=fillrandom $f1 $f2 ${seed}${seedval} >& o.fillrandom.$sfx
 estat=$?
-echo ${dbbench} --db=$dbdir --benchmarks=fillrandom $f1 $f2 ${seed}${seedval} >> o.fillrandom.$sfx
+echo ${dbbench} --db=$dbdir --benchmarks=fillrandom,levelstats,memstats,stats $f1 $f2 ${seed}${seedval} >> o.fillrandom.$sfx
 if [ $estat -ne 0 ]; then echo "overwrite failed"; echo "failed" >> o.fillrandom.$sfx; exit 1 ; fi
 du -hs $dbdir >> o.fillrandom.$sfx
 kill $vpid
 kill $ipid
 kill $ppid
 
-if [[ $dbversion != "leveldb" ]]; then
-f2="\
---duration=$secs \
---writes=$xkeys \
---use_existing_db=1 \
---threads=$nthreads"
-
-else
-f2="\
---use_existing_db=1 \
---threads=$nthreads"
-fi
-
-if [[ $dbversion = "4.1" ]] ; then
-  rl="--writes_per_second=$wps"
-elif [[ $dbversion = "4.5" || $dbversion = "5.4" || $dbversion = "5.8" ]] ; then
-  rl="--benchmark_write_rate_limit=$wps"
-elif [[ $dbversion = "leveldb" ]]; then
-  rl=""
-else
-  echo Version $dbversion not supported
-  exit -1
-fi
-
-echo run overwrite
-[ ! -z $seedval ] && seedval=$(( $seedval + 1 ))
-vmstat 10 >& o.vm.ow.$sfx &
-vpid=$!
-iostat -kx 10 >& o.io.ow.$sfx &
-ipid=$!
-while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.ow.$sfx &
-ppid=$!
-${dbbench} --db=$dbdir --benchmarks=overwrite $f1 $f2 ${seed}${seedval} >& o.ow.$sfx
-estat=$?
-echo ${dbbench} --db=$dbdir --benchmarks=overwrite $f1 $f2 ${seed}${seedval} >> o.ow.$sfx
-if [ $estat -ne 0 ]; then echo "overwrite failed"; echo "failed" >> o.ow.$sfx; exit 1 ; fi
-du -hs $dbdir >> o.ow.$sfx
-kill $vpid
-kill $ipid
-kill $ppid
-
-if [[ $dbversion != "leveldb" ]]; then
-echo run readwhilewriting,seekrandomwhilewriting
-[ ! -z $seedval ] && seedval=$(( $seedval + 1 ))
-vmstat 10 >& o.vm.ww.$sfx &
-vpid=$!
-iostat -kx 10 >& o.io.ww.$sfx &
-ipid=$!
-while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.ww.$sfx &
-ppid=$!
-${dbbench} --db=$dbdir --benchmarks=readwhilewriting,seekrandomwhilewriting $f1 $f2 ${seed}${seedval} --seek_nexts=10 $rl >& o.ww.$sfx
-estat=$?
-echo ${dbbench} --db=$dbdir --benchmarks=readwhilewriting,seekrandomwhilewriting $f1 $f2 ${seed}${seedval} --seek_nexts=10 $rl >> o.ww.$sfx
-if [ $estat -ne 0 ]; then echo "rww,srww failed"; echo "failed" >> o.ww.$sfx; exit 1 ; fi
-du -hs $dbdir >> o.ww.$sfx
-kill $vpid
-kill $ipid
-kill $ppid
-fi # if != leveldb
-
-echo run readseq, readrandom
-[ ! -z $seedval ] && seedval=$(( $seedval + 1 ))
-vmstat 10 >& o.vm.ro.$sfx &
-vpid=$!
-iostat -kx 10 >& o.io.ro.$sfx &
-ipid=$!
-while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.ro.$sfx &
-ppid=$!
-${dbbench} --db=$dbdir --benchmarks=readseq,readrandom $f1 $f2 ${seed}${seedval} >& o.ro.$sfx
-estat=$?
-echo ${dbbench} --db=$dbdir --benchmarks=readseq,readrandom $f1 $f2 ${seed}${seedval} >> o.ro.$sfx
-if [ $estat -ne 0 ]; then echo "readseq, readrandom failed"; echo "failed" >> o.ro.$sfx; exit 1 ; fi
-du -hs $dbdir >> o.ro.$sfx
-kill $vpid
-kill $ipid
-kill $ppid
-
-if [[ $dbversion != "leveldb" ]]; then
-for r in 1 10 100; do
-echo run seekrandom
-[ ! -z $seedval ] && seedval=$(( $seedval + 1 ))
-vmstat 10 >& o.vm.sr${r}.$sfx &
-vpid=$!
-iostat -kx 10 >& o.io.sr${r}.$sfx &
-ipid=$!
-while :; do ps aux | grep db_bench; sleep 10; done >& o.ps.sr.$sfx &
-ppid=$!
-${dbbench} --db=$dbdir --benchmarks=seekrandom $f1 $f2 ${seed}${seedval} --seek_nexts=$r >& o.sr${r}.$sfx
-estat=$?
-echo ${dbbench} --db=$dbdir --benchmarks=seekrandom $f1 $f2 ${seed}${seedval} --seek_nexts=$r >> o.sr${r}.$sfx
-if [ $estat -ne 0 ]; then echo "seekrandom failed"; echo "failed" >> o.sr.$sfx; exit 1 ; fi
-du -hs $dbdir >> o.sr${r}.$sfx
-kill $vpid
-kill $ipid
-kill $ppid
-done
-fi # if != leveldb
-
 grep "^fillrandom" o.fillrandom.$sfx > o.res.$sfx
-grep "^overwrite" o.ow.$sfx >> o.res.$sfx
-for t in readwhilewriting seekrandomwhilewriting ; do grep "^$t" o.ww.$sfx; done >> o.res.$sfx
-for t in readseq readrandom ; do grep "^$t" o.ro.$sfx; done >> o.res.$sfx
-for r in 1 10 100 ; do
-  grep "^seekrandom" o.sr${r}.$sfx >> o.res.$sfx
-done
+grep "Cumulative stall" o.fillrandom.$sfx >> o.res.$sfx
 
 ps aux | grep db_bench | grep -v grep
 
