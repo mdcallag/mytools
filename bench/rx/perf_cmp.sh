@@ -248,7 +248,9 @@ for v in $@ ; do
 
   if [ -z $UNIV ]; then
     # Read-only tests but only for leveled because the LSM tree is in a deterministic
-    # state after fillseq
+    # state after fillseq. This is here rather than after flush_mt_l0 because the LSM
+    # tree is friendlier to reads after fillseq -- SSTs are fully ordered and non-overlapping
+    # thanks to trivial move.
     env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
   fi
 
