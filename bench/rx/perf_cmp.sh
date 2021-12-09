@@ -251,21 +251,22 @@ for v in $@ ; do
   env "${benchargs2[@]}" WRITES=$p10        bash b.sh overwritesome
 
   # These are not supported by older versions
-  # Flush memtable & L0 to get LSM tree into deterministic state before read-only tests
   if [ -z $UNIV ]; then
+    # Flush memtable & L0 to get LSM tree into deterministic state
     env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
   else
     # For universal don't compact L0 as can have too many sorted runs
-    env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+    # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
+    # While this is disabled the test that follows will have more variance from compaction debt.
+    # env "${benchargs2[@]}"                    bash b.sh waitforcompaction
+    echo TODO enable when waitforcompaction hang is fixed
   fi
 
   # Read-only tests
-  # Skipping this for now because --multiread_batched isn't supported on older 6.X releases
+  # Skipping --multiread_batched for now because it isn't supported on older 6.X releases
   # env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched
+  # TODO: implement multireadrandomwhilewriting
   env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh revrange
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh fwdrange
-  env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
 
   # Read-mostly tests with a rate-limited writer
   env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
@@ -273,9 +274,10 @@ for v in $@ ; do
   env "${benchargs3[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
 
   # Write-only tests
-  # With overwriteandwait the test doesn't end until compaction has caught up
-  # env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwriteandwait
-  # This creates much compaction debt, a warning if tests are added after it
+
+  # This creates much compaction debt which will be a problem for tests added after it.
+  # Also, the compaction stats measured at test end can underestimate write-amp depending
+  # on how much compaction debt is allowed.
   env "${benchargs2[@]}" DURATION=$nsecs    bash b.sh overwrite
 
   cp $dbdir/LOG* $my_odir
