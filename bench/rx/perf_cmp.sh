@@ -274,7 +274,8 @@ for v in $@ ; do
 
   # While this runs for leveled and universal, the results will have more variance for
   # universal because nothing is done above to reduce compaction debt and get the LSM tree
-  # into a deterministic state.
+  # into a deterministic state. But it still serves a purpose for universal, it lets compaction
+  # get caught up prior to the read-mostly tests.
   # Skipping --multiread_batched for now because it isn't supported on older 6.X releases
   # env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched
   # TODO: implement multireadrandomwhilewriting
