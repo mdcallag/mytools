@@ -396,7 +396,7 @@ function summarize_result {
   if [ ! -f "$report" ]; then
     echo -e "# ops_sec - operations per second" >> $report
     echo -e "# mb_sec - ops_sec * size-of-operation-in-MB" >> $report
-    echo -e "# size_gb - database size in GB" >> $report
+    echo -e "# db_size - database size" >> $report
     echo -e "# c_wgb - GB written by compaction" >> $report
     echo -e "# w_amp - Write-amplification as (bytes written by compaction / bytes written by memtable flush)" >> $report
     echo -e "# c_mbps - Average write rate for compaction" >> $report
@@ -413,7 +413,7 @@ function summarize_result {
     echo -e "# date - Date/time of test" >> $report
     echo -e "# version - RocksDB version" >> $report
     echo -e "# job_id - User-provided job ID" >> $report
-    echo -e "ops_sec\tmb_sec\tsize_gb\tc_wgb\tw_amp\tc_mbps\tc_secs\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\ttest\tdate\tversion\tjob_id" \
+    echo -e "ops_sec\tmb_sec\tdb_size\tc_wgb\tw_amp\tc_mbps\tc_secs\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\ttest\tdate\tversion\tjob_id" \
       >> $report
   fi
 
@@ -934,7 +934,7 @@ for job in ${jobs[@]}; do
     echo "Completed $job (ID: $job_id) in $((end-start)) seconds" | tee -a $schedule
   fi
 
-  echo -e "ops_sec\tmb_sec\tsize_gb\tc_wgb\tw_amp\tc_mbps\tc_secs\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\ttest\tdate\tversion\tjob_id"
+  echo -e "ops_sec\tmb_sec\tdb_size\tc_wgb\tw_amp\tc_mbps\tc_secs\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\ttest\tdate\tversion\tjob_id"
   tail -1 $report
 
 done
