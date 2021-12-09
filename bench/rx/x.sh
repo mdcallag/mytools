@@ -70,7 +70,7 @@ c16r16)
   nsub=4
   ;;
 c16r64)
-  # Options for 16-core, 16g RAM
+  # Options for 16-core, 64g RAM
   args=( WRITE_BUF_MB=16 SST_MB=16 L1_MB=64 MAX_BG_JOBS=8 )
   cache_mb=$(( 1024 * 48 ))
   nsub=4
