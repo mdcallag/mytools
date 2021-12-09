@@ -246,23 +246,33 @@ for v in $@ ; do
   echo env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
   env "${benchargs1[@]}" bash b.sh fillseq_disable_wal
 
+  if [ -z $UNIV ]; then
+    # Read-only tests but only for leveled because the LSM tree is in a deterministic
+    # state after fillseq
+    env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh readrandom
+  fi
+
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo $nkeys | awk '{ printf "%.0f", $1 / 10.0 }' )
   env "${benchargs2[@]}" WRITES=$p10        bash b.sh overwritesome
 
-  # These are not supported by older versions
   if [ -z $UNIV ]; then
     # Flush memtable & L0 to get LSM tree into deterministic state
+    # These are not supported by older versions
     env "${benchargs2[@]}"                    bash b.sh flush_mt_l0
   else
+    # These are not supported by older versions
     # For universal don't compact L0 as can have too many sorted runs
-    # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
+    # Disabled for now because waitforcompaction can hang, see
+    # https://github.com/facebook/rocksdb/issues/9275
     # While this is disabled the test that follows will have more variance from compaction debt.
     # env "${benchargs2[@]}"                    bash b.sh waitforcompaction
     echo TODO enable when waitforcompaction hang is fixed
   fi
 
-  # Read-only tests
+  # While this runs for leveled and universal, the results will have more variance for
+  # universal because nothing is done above to reduce compaction debt and get the LSM tree
+  # into a deterministic state.
   # Skipping --multiread_batched for now because it isn't supported on older 6.X releases
   # env "${benchargs2[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched
   # TODO: implement multireadrandomwhilewriting
