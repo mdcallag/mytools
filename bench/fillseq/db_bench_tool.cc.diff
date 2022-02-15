@@ -1,0 +1,37 @@
+--- tools/db_bench_tool.cc      2022-02-15 10:42:01.071748970 -0800
++++ db_bench_tool.cc.fillseq    2022-02-15 10:43:34.519913075 -0800
+@@ -3124,7 +3124,9 @@
+         memset(pos + 8, '0', prefix_size_ - 8);
+       }
+       pos += prefix_size_;
++      // printf("prefix,key = %lu %lu\n", prefix, v);
+     }
++    // { *pos = 'c'; pos++; }
+
+     int bytes_to_fill = std::min(key_size_ - static_cast<int>(pos - start), 8);
+     if (port::kLittleEndian) {
+@@ -3293,7 +3295,7 @@
+           method = &Benchmark::WriteUniqueRandomDeterministic;
+         }
+       } else if (name == "fillseq") {
+-        fresh_db = true;
++        // fresh_db = true;
+         method = &Benchmark::WriteSeq;
+       } else if (name == "fillbatch") {
+         fresh_db = true;
+@@ -4678,12 +4680,15 @@
+         RandomShuffle(values_.begin(), values_.end(),
+                       static_cast<uint32_t>(FLAGS_seed));
+       }
++      // if (mode_ == SEQUENTIAL) { next_ = num_; }
+     }
+
+     uint64_t Next() {
+       switch (mode_) {
+         case SEQUENTIAL:
+           return next_++;
++         // if (next_ > num_) { printf("underflow\n"); abort(); }
++          // return next_--;
+         case RANDOM:
+           return rand_->Next() % num_;
+         case UNIQUE_RANDOM:
