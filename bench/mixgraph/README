@@ -1,0 +1,86 @@
+
+This directory has scripts for running db_bench --benchmarks=mixgraph. The scripts also collect vmstat and iostat
+output and then summarize the results.
+
+There are few ways to use the scripts:
+* rall.sh runs mixgraph for all configurations X many block cache sizes. This takes a long time.
+* run.sh runs mixgraph for one configuration and 1 block cache size.
+* load.sh creates the database used by mixgraph.
+
+The load.sh script will create a database at $dbpath.
+
+The run.sh script can use the database already at $dbpath or rm -rf $dbpath and then replace it with
+a copy of the seed database (rm -rf $dbpath; cp -r $dbpath.bak $dbpath).
+
+By configuration I mean the db_bench options specific to mixgraph. I don't mean the other db_bench options. Four
+of the configurations are described in the appendix of https://www.usenix.org/conference/fast20/presentation/cao-zhichao.
+The fifth configuration, hwperf, was in use by a peer but not listed in the appendix.
+The configurations are: hwperf,  all_random, all_dist, prefix_random, prefix_dist.
+
+See the if/elif branches with "$workload == "hwperf" in run.sh to understand the five configurations.
+
+--- naming conventions
+
+All scripts assume that $dbpath is at /data/m/rx.k_${mkeys}.${dbpfx}.bs_4096 where dbpfix is db_apdx when --num_multi_db
+is not used and multidb_$numdb when --num_multi_db=$numdb. You might need to change that assumption.
+
+The rall.sh and run.sh scripts are hardwired to use --block_size=4096. That is easy to change.
+
+--- rall.sh
+
+The rall.sh script takes 4 args: bash rall.sh $load $numdb $mkeys $nsecs
+  load is yes or no. When yes then $dbpath and $dbpath.bak are removed, load.sh is run and the result is moved to $dbpath.bak
+  numdb is the value for db_bench --num_multi_db when greater then 1, else --num_multi_db is not used
+  mkeys is the number of keys in the test database(s). It is per-database when --num_multi_db is used.
+        With mkeys=1000 a test database is ~= 144 GB
+  nsecs is the number of seconds for which to run db_bench --benchmarks=mixgraph
+
+  One example is: nohup bash rall.sh yes 4 1000 3600 &
+
+--- load.sh
+
+The load.sh script takes 5 args: bash load.sh $mkeys $bs $cgb $wfmb $numdb
+  mkeys is the number of keys in the test database(s). It is per-database when --num_multi_db is used.
+        With mkeys=1000 a test database is ~= 144 GB
+  bs is the value in bytes for db_bench --block_size
+  cgb is the value in GB for db_bench --cache_size
+  wfmb is the value for db_bench --writable_file_max_buffer_size
+  numdb is the value for db_bench --num_multi_db when greater then 1, else --num_multi_db is not used
+
+There are 7 output files from load.sh. Assuming mkeys=1000, numdb=4, bs=4096, cgb=1 and wfmb=1 the files are
+listed below. If numdb is < 2 then replace multidb_4 with db_apdx.
+
+  o.ld.du1.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - database directory size measured by du run every 10 seconds
+  o.ld.out.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from db_bench
+  o.ld.rep.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from db_bench --report_file
+  o.ld.vm.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from vmstat at 1-second intervals
+  o.ld.io.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from iostat at 1-second intervals
+  o.ld.ps.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from ps aux at 10-second intervals
+  o.ld.time.k_1000.multidb_4.bs_4096.cgb_1.wfmb_1 - output from /bin/time db_bench ...
+
+--- run.sh
+
+The run.sh script takes 9 args: bash $mkeys $bs $cgb $wfmb $nsecs $restore_db $workload $operations $numdb
+  mkeys is the number of keys in the test database(s). It is per-database when --num_multi_db is used.
+        With mkeys=1000 a test database is ~= 144 GB
+  bs is the value in bytes for db_bench --block_size
+  cgb is the value in GB for db_bench --cache_size
+  wfmb is the value for db_bench --writable_file_max_buffer_size
+  nsecs is the number of seconds for which to run db_bench --benchmarks=mixgraph
+  restore_db is yes or no. When yes then the seed database is cloned (rm -rf $dbpath; cp -r $dbpath.bak $dbpath) 
+  workload is one of: hwperf, all_random, all_dist, prefix_random, prefix_dist. This is the "configuraton" I mentioned above.
+  operations is one of all, put, get or seek. When all the put, get and seek are done. Otherwise only the named
+             operation (put, get or seek) is done by db_bench.
+  numdb is the value for db_bench --num_multi_db when greater then 1, else --num_multi_db is not used
+
+There are X output files from run.sh. Assuming mkeys=1000, numdb=4, bs=4096, cgb=128 and wfmb=1 the files are
+listed below. If numdb is < 2 then replace multidb_4 with db_apdx. The most interesting file is o.run.sum.*
+
+  o.run.du1.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - database directory size measured by du run every 10 seconds
+  o.run.out.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from db_bench
+  o.run.rep.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from db_bench --report_file
+  o.run.vm.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from vmstat at 1-second intervals
+  o.run.io.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from iostat at 1-second intervals
+  o.run.ps.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from ps aux at 10-second intervals
+  o.run.time.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - output from/bin/time db_bench ...
+  o.run.sum.k_1000.multidb_4.bs_4096.cgb_128.wfmb_1.prefix_dist.op_all - performance summary
