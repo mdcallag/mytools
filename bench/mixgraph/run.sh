@@ -188,7 +188,7 @@ if [ $put_ps -gt 0 ]; then
   wKB_pp=$( echo $put_ps $wMB_ps | awk '{ printf "%.2f", ( $2 * 1024 ) / $1 }' )
 fi
 
-echo -e "o/s\tget/s\tput/s\tseek/s\tr/s\trMB/s\twMB/s\tr/o\trKB/o\twKB\o\tr/s+g\trKB/s+g\twKB/p" >> o.run.sum.$sfx2
+echo -e "o/s\tget/s\tput/s\tseek/s\tr/s\trMB/s\twMB/s\tr/o\trKB/o\twKB/o\tr/s+g\trKB/s+g\twKB/p" >> o.run.sum.$sfx2
 echo -e "$o_ps\t$get_ps\t$put_ps\t$seek_ps\t$r_ps\t$rMB_ps\t$wMB_ps\t$r_po\t$rKB_po\t$wKB_po\t$r_pr\t$rKB_pr\t$wKB_pp" >> o.run.sum.$sfx2
 
 echo
