@@ -96,8 +96,31 @@ COLUMNS=400 LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
 tpid=$!
 
 dbpid=-1 # remove this to use perf
+#dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
 if [ $dbpid -ne -1 ] ; then
-  while :; do ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.data.$sfx.$ts ; perf record -a -F 99 -g -p $dbpid -o $tsf -- sleep 10; perf report --no-children --stdio -i $tsf > $tsf.rep ; perf script -i $tsf | gzip -9 | $tsf.scr ; rm -f $tsf; sleep 60; done >& o.perf.$sfx &
+  while :; do
+    ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.g.$sfx.$ts
+    perf record -g -p $dbpid -o $tsf -- sleep 10
+    #perf report --stdio --no-children -i $tsf > $tsf.rep.f0.c0
+    #perf report --stdio --children    -i $tsf > $tsf.rep.f0.c1
+    #perf report --stdio -n -g folded -i $tsf > $tsf.rep.f1.cother
+    perf report --stdio -n -g folded -i $tsf --no-children > $tsf.rep.f1.c0
+    perf report --stdio -n -g folded -i $tsf --children > $tsf.rep.f1.c1
+    perf script -i $tsf > $tsf.scr
+    cat $tsf.scr | ~/git/FlameGraph.me/stackcollapse-perf.pl > $tsf.fold
+    ~/git/FlameGraph.me/flamegraph.pl $tsf.fold > $tsf.svg
+    gzip --fast $tsf.scr
+    gzip --fast $tsf.fold
+    rm -f $tsf
+
+    sleep 30
+    ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.f.$sfx.$ts
+    perf record -p $dbpid -o $tsf -- sleep 10
+    perf report --stdio -i $tsf > $tsf.rep 
+    rm -f $tsf
+
+    sleep 30
+  done >& o.perf.$sfx &
   fpid=$!
 fi
 
@@ -157,7 +180,7 @@ for n in $( seq 1 $realdop ) ; do
   if [[ $setup == "yes" && $n -eq 1 ]]; then
     sleep 10
   else 
-    sleep 3
+    sleep 1
   fi
  
 done
