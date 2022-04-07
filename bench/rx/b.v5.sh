@@ -505,12 +505,12 @@ function start_stats {
     outf="$output.perfstat.$sfx"
 
     $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs
 
     sleep $pause_secs
     y=$(( $y + 1 ))
