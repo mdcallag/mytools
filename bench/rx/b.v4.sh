@@ -153,7 +153,6 @@ else
 fi
 
 num_threads=${NUM_THREADS:-64}
-mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
 # Only for tests that do range scans
 num_nexts_per_seek=${NUM_NEXTS_PER_SEEK:-10}
 cache_size=${CACHE_SIZE:-$((17179869184))}
@@ -168,6 +167,9 @@ writes=${WRITES:-0}
 num_keys=${NUM_KEYS:-8000000000}
 key_size=${KEY_SIZE:-20}
 value_size=${VALUE_SIZE:-400}
+mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
+writes_per_second=$( echo $mb_written_per_sec $value_size $key_size | awk '{ printf "%.0f", (( $1 * 1024 * 1024 ) / ( $2 + $3 )) }' )
+
 block_size=${BLOCK_SIZE:-8192}
 write_buffer_mb=${WRITE_BUFFER_SIZE_MB:-128}
 target_file_mb=${TARGET_FILE_SIZE_BASE_MB:-128}
@@ -183,8 +185,7 @@ if [[ $cache_index_and_filter -eq 0 ]]; then
   cache_meta_flags=""
 elif [[ $cache_index_and_filter -eq 1 ]]; then
   cache_meta_flags="\
-  --cache_index_and_filter_blocks=$cache_index_and_filter \
-  --cache_high_pri_pool_ratio=0.5"
+  --cache_index_and_filter_blocks=$cache_index_and_filter "
 else
   echo CACHE_INDEX_AND_FILTER_BLOCKS was $CACHE_INDEX_AND_FILTER_BLOCKS but most be 0 or 1
   exit $EXIT_INVALID_ARGS
@@ -239,13 +240,13 @@ const_params_base="
   --block_size=$block_size \
   --cache_size=$cache_size \
   --cache_numshardbits=6 \
-  --compression_max_dict_bytes=$compression_max_dict_bytes \
   --compression_ratio=0.5 \
   --compression_type=$compression_type \
   --bytes_per_sync=$((8 * M)) \
   $cache_meta_flags \
   $o_direct_flags \
   --benchmark_write_rate_limit=$(( 1024 * 1024 * $mb_written_per_sec )) \
+  --writes_per_second=$writes_per_second \
   \
   --write_buffer_size=$(( $write_buffer_mb * M)) \
   --target_file_size_base=$(( $target_file_mb * M)) \
@@ -268,13 +269,13 @@ const_params_base="
   \
   $bench_args"
 
+# Note that compaction_pri is not set, the choices are  kCompactionPriByCompensatedSize (0) and kCompactionPriByLargestSeq (1) and the default is 0
+# RocksDB v4 will have more write-amp than later releases because it doesn't have kMinOverlappingRatio (3)
 level_const_params="
   $const_params_base \
   --compaction_style=0 \
   --min_level_to_compress=$min_level_to_compress \
   --level_compaction_dynamic_level_bytes=true \
-  --pin_l0_filter_and_index_blocks_in_cache=1 \
-  $soft_pending_arg \
   $hard_pending_arg \
 "
 
@@ -296,7 +297,6 @@ univ_const_params="
   $const_params_base \
   --compaction_style=1 \
   --universal_compression_size_percent=$compression_size_percent \
-  --pin_l0_filter_and_index_blocks_in_cache=1 \
   --universal_min_merge_width=$univ_min_merge_width \
   --universal_max_merge_width=$univ_max_merge_width \
   --universal_size_ratio=$univ_size_ratio \
@@ -334,22 +334,25 @@ if [ $writes -gt 0 ]; then
   const_params="$const_params --writes=$writes"
 fi
 
+bg_flushes=$(( $max_background_jobs / 4 ))
+bg_compactions=$(( $max_background_jobs - $bg_flushes ))
+
 params_w="$l0_config \
-          --max_background_jobs=$max_background_jobs \
+          --max_background_flushes=$bg_flushes \
+          --max_background_compactions=$bg_compactions \
           --max_write_buffer_number=8 \
           $compact_bytes_limit \
           $const_params"
 
-params_bulkload="--max_background_jobs=$max_background_jobs \
+params_bulkload="--max_background_flushes=$bg_flushes \
+                 --max_background_compactions=$bg_compactions \
                  --max_write_buffer_number=8 \
-                 --allow_concurrent_memtable_write=false \
                  --level0_file_num_compaction_trigger=$((10 * M)) \
                  --level0_slowdown_writes_trigger=$((10 * M)) \
                  --level0_stop_writes_trigger=$((10 * M)) \
                  $const_params "
 
-params_fillseq="--allow_concurrent_memtable_write=false \
-                $params_w "
+params_fillseq=" $params_w "
 
 #
 # Tune values for level and universal compaction.
@@ -464,7 +467,7 @@ function summarize_result {
   ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
   mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
 
-  flush_wgb=$( grep "^Flush(GB)" $test_out | tail -1 | awk '{ print $3 }' | tr ',' ' ' | awk '{ print $1 }' )
+  flush_wgb=$( grep "^Flush(GB)" $test_out | tail -1 | awk '{ print $3 }' | tr ',' ' ' | awk '{ printf "%.0f", $1 }' )
   sum_wgb=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
   cmb_ps=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ printf "%.1f", $6 }' )
   if [[ "$sum_wgb" == "" || "$flush_wgb" == "" || "$flush_wgb" == "0.000" ]]; then
@@ -472,14 +475,15 @@ function summarize_result {
   else
     wamp=$( echo "$sum_wgb / $flush_wgb" | bc -l | awk '{ printf "%.1f", $1 }' )
   fi
-  c_wsecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $15 }' )
-  c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )
+  c_wsecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $14 }' )
+  #c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )z
+  c_csecs="NA"
 
-  lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f%s", $3, $4 }' )
+  lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ gb=($3 / 1024); if (gb >= 1) { printf "%.1fGB", gb } else { printf "%.0fMB", $3 } }' )
   blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
 
-  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
-  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )
+  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $21 }' )
+  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $22 }' )
 
   usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
   p50=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
@@ -544,7 +548,6 @@ function run_bulkload {
        $params_bulkload \
        --threads=1 \
        --memtablerep=vector \
-       --allow_concurrent_memtable_write=false \
        --disable_wal=1 \
        --seed=$( date +%s ) \
        --report_file=${log_file_name}.r.csv \
@@ -611,7 +614,6 @@ function run_manual_compaction_worker {
        --compaction_style=$2 \
        --subcompactions=$3 \
        --memtablerep=vector \
-       --allow_concurrent_memtable_write=false \
        --disable_wal=1 \
        --max_background_compactions=$4 \
        --seed=$( date +%s ) \
@@ -728,7 +730,6 @@ function run_fillseq {
        --sync=0 \
        --threads=1 \
        --memtablerep=vector \
-       --allow_concurrent_memtable_write=false \
        --disable_wal=$1 \
        --seed=$( date +%s ) \
        --report_file=${log_file_name}.r.csv \

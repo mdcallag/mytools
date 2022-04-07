@@ -291,49 +291,51 @@ for v in $@ ; do
   rm -rf $dbdir/*
 
   # Load in key order
-  echo env "${args_load[@]}" bash b.sh fillseq_disable_wal
-  env "${args_load[@]}" bash b.sh fillseq_disable_wal
+  echo env "${args_load[@]}" bash b.v5.sh fillseq_disable_wal
+  env "${args_load[@]}" bash b.v5.sh fillseq_disable_wal
 
   # Read-only tests. The LSM tree shape is in a deterministic state if trivial move
   # was used during the load.
 
-  env "${args_nolim[@]}" DURATION=$nsecs_ro bash b.sh readrandom
-  env "${args_nolim[@]}" DURATION=$nsecs_ro bash b.sh fwdrange
-  env "${args_lim[@]}"   DURATION=$nsecs_ro bash b.sh multireadrandom
+  env "${args_nolim[@]}" DURATION=$nsecs_ro bash b.v5.sh readrandom
+  env "${args_nolim[@]}" DURATION=$nsecs_ro bash b.v5.sh fwdrange
+  env "${args_lim[@]}"   DURATION=$nsecs_ro bash b.v5.sh multireadrandom
   # Skipping --multiread_batched for now because it isn't supported on older 6.X releases
-  # env "${args_lim[@]}" DURATION=$nsecs_ro bash b.sh multireadrandom --multiread_batched
+  # env "${args_lim[@]}" DURATION=$nsecs_ro bash b.v5.sh multireadrandom --multiread_batched
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo $nkeys $nthreads | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )
-  env "${args_nolim[@]}" WRITES=$p10        bash b.sh overwritesome
+  env "${args_nolim[@]}" WRITES=$p10        bash b.v5.sh overwritesome
 
   if [ $comp_style == "leveled" ]; then
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    env "${args_nolim[@]}"                  bash b.sh flush_mt_l0
+    # env "${args_nolim[@]}"                  bash b.v5.sh flush_mt_l0
+    echo flush and wait not supported
   elif [ $comp_style == "universal" ]; then
     # For universal don't compact L0 as can have too many sorted runs
     # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
     # While this is disabled the test that follows will have more variance from compaction debt.
-    # env "${args_nolim[@]}"                    bash b.sh waitforcompaction
+    # env "${args_nolim[@]}"                    bash b.v5.sh waitforcompaction
     echo TODO enable when waitforcompaction hang is fixed
   else
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    env "${args_nolim[@]}"                  bash b.sh flush_mt_l0
+    # env "${args_nolim[@]}"                  bash b.v5.sh flush_mt_l0
+    echo flush and wait not supported
   fi
 
   # Read-mostly tests with a rate-limited writer
-  env "${args_lim[@]}" DURATION=$nsecs    bash b.sh revrangewhilewriting
-  env "${args_lim[@]}" DURATION=$nsecs    bash b.sh fwdrangewhilewriting
-  env "${args_lim[@]}" DURATION=$nsecs    bash b.sh readwhilewriting
+  env "${args_lim[@]}" DURATION=$nsecs    bash b.v5.sh revrangewhilewriting
+  env "${args_lim[@]}" DURATION=$nsecs    bash b.v5.sh fwdrangewhilewriting
+  env "${args_lim[@]}" DURATION=$nsecs    bash b.v5.sh readwhilewriting
 
   # Write-only tests
 
   # This creates much compaction debt which will be a problem for tests added after it.
   # Also, the compaction stats measured at test end can underestimate write-amp depending
   # on how much compaction debt is allowed.
-  env "${args_nolim[@]}" DURATION=$(( $nsecs * 1 ))  bash b.sh overwrite
+  env "${args_nolim[@]}" DURATION=$(( nsecs * 1 )) bash b.v5.sh overwrite
 
   cp $dbdir/LOG* $my_odir
   gzip -9 $my_odir/LOG*

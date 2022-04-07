@@ -268,12 +268,14 @@ const_params_base="
   \
   $bench_args"
 
+# compaction_pri=3 means kMinOverlappingRatio, the default is 0
 level_const_params="
   $const_params_base \
   --compaction_style=0 \
   --min_level_to_compress=$min_level_to_compress \
   --level_compaction_dynamic_level_bytes=true \
   --pin_l0_filter_and_index_blocks_in_cache=1 \
+  --compaction_pri=3 \
   $soft_pending_arg \
   $hard_pending_arg \
 "
@@ -334,13 +336,18 @@ if [ $writes -gt 0 ]; then
   const_params="$const_params --writes=$writes"
 fi
 
+bg_flushes=$(( $max_background_jobs / 4 ))
+bg_compactions=$(( $max_background_jobs - $bg_flushes ))
+
 params_w="$l0_config \
-          --max_background_jobs=$max_background_jobs \
+          --max_background_flushes=$bg_flushes \
+          --max_background_compactions=$bg_compactions \
           --max_write_buffer_number=8 \
           $compact_bytes_limit \
           $const_params"
 
-params_bulkload="--max_background_jobs=$max_background_jobs \
+params_bulkload="--max_background_flushes=$bg_flushes \
+                 --max_background_compactions=$bg_compactions \
                  --max_write_buffer_number=8 \
                  --allow_concurrent_memtable_write=false \
                  --level0_file_num_compaction_trigger=$((10 * M)) \
@@ -472,14 +479,15 @@ function summarize_result {
   else
     wamp=$( echo "$sum_wgb / $flush_wgb" | bc -l | awk '{ printf "%.1f", $1 }' )
   fi
-  c_wsecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $15 }' )
-  c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )
+  c_wsecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $14 }' )
+  #c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )
+  c_csecs="NA"
 
-  lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f%s", $3, $4 }' )
+  lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ gb=($3 / 1024); if (gb >= 1) { printf "%.1fGB", gb } else { printf "%.0fMB", $3 } }' )
   blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
 
-  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
-  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )
+  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $21 }' )
+  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $22 }' )
 
   usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
   p50=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )

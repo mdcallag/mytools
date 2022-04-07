@@ -12,7 +12,7 @@ gcft=${11}
 pendr=${12}
 
 # Options: ${14}+ lists db_bench binaries to use, this is optional
-
+ 
 dflags=""
 if [ $odirect -eq 1 ]; then
   dflags="DIRECT_IO=y"
@@ -49,7 +49,6 @@ v6.24.2 \
 v6.25.3 \
 v6.26.1 \
 v6.27.3 \
-v6.28.2 \
 )
 
 some_versions=( \
@@ -63,11 +62,15 @@ v6.25.3 \
 v6.26.1 \
 )
 
-latest_versions=( v6.28.2 )
+latest_versions=( v6.26.1 )
+four_versions=( v4.1 )
+five_versions=( v5.1.4 )
+old_versions=( v4.1 v5.1.4 )
 
 #use_versions="${some_versions[@]}"
 #use_versions="${latest_versions[@]}"
-use_versions="${all_versions[@]}"
+#use_versions="${all_versions[@]}"
+use_versions="${four_versions[@]}"
 
 shift 12
 
@@ -104,16 +107,16 @@ c16r64)
   cache_mb=$(( 1024 * 48 ))
   nsub=4
   ;;
-c16r64b)
-  # Options for 16-core, 64g RAM
-  args=( WRITE_BUF_MB=128 SST_MB=8 L1_MB=64 MAX_BG_JOBS=8 )
-  cache_mb=$(( 1024 * 48 ))
-  nsub=4
-  ;;
 c16bc1g)
   # Options for 16-core, 1g block cache
   args=( WRITE_BUF_MB=16 SST_MB=16 L1_MB=64 MAX_BG_JOBS=8 )
   cache_mb=$(( 1024 * 1 ))
+  nsub=4
+  ;;
+c16r64b)
+  # Options for 16-core, 64g RAM
+  args=( WRITE_BUF_MB=128 SST_MB=8 L1_MB=64 MAX_BG_JOBS=8 )
+  cache_mb=$(( 1024 * 48 ))
   nsub=4
   ;;
 c40r256)
@@ -136,9 +139,6 @@ esac
 args+=( NKEYS=$nkeys CACHE_MB=$cache_mb NSECS=$secs NSECS_RO=$secs_ro MB_WPS=2 NTHREADS=$nthreads COMP_TYPE=$comp IBLOB_COMPRESSION_TYPE=$comp CACHE_META=$cm $dflags )
 args+=( VALUE_BYTES=$valbytes IBLOB_GC_AGE_CUTOFF=$gcac IBLOB_GC_FORCE_THRESHOLD=$gcft PENDING_RATIO=$pendr )
 
-#iblob_gc_age_cutoff=${IBLOB_GC_AGE_CUTOFF:-"0.25"}
-#iblob_gc_force_threshold=${IBLOB_GC_FORCE_THRESHOLD:-1}
-
 if [ $numa -eq 1 ]; then
   args+=( NUMA=1 )
 fi
@@ -148,7 +148,7 @@ odir=bm.lc.nt${nthreads}.cm${cm}.d${odirect}
 echo leveled using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( ML2_COMP=3 COMP_STYLE=leveled )
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash perf_cmp.v4.sh /data/m/rx $odir ${versions[@]}
 
 # for universal
 
@@ -156,36 +156,6 @@ odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}.tm
 echo universal+subcomp+trivial_move using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( PCT_COMP=80 COMP_STYLE=universal SUBCOMP=$nsub UNIV_ALLOW_TRIVIAL_MOVE=1 )
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash perf_cmp.v4.sh /data/m/rx $odir ${versions[@]}
 
-exit
-
-# for blobDB
-
-odir=bm.bc.nt${nthreads}.cm${cm}.d${odirect}
-echo integrated blobDB using $odir at $( date )
-myargs=( "${args[@]}" )
-myargs+=( ML2_COMP=3 COMP_STYLE=blob )
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
-
-exit
-
-odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.tm
-echo universal+trivial_move using $odir at $( date )
-myargs=( "${args[@]}" )
-myargs+=( PCT_COMP=80 COMP_STYLE=universal UNIV_ALLOW_TRIVIAL_MOVE=1 )
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
-
-odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}
-echo universal+subcomp using $odir at $( date ) 
-myargs=( "${args[@]}" )
-myargs+=( PCT_COMP=80 COMP_STYLE=universal SUBCOMP=$nsub )
-echo env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
-
-odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}
-echo universal using $odir at $( date )
-myargs=( "${args[@]}" )
-myargs+=( PCT_COMP=80 COMP_STYLE=universal )
-env "${myargs[@]}" bash perf_cmp.sh /data/m/rx $odir ${versions[@]}
 
