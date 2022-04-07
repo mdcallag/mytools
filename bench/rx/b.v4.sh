@@ -430,10 +430,96 @@ function start_stats {
   done >& $output.sizes &
   # This sets a global value
   szpid=$!
+
+  x=0
+  perfpid=0
+  if [ $x -gt 0 ]; then
+  fgp="~/git/FlameGraph.me"
+  if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+  while :; do
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+
+    perf_secs=30
+    pause_secs=20
+    perf="perf"
+
+    sleep $pause_secs
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$x.$ts"
+    outf="$output.perf.rec.g.$sfx"
+    $perf record -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+
+    #$perf report --stdio --no-children -i $outf > $output.perf.rep.g.f0.c0.$sfx
+    #$perf report --stdio --children    -i $outf > $output.perf.rep.g.f0.c1.$sfx
+    #$perf report --stdio -n -g folded -i $outf > $output.perf.rep.g.f1.cother.$sfx
+    $perf report --stdio -n -g folded -i $outf --no-children > $output.perf.rep.g.f1.c0.$sfx
+    $perf report --stdio -n -g folded -i $outf --children > $output.perf.rep.g.f1.c1.$sfx
+    $perf script -i $outf > $output.perf.rep.g.scr.$sfx
+    gzip --fast $outf
+    # A hack to support differential flamegraphs for db_bench v6.0 vs v6.28
+    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl | \
+    #    sed 's/DataBlockIter::SeekImpl/DataBlockIter::Seek/g' | \
+    #    sed 's/DataBlockIter::NextImpl/DataBlockIter::Next/g' | \
+    #    sed 's/IndexBlockIter::SeekImpl/IndexBlockIter::Seek/g' \
+    #    > $output.perf.g.fold.$sfx
+    cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.$sfx
+    $fgp/flamegraph.pl $output.perf.g.fold.$sfx > $output.perf.g.$sfx.svg
+    gzip --fast $output.perf.rep.g.scr.$sfx
+
+
+    sleep $pause_secs
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$x.$ts"
+    outf="$output.perf.rec.f.$sfx"
+
+    $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+    $perf report --stdio -i $outf > $output.perf.rep.f.$sfx
+    $perf script -i $outf | gzip --fast > $output.perf.rep.f.scr.$sfx.gz
+    gzip --fast $outf
+
+    x=$(( $x + 1 ))
+  done &
+  # This sets a global value
+  perfpid=$!
+  fi
+
+  y=0
+  perfpid2=0
+  if [ $y -ge 0 ]; then
+  while :; do
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+
+    perf_secs=10
+    pause_secs=30
+    perf="perf"
+
+    sleep $pause_secs
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$y.$ts"
+    outf="$output.perfstat.$sfx"
+
+    $perf stat -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs > $outf
+    $perf stat -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e dTLB-loads,dTLB-load-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e LLC-loads,LLC-load-misses,LLC-stores,LLC-prefetches -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs >> $outf
+
+    sleep $pause_secs
+    y=$(( $y + 1 ))
+  done &
+  perfpid2=$!
+  fi
 }
 
 function stop_stats {
   output=$1
+
+  if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
+  if [ $perfpid2 -gt 0 ]; then kill $perfpid2 ; fi
+
   kill $pspid
   kill $szpid
   killall iostat
