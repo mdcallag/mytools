@@ -11,7 +11,7 @@ gcac=${10}
 gcft=${11}
 pendr=${12}
 
-# Options: ${14}+ lists db_bench binaries to use, this is optional
+# Options: ${13}+ lists db_bench binaries to use, this is optional
 
 dflags=""
 if [ $odirect -eq 1 ]; then
@@ -64,6 +64,7 @@ v6.26.1 \
 )
 
 latest_versions=( v6.28.2 )
+first_last_versions=( v6.0.2 v6.28.2 )
 
 #use_versions="${some_versions[@]}"
 #use_versions="${latest_versions[@]}"

@@ -11,7 +11,7 @@ gcac=${10}
 gcft=${11}
 pendr=${12}
  
-# Options: ${14}+ lists db_bench binaries to use, this is optional
+# Options: ${13}+ lists db_bench binaries to use, this is optional
 
 dflags=""
 if [ $odirect -eq 1 ]; then
