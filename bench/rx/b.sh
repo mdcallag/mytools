@@ -500,8 +500,9 @@ function start_stats {
     $perf stat -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs > $outf
     $perf stat -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs >> $outf
     $perf stat -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs >> $outf
-    $perf stat -e dTLB-loads,dTLB-load-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs >> $outf
-    $perf stat -e LLC-loads,LLC-load-misses,LLC-stores,LLC-prefetches -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs >> $outf
+    $perf stat -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs >> $outf
     $perf stat -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs >> $outf
 
     sleep $pause_secs
