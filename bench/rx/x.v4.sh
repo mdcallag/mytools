@@ -125,7 +125,7 @@ c40r256)
   cache_mb=$(( 1024 * 210 ))
   nsub=4
   ;;
-c40rbc1g)
+c40bc1g)
   # Options for 40-core, 256g RAM
   args=( WRITE_BUF_MB=16 SST_MB=16 L1_MB=64 MAX_BG_JOBS=16 )
   cache_mb=$(( 1024 * 1 ))
