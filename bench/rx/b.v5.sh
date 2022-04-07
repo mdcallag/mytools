@@ -490,7 +490,7 @@ function start_stats {
 
   y=0
   perfpid2=0
-  if [ $y -ge 0 ]; then
+  if [ $y -gt 0 ]; then
   while :; do
     dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
 
