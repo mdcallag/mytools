@@ -436,7 +436,11 @@ function start_stats {
   while :; do
     dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
 
-    perf_secs=30
+    if [ $num_threads -eq 1 ]; then
+      perf_secs=30
+    else
+      perf_secs=10
+    fi
     pause_secs=20
     perf="perf"
 
