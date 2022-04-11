@@ -91,6 +91,8 @@ function display_usage() {
   echo -e "\tCOMPACTION_STYLE\tOne of leveled, universal, blob. Default is leveled."
 }
 
+PERF_METRIC=${PERF_METRIC:-cycles}
+
 if [ $# -lt 1 ]; then
   display_usage
   exit $EXIT_INVALID_ARGS
@@ -438,8 +440,9 @@ function start_stats {
   x=0
   perfpid=0
   if [ $x -gt 0 ]; then
-  fgp="~/git/FlameGraph.me"
-  if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+  #fgp="~/git/FlameGraph.me"
+  #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+  echo PERF_METRIC is $PERF_METRIC
   while :; do
     dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
 
@@ -456,7 +459,7 @@ function start_stats {
     ts=$( date +'%b%d.%H%M%S' )
     sfx="$x.$ts"
     outf="$output.perf.rec.g.$sfx"
-    $perf record -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+    $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
 
     #$perf report --stdio --no-children -i $outf > $output.perf.rep.g.f0.c0.$sfx
     #$perf report --stdio --children    -i $outf > $output.perf.rep.g.f0.c1.$sfx
@@ -471,8 +474,8 @@ function start_stats {
     #    sed 's/DataBlockIter::NextImpl/DataBlockIter::Next/g' | \
     #    sed 's/IndexBlockIter::SeekImpl/IndexBlockIter::Seek/g' \
     #    > $output.perf.g.fold.$sfx
-    cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.$sfx
-    $fgp/flamegraph.pl $output.perf.g.fold.$sfx > $output.perf.g.$sfx.svg
+    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.$sfx
+    #$fgp/flamegraph.pl $output.perf.g.fold.$sfx > $output.perf.g.$sfx.svg
     gzip --fast $output.perf.rep.g.scr.$sfx
 
 
