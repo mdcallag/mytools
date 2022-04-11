@@ -433,7 +433,7 @@ function start_stats {
   x=0
   perfpid=0
   if [ $x -gt 0 ]; then
-  #fgp="~/git/FlameGraph.me"
+  #fgp="$HOME/git/FlameGraph.me"
   #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
   echo PERF_METRIC is $PERF_METRIC
   while :; do
