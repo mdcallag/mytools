@@ -444,8 +444,6 @@ function start_stats {
   #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
   echo PERF_METRIC is $PERF_METRIC
   while :; do
-    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
-
     if [ $num_threads -eq 1 ]; then
       perf_secs=30
     else
@@ -456,9 +454,13 @@ function start_stats {
 
     sleep $pause_secs
 
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
     ts=$( date +'%b%d.%H%M%S' )
     sfx="$x.$ts"
     outf="$output.perf.rec.g.$sfx"
+    echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
     $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
 
     #$perf report --stdio --no-children -i $outf > $output.perf.rep.g.f0.c0.$sfx
@@ -499,13 +501,14 @@ function start_stats {
   perfpid2=0
   if [ $y -gt 0 ]; then
   while :; do
-    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
-
     perf_secs=10
     pause_secs=30
     perf="perf"
 
     sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
 
     ts=$( date +'%b%d.%H%M%S' )
     sfx="$y.$ts"
