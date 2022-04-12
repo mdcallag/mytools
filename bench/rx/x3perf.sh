@@ -31,8 +31,14 @@ cached=yes
 
 for metric in \
 instructions \
-L1-icache-load-misses \
+L1-dcache-loads \
+L1-dcache-stores \
+L1-icache-loads-misses \
+dTLB-loads \
+dTLB-stores \
 iTLB-loads \
+iTLB-load-misses \
+context-switches \
 ; do
 
 for dn in res.byrx res.byos res.iobuf res.iodir ; do
