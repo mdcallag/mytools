@@ -287,8 +287,7 @@ for v in $@ ; do
   echo ln -s db_bench.$v db_bench
   ln -s db_bench.$v db_bench
 
-  # rm -rf $my_odir
-  rm -rf $dbdir/*
+  find $dbdir -type f -exec rm \{\} \;
 
   # Load in key order
   echo env "${args_load[@]}" bash b.sh fillseq_disable_wal
