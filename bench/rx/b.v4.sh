@@ -337,7 +337,11 @@ if [ $writes -gt 0 ]; then
 fi
 
 bg_flushes=$(( $max_background_jobs / 4 ))
+# This matches what v6 and more recent versions do
+if [ bg_flushes -lt 1 ]; then bg_flushes=1; fi
 bg_compactions=$(( $max_background_jobs - $bg_flushes ))
+# This matches what v6 and more recent versions do
+if [ bg_compactions -lt 1 ]; then bg_compactions=1; fi
 
 params_w="$l0_config \
           --max_background_flushes=$bg_flushes \
