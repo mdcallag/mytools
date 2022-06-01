@@ -95,33 +95,44 @@ ipid=$!
 COLUMNS=400 LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
 tpid=$!
 
-dbpid=-1 # remove this to use perf
-#dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
-if [ $dbpid -ne -1 ] ; then
-  while :; do
-    ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.g.$sfx.$ts
-    perf record -g -p $dbpid -o $tsf -- sleep 10
-    #perf report --stdio --no-children -i $tsf > $tsf.rep.f0.c0
-    #perf report --stdio --children    -i $tsf > $tsf.rep.f0.c1
-    #perf report --stdio -n -g folded -i $tsf > $tsf.rep.f1.cother
-    perf report --stdio -n -g folded -i $tsf --no-children > $tsf.rep.f1.c0
-    perf report --stdio -n -g folded -i $tsf --children > $tsf.rep.f1.c1
-    perf script -i $tsf > $tsf.scr
-    cat $tsf.scr | ~/git/FlameGraph.me/stackcollapse-perf.pl > $tsf.fold
-    ~/git/FlameGraph.me/flamegraph.pl $tsf.fold > $tsf.svg
-    gzip --fast $tsf.scr
-    gzip --fast $tsf.fold
-    rm -f $tsf
+PERF_METRIC=${PERF_METRIC:-cycles}
+x=0
+perfpid=0
+if [ $x -gt 0 ]; then
+fgp="$HOME/git/FlameGraph.me"
+if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+echo PERF_METRIC is $PERF_METRIC
+while :; do
+  perf_secs=20
+  pause_secs=180
+  perf="perf"
 
-    sleep 30
-    ts=$( date +'%b%d.%H%M%S' ); tsf=o.perf.f.$sfx.$ts
-    perf record -p $dbpid -o $tsf -- sleep 10
-    perf report --stdio -i $tsf > $tsf.rep 
-    rm -f $tsf
+  sleep $pause_secs
 
-    sleep 30
-  done >& o.perf.$sfx &
-  fpid=$!
+  # postgres: mdcallag ib 127.0.0.1(56000) CREATE INDEX
+  dbpid=$( ps aux | grep "postgres: mdcallag" | grep -v grep | tail -1 | awk '{ print $2 }' )
+  # mysql
+  #dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
+  if [ -z $dbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+  ts=$( date +'%b%d.%H%M%S' )
+  sfx="$x.$ts"
+  outf="o.perf.rec.g.$sfx"
+  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs"
+  $perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs
+
+  $perf report --stdio -n -g folded -i $outf --no-children > o.perf.rep.g.f1.c0.$sfx
+  $perf report --stdio -n -g folded -i $outf --children > o.perf.rep.g.f1.c1.$sfx
+  $perf script -i $outf > o.perf.rep.g.scr.$sfx
+  gzip --fast $outf
+  cat o.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > o.perf.g.fold.$sfx
+  $fgp/flamegraph.pl o.perf.g.fold.$sfx > o.perf.g.$sfx.svg
+  gzip --fast o.perf.rep.g.scr.$sfx
+
+  x=$(( $x + 1 ))
+done &
+# This sets a global value
+perfpid=$!
 fi
 
 start_secs=$( date +%s )
@@ -190,7 +201,7 @@ for n in $( seq 1 $realdop ) ; do
   wait ${pids[${n}]} 
 done
 
-if [ $dbpid -ne -1 ]; then kill $fpid ; fi
+if [ $perfpid -ne 0 ]; then kill $perfpid ; fi
 
 stop_secs=$( date +%s )
 tot_secs=$(( $stop_secs - $start_secs ))

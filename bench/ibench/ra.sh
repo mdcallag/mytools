@@ -11,7 +11,7 @@ ips="100 500 1000"
 ns=$(( 3600 * 2 ))
 bash ra1.sh  20000000 20000000  20m 1 $ns $mbd $rdir $dev $only1t $npart $ips
 
-#ips="100 500 1000"
-#ns=$(( 3600 * 2 ))
-#bash ra1.sh 500000000 10000000 500m 1 $ns $mbd $rdir $dev $only1t $npart $ips
+ips="100 500 1000"
+ns=$(( 3600 * 2 ))
+bash ra1.sh 500000000 10000000 500m 1 $ns $mbd $rdir $dev $only1t $npart $ips
 

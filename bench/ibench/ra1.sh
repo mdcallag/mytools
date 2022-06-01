@@ -43,39 +43,6 @@ done
 done
 fi
 
-for dc in pg12.x5 ; do
-for ver in pg124 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg12.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  echo Done $ver $dc
-  sleep 600
-done
-done
-
-for dc in pg13.x5 ; do
-for ver in pg134 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/pg13; ln -s $mbd/$ver $mbd/pg13
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg13.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  echo Done $ver $dc
-  sleep 600
-done
-done
-
-for dc in pg14.x5 ; do
-for ver in pg140 ; do
-  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
-  rm $mbd/pg14; ln -s $mbd/$ver $mbd/pg14
-  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
-  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg14.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
-  echo Done $ver $dc
-  sleep 600
-done
-done
-
 for dc in in80.y8 ; do
 for ver in my8027 my8026 my8023 my8022 my8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
@@ -104,6 +71,50 @@ for ver in my5649 ; do
   rm $mbd/my56; ln -s $mbd/$ver $mbd/my56
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg12.x5 ; do
+for ver in pg1211 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg12.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg13.x5 ; do
+for ver in pg137 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg13; ln -s $mbd/$ver $mbd/pg13
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg13.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg14.x5 ; do
+for ver in pg143 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg14; ln -s $mbd/$ver $mbd/pg14
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg14.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg15.x5 ; do
+for ver in pg15b1 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg15; ln -s $mbd/$ver $mbd/pg15
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg15.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
   sleep 600
 done
