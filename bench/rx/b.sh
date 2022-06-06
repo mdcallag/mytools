@@ -509,18 +509,39 @@ function start_stats {
     sfx="$y.$ts"
     outf="$output.perfstat.$sfx"
 
-    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs ; sleep 3
 
-    sleep $pause_secs
     y=$(( $y + 1 ))
   done &
   perfpid2=$!
+  fi
+
+  z=0
+  perfpid3=0
+  if [ $z -gt 0 ]; then
+  while :; do
+    pause_secs=30
+
+    sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$z.$ts"
+    outf="$output.pmp.$sfx"
+
+    bash ./pmp.sh $dbbpid $outf
+
+    z=$(( $z + 1 ))
+  done &
+  perfpid3=$!
   fi
 }
 
@@ -529,6 +550,7 @@ function stop_stats {
 
   if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
   if [ $perfpid2 -gt 0 ]; then kill $perfpid2 ; fi
+  if [ $perfpid3 -gt 0 ]; then kill $perfpid3 ; fi
 
   kill $pspid
   kill $szpid
