@@ -155,8 +155,10 @@ DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
 DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
 
-DEFINE_boolean('use_prepared_statements', False,
-               'Use prepared statements, only supported for Postgres today')
+DEFINE_boolean('use_prepared_query', False,
+               'Use prepared statements for queries, only supported for Postgres today')
+DEFINE_boolean('use_prepared_insert', False,
+               'Use prepared statements for inserts, only supported for Postgres today')
 
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
@@ -507,16 +509,23 @@ def generate_row_mongo(when, rand_data_buf):
           FLAGS.name_cust : customerid, FLAGS.name_prod : productid,
           FLAGS.name_price : price, FLAGS.name_data : data }
 
-def generate_row_mysql_pg(when, rand_data_buf):
+def generate_row_mysql_pg(when, rand_data_buf, use_prepared):
   cashregisterid, productid, customerid, price, data = generate_cols(rand_data_buf)
-  return "('%s',%d,%d,%d,%.2f,'%s')" % (
-      when,cashregisterid,customerid,productid,price,data)
+  if not use_prepared:
+    return "('%s',%d,%d,%d,%.2f,'%s')" % (
+        when,cashregisterid,customerid,productid,price,data)
+  else:
+    return (when,cashregisterid,customerid,productid,price,data)
 
-def generate_row(when, rand_data_buf):
+def generate_row(when, rand_data_buf, use_prepared):
   if FLAGS.dbms == 'mongo':
+    assert not use_prepared
     return generate_row_mongo(when, rand_data_buf)
-  elif FLAGS.dbms in ['mysql', 'postgres']:
-    return generate_row_mysql_pg(when, rand_data_buf)
+  elif FLAGS.dbms == 'mysql':
+    assert not use_prepared
+    return generate_row_mysql_pg(when, rand_data_buf, False)
+  elif FLAGS.dbms == 'postgres':
+    return generate_row_mysql_pg(when, rand_data_buf, use_prepared)
   else:
     assert False
 
@@ -691,7 +700,7 @@ def generate_register_query(cursor, table_name, session, give_me_ps, vals_only):
     else:
       return generate_register_query_mysql_pg(cursor, cashregisterid, False, table_name)
 
-def generate_insert_rows(rand_data_buf):
+def generate_insert_rows(rand_data_buf, use_prepared):
   if FLAGS.dbms == 'mongo':
     when = datetime.utcnow()
   elif FLAGS.dbms in ['mysql', 'postgres']:
@@ -699,16 +708,21 @@ def generate_insert_rows(rand_data_buf):
   else:
     assert False
 
-  rows = [generate_row(when, rand_data_buf) \
-      for i in range(min(FLAGS.rows_per_commit, FLAGS.max_rows))]
+  # This allows the number of rows to exceed max_rows by a small amount, < rows_per_commit
+  rows = [generate_row(when, rand_data_buf, use_prepared) \
+      for i in range(FLAGS.rows_per_commit)]
 
   if FLAGS.dbms == 'mongo':
     return rows
   elif FLAGS.dbms in ['mysql', 'postgres']:
-    sql_data = ',\n'.join(rows)
-    return 'insert into %s '\
-           '(dateandtime,cashregisterid,customerid,productid,price,data) '\
-           'values %s' % (FLAGS.table_name, sql_data)
+    if not use_prepared:
+      sql_data = ',\n'.join(rows)
+      return 'insert into %s '\
+             '(dateandtime,cashregisterid,customerid,productid,price,data) '\
+             'values %s' % (FLAGS.table_name, sql_data)
+    else:
+      flat_list = [x for xs in rows for x in xs]
+      return flat_list
   else:
     assert False
 
@@ -735,7 +749,7 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
     assert False
 
   ps_names = []
-  if FLAGS.use_prepared_statements:
+  if FLAGS.use_prepared_query:
     assert FLAGS.dbms == 'postgres'
     for q in query_generators:
       ps_names.append(q(db_thing, FLAGS.table_name, None, True, False))
@@ -788,7 +802,7 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
 
     elif FLAGS.dbms == 'postgres':
       try:
-        if not FLAGS.use_prepared_statements:
+        if not FLAGS.use_prepared_query:
           query = query_func(db_thing, FLAGS.table_name, None, False, False)
           db_thing.execute(query)
         else:
@@ -853,7 +867,7 @@ def Insert(rounds, insert_q, lock):
 
   # generate insert rows in this loop and place into queue
   for r in range(rounds):
-    rows = generate_insert_rows(rand_data_buf)
+    rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
 
     insert_q.put(rows)
     inserted += FLAGS.rows_per_commit
@@ -887,6 +901,47 @@ def Insert(rounds, insert_q, lock):
   insert_q.put(insert_done)
   insert_q.close()
 
+
+def insert_ps_pg(cursor, table_name):
+  #col_sql = 'transactionid bigserial primary key, '\
+  #          'dateandtime timestamp without time zone, '\
+  #          'cashregisterid int not null, '\
+  #          'customerid int not null, '\
+  #          'productid int not null, '\
+  #          'price real not null, '\
+  #          'data varchar(4000) '
+  #return "'%s',%d,%d,%d,%.2f,'%s'" % ( when,cashregisterid,customerid,productid,price,data)
+  # row_types = 'timestamp,int,int,int,real,varchar(4000)'
+  #    return 'insert into %s '\
+  #           '(dateandtime,cashregisterid,customerid,productid,price,data) '\
+  #           'values %s' % (FLAGS.table_name, sql_data)
+  # TODO(types)
+
+  x=1
+  ph_arr = []
+  ty_arr = []
+  for r in range(FLAGS.rows_per_commit):
+    ph = '($%d, $%d, $%d, $%d, $%d, $%d)' % (x, x+1, x+2, x+3, x+4, x+5)
+    ph_arr.append(ph)
+    x += 6
+
+  types = ','.join(['timestamp, int, int, int, real, varchar'] * FLAGS.rows_per_commit)
+  placeholders = ','.join(ph_arr)
+
+  prep_sql = 'PREPARE insert_ps (%s) as '\
+             'INSERT INTO %s '\
+             '(dateandtime,cashregisterid,customerid,productid,price,data) '\
+             'VALUES %s' % (types, table_name, placeholders)
+  # print(prep_sql)
+
+  try:
+    cursor.execute(prep_sql)
+  except psycopg2.Error as e:
+    print("insert prepare error: %s\n%s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag, prep_sql))
+    raise e
+  params = '%s,' * ((6 * FLAGS.rows_per_commit) - 1) + '%s'
+  return 'execute insert_ps (%s)' % (params)
+
 def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
   # block on this until main thread wants all processes to run
   lock.acquire()
@@ -917,6 +972,10 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
   else:
     assert False
 
+  if FLAGS.use_prepared_insert:
+    assert FLAGS.dbms == 'postgres'
+    insert_ps = insert_ps_pg(cursor, FLAGS.table_name)
+
   rthist = rthist_new()
 
   while True:
@@ -946,7 +1005,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
             if mongo_session.in_transaction: mongo_session.abort_transaction()
           else:
             print("Mongo error on insert: ", e)
-            raise e
+            sys.exit(-1)
 
     elif FLAGS.dbms == 'mysql':
       try:
@@ -956,13 +1015,20 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
           # print("Ignoring MySQL exception: ", e)
           shared_var[3].value += 1
         else:
-          raise e
+          sys.exit(-1)
     elif FLAGS.dbms == 'postgres':
       try:
-        cursor.execute(stmt)
+        if not FLAGS.use_prepared_insert:
+          #print(stmt)
+          cursor.execute(stmt)
+        else:
+          #print(stmt)
+          #print(insert_ps)
+          cursor.execute(insert_ps, stmt)
+
       except psycopg2.Error as e:
         print("Insert error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
-        raise e
+        sys.exit(-1)
     else:
       assert False
     
