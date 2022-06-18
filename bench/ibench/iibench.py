@@ -155,6 +155,9 @@ DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
 DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
 
+DEFINE_boolean('use_prepared_statements', False,
+               'Use prepared statements, only supported for Postgres today')
+
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
 DEFINE_string('db_name', 'test', 'Name of database for the test')
@@ -517,9 +520,9 @@ def generate_row(when, rand_data_buf):
   else:
     assert False
 
-def generate_pdc_query_mongo(conn, price, mongo_session):
+def generate_pdc_query_mongo(cursor, price, mongo_session):
   return (
-           conn.find({FLAGS.name_price: {'$gte' : price }},
+           cursor.find({FLAGS.name_price: {'$gte' : price }},
                      projection = {FLAGS.name_price:1, FLAGS.name_ts:1, FLAGS.name_cust:1, '_id':0},
                      sort = [(FLAGS.name_price, pymongo.ASCENDING),
                              (FLAGS.name_ts, pymongo.ASCENDING),
@@ -531,32 +534,53 @@ def generate_pdc_query_mongo(conn, price, mongo_session):
                      session = mongo_session)
          )
 
-def generate_pdc_query_mysql_pg(conn, price, force, table_name):
+def generate_pdc_query_mysql_pg(cursor, price, force, table_name):
   if force:
     force_txt = 'FORCE INDEX (%s_pdc)' % table_name
   else:
     force_txt = ''
   
   sql = 'SELECT price,dateandtime,customerid FROM %s %s WHERE '\
-        '(price>=%.2f) '\
-        'ORDER BY price,dateandtime,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
+        '(price >= %f) '\
+        'ORDER BY price, dateandtime, customerid '\
+        'LIMIT %d' % (table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_pdc_query(conn, table_name, session):
+def generate_pdc_query_ps_pg(cursor, table_name):
+  prep_sql = 'PREPARE pdc_query_ps (real) as '\
+             'SELECT price, dateandtime, customerid FROM %s WHERE '\
+             '(price >= $1) '\
+             'ORDER BY price, dateandtime, customerid '\
+             'LIMIT %d' % (table_name, FLAGS.rows_per_query)
+  
+  try:
+    cursor.execute(prep_sql)
+  except psycopg2.Error as e:
+    print("pdc_query prepare error: %s\n%s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag, prep_sql))
+    raise e
+  return 'execute pdc_query_ps (%s)'
+
+def generate_pdc_query(cursor, table_name, session, give_me_ps, vals_only):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_pdc_query_mongo(conn, price, session)
+    assert not give_me_ps and not vals_only
+    return generate_pdc_query_mongo(cursor, price, session)
   elif FLAGS.dbms == 'mysql':
-    return generate_pdc_query_mysql_pg(conn, price, True, table_name)
+    assert not give_me_ps and not vals_only
+    return generate_pdc_query_mysql_pg(cursor, price, True, table_name)
   else:
-    return generate_pdc_query_mysql_pg(conn, price, False, table_name)
+    if give_me_ps:
+      return generate_pdc_query_ps_pg(cursor, table_name)
+    elif vals_only:
+      return [price]
+    else:
+      return generate_pdc_query_mysql_pg(cursor, price, False, table_name)
 
-def generate_market_query_mongo(conn, price, mongo_session):
+def generate_market_query_mongo(cursor, price, mongo_session):
   return (
-           conn.find({FLAGS.name_price: {'$gte' : price}}, 
+           cursor.find({FLAGS.name_price: {'$gte' : price}}, 
                      projection = {FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
                      sort = [(FLAGS.name_price, pymongo.ASCENDING),
                              (FLAGS.name_cust, pymongo.ASCENDING)],
@@ -566,32 +590,53 @@ def generate_market_query_mongo(conn, price, mongo_session):
                      session = mongo_session)
          )
  
-def generate_market_query_mysql_pg(conn, price, force, table_name):
+def generate_market_query_mysql_pg(cursor, price, force, table_name):
   if force:
     force_txt = 'FORCE INDEX (%s_marketsegment)' % table_name
   else:
     force_txt = ''
 
-  sql = 'SELECT price,customerid FROM %s %s WHERE '\
-        '(price>=%.2f) '\
-        'ORDER BY price,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, force_txt, price, FLAGS.rows_per_query)
+  sql = 'SELECT price, customerid FROM %s %s WHERE '\
+        '(price >= %f) '\
+        'ORDER BY price, customerid '\
+        'LIMIT %d' % (table_name, force_txt, price, FLAGS.rows_per_query)
   return sql
 
-def generate_market_query(conn, table_name, session):
+def generate_market_query_ps_pg(cursor, table_name):
+  prep_sql = 'PREPARE market_query_ps (real) as '\
+             'SELECT price, customerid FROM %s WHERE '\
+             '(price >= $1) '\
+             'ORDER BY price, customerid '\
+             'LIMIT %d' % (table_name, FLAGS.rows_per_query)
+
+  try:
+    cursor.execute(prep_sql)
+  except psycopg2.Error as e:
+    print("market_query prepare error: %s\n%s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag, prep_sql))
+    raise e
+  return 'execute market_query_ps (%s)'
+
+def generate_market_query(cursor, table_name, session, give_me_ps, vals_only):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
   if FLAGS.dbms == 'mongo':
-    return generate_market_query_mongo(conn, price, session)
+    assert not give_me_ps and not vals_only
+    return generate_market_query_mongo(cursor, price, session)
   elif FLAGS.dbms == 'mysql':
-    return generate_market_query_mysql_pg(conn, price, True, table_name)
+    assert not give_me_ps and not vals_only
+    return generate_market_query_mysql_pg(cursor, price, True, table_name)
   else:
-    return generate_market_query_mysql_pg(conn, price, False, table_name)
+    if give_me_ps:
+      return generate_market_query_ps_pg(cursor, table_name)
+    elif vals_only:
+      return [price]
+    else:
+      return generate_market_query_mysql_pg(cursor, price, False, table_name)
 
-def generate_register_query_mongo(conn, cashregisterid, mongo_session):
+def generate_register_query_mongo(cursor, cashregisterid, mongo_session):
   return (
-           conn.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
+           cursor.find({FLAGS.name_cash: {'$gte' : cashregisterid}}, 
                      projection = {FLAGS.name_cash:1, FLAGS.name_price:1, FLAGS.name_cust:1, '_id':0},
                      sort = [(FLAGS.name_cash, pymongo.ASCENDING),
                              (FLAGS.name_price, pymongo.ASCENDING),
@@ -603,27 +648,48 @@ def generate_register_query_mongo(conn, cashregisterid, mongo_session):
                      session = mongo_session)
          )
  
-def generate_register_query_mysql_pg(conn, cashregisterid, force, table_name):
+def generate_register_query_mysql_pg(cursor, cashregisterid, force, table_name):
   if force:
     force_txt = 'FORCE INDEX (%s_registersegment)' % table_name
   else:
     force_txt = ''
 
   sql = 'SELECT cashregisterid,price,customerid FROM %s '\
-        '%s WHERE (cashregisterid>%d) '\
-        'ORDER BY cashregisterid,price,customerid '\
-        'LIMIT %d' % (FLAGS.table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
+        '%s WHERE (cashregisterid > %d) '\
+        'ORDER BY cashregisterid, price, customerid '\
+        'LIMIT %d' % (table_name, force_txt, cashregisterid, FLAGS.rows_per_query)
   return sql
 
-def generate_register_query(conn, table_name, session):
+def generate_register_query_ps_pg(cursor, table_name):
+  prep_sql = 'PREPARE register_query_ps (int) as '\
+             'SELECT cashregisterid, price, customerid FROM %s '\
+             'WHERE (cashregisterid > $1) '\
+             'ORDER BY cashregisterid, price, customerid '\
+             'LIMIT %d' % (table_name, FLAGS.rows_per_query)
+
+  try:
+    cursor.execute(prep_sql)
+  except psycopg2.Error as e:
+    print("register_query prepare error: %s\n%s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag, prep_sql))
+    raise e
+  return 'execute register_query_ps (%s)'
+
+def generate_register_query(cursor, table_name, session, give_me_ps, vals_only):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.dbms == 'mongo':
-    return generate_register_query_mongo(conn, cashregisterid, session)
+    assert not give_me_ps and not vals_only
+    return generate_register_query_mongo(cursor, cashregisterid, session)
   elif FLAGS.dbms == 'mysql':
-    return generate_register_query_mysql_pg(conn, cashregisterid, True, table_name)
+    assert not give_me_ps and not vals_only
+    return generate_register_query_mysql_pg(cursor, cashregisterid, True, table_name)
   else:
-    return generate_register_query_mysql_pg(conn, cashregisterid, False, table_name)
+    if give_me_ps:
+      return generate_register_query_ps_pg(cursor, table_name)
+    elif vals_only:
+      return [cashregisterid]
+    else:
+      return generate_register_query_mysql_pg(cursor, cashregisterid, False, table_name)
 
 def generate_insert_rows(rand_data_buf):
   if FLAGS.dbms == 'mongo':
@@ -646,7 +712,7 @@ def generate_insert_rows(rand_data_buf):
   else:
     assert False
 
-def Query(query_args, shared_var, done_flag, lock, result_q):
+def Query(query_generators, shared_var, done_flag, lock, result_q):
 
   # block on this until main thread wants all processes to run
   lock.acquire()
@@ -668,10 +734,18 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
   else:
     assert False
 
+  ps_names = []
+  if FLAGS.use_prepared_statements:
+    assert FLAGS.dbms == 'postgres'
+    for q in query_generators:
+      ps_names.append(q(db_thing, FLAGS.table_name, None, True, False))
+
   rthist = rthist_new()
 
   while True:
-    query_func = random.choice(query_args)
+    query_id = random.randrange(0, len(query_generators))
+    query_func = query_generators[query_id]
+
     ts = rthist_start(rthist)
 
     if FLAGS.dbms == 'mongo':
@@ -681,7 +755,7 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
           # TODO -- autocommit would be nice here
           if mongo_session: mongo_session.start_transaction()
 
-          query = query_func(db_thing, FLAGS.table_name, mongo_session)
+          query = query_func(db_thing, FLAGS.table_name, mongo_session, False, False)
 
           count = 0
           for r in query: count += 1
@@ -701,7 +775,7 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
     elif FLAGS.dbms == 'mysql':
       # print("Query is:", query)
       try:
-        query = query_func(db_thing, FLAGS.table_name, None)
+        query = query_func(db_thing, FLAGS.table_name, None, False, False)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
       except MySQLdb.Error as e:
@@ -714,8 +788,13 @@ def Query(query_args, shared_var, done_flag, lock, result_q):
 
     elif FLAGS.dbms == 'postgres':
       try:
-        query = query_func(db_thing, FLAGS.table_name, None)
-        db_thing.execute(query)
+        if not FLAGS.use_prepared_statements:
+          query = query_func(db_thing, FLAGS.table_name, None, False, False)
+          db_thing.execute(query)
+        else:
+          query_args = query_func(db_thing, FLAGS.table_name, None, False, True)
+          db_thing.execute(ps_names[query_id], query_args)
+
         count = len(db_thing.fetchall())
       except psycopg2.Error as e:
         print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
