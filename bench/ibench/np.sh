@@ -1,4 +1,5 @@
-nr=$1 e=$2
+nr=$1
+e=$2
 eo=$3
 ns=$4
 client=$5
@@ -104,7 +105,11 @@ if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
   perf_secs=20
-  pause_secs=180
+  if [ $nqt -ge 1 ]; then
+    pause_secs=180
+  else
+    pause_secs=20
+  fi
   perf="perf"
 
   sleep $pause_secs
