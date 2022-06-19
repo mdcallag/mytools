@@ -183,6 +183,7 @@ for n in $( seq 1 $realdop ) ; do
 
   spr=1
   cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names"
+  # cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --use_prepared_query $names"
   echo $cmdline > o.ib.dop${dop}.${n} 
   /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
   pids[${n}]=$!
@@ -309,6 +310,10 @@ $client ib -x -c "select * from pg_stat_all_indexes where schemaname='public'" >
 $client ib -x -c "select * from pg_statio_all_tables where schemaname='public'" > o.pgi.tabs
 $client ib -x -c "select * from pg_statio_all_indexes where schemaname='public'" > o.pgi.idxs
 $client ib -x -c 'select * from pg_statio_all_sequences' > o.pgi.seq
+
+$client ib -x -c "select pg_size_pretty(pg_indexes_size('pi1')), pg_indexes_size('pi1')" > o.pg.szs
+$client ib -x -c "select pg_size_pretty(pg_relation_size('pi1')), pg_relation_size('pi1')" >> o.pg.szs
+$client ib -x -c "select pg_size_pretty(pg_total_relation_size('pi1')), pg_total_relation_size('pi1')" >> o.pg.szs
 
 $client ib -c '\d+ pi1' > o.pg.dplus
 if [[ $npart -gt 0 ]]; then
