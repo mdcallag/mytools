@@ -14,7 +14,7 @@ G=$((1024 * M))
 T=$((1024 * G))
 
 function display_usage() {
-  echo "useage: benchmark.sh [--help] <test>"
+  echo "usage: benchmark.sh [--help] <test>"
   echo ""
   echo "These are the available benchmark tests:"
   echo -e "\tbulkload"
@@ -38,8 +38,8 @@ function display_usage() {
   echo -e "\tuniversal_compaction"
   echo -e "\tdebug"
   echo ""
-  echo "Enviroment Variables:"
-  echo -e "\tJOB_ID\t\tAn identifier for the benchmark job, will appear in the results"
+  echo "Generic enviroment Variables:"
+  echo -e "\tJOB_ID\t\t\t\tAn identifier for the benchmark job, will appear in the results"
   echo -e "\tDB_DIR\t\t\t\tPath to write the database data directory"
   echo -e "\tWAL_DIR\t\t\t\tPath to write the database WAL directory"
   echo -e "\tOUTPUT_DIR\t\t\tPath to write the benchmark results to (default: /tmp)"
@@ -48,47 +48,47 @@ function display_usage() {
   echo -e "\tVALUE_SIZE\t\t\tThe size of the values to use in the benchmark (default: 400 bytes)"
   echo -e "\tBLOCK_SIZE\t\t\tThe size of the database blocks in the benchmark (default: 8 KB)"
   echo -e "\tDB_BENCH_NO_SYNC\t\tDisable fsync on the WAL"
-  echo -e "\tNUMACTL\t\tWhen defined use numactl --interleave=all"
+  echo -e "\tNUMACTL\t\t\t\tWhen defined use numactl --interleave=all"
   echo -e "\tNUM_THREADS\t\t\tThe number of threads to use (default: 64)"
-  echo -e "\tMB_WRITE_PER_SEC"
+  echo -e "\tMB_WRITE_PER_SEC\t\t\tRate limit for background writer"
   echo -e "\tNUM_NEXTS_PER_SEEK\t\t(default: 10)"
-  echo -e "\tCACHE_SIZE\t\t\t(default: 16GB)"
+  echo -e "\tCACHE_SIZE\t\t\tSize of the block cache(default: 16GB)"
   echo -e "\tCOMPRESSION_MAX_DICT_BYTES"
-  echo -e "\tCOMPRESSION_TYPE\t\t(default: zstd)"
+  echo -e "\tCOMPRESSION_TYPE\t\tDefault compression(default: zstd)"
   echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: none)"
   echo -e "\tMIN_LEVEL_TO_COMPRESS\t\tValue for min_level_to_compress for Leveled"
-  echo -e "\tCOMPRESSION_SIZE_PERCENT\t\tValue for compression_size_percent for Universal"
+  echo -e "\tCOMPRESSION_SIZE_PERCENT\tValue for compression_size_percent for Universal"
   echo -e "\tDURATION\t\t\tNumber of seconds for which the test runs"
-  echo -e "\tWRITES\t\t\tNumber of writes for which the test runs"
+  echo -e "\tWRITES\t\t\t\tNumber of writes for which the test runs"
   echo -e "\tWRITE_BUFFER_SIZE_MB\t\tThe size of the write buffer in MB (default: 128)"
-  echo -e "\tTARGET_FILE_SIZE_BASE_MB\t\tThe value for target_file_size_base in MB (default: 128)"
-  echo -e "\tMAX_BYTES_FOR_LEVEL_BASE_MB\t\tThe value for max_bytes_for_level_base in MB (default: 128)"
-  echo -e "\tMAX_BACKGROUND_JOBS\t\t\tThe value for max_background_jobs (default: 16)"
-  echo -e "\tCACHE_INDEX_AND_FILTER_BLOCKS\t\tThe value for cache_index_and_filter_blocks (default: 0)"
-  echo -e "\tUSE_O_DIRECT\t\tUse O_DIRECT for user reads and compaction"
+  echo -e "\tTARGET_FILE_SIZE_BASE_MB\tThe value for target_file_size_base in MB (default: 128)"
+  echo -e "\tMAX_BYTES_FOR_LEVEL_BASE_MB\tThe value for max_bytes_for_level_base in MB (default: 128)"
+  echo -e "\tMAX_BACKGROUND_JOBS\t\tThe value for max_background_jobs (default: 16)"
+  echo -e "\tCACHE_INDEX_AND_FILTER_BLOCKS\tThe value for cache_index_and_filter_blocks (default: 0)"
+  echo -e "\tUSE_O_DIRECT\t\t\tUse O_DIRECT for user reads and compaction"
+  echo -e "\tSTATS_INTERVAL_SECONDS\t\tValue for stats_interval_seconds"
+  echo -e "\tREPORT_INTERVAL_SECONDS\t\tValue for report_interval_seconds"
+  echo -e "\tSUBCOMPACTIONS\t\t\tValue for subcompactions"
+  echo -e "\tCOMPACTION_STYLE\t\tOne of leveled, universal, blob. Default is leveled."
+  echo -e "\nEnvironment variables (mostly) for leveled compaction:"
+  echo -e "\tLEVEL0_FILE_NUM_COMPACTION_TRIGGER\t\tValue for level0_file_num_compaction_trigger"
+  echo -e "\tLEVEL0_SLOWDOWN_WRITES_TRIGGER\t\t\tValue for level0_slowdown_writes_trigger"
+  echo -e "\tLEVEL0_STOP_WRITES_TRIGGER\t\t\tValue for level0_stop_writes_trigger"
+  echo -e "\tPER_LEVEL_FANOUT\t\t\t\tValue for max_bytes_for_level_multiplier"
   echo -e "\tSOFT_PENDING_COMPACTION_BYTES_LIMIT_IN_GB\tThe value for soft_pending_compaction_bytes_limit in GB"
   echo -e "\tHARD_PENDING_COMPACTION_BYTES_LIMIT_IN_GB\tThe value for hard_pending_compaction_bytes_limit in GB"
-  echo -e "\tSTATS_INTERVAL_SECONDS\tValue for stats_interval_seconds"
-  echo -e "\tREPORT_INTERVAL_SECONDS\tValue for report_interval_seconds"
-  echo -e "\tSUBCOMPACTIONS\t\tValue for subcompactions"
-  echo -e "\tLEVEL0_FILE_NUM_COMPACTION_TRIGGER\tValue for level0_file_num_compaction_trigger"
-  echo -e "\tLEVEL0_SLOWDOWN_WRITES_TRIGGER\tValue for level0_slowdown_writes_trigger"
-  echo -e "\tLEVEL0_STOP_WRITES_TRIGGER\tValue for level0_stop_writes_trigger"
-  echo -e "\tPER_LEVEL_FANOUT\tValue for max_bytes_for_level_multiplier"
-  echo -e "\tOptions for universal compaction:"
-  echo -e "\tUNIVERSAL\t\tUse universal compaction when set to anything, otherwise use leveled"
+  echo -e "\nEnvironment variables for universal compaction:"
   echo -e "\tUNIVERSAL_MIN_MERGE_WIDTH\tValue of min_merge_width option for universal"
   echo -e "\tUNIVERSAL_MAX_MERGE_WIDTH\tValue of min_merge_width option for universal"
-  echo -e "\tUNIVERSAL_SIZE_RATIO\tValue of size_ratio option for universal"
-  echo -e "\tUNIVERSAL_MAX_SIZE_AMP\tmax_size_amplification_percent for universal"
+  echo -e "\tUNIVERSAL_SIZE_RATIO\t\tValue of size_ratio option for universal"
+  echo -e "\tUNIVERSAL_MAX_SIZE_AMP\t\tmax_size_amplification_percent for universal"
   echo -e "\tUNIVERSAL_ALLOW_TRIVIAL_MOVE\tSet allow_trivial_move to true for universal, default is false"
-  echo -e "\tOptions for integrated BlobDB"
+  echo -e "\nOptions for integrated BlobDB"
   echo -e "\tMIN_BLOB_SIZE\tValue for min_blob_size"
   echo -e "\tBLOB_FILE_SIZE\tValue for blob_file_size"
   echo -e "\tBLOB_COMPRESSION_TYPE\tValue for blob_compression_type"
   echo -e "\tBLOB_GC_AGE_CUTOFF\tValue for blob_garbage_collection_age_cutoff"
   echo -e "\tBLOB_GC_FORCE_THRESHOLD\tValue for blob_garbage_collection_force_threshold"
-  echo -e "\tCOMPACTION_STYLE\tOne of leveled, universal, blob. Default is leveled."
 }
 
 PERF_METRIC=${PERF_METRIC:-cycles}
@@ -155,6 +155,8 @@ else
 fi
 
 num_threads=${NUM_THREADS:-64}
+mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
+writes_per_second=$( echo $mb_written_per_sec $value_size $key_size | awk '{ printf "%.0f", (( $1 * 1024 * 1024 ) / ( $2 + $3 )) }' )
 # Only for tests that do range scans
 num_nexts_per_seek=${NUM_NEXTS_PER_SEEK:-10}
 cache_size=${CACHE_SIZE:-$((17179869184))}
@@ -169,9 +171,6 @@ writes=${WRITES:-0}
 num_keys=${NUM_KEYS:-8000000000}
 key_size=${KEY_SIZE:-20}
 value_size=${VALUE_SIZE:-400}
-mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
-writes_per_second=$( echo $mb_written_per_sec $value_size $key_size | awk '{ printf "%.0f", (( $1 * 1024 * 1024 ) / ( $2 + $3 )) }' )
-
 block_size=${BLOCK_SIZE:-8192}
 write_buffer_mb=${WRITE_BUFFER_SIZE_MB:-128}
 target_file_mb=${TARGET_FILE_SIZE_BASE_MB:-128}
@@ -189,21 +188,21 @@ elif [[ $cache_index_and_filter -eq 1 ]]; then
   cache_meta_flags="\
   --cache_index_and_filter_blocks=$cache_index_and_filter "
 else
-  echo CACHE_INDEX_AND_FILTER_BLOCKS was $CACHE_INDEX_AND_FILTER_BLOCKS but most be 0 or 1
+  echo CACHE_INDEX_AND_FILTER_BLOCKS was $CACHE_INDEX_AND_FILTER_BLOCKS but must be 0 or 1
   exit $EXIT_INVALID_ARGS
 fi
 
 soft_pending_arg=""
 if [ ! -z $SOFT_PENDING_COMPACTION_BYTES_LIMIT_IN_GB ]; then
   soft_pending_bytes=$( echo $SOFT_PENDING_COMPACTION_BYTES_LIMIT_IN_GB | \
-    awk '{ printf "%.0f", $1 * 1024 * 1024 * 1024 }' )
+    awk '{ printf "%.0f", $1 * GB }' GB=$G )
   soft_pending_arg="--soft_pending_compaction_bytes_limit=$soft_pending_bytes"
 fi
 
 hard_pending_arg=""
 if [ ! -z $HARD_PENDING_COMPACTION_BYTES_LIMIT_IN_GB ]; then
   hard_pending_bytes=$( echo $HARD_PENDING_COMPACTION_BYTES_LIMIT_IN_GB | \
-    awk '{ printf "%.0f", $1 * 1024 * 1024 * 1024 }' )
+    awk '{ printf "%.0f", $1 * GB }' GB=$G )
   hard_pending_arg="--hard_pending_compaction_bytes_limit=$hard_pending_bytes"
 fi
 
@@ -227,7 +226,7 @@ fi
 
 min_blob_size=${MIN_BLOB_SIZE:-0}
 blob_file_size=${BLOB_FILE_SIZE:-$(( 256 * $M ))}
-blob_compression_type=${BLOB_COMPRESSION_TYPE:-lz4}
+blob_compression_type=${BLOB_COMPRESSION_TYPE:-${compression_type}}
 blob_gc_age_cutoff=${BLOB_GC_AGE_CUTOFF:-"0.25"}
 blob_gc_force_threshold=${BLOB_GC_FORCE_THRESHOLD:-1}
 
@@ -317,6 +316,7 @@ elif [ $compaction_style == "universal" ]; then
   l0_slowdown_writes_trigger=${LEVEL0_SLOWDOWN_WRITES_TRIGGER:-20}
   l0_stop_writes_trigger=${LEVEL0_STOP_WRITES_TRIGGER:-30}
 else
+  # compaction_style == "blob"
   const_params="$blob_const_params"
   l0_file_num_compaction_trigger=${LEVEL0_FILE_NUM_COMPACTION_TRIGGER:-4}
   l0_slowdown_writes_trigger=${LEVEL0_SLOWDOWN_WRITES_TRIGGER:-20}
@@ -347,7 +347,6 @@ params_w="$l0_config \
           --max_background_flushes=$bg_flushes \
           --max_background_compactions=$bg_compactions \
           --max_write_buffer_number=8 \
-          $compact_bytes_limit \
           $const_params"
 
 params_bulkload="--max_background_flushes=$bg_flushes \
@@ -378,6 +377,8 @@ params_univ_compact="$const_params \
                 --level0_file_num_compaction_trigger=8 \
                 --level0_slowdown_writes_trigger=16 \
                 --level0_stop_writes_trigger=20"
+
+tsv_header="ops_sec\tmb_sec\tlsm_sz\tblob_sz\tc_wgb\tw_amp\tc_mbps\tc_wsecs\tc_csecs\tb_rgb\tb_wgb\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\trss\ttest\tdate\tversion\tjob_id"
 
 function get_cmd() {
   output=$1
@@ -514,18 +515,39 @@ function start_stats {
     sfx="$y.$ts"
     outf="$output.perfstat.$sfx"
 
-    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs
-    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs
+    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs ; sleep 3
 
-    sleep $pause_secs
     y=$(( $y + 1 ))
   done &
   perfpid2=$!
+  fi
+
+  z=0
+  perfpid3=0
+  if [ $z -gt 0 ]; then
+  while :; do
+    pause_secs=30
+
+    sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$z.$ts"
+    outf="$output.pmp.$sfx"
+
+    bash ./pmp.sh $dbbpid $outf
+
+    z=$(( $z + 1 ))
+  done &
+  perfpid3=$!
   fi
 }
 
@@ -534,6 +556,7 @@ function stop_stats {
 
   if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
   if [ $perfpid2 -gt 0 ]; then kill $perfpid2 ; fi
+  if [ $perfpid3 -gt 0 ]; then kill $perfpid3 ; fi
 
   kill $pspid
   kill $szpid
@@ -565,10 +588,24 @@ function summarize_result {
   uptime=$( grep ^Uptime\(secs $test_out | tail -1 | awk '{ printf "%.0f", $2 }' )
   stall_pct=$( grep "^Cumulative stall" $test_out| tail -1  | awk '{  print $5 }' )
   nstall=$( grep ^Stalls\(count\):  $test_out | tail -1 | awk '{ print $2 + $6 + $10 + $14 + $18 + $20 }' )
-  ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
-  mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
 
-  flush_wgb=$( grep "^Flush(GB)" $test_out | tail -1 | awk '{ print $3 }' | tr ',' ' ' | awk '{ printf "%.0f", $1 }' )
+  # Output formats
+  # V1: overwrite    :       7.939 micros/op 125963 ops/sec;   50.5 MB/s
+  # V2: overwrite    :       7.854 micros/op 127320 ops/sec 1800.001 seconds 229176999 operations;   51.0 MB/s
+
+  format_version=$( grep ^${bench_name} $test_out \
+    | awk '{ if (NF >= 10 && $8 == "seconds") { print "V2" } else { print "V1" } }' )
+  if [ $format_version == "V1" ]; then
+    ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
+    usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
+    mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
+  else
+    ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
+    usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
+    mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $11 }' )
+  fi
+
+  flush_wgb=$( grep "^Flush(GB)" $test_out | tail -1 | awk '{ print $3 }' | tr ',' ' ' | awk '{ print $1 }' )
   sum_wgb=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
   cmb_ps=$( grep "^Cumulative compaction" $test_out | tail -1 | awk '{ printf "%.1f", $6 }' )
   if [[ "$sum_wgb" == "" || "$flush_wgb" == "" || "$flush_wgb" == "0.000" ]]; then
@@ -577,16 +614,15 @@ function summarize_result {
     wamp=$( echo "$sum_wgb / $flush_wgb" | bc -l | awk '{ printf "%.1f", $1 }' )
   fi
   c_wsecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $14 }' )
-  #c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )z
+  #c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )
   c_csecs="NA"
 
   lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ gb=($3 / 1024); if (gb >= 1) { printf "%.1fGB", gb } else { printf "%.0fMB", $3 } }' )
   blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
 
-  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $21 }' )
-  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ print $22 }' )
+  b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
+  b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )
 
-  usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
   p50=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.1f", $3 }' )
   p99=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.0f", $7 }' )
   p999=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.0f", $9 }' )
@@ -628,8 +664,7 @@ function summarize_result {
     echo -e "# date - Date/time of test" >> $report
     echo -e "# version - RocksDB version" >> $report
     echo -e "# job_id - User-provided job ID" >> $report
-    echo -e "ops_sec\tmb_sec\tlsm_sz\tblob_sz\tc_wgb\tw_amp\tc_mbps\tc_wsecs\tc_csecs\tb_rgb\tb_wgb\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\trss\ttest\tdate\tversion\tjob_id" \
-      >> $report
+    echo -e $tsv_header >> $report
   fi
 
   echo -e "$ops_sec\t$mb_sec\t$lsm_size\t$blob_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_wsecs\t$c_csecs\t$b_rgb\t$b_wgb\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$rss\t$test_name\t$my_date\t$version\t$job_id" \
@@ -818,7 +853,7 @@ function run_fillseq {
       comp_arg=""
     fi
   else
-    # TODO: try to match what is done for leveled, although compression might not be needed
+    # compaction_style == "blob"
     comp_arg="--min_level_to_compress=0"
   fi
 
@@ -1068,7 +1103,7 @@ function run_randomtransaction {
   echo "..."
   log_file_name=$output_dir/benchmark_randomtransaction.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench $params_r --benchmarks=randomtransaction \
+  cmd="$time_cmd ./db_bench $params_w --benchmarks=randomtransaction \
        --num=$num_keys \
        --transaction_db \
        --threads=5 \
@@ -1163,7 +1198,7 @@ for job in ${jobs[@]}; do
     echo "Completed $job (ID: $job_id) in $((end-start)) seconds" | tee -a $schedule
   fi
 
-  echo -e "ops_sec\tmb_sec\tlsm_sz\tblob_sz\tc_wgb\tw_amp\tc_mbps\tc_wsecs\tc_csecs\tb_rgb\tb_wgb\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\trss\ttest\tdate\tversion\tjob_id"
+  echo -e $tsv_header
   tail -1 $report
 
 done

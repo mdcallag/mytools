@@ -287,8 +287,7 @@ for v in $@ ; do
   echo ln -s db_bench.$v db_bench
   ln -s db_bench.$v db_bench
 
-  # rm -rf $my_odir
-  rm -rf $dbdir/*
+  find $dbdir -type f -exec rm \{\} \;
 
   # Load in key order
   echo env "${args_load[@]}" bash b.v5.sh fillseq_disable_wal
@@ -335,7 +334,7 @@ for v in $@ ; do
   # This creates much compaction debt which will be a problem for tests added after it.
   # Also, the compaction stats measured at test end can underestimate write-amp depending
   # on how much compaction debt is allowed.
-  env "${args_nolim[@]}" DURATION=$(( nsecs * 1 )) bash b.v5.sh overwrite
+  env "${args_nolim[@]}" DURATION=$(( $nsecs * 1 )) bash b.v5.sh overwrite
 
   cp $dbdir/LOG* $my_odir
   gzip -9 $my_odir/LOG*
