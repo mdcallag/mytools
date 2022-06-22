@@ -156,7 +156,6 @@ fi
 
 num_threads=${NUM_THREADS:-64}
 mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
-writes_per_second=$( echo $mb_written_per_sec $value_size $key_size | awk '{ printf "%.0f", (( $1 * 1024 * 1024 ) / ( $2 + $3 )) }' )
 # Only for tests that do range scans
 num_nexts_per_seek=${NUM_NEXTS_PER_SEEK:-10}
 cache_size=${CACHE_SIZE:-$((17179869184))}
@@ -171,6 +170,7 @@ writes=${WRITES:-0}
 num_keys=${NUM_KEYS:-8000000000}
 key_size=${KEY_SIZE:-20}
 value_size=${VALUE_SIZE:-400}
+writes_per_second=$( echo $mb_written_per_sec $value_size $key_size | awk '{ printf "%.0f", (( $1 * 1024 * 1024 ) / ( $2 + $3 )) }' )
 block_size=${BLOCK_SIZE:-8192}
 write_buffer_mb=${WRITE_BUFFER_SIZE_MB:-128}
 target_file_mb=${TARGET_FILE_SIZE_BASE_MB:-128}
