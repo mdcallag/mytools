@@ -66,7 +66,7 @@ v6.26.1 \
 
 latest_versions=( v6.28.2 )
 first_last_versions=( v6.0.2 v6.28.2 )
-t_versions=( br.6.28.fb br.7.3.fb )
+t_versions=( v5.1.4 )
 
 #use_versions="${some_versions[@]}"
 #use_versions="${latest_versions[@]}"

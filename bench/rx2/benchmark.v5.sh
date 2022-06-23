@@ -530,7 +530,7 @@ function summarize_result {
   if [[ "$sum_wgb" == "NA" || \
         "$cum_writes_gb" == "NA" || \
         "$cum_writes_gb_orig" == "0.0" || \
-        -z "$cum_writes_gb" || \
+        -z "$cum_writes_gb_orig" || \
         -z "$flush_wgb" ]]; then
     wamp="NA"
   else
