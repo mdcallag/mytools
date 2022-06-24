@@ -153,7 +153,7 @@ odir=bm.lc.nt${nthreads}.cm${cm}.d${odirect}
 echo leveled using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( MIN_LEVEL_TO_COMPRESS=3 COMPACTION_STYLE=leveled )
-env "${myargs[@]}" bash benchmark_wrapper.v5.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.v5.sh /data/m/rx $odir ${versions[@]}
 
 # for universal
 
@@ -161,5 +161,5 @@ odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}.tm
 echo universal+subcomp+trivial_move using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal SUBCOMPACTIONS=$nsub UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 )
-env "${myargs[@]}" bash benchmark_wrapper.v5.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.v5.sh /data/m/rx $odir ${versions[@]}
 
