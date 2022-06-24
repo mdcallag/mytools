@@ -57,6 +57,7 @@ import sys
 import math
 import timeit
 import traceback
+import cProfile
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -1216,3 +1217,4 @@ def main(argv):
 if __name__ == '__main__':
   new_argv = ParseArgs(sys.argv[1:])
   sys.exit(main([sys.argv[0]] + new_argv))
+  #cProfile.run('main([sys.argv[0]] + new_argv)', sort='tottime')
