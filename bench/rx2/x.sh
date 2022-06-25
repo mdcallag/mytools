@@ -153,7 +153,7 @@ odir=bm.lc.nt${nthreads}.cm${cm}.d${odirect}
 echo leveled using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( MIN_LEVEL_TO_COMPRESS=3 COMPACTION_STYLE=leveled )
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 
 # for universal
 
@@ -161,7 +161,7 @@ odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}.tm
 echo universal+subcomp+trivial_move using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal SUBCOMPACTIONS=$nsub UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 )
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 
 exit
 
@@ -171,7 +171,7 @@ odir=bm.bc.nt${nthreads}.cm${cm}.d${odirect}
 echo integrated blobDB using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( MIN_LEVEL_TO_COMPRESS=3 COMPACTION_STYLE=blob )
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 
 exit
 
@@ -179,18 +179,18 @@ odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.tm
 echo universal+trivial_move using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 )
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 
 odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}
 echo universal+subcomp using $odir at $( date ) 
 myargs=( "${args[@]}" )
 myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal SUBCOMPACTIONS=$nsub )
-echo env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+echo env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 
 odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}
 echo universal using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal )
-env "${myargs[@]}" bash benchmark_wrapper.sh /data/m/rx $odir ${versions[@]}
+env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
 

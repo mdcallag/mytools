@@ -124,7 +124,7 @@ else
 fi
 
 function usage {
-  echo "usage: benchmark_wrapper.sh db_dir output_dir version+"
+  echo "usage: benchmark_compare.sh db_dir output_dir version+"
   echo -e "\tdb_dir\t\tcreate RocksDB database in this directory"
   echo -e "\toutput_dir\twrite output from performance tests in this directory"
   echo -e "\tversion+\tspace separated sequence of RocksDB versions to test."
