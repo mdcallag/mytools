@@ -129,6 +129,12 @@ c40bc1g)
   cache_mb=$(( 1024 * 1 ))
   nsub=4
   ;;
+c30r240)
+  # Options for 30-core, 240g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=16 )
+  cache_mb=$(( 1024 * 180 ))
+  nsub=4
+  ;;
 *)
   echo "HW config ( $myhw ) not supported"
   exit -1

@@ -382,7 +382,7 @@ params_univ_compact="$const_params \
                 --level0_slowdown_writes_trigger=16 \
                 --level0_stop_writes_trigger=20"
 
-tsv_header="ops_sec\tmb_sec\tlsm_sz\tblob_sz\tc_wgb\tw_amp\tc_mbps\tc_wsecs\tc_csecs\tb_rgb\tb_wgb\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\trss\ttest\tdate\tversion\tjob_id"
+tsv_header="ops_sec\tmb_sec\tlsm_sz\tblob_sz\tc_wgb\tw_amp\tc_mbps\tc_wsecs\tc_csecs\tb_rgb\tb_wgb\tusec_op\tp50\tp99\tp99.9\tp99.99\tpmax\tuptime\tstall%\tNstall\tu_cpu\ts_cpu\trss\ttest\tdate\tversion\tjob_id\tfullver\tgitsha"
 
 function get_cmd() {
   output=$1
@@ -484,6 +484,9 @@ function summarize_result {
   test_out=$1
   test_name=$2
   bench_name=$3
+
+  full_version="$( grep "RocksDB version:" "$DB_DIR"/LOG | head -1 | awk '{ printf "%s", $5 }' )"
+  git_sha="$( grep "Git sha" "$DB_DIR"/LOG | head -1 | awk '{ print $5 }' | tr ':' ' ' | awk '{ printf "%s", substr($2, 1, 10) }' )"
 
   # Note that this function assumes that the benchmark executes long enough so
   # that "Compaction Stats" is written to stdout at least once. If it won't
@@ -587,10 +590,12 @@ function summarize_result {
     echo -e "# date - Date/time of test" >> $report
     echo -e "# version - RocksDB version" >> $report
     echo -e "# job_id - User-provided job ID" >> $report
+    echo -e "# fullver - Full version" >> $report
+    echo -e "# gitsha - Git hash at which binary was built" >> $report
     echo -e $tsv_header >> $report
   fi
 
-  echo -e "$ops_sec\t$mb_sec\t$lsm_size\t$blob_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_wsecs\t$c_csecs\t$b_rgb\t$b_wgb\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$rss\t$test_name\t$my_date\t$version\t$job_id" \
+  echo -e "$ops_sec\t$mb_sec\t$lsm_size\t$blob_size\t$sum_wgb\t$wamp\t$cmb_ps\t$c_wsecs\t$c_csecs\t$b_rgb\t$b_wgb\t$usecs_op\t$p50\t$p99\t$p999\t$p9999\t$pmax\t$uptime\t$stall_pct\t$nstall\t$u_cpu\t$s_cpu\t$rss\t$test_name\t$my_date\t$version\t$job_id\t$full_version\t$git_sha" \
     >> $report
 }
 
