@@ -160,11 +160,12 @@ function do_pg11 {
 
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
-  cd $dpg11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dpg11; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg11.c${cnf}${ps}
   mkdir -p $rdir
+  cd $dpg11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg11/logfile $rdir
+  cd $dpg11; bash down.sh; cd $dgit
   mv $dpg11/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg11/conf.diff $rdir
 }
@@ -179,11 +180,12 @@ function do_pg12 {
 
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
-  cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dpg12; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg12.c${cnf}${ps}
   mkdir -p $rdir
+  cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg12/logfile $rdir
+  cd $dpg12; bash down.sh; cd $dgit
   mv $dpg12/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
 }
@@ -198,11 +200,12 @@ function do_pg13 {
 
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
-  cd $dpg13; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dpg13; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg13.c${cnf}${ps}
   mkdir -p $rdir
+  cd $dpg13; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg13/logfile $rdir
+  cd $dpg13; bash down.sh; cd $dgit
   mv $dpg13/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg13/conf.diff $rdir
 }
@@ -217,11 +220,12 @@ function do_pg14 {
 
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
-  cd $dpg14; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg14/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dpg14; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg14.c${cnf}${ps}
   mkdir -p $rdir
+  cd $dpg14; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg14/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg14/logfile $rdir
+  cd $dpg14; bash down.sh; cd $dgit
   mv $dpg14/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg14/conf.diff $rdir
 }
@@ -236,11 +240,12 @@ function do_pg15 {
 
   echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=pg.$rmemt.dop$dop.c$cnf
-  cd $dpg15; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg15/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
-  cd $dpg15; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg15.c${cnf}${ps}
   mkdir -p $rdir
+  cd $dpg15; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg15/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg15/logfile $rdir
+  cd $dpg15; bash down.sh; cd $dgit
   mv $dpg15/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
   cp $dpg15/conf.diff $rdir
 }

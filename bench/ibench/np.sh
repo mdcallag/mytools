@@ -187,8 +187,8 @@ for n in $( seq 1 $realdop ) ; do
   fi
 
   spr=1
-  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names"
-  # cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --use_prepared_query $names"
+  # cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $names"
+  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --use_prepared_query $names"
   echo $cmdline > o.ib.dop${dop}.${n} 
   /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
   pids[${n}]=$!
