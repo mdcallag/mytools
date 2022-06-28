@@ -310,7 +310,7 @@ echo "TODO reset replication state"
 $client ib -c 'show all' > o.pg.conf
 $client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
 $client ib -x -c 'select * from pg_stat_database' > o.pgs.db
-$client ib -x -c 'select * from pg_stat_wall' > o.pgs.wal
+$client ib -x -c 'select * from pg_stat_wal' > o.pgs.wal
 $client ib -x -c "select * from pg_stat_all_tables where schemaname='public'" > o.pgs.tabs
 $client ib -x -c "select * from pg_stat_all_indexes where schemaname='public'" > o.pgs.idxs
 $client ib -x -c "select * from pg_statio_all_tables where schemaname='public'" > o.pgi.tabs
