@@ -76,7 +76,7 @@ for ver in my5649 ; do
 done
 done
 
-for dc in pg12.x5 ; do
+for dc in pg12.x7 ; do
 for ver in pg1211 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
@@ -87,7 +87,7 @@ for ver in pg1211 ; do
 done
 done
 
-for dc in pg13.x5 ; do
+for dc in pg13.x7 ; do
 for ver in pg137 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg13; ln -s $mbd/$ver $mbd/pg13
@@ -98,7 +98,7 @@ for ver in pg137 ; do
 done
 done
 
-for dc in pg14.x5 ; do
+for dc in pg14.x7 ; do
 for ver in pg143 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg14; ln -s $mbd/$ver $mbd/pg14
@@ -109,7 +109,7 @@ for ver in pg143 ; do
 done
 done
 
-for dc in pg15.x5 ; do
+for dc in pg15.x7 ; do
 for ver in pg15b1 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/pg15; ln -s $mbd/$ver $mbd/pg15
