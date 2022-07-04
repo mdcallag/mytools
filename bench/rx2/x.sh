@@ -142,7 +142,7 @@ esac
 
 args+=( NUM_KEYS=$nkeys CACHE_SIZE_MB=$cache_mb )
 args+=( DURATION_RW=$secs DURATION_RO=$secs_ro )
-args+=( MB_WRITE_PER_SE=2 NUM_THREADS=$nthreads )
+args+=( MB_WRITE_PER_SEC=2 NUM_THREADS=$nthreads )
 args+=( COMPRESSION_TYPE=$comp IBLOB_COMPRESSION_TYPE=$comp )
 args+=( CACHE_INDEX_AND_FILTER_BLOCKS=$cm $dflags VALUE_SIZE=$valbytes )
 args+=( IBLOB_GC_AGE_CUTOFF=$gcac IBLOB_GC_FORCE_THRESHOLD=$gcft )
