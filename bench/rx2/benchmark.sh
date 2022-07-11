@@ -429,6 +429,8 @@ function month_to_num() {
     echo $date_str
 }
 
+PERF_METRIC=${PERF_METRIC:-cycles}
+
 function start_stats {
   output=$1
   iostat -y -mx 1  >& $output.io &
@@ -449,10 +451,127 @@ function start_stats {
   done >& $output.sizes &
   # This sets a global value
   szpid=$!
+
+  x=0
+  perfpid=0
+  if [ $x -gt 0 ]; then
+  #fgp="$HOME/git/FlameGraph.me"
+  #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+  echo PERF_METRIC is $PERF_METRIC
+  while :; do
+    if [ $num_threads -eq 1 ]; then
+      perf_secs=30
+    else
+      perf_secs=10
+    fi
+    pause_secs=20
+    perf="perf"
+
+    sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$x.$ts"
+    outf="$output.perf.rec.g.$sfx"
+    echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
+    $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+
+    #$perf report --stdio --no-children -i $outf > $output.perf.rep.g.f0.c0.$sfx
+    #$perf report --stdio --children    -i $outf > $output.perf.rep.g.f0.c1.$sfx
+    #$perf report --stdio -n -g folded -i $outf > $output.perf.rep.g.f1.cother.$sfx
+    $perf report --stdio -n -g folded -i $outf --no-children > $output.perf.rep.g.f1.c0.$sfx
+    $perf report --stdio -n -g folded -i $outf --children > $output.perf.rep.g.f1.c1.$sfx
+    $perf script -i $outf > $output.perf.rep.g.scr.$sfx
+    gzip --fast $outf
+    # A hack to support differential flamegraphs for db_bench v6.0 vs v6.28
+    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl | \
+    #    sed 's/DataBlockIter::SeekImpl/DataBlockIter::Seek/g' | \
+    #    sed 's/DataBlockIter::NextImpl/DataBlockIter::Next/g' | \
+    #    sed 's/IndexBlockIter::SeekImpl/IndexBlockIter::Seek/g' \
+    #    > $output.perf.g.fold.$sfx
+    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.$sfx
+    #$fgp/flamegraph.pl $output.perf.g.fold.$sfx > $output.perf.g.$sfx.svg
+    gzip --fast $output.perf.rep.g.scr.$sfx
+
+
+    sleep $pause_secs
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$x.$ts"
+    outf="$output.perf.rec.f.$sfx"
+
+    $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+    $perf report --stdio -i $outf > $output.perf.rep.f.$sfx
+    $perf script -i $outf | gzip --fast > $output.perf.rep.f.scr.$sfx.gz
+    gzip --fast $outf
+
+    x=$(( $x + 1 ))
+  done &
+  # This sets a global value
+  perfpid=$!
+  fi
+
+  y=0
+  perfpid2=0
+  if [ $y -gt 0 ]; then
+  while :; do
+    perf_secs=10
+    pause_secs=30
+    perf="perf"
+
+    sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$y.$ts"
+    outf="$output.perfstat.$sfx"
+
+    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs ; sleep 3
+    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs ; sleep 3
+
+    y=$(( $y + 1 ))
+  done &
+  perfpid2=$!
+  fi
+
+  z=0
+  perfpid3=0
+  if [ $z -gt 0 ]; then
+  while :; do
+    pause_secs=30
+
+    sleep $pause_secs
+
+    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
+
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$z.$ts"
+    outf="$output.pmp.$sfx"
+
+    bash ./pmp.sh $dbbpid $outf
+
+    z=$(( $z + 1 ))
+  done &
+  perfpid3=$!
+  fi
 }
 
 function stop_stats {
   output=$1
+
+  if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
+  if [ $perfpid2 -gt 0 ]; then kill $perfpid2 ; fi
+  if [ $perfpid3 -gt 0 ]; then kill $perfpid3 ; fi
+
   kill $pspid
   kill $szpid
   killall iostat
