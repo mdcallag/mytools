@@ -21,56 +21,10 @@ fi
 
 cm=1
 
-all_versions=( \
-v6.0.2 \
-v6.1.2 \
-v6.2.4 \
-v6.3.6 \
-v6.4.6 \
-v6.5.3 \
-v6.6.4 \
-v6.7.3 \
-v6.8.1 \
-v6.9.4 \
-v6.10.2 \
-v6.11.6 \
-v6.12.7 \
-v6.13.3 \
-v6.14.6 \
-v6.15.5 \
-v6.16.4 \
-v6.17.3 \
-v6.18.1 \
-v6.19.3 \
-v6.20.3 \
-v6.21.3 \
-v6.22.1 \
-v6.23.3 \
-v6.24.2 \
-v6.25.3 \
-v6.26.1 \
-v6.27.3 \
-v6.28.2 \
-)
+latest_versions=( 6.28.fb )
+first_last_versions=( 6.0.fb 6.28.fb )
 
-some_versions=( \
-v6.0.2 \
-v6.7.3 \
-v6.14.6 \
-v6.22.1 \
-v6.23.3 \
-v6.24.2 \
-v6.25.3 \
-v6.26.1 \
-)
-
-latest_versions=( v6.28.2 )
-first_last_versions=( v6.0.2 v6.28.2 )
-t_versions=( br.6.28.fb br.7.3.fb )
-
-#use_versions="${some_versions[@]}"
-#use_versions="${latest_versions[@]}"
-use_versions="${t_versions[@]}"
+use_versions="${latest_versions[@]}"
 
 if [ "$#" -eq 0 ] ; then
   versions="${use_versions[@]}"
@@ -119,13 +73,13 @@ c16bc1g)
   ;;
 c40r256)
   # Options for 40-core, 256g RAM
-  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=16 )
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
   cache_mb=$(( 1024 * 210 ))
   nsub=4
   ;;
 c40bc1g)
   # Options for 40-core, 256g RAM
-  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=16 )
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
   cache_mb=$(( 1024 * 1 ))
   nsub=4
   ;;
