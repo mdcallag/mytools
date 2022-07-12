@@ -1062,6 +1062,7 @@ function run_multireadrandom {
   cmd="$time_cmd ./db_bench --benchmarks=multireadrandom \
        --use_existing_db=1 \
        --threads=$num_threads \
+       --multiread_batched=true \
        --batch_size=10 \
        $params_w \
        --seed=$( date +%s ) \
