@@ -250,11 +250,13 @@ for v in "$@" ; do
   # Read-only tests. The LSM tree shape is in a deterministic state if trivial move
   # was used during the load.
 
-  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
+  # Add revrange with a fixed duration and hardwired number of keys and threads to give
+  # compaction debt leftover from fillseq a chance at being removed. Not using waitforcompaction
+  # here because it isn't supported on older db_bench versions.
+  env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
-  env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom
-  # Skipping --multiread_batched for now because it isn't supported on older 6.X releases
-  # env "${args_lim[@]}" DURATION=$duration_ro bash ./benchmark.sh multireadrandom --multiread_batched
+  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
+  env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched=true
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo "$num_keys" "$num_threads" | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )
