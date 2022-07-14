@@ -22,7 +22,7 @@ fi
 cm=1
 
 latest_versions=( 6.28.fb )
-first_last_versions=( 6.0.fb 6.28.fb )
+first_last_versions=( 6.0.fb 6.29.fb )
 
 use_versions="${latest_versions[@]}"
 
