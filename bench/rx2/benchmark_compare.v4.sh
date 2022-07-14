@@ -253,8 +253,8 @@ for v in "$@" ; do
   # Add revrange with a fixed duration and hardwired number of keys and threads to give
   # compaction debt leftover from fillseq a chance at being removed. Not using waitforcompaction
   # here because it isn't supported on older db_bench versions.
-  env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
-  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
+  env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.v4.sh revrange
+  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.v4.sh fwdrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.v4.sh readrandom
   # Skipping --multiread_batched because it isn't supported on older releases
   env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.v4.sh multireadrandom
