@@ -241,6 +241,13 @@ for v in "$@" ; do
   echo ln -s db_bench."$v" db_bench
   ln -s db_bench."$v" db_bench
 
+  # This arrived in version 6.2
+  if ./db_bench --help | grep multiread_batched > /dev/null ; then
+    multiread_batched_ok=1
+  else
+    multiread_batched_ok=0
+  fi
+
   find "$dbdir" -type f -exec rm \{\} \;
 
   # Load in key order
@@ -256,7 +263,11 @@ for v in "$@" ; do
   env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
-  env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched=true
+  if [ "$multiread_batched_ok" -eq 1 ] ; then
+    env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched=true
+  else
+    env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom
+  fi
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo "$num_keys" "$num_threads" | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )
