@@ -181,7 +181,7 @@ target_file_mb=${TARGET_FILE_SIZE_BASE_MB:-128}
 l1_mb=${MAX_BYTES_FOR_LEVEL_BASE_MB:-1024}
 max_background_jobs=${MAX_BACKGROUND_JOBS:-16}
 stats_interval_seconds=${STATS_INTERVAL_SECONDS:-60}
-report_interval_seconds=${REPORT_INTERVAL_SECONDS:-5}
+report_interval_seconds=${REPORT_INTERVAL_SECONDS:-1}
 subcompactions=${SUBCOMPACTIONS:-1}
 per_level_fanout=${PER_LEVEL_FANOUT:-8}
 
