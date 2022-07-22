@@ -240,7 +240,14 @@ use_shared_block_and_blob_cache=${USE_SHARED_BLOCK_AND_BLOB_CACHE:-1}
 blob_cache_size=${BLOB_CACHE_SIZE:-$(( 16 * $G ))}
 blob_cache_numshardbits=${BLOB_CACHE_NUMSHARDBITS:-6}
 
+undef_params="\
+use_blob_cache,\
+use_shared_block_and_blob_cache,\
+blob_cache_size,blob_cache_numshardbits,\
+prepopulate_block_cache"
+
 const_params_base="
+  --undefok=$undef_params \
   --db=$DB_DIR \
   --wal_dir=$WAL_DIR \
   \
@@ -291,7 +298,6 @@ level_const_params="
 "
 
 # These inherit level_const_params because the non-blob LSM tree uses leveled compaction.
-# The use of undefok is for options that are not supported until 7.5.
 blob_const_params="
   $level_const_params \
   --enable_blob_files=true \
@@ -306,7 +312,6 @@ blob_const_params="
   --use_shared_block_and_blob_cache=$use_shared_block_and_blob_cache \
   --blob_cache_size=$blob_cache_size \
   --blob_cache_numshardbits=$blob_cache_numshardbits \
-  --undefok=use_blob_cache,use_shared_block_and_blob_cache,blob_cache_size,blob_cache_numshardbits \
 "
 
 # TODO:
