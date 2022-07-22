@@ -213,9 +213,8 @@ fi
 
 o_direct_flags=""
 if [ ! -z $USE_O_DIRECT ]; then
-  # TODO: deal with flags only supported in new versions, like prepopulate_block_cache
-  #o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
-  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction"
+  # Some of these flags are only supported in new versions and --undefok makes that work
+  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
 fi
 
 univ_min_merge_width=${UNIVERSAL_MIN_MERGE_WIDTH:-2}
