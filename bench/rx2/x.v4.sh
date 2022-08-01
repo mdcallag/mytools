@@ -119,6 +119,6 @@ env "${myargs[@]}" bash benchmark_compare.v4.sh /data/m/rx $odir ${versions[@]}
 odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}.tm
 echo universal+subcomp+trivial_move using $odir at $( date )
 myargs=( "${args[@]}" )
-myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal SUBCOMPACTIONS=$nsub UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 )
+myargs+=( UNIVERSAL_COMPRESSION_SIZE_PERCENT=80 COMPACTION_STYLE=universal SUBCOMPACTIONS=$nsub UNIVERSAL_ALLOW_TRIVIAL_MOVE=1 UNIVERSAL_MAX_SIZE_AMP=100 )
 env "${myargs[@]}" bash benchmark_compare.v4.sh /data/m/rx $odir ${versions[@]}
 
