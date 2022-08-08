@@ -9,6 +9,9 @@ odir=$2
 K=1024
 M=$((1024 * K))
 
+# Dynamic loader configuration
+ld_library_path=${LD_LIBRARY_PATH:-""}
+
 # Benchmark configuration
 duration_rw=${DURATION_RW:-65}
 duration_ro=${DURATION_RO:-65}
@@ -64,8 +67,11 @@ blob_compression_type=${BLOB_COMPRESSION_TYPE:-${compression_type}}
 blob_gc_age_cutoff=${BLOB_GC_AGE_CUTOFF:-"0.25"}
 blob_gc_force_threshold=${BLOB_GC_FORCE_THRESHOLD:-1}
 
+# Arguments for dynamic loading
+base_args=( LD_LIBRARY_PATH="$ld_library_path" )
+
 # Arguments used for all tests
-base_args=( NUM_KEYS="$num_keys" )
+base_args+=( NUM_KEYS="$num_keys" )
 base_args+=( NUM_THREADS="$num_threads" )
 base_args+=( KEY_SIZE="$key_size" )
 base_args+=( VALUE_SIZE="$value_size" )
@@ -256,8 +262,7 @@ for v in "$@" ; do
   env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.v5.sh revrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.v5.sh fwdrange
   env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.v5.sh readrandom
-  # Skipping --multiread_batched because it isn't supported on older releases
-  env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.v5.sh multireadrandom
+  env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.v5.sh multireadrandom --multiread_batched=true
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo "$num_keys" "$num_threads" | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )

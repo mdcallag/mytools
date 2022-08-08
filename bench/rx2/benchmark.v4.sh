@@ -95,6 +95,7 @@ function display_usage() {
   echo -e "\tUSE_SHARED_BLOCK_AND_BLOB_CACHE\t\t\tUse the same backing cache for block cache and blob cache (default: 1)"
   echo -e "\tBLOB_CACHE_SIZE\t\t\tSize of the blob cache (default: 16GB)"
   echo -e "\tBLOB_CACHE_NUMSHARDBITS\t\t\tNumber of shards for the blob cache is 2 ** blob_cache_numshardbits (default: 6)"
+  echo -e "\tPREPOPULATE_BLOB_CACHE\t\t\tPre-populate hot/warm blobs in blob cache (default: 0)"
 }
 
 if [ $# -lt 1 ]; then
@@ -213,9 +214,8 @@ fi
 
 o_direct_flags=""
 if [ ! -z $USE_O_DIRECT ]; then
-  # TODO: deal with flags only supported in new versions, like prepopulate_block_cache
-  #o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
-  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction"
+  # Some of these flags are only supported in new versions and --undefok makes that work
+  o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
 fi
 
 univ_min_merge_width=${UNIVERSAL_MIN_MERGE_WIDTH:-2}
@@ -239,8 +239,19 @@ use_blob_cache=${USE_BLOB_CACHE:-1}
 use_shared_block_and_blob_cache=${USE_SHARED_BLOCK_AND_BLOB_CACHE:-1}
 blob_cache_size=${BLOB_CACHE_SIZE:-$(( 16 * $G ))}
 blob_cache_numshardbits=${BLOB_CACHE_NUMSHARDBITS:-6}
+prepopulate_blob_cache=${PREPOPULATE_BLOB_CACHE:-0}
+
+# This script still works back to RocksDB 6.0
+undef_params="\
+use_blob_cache,\
+use_shared_block_and_blob_cache,\
+blob_cache_size,blob_cache_numshardbits,\
+prepopulate_blob_cache,\
+multiread_batched,\
+prepopulate_block_cache"
 
 const_params_base="
+  --undefok=$undef_params \
   --db=$DB_DIR \
   --wal_dir=$WAL_DIR \
   \
@@ -291,7 +302,6 @@ level_const_params="
 "
 
 # These inherit level_const_params because the non-blob LSM tree uses leveled compaction.
-# The use of undefok is for options that are not supported until 7.5.
 blob_const_params="
   $level_const_params \
   --enable_blob_files=true \
@@ -306,7 +316,7 @@ blob_const_params="
   --use_shared_block_and_blob_cache=$use_shared_block_and_blob_cache \
   --blob_cache_size=$blob_cache_size \
   --blob_cache_numshardbits=$blob_cache_numshardbits \
-  --undefok=use_blob_cache,use_shared_block_and_blob_cache,blob_cache_size,blob_cache_numshardbits \
+  --prepopulate_blob_cache=$prepopulate_blob_cache \
 "
 
 # TODO:
