@@ -32,6 +32,7 @@ max_background_jobs=${MAX_BACKGROUND_JOBS:-8}
 stats_interval_seconds=${STATS_INTERVAL_SECONDS:-20}
 cache_index_and_filter_blocks=${CACHE_INDEX_AND_FILTER_BLOCKS:-0}
 # USE_O_DIRECT doesn't need a default
+bytes_per_sync=${BYTES_PER_SYNC:-$(( 1 * M ))}
 # CACHE_SIZE_MB doesn't need a default
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
 
@@ -86,6 +87,7 @@ base_args+=( MAX_BACKGROUND_JOBS="$max_background_jobs" )
 base_args+=( STATS_INTERVAL_SECONDS="$stats_interval_seconds" )
 base_args+=( CACHE_INDEX_AND_FILTER_BLOCKS="$cache_index_and_filter_blocks" )
 base_args+=( COMPACTION_STYLE="$compaction_style" )
+base_args+=( BYTES_PER_SYNC="$bytes_per_sync" )
 
 if [ -n "$USE_O_DIRECT" ]; then
   base_args+=( USE_O_DIRECT=1 )
@@ -155,6 +157,7 @@ function usage {
   echo -e "\tMAX_BACKGROUND_JOBS\t\tvalue for max_background_jobs"
   echo -e "\tCACHE_INDEX_AND_FILTER_BLOCKS\tvalue for cache_index_and_filter_blocks"
   echo -e "\tUSE_O_DIRECT\t\t\tUse O_DIRECT for user reads and compaction"
+  echo -e "\tBYTES_PER_SYNC\t\t\tValue for bytes_per_sync"
   echo -e "\tSTATS_INTERVAL_SECONDS\t\tvalue for stats_interval_seconds"
   echo -e "\tSUBCOMPACTIONS\t\t\tvalue for subcompactions"
   echo -e "\tCOMPACTION_STYLE\t\tCompaction style to use, one of: leveled, universal, blob"
