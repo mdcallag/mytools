@@ -193,7 +193,7 @@ if [[ $cache_index_and_filter -eq 0 ]]; then
 elif [[ $cache_index_and_filter -eq 1 ]]; then
   cache_meta_flags="\
   --cache_index_and_filter_blocks=$cache_index_and_filter \
-  --cache_high_pri_pool_ratio=0.5"
+  --cache_high_pri_pool_ratio=0.5 --cache_low_pri_pool_ratio=0"
 else
   echo CACHE_INDEX_AND_FILTER_BLOCKS was $CACHE_INDEX_AND_FILTER_BLOCKS but must be 0 or 1
   exit $EXIT_INVALID_ARGS
@@ -252,6 +252,7 @@ use_shared_block_and_blob_cache,\
 blob_cache_size,blob_cache_numshardbits,\
 prepopulate_blob_cache,\
 multiread_batched,\
+cache_low_pri_pool_ratio,\
 prepopulate_block_cache"
 
 const_params_base="

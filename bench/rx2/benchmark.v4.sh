@@ -67,6 +67,7 @@ function display_usage() {
   echo -e "\tMAX_BACKGROUND_JOBS\t\tThe value for max_background_jobs (default: 16)"
   echo -e "\tCACHE_INDEX_AND_FILTER_BLOCKS\tThe value for cache_index_and_filter_blocks (default: 0)"
   echo -e "\tUSE_O_DIRECT\t\t\tUse O_DIRECT for user reads and compaction"
+  echo -e "\tBYTES_PER_SYNC\t\t\tValue for bytes_per_sync, set to zero when USE_O_DIRECT is true"
   echo -e "\tSTATS_INTERVAL_SECONDS\t\tValue for stats_interval_seconds"
   echo -e "\tREPORT_INTERVAL_SECONDS\t\tValue for report_interval_seconds"
   echo -e "\tSUBCOMPACTIONS\t\t\tValue for subcompactions"
@@ -216,6 +217,9 @@ o_direct_flags=""
 if [ ! -z $USE_O_DIRECT ]; then
   # Some of these flags are only supported in new versions and --undefok makes that work
   o_direct_flags="--use_direct_reads --use_direct_io_for_flush_and_compaction --prepopulate_block_cache=1"
+  bytes_per_sync=0
+else
+  bytes_per_sync=${BYTES_PER_SYNC:-$(( 1 * M ))}
 fi
 
 univ_min_merge_width=${UNIVERSAL_MIN_MERGE_WIDTH:-2}
@@ -248,6 +252,7 @@ use_shared_block_and_blob_cache,\
 blob_cache_size,blob_cache_numshardbits,\
 prepopulate_blob_cache,\
 multiread_batched,\
+cache_low_pri_pool_ratio,\
 prepopulate_block_cache"
 
 const_params_base="
@@ -263,7 +268,7 @@ const_params_base="
   --cache_numshardbits=$cache_numshardbits \
   --compression_ratio=0.5 \
   --compression_type=$compression_type \
-  --bytes_per_sync=$((8 * M)) \
+  --bytes_per_sync=$bytes_per_sync \
   $cache_meta_flags \
   $o_direct_flags \
   --benchmark_write_rate_limit=$(( 1024 * 1024 * $mb_written_per_sec )) \
@@ -629,7 +634,7 @@ function run_bulkload {
   echo "Bulk loading $num_keys random keys"
   log_file_name=$output_dir/benchmark_bulkload_fillrandom.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=fillrandom \
+  cmd="$time_cmd ./db_bench --benchmarks=fillrandom,stats \
        --use_existing_db=0 \
        --disable_auto_compactions=1 \
        --sync=0 \
@@ -652,7 +657,7 @@ function run_bulkload {
   echo "Compacting..."
   log_file_name=$output_dir/benchmark_bulkload_compact.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=compact \
+  cmd="$time_cmd ./db_bench --benchmarks=compact,stats \
        --use_existing_db=1 \
        --disable_auto_compactions=1 \
        --sync=0 \
@@ -692,7 +697,7 @@ function run_manual_compaction_worker {
 
   # Make sure that fillrandom uses the same compaction options as compact.
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=fillrandom \
+  cmd="$time_cmd ./db_bench --benchmarks=fillrandom,stats \
        --use_existing_db=0 \
        --disable_auto_compactions=0 \
        --sync=0 \
@@ -725,7 +730,7 @@ function run_manual_compaction_worker {
   # doesn't output regular statistics then we'll just use the time command to
   # measure how long this step takes.
   cmd="{ \
-       time ./db_bench --benchmarks=compact \
+       time ./db_bench --benchmarks=compact,stats \
        --use_existing_db=1 \
        --disable_auto_compactions=0 \
        --sync=0 \
@@ -811,7 +816,7 @@ function run_fillseq {
 
   echo "Loading $num_keys keys sequentially"
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=fillseq \
+  cmd="$time_cmd ./db_bench --benchmarks=fillseq,stats \
        $params_fillseq \
        $comp_arg \
        --use_existing_db=0 \
@@ -853,7 +858,7 @@ function run_lsm {
 
   log_file_name=$output_dir/benchmark_${job}.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks \
+  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks,stats \
        --use_existing_db=1 \
        --sync=0 \
        $params_w \
@@ -881,7 +886,7 @@ function run_change {
   echo "Do $num_keys random $output_name"
   log_file_name="$output_dir/benchmark_${output_name}.t${num_threads}.s${syncval}.log"
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks \
+  cmd="$time_cmd ./db_bench --benchmarks=$benchmarks,stats \
        --use_existing_db=1 \
        --sync=$syncval \
        $params_w \
@@ -906,7 +911,7 @@ function run_filluniquerandom {
   echo "Loading $num_keys unique keys randomly"
   log_file_name=$output_dir/benchmark_filluniquerandom.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=filluniquerandom \
+  cmd="$time_cmd ./db_bench --benchmarks=filluniquerandom,stats \
        --use_existing_db=0 \
        --sync=0 \
        $params_w \
@@ -930,7 +935,7 @@ function run_readrandom {
   echo "Reading $num_keys random keys"
   log_file_name="${output_dir}/benchmark_readrandom.t${num_threads}.log"
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=readrandom \
+  cmd="$time_cmd ./db_bench --benchmarks=readrandom,stats \
        --use_existing_db=1 \
        $params_w \
        --threads=$num_threads \
@@ -953,7 +958,7 @@ function run_multireadrandom {
   echo "Multi-Reading $num_keys random keys"
   log_file_name="${output_dir}/benchmark_multireadrandom.t${num_threads}.log"
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=multireadrandom \
+  cmd="$time_cmd ./db_bench --benchmarks=multireadrandom,stats \
        --use_existing_db=1 \
        --threads=$num_threads \
        --batch_size=10 \
@@ -978,7 +983,7 @@ function run_readwhile {
   echo "Reading $num_keys random keys while $operation"
   log_file_name="${output_dir}/benchmark_readwhile${operation}.t${num_threads}.log"
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench --benchmarks=readwhile${operation} \
+  cmd="$time_cmd ./db_bench --benchmarks=readwhile${operation},stats \
        --use_existing_db=1 \
        --sync=$syncval \
        $params_w \
@@ -1006,7 +1011,7 @@ function run_rangewhile {
   log_file_name="${output_dir}/benchmark_${full_name}.t${num_threads}.log"
   time_cmd=$( get_cmd $log_file_name.time )
   echo "Range scan $num_keys random keys while ${operation} for reverse_iter=${reverse_arg}"
-  cmd="$time_cmd ./db_bench --benchmarks=seekrandomwhile${operation} \
+  cmd="$time_cmd ./db_bench --benchmarks=seekrandomwhile${operation},stats \
        --use_existing_db=1 \
        --sync=$syncval \
        $params_w \
@@ -1030,7 +1035,7 @@ function run_range {
   log_file_name="${output_dir}/benchmark_${full_name}.t${num_threads}.log"
   time_cmd=$( get_cmd $log_file_name.time )
   echo "Range scan $num_keys random keys for reverse_iter=${reverse_arg}"
-  cmd="$time_cmd ./db_bench --benchmarks=seekrandom \
+  cmd="$time_cmd ./db_bench --benchmarks=seekrandom,stats \
        --use_existing_db=1 \
        $params_w \
        --threads=$num_threads \
@@ -1055,7 +1060,7 @@ function run_randomtransaction {
   echo "..."
   log_file_name=$output_dir/benchmark_randomtransaction.log
   time_cmd=$( get_cmd $log_file_name.time )
-  cmd="$time_cmd ./db_bench $params_w --benchmarks=randomtransaction \
+  cmd="$time_cmd ./db_bench $params_w --benchmarks=randomtransaction,stats \
        --num=$num_keys \
        --transaction_db \
        --threads=5 \
