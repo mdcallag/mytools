@@ -305,12 +305,12 @@ for v in "$@" ; do
   # This creates much compaction debt which will be a problem for tests added after it.
   # Also, the compaction stats measured at test end can underestimate write-amp depending
   # on how much compaction debt is allowed.
-  if [ "$compaction_style" != "leveled" ] && ! ./db_bench --benchmarks=waitforcompaction ; then
-    # waitforcompaction hangs with universal, see https://github.com/facebook/rocksdb/issues/9275
-    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
-  else
+  if [ "$compaction_style" == "leveled" ] && ./db_bench --benchmarks=waitforcompaction ; then
     # Use waitforcompaction is supported to get more accurate write-amp measurement
     env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+  else
+    # waitforcompaction hangs with universal, see https://github.com/facebook/rocksdb/issues/9275
+    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
   fi
 
   cp "$dbdir"/LOG* "$my_odir"
