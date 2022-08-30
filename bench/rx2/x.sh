@@ -77,6 +77,12 @@ c40r256)
   cache_mb=$(( 1024 * 210 ))
   nsub=4
   ;;
+c40r256bc180)
+  # Options for 40-core, 256g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
+  cache_mb=$(( 1024 * 180 ))
+  nsub=4
+  ;;
 c40bc1g)
   # Options for 40-core, 256g RAM
   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
