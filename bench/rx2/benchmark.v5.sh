@@ -596,7 +596,7 @@ function summarize_result {
 
   rss="NA"
   if [ -f $test_out.stats.ps ]; then
-    rss=$(  tail -1 $test_out.stats.ps | awk '{ printf "%.1f\n", $6 / (1024 * 1024) }' )
+    rss=$( awk '{ printf "%.1f\n", $6 / (1024 * 1024) }' $test_out.stats.ps | sort -n | tail -1 )
   fi
 
   # if the report TSV (Tab Separate Values) file does not yet exist, create it and write the header row to it
