@@ -543,14 +543,14 @@ function summarize_result {
 
   format_version=$( grep ^"$bench_name" "$test_out" \
     | awk '{ if (NF >= 10 && $8 == "seconds") { print "V2" } else { print "V1" } }' )
-  if [ $format_version == "V1" ]; then
+  if [ "$format_version" == "V1" ]; then
     ops_sec=$( grep ^"$bench_name" "$test_out" | awk '{ print $5 }' )
     usecs_op=$( grep ^"$bench_name" "$test_out" | awk '{ printf "%.1f", $3 }' )
     if [ "$bench_name" == "multireadrandom" ]; then
       mb_sec="NA"
     else
-      mb_sec=$( grep ^"$bench_name" $test_out | awk '{ print $7 }' )
-    fi  
+      mb_sec=$( grep ^"$bench_name" "$test_out" | awk '{ print $7 }' )
+    fi
   else
     ops_sec=$( grep ^"$bench_name" "$test_out" | awk '{ print $5 }' )
     usecs_op=$( grep ^"$bench_name" "$test_out" | awk '{ printf "%.1f", $3 }' )
