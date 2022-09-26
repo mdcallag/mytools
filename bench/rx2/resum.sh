@@ -64,6 +64,11 @@ function summarize_result {
   stall_pct=$( grep "^Cumulative stall" $test_out| tail -1  | awk '{  print $5 }' )
   nstall=$( grep ^Stalls\(count\):  $test_out | tail -1 | awk '{ print $2 + $6 + $10 + $14 + $18 + $20 }' )
 
+  if ! grep ^${bench_name} $test_out > /dev/null 2>&1 ; then
+    echo -e "failed\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t$test_name\t$my_date\t$version\t$job_id\t$git_hash" 
+    return
+  fi
+
   # Output formats
   # V1: readrandom   :      10.218 micros/op 3131616 ops/sec; 1254.3 MB/s (176144999 of 176144999 found)
   # The MB/s is mssing for multireadrandom
