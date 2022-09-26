@@ -65,6 +65,9 @@ function summarize_result {
   nstall=$( grep ^Stalls\(count\):  $test_out | tail -1 | awk '{ print $2 + $6 + $10 + $14 + $18 + $20 }' )
 
   # Output formats
+  # V1: readrandom   :      10.218 micros/op 3131616 ops/sec; 1254.3 MB/s (176144999 of 176144999 found)
+  # The MB/s is mssing for multireadrandom
+  # V1a: multireadrandom :      10.164 micros/op 3148272 ops/sec; (177099990 of 177099990 found)
   # V1: overwrite    :       7.939 micros/op 125963 ops/sec;   50.5 MB/s
   # V2: overwrite    :       7.854 micros/op 127320 ops/sec 1800.001 seconds 229176999 operations;   51.0 MB/s
 
@@ -73,7 +76,11 @@ function summarize_result {
   if [ $format_version == "V1" ]; then
     ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
     usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
-    mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
+    if [ "$bench_name" == "multireadrandom" ]; then
+      mb_sec="NA"
+    else
+      mb_sec=$( grep ^${bench_name} $test_out | awk '{ print $7 }' )
+    fi
   else
     ops_sec=$( grep ^${bench_name} $test_out | awk '{ print $5 }' )
     usecs_op=$( grep ^${bench_name} $test_out | awk '{ printf "%.1f", $3 }' )
