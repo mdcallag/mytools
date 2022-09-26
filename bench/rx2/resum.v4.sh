@@ -52,7 +52,7 @@ function summarize_result {
   # In recent versions these can be found directly via db_bench --version, --build_info but
   # grepping from the log lets this work on older versions.
   version="$( grep "RocksDB version:" LOG | head -1 | awk '{ printf "%s", $5 }' )"
-  git_hash="$( grep "Git sha" "$DB_DIR"/LOG | head -1 | awk '{ print $5 }' | tr ':' ' ' | awk '{ printf "%s", substr($2, 1, 10) }' )"
+  git_hash="$( grep "Git sha" LOG | head -1 | awk '{ print $5 }' | tr ':' ' ' | awk '{ printf "%s", substr($2, 1, 10) }' )"
 
   # Note that this function assumes that the benchmark executes long enough so
   # that "Compaction Stats" is written to stdout at least once. If it won't
