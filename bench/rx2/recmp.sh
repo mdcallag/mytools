@@ -9,10 +9,10 @@ eline=$(( $sline + $nlines - 1 ))
 
 sum_file=summary.tsv
 
-for v in $*; do
-  echo ${v}/report.tsv
-done
-echo
+#for v in $*; do
+#  echo ${v}/report.tsv
+#done
+#echo
 
 for x in $( seq $sline $eline ); do
   awk '{ if (NR == lno) { print $0 } }' lno=$hline ${basev}/report.tsv
