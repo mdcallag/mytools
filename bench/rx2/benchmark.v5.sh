@@ -591,7 +591,8 @@ function summarize_result {
   c_csecs="NA"
 
   lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ gb=($3 / 1024); if (gb >= 1) { printf "%.1fGB", gb } else { printf "%.0fMB", $3 } }' )
-  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
+  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%.0f%s", $7, $8 }' )
+  blob_size=$( echo "$blob_size" | sed 's/,//g' )
 
   b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
   b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )
@@ -602,9 +603,10 @@ function summarize_result {
   p9999=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.0f", $11 }' )
   pmax=$( grep "^Min: " $test_out | grep Median: | grep Max: | awk '{ printf "%.0f", $6 }' )
 
+  # Use the last line because there might be extra lines when the db_bench process exits with an error
   time_out=$test_out.time
-  u_cpu=$( awk '{ printf "%.1f", $2 / 1000.0 }' $time_out )
-  s_cpu=$( awk '{ printf "%.1f", $3 / 1000.0  }' $time_out )
+  u_cpu=$( tail -1 $time_out | awk '{ printf "%.1f", $2 / 1000.0 }' )
+  s_cpu=$( tail -1 $time_out | awk '{ printf "%.1f", $3 / 1000.0  }' )
 
   rss="NA"
   if [ -f $test_out.stats.ps ]; then

@@ -133,9 +133,10 @@ function summarize_result {
   p9999=$( grep "^Percentiles:" $test_out | tail -1 | awk '{ printf "%.0f", $11 }' )
   pmax=$( grep "^Min: " $test_out | grep Median: | grep Max: | awk '{ printf "%.0f", $6 }' )
 
+  # Use the last line because there might be extra lines when the db_bench process exits with an error
   time_out=$test_out.time
-  u_cpu=$( awk '{ printf "%.1f", $2 / 1000.0 }' $time_out )
-  s_cpu=$( awk '{ printf "%.1f", $3 / 1000.0  }' $time_out )
+  u_cpu=$( tail -1 $time_out | awk '{ printf "%.1f", $2 / 1000.0 }' )
+  s_cpu=$( tail -1 $time_out | awk '{ printf "%.1f", $3 / 1000.0  }' )
 
   rss="NA"
   if [ -f $test_out.stats.ps ]; then
