@@ -122,7 +122,8 @@ function summarize_result {
   c_csecs="NA"
 
   lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ gb=($3 / 1024); if (gb >= 1) { printf "%.1fGB", gb } else { printf "%.0fMB", $3 } }' )
-  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
+  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%.0f%s", $7, $8 }' )
+  blob_size=$( echo "$blob_size" | sed 's/,//g' )
 
   b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
   b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )

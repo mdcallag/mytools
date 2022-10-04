@@ -699,7 +699,8 @@ function summarize_result {
   c_csecs=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $16 }' )
 
   lsm_size=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f%s", $3, $4 }' )
-  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%s%s", $7, $8 }' )
+  blob_size=$( grep "^Blob file count:" $test_out | tail -1 | awk '{ printf "%.0f%s", $7, $8 }' )
+  blob_size=$( echo "$blob_size" | sed 's/,//g' )
 
   b_rgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $21 }' )
   b_wgb=$( grep "^ Sum" $test_out | tail -1 | awk '{ printf "%.0f", $22 }' )
