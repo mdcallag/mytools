@@ -747,7 +747,7 @@ function summarize_result {
     echo -e "# date - Date/time of test" >> $report
     echo -e "# version - RocksDB version" >> $report
     echo -e "# job_id - User-provided job ID" >> $report
-    echo -e "# githash - git hash at which db_bench was compiled"
+    echo -e "# githash - git hash at which db_bench was compiled" >> $report
     echo -e $tsv_header >> $report
   fi
 
