@@ -23,7 +23,7 @@ cm=1
 
 latest_versions=( 6.28.fb )
 first_last_versions=( 6.0.fb 6.29.fb )
-six_versions=( 6.0.fb 6.1.fb 6.2.fb 6.3.fb 6.4.fb 6.5.fb 6.6.fb 6.7.fb 6.8.fb 6.9.fb 6.10.fb 6.11.fb 6.12.fb 6.13.fb 6.14.fb 6.15.fb 6.16.fb 6.17.fb 6.18.fb 6.19.fb 6.20.fb 6.21.fb 6.22.fb 6.23.fb 6.24.fb 6.25.fb 6.26.fb 6.27.fb 6.28.fb 6.29.fb
+six_versions=( 6.0.fb 6.1.fb 6.2.fb 6.3.fb 6.4.fb 6.5.fb 6.6.fb 6.7.fb 6.8.fb 6.9.fb 6.10.fb 6.11.fb 6.12.fb 6.13.fb 6.14.fb 6.15.fb 6.16.fb 6.17.fb 6.18.fb 6.19.fb 6.20.fb 6.21.fb 6.22.fb 6.23.fb 6.24.fb 6.25.fb 6.26.fb 6.27.fb 6.28.fb 6.29.fb )
 seven_versions=( 7.0.fb 7.1.fb 7.2.fb 7.3.fb 7.4.fb 7.5.fb 7.6.fb 7.7.fb )
 sixseven_versions=( 6.0.fb 6.1.fb 6.2.fb 6.3.fb 6.4.fb 6.5.fb 6.6.fb 6.7.fb 6.8.fb 6.9.fb 6.10.fb 6.11.fb 6.12.fb 6.13.fb 6.14.fb 6.15.fb 6.16.fb 6.17.fb 6.18.fb 6.19.fb 6.20.fb 6.21.fb 6.22.fb 6.23.fb 6.24.fb 6.25.fb 6.26.fb 6.27.fb 6.28.fb 6.29.fb 7.0.fb 7.1.fb 7.2.fb 7.3.fb  7.4.fb 7.5.fb 7.6.fb 7.7.fb )
 
