@@ -1,10 +1,11 @@
 
 sz=$1
 # clock0 clock1 clock2 clock3
-c=$2
+#c=$2
 
 #benchmark_compare.sh  benchmark.sh.clock0  benchmark.sh.clock1  benchmark.sh.clock2  benchmark.sh.clock3
 
+for c in clock0 clock3 ; do
 for d in no 64.512 8.64 ; do
   rm -f benchmark_compare.sh
   ln -s skew.$d/benchmark_compare.sh benchmark_compare.sh
@@ -20,4 +21,5 @@ for d in no 64.512 8.64 ; do
     mv res.$sz res.$sz.$c.$dop.skew.$d
   done
 
+done
 done

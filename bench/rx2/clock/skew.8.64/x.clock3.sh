@@ -21,7 +21,7 @@ fi
 
 cm=1
 
-latest_versions=( sep23.c76a90ceb )
+latest_versions=( 7.7.fb )
 #latest_versions=( pr10626.df8911a0 )
 first_last_versions=( 6.0.fb 6.29.fb )
 
