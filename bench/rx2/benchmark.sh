@@ -248,6 +248,7 @@ prepopulate_blob_cache=${PREPOPULATE_BLOB_CACHE:-0}
 # This script still works back to RocksDB 6.0
 undef_params="\
 use_blob_cache,\
+blob_file_starting_level,\
 use_shared_block_and_blob_cache,\
 blob_cache_size,blob_cache_numshardbits,\
 prepopulate_blob_cache,\
