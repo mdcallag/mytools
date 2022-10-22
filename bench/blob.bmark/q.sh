@@ -122,9 +122,16 @@ fi
 
 echo "dbdir=$dbdir, nsecs=$nsecs" >> o.q.res.$sfx
 
-iops=$( grep $devname o.q.io.$sfx | awk '{ c+=1; rps += $2 } END { printf "%.0f", rps/c }' )
 qps=$( grep ^readrandom o.q.res.$sfx | awk '{ printf "%.1f", $5 }' )
-iops_qps_ratio=$( echo $iops $qps | awk '{ printf "%.3f", $1 / $2 }' )
+rps_col=$( iostat -kx 1 1 | grep r\/s | head -1 | awk '{ found=0; for (n=1; n<=NF; n+=1) { if ($n == "r/s") { found=n } } } END { printf "%s", found }' )
+if [ $rps_col -gt 0 ]; then
+  iops=$( grep $devname o.q.io.$sfx | awk '{ c+=1; rps += $2 } END { printf "%.0f", rps/c }' )
+  iops_qps_ratio=$( echo $iops $qps | awk '{ printf "%.3f", $1 / $2 }' )
+else
+  iops=NA
+  iops_qps_ratio=NA
+fi
+
 res_line=$( grep ^readrandom o.q.res.$sfx )
 echo $res_line iops=$iops io_per_query=$iops_qps_ratio
 
