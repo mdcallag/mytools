@@ -17,7 +17,7 @@ val_size=$8
 killall -q vmstat
 killall -q iostat
 
-sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}
+sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}
 
 iostat -y -mx 1 >& o.l.io.$sfx &
 ipid=$!

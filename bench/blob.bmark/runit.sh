@@ -8,7 +8,7 @@ nsecs=$5
 cachemb=$6
 # value for --use_existing_keys
 nmkeys=$7
-devname=$8
+dev_suffix=$8
 # yes to use fillrandom, no to do filluniquerandom
 # When no, then there is no need for --use_existing_keys as all keys exist.
 # Note that --use_existing_keys can be very slow at startup thanks to
@@ -33,7 +33,7 @@ for cleanup in none memtable L0 L1 ; do
       use_cleanup=none
     fi
     echo Run for nthr=$nthr and cleanup=$cleanup
-    bash q.sh $dbdir $nsecs $nthr $cachemb $cleanup $use_cleanup $nmkeys $devname $fillrand $block_align
+    bash q.sh $dbdir $nsecs $nthr $cachemb $cleanup $use_cleanup $nmkeys $dev_suffix $fillrand $block_align $val_size
   done
 done
 
