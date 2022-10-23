@@ -11,13 +11,14 @@ fillrand=$6
 # true or false
 block_align=$7
 val_size=$8
+odirect=$9
 
 # TODO:   --use_shared_block_and_blob_cache=$use_shared_block_and_blob_cache \
 
 killall -q vmstat
 killall -q iostat
 
-sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}
+sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}
 
 iostat -y -mx 1 >& o.l.io.$sfx &
 ipid=$!
@@ -31,6 +32,10 @@ if [ $fillrand == "yes" ]; then
   bmark=fillrandom
 else
   bmark=filluniquerandom
+fi
+
+if [ $odirect == "yes" ]; then
+  odirect_flags="--use_direct_io_for_flush_and_compaction"
 fi
 
 ./db_bench \
@@ -55,7 +60,7 @@ fi
   --target_file_size_base=67108864 \
   --max_bytes_for_level_base=671088640 \
   --cache_size=0 \
-  --use_direct_io_for_flush_and_compaction \
+  $odirect_flags \
   --max_background_flushes=$bgflush \
   --max_background_compactions=$bgcomp \
   --subcompactions=$subcomp \

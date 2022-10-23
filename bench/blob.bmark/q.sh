@@ -13,6 +13,7 @@ dev_suffix=$8
 fillrand=$9
 block_align=${10}
 val_size=${11}
+odirect=${12}
 
 if [ $fillrand == "yes" ]; then
   existingkeys=1
@@ -20,10 +21,14 @@ else
   existingkeys=0
 fi
 
+if [ $odirect == "yes" ]; then
+  odirect_flags="--use_direct_io_for_flush_and_compaction --use_direct_reads"
+fi
+
 killall -q iostat
 killall -q vmstat
 
-sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}
+sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}
 
 if [ $cleanup_todo == "L1" ]; then
   echo "Flush memtable. Compact L0,L1"
@@ -114,8 +119,7 @@ fi
   --use_existing_db=1 \
   $ekopt \
   --cache_size=$cachebytes \
-  --use_direct_io_for_flush_and_compaction \
-  --use_direct_reads \
+  $odirect_flags \
   --report_file=o.q.rep.$sfx \
   --report_interval_seconds=1 \
   --block_align=$block_align \
