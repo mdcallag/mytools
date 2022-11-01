@@ -13,7 +13,10 @@ dbgb=$8
 # yes if files should be created, for iotype=dir or buf, 
 makefiles=$9
 
-for njobs in 1 2 4 8 16 32 48 64; do
+first=yes
+
+# The first run (njobs=3) is meant to be ignored
+for njobs in 3 1 2 4 8 16 32 48 64; do
 
 sfx=njobs${njobs}.iodepth${iodepth}.bs${bs}
 
@@ -41,29 +44,43 @@ elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
 
   mb_per_file=$( echo $dbgb $nfiles | awk '{ printf "%.0f", ($1 * 1024) / $2 }' )
 
-  if [ $makefiles == "yes" ]; then
-    echo "Removing $dbdir/fio.in.*"
-    sleep 5
-    rm -f $dbdir/fio.in.*
-  fi
-
   fiocmd="fio --filename=$fpath --filesize=${mb_per_file}m $exflags --rw=randread \
-    --bs=${bs} --ioengine=libaio --iodepth=$iodepth --runtime=$nsecs \
+    --bs=${bs} --ioengine=libaio --iodepth=$iodepth \
     --numjobs=$njobs --time_based --group_reporting \
     --name=iops-test-job --eta-newline=1 --eta-interval=1 \
     --eta=always"
-  echo $fiocmd > o.fio.res.$sfx
-  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd >> o.fio.res.$sfx 2>&1
+
+  touch o.fio.res.$sfx
+
+  if [[ $first == "yes" && $makefiles == "yes" ]]; then
+    echo "Removing $dbdir/fio.in.*"
+    sleep 5
+    rm -f $dbdir/fio.in.*
+    # Run fio to create the files, then sync them and rest
+    echo $fiocmd >> o.fio.res.$sfx
+    echo Create files like $dbdir/fio.in.*
+    /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd --runtime=30 >> o.fio.res.$sfx 2>&1
+    ls -lh $dbdir/fio.in.*
+    echo sync and sleep 30
+    sync; sleep 30
+  else
+    if [ $first == "yes" ]; then echo Use existing files; ls -lh $dbdir/fio.in.* ; fi
+    echo $fiocmd >> o.fio.res.$sfx
+    /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  fi
 
 else
   echo iotype :: $iotype :: is not supported
   exit 1
 fi
 
+first=no
+
 kill $ipid
 kill $vpid
 
-iops=$( cat o.fio.res.$sfx | grep iops | grep avg | awk '{ print $5 }' | tr ',' ' ' | sed 's/avg=//' )
+# iops        : min= 9184, max=11568, avg=9804.42, stdev=558.14, samples=59
+iops=$( cat o.fio.res.$sfx | grep iops | grep avg= | tail -1 | awk '{ for (x=3; x <= NF; x += 1) { if (index($x, "avg=") == 1) { print $x } } }' | tr ',' ' ' | sed 's/avg=//' | awk '{ printf "%.0f", $1 }' )
 ios=$( cat o.fio.res.$sfx | grep ios | awk '{ print $2 }' | tr ',/' ' ' | sed 's/ios=//g' | awk '{ print $1 }' )
 
 user_cpu=$( cat o.fio.time.$sfx | awk '{ print $2 }' )
