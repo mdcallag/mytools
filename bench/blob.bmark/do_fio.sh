@@ -12,13 +12,14 @@ nfiles=$7
 dbgb=$8
 # yes if files should be created, for iotype=dir or buf, 
 makefiles=$9
+ioengine=${10}
 
 first=yes
 
 # The first run (njobs=3) is meant to be ignored
 for njobs in 3 1 2 4 8 16 32 48 64; do
 
-sfx=njobs${njobs}.iodepth${iodepth}.bs${bs}
+sfx=njobs${njobs}.iodepth${iodepth}.bs${bs}.ioengine_${ioengine}
 
 killall -q iostat
 iostat -y -kx 1 >& o.fio.io.$sfx &
@@ -28,7 +29,7 @@ vpid=$!
 
 if [ $iotype == "raw" ]; then
   fiocmd="fio --filename=$devname --direct=1 --rw=randread \
-      --bs=${bs} --ioengine=libaio --iodepth=$iodepth --runtime=$nsecs \
+      --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth --runtime=$nsecs \
       --numjobs=$njobs --time_based --group_reporting \
       --name=iops-test-job --eta-newline=1 --eta-interval=1 \
       --readonly --eta=always"
@@ -45,7 +46,7 @@ elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
   mb_per_file=$( echo $dbgb $nfiles | awk '{ printf "%.0f", ($1 * 1024) / $2 }' )
 
   fiocmd="fio --filename=$fpath --filesize=${mb_per_file}m $exflags --rw=randread \
-    --bs=${bs} --ioengine=libaio --iodepth=$iodepth \
+    --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth \
     --numjobs=$njobs --time_based --group_reporting \
     --name=iops-test-job --eta-newline=1 --eta-interval=1 \
     --eta=always"
