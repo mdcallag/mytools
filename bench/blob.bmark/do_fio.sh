@@ -14,12 +14,18 @@ dbgb=$8
 makefiles=$9
 ioengine=${10}
 
+shift 10
+
 first=yes
 
 # The first run (njobs=3) is meant to be ignored
-for njobs in 3 1 2 4 8 16 32 48 64; do
+# njobs in 3 1 2 4 8 16 32 48 64
+# njobs in 3 1 2 5 10 20 30 40 60 80 
+
+for njobs in "$@" ; do
 
 sfx=njobs${njobs}.iodepth${iodepth}.bs${bs}.ioengine_${ioengine}
+seed=$( date +%s )
 
 killall -q iostat
 iostat -y -kx 1 >& o.fio.io.$sfx &
@@ -32,6 +38,7 @@ if [ $iotype == "raw" ]; then
       --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth --runtime=$nsecs \
       --numjobs=$njobs --time_based --group_reporting \
       --name=iops-test-job --eta-newline=1 --eta-interval=1 \
+      --randseed=$seed \
       --readonly --eta=always"
   echo $fiocmd > o.fio.res.$sfx
   /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd >> o.fio.res.$sfx 2>&1
@@ -49,6 +56,7 @@ elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
     --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth \
     --numjobs=$njobs --time_based --group_reporting \
     --name=iops-test-job --eta-newline=1 --eta-interval=1 \
+    --randseed=$seed \
     --eta=always"
 
   touch o.fio.res.$sfx

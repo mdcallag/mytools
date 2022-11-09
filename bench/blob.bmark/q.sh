@@ -97,6 +97,8 @@ cache_opts="\
   --pin_l0_filter_and_index_blocks_in_cache=false"
 fi
 
+seed=$( date +%s )
+
 /usr/bin/time -o o.q.time.$sfx -f '%e %U %S' \
 ./db_bench \
   --benchmarks=readrandom,stats \
@@ -124,7 +126,7 @@ fi
   --report_interval_seconds=1 \
   --block_align=$block_align \
   --compression_type=none \
-  --seed=1056573037454101 >> o.q.res.$sfx 2>&1
+  --seed=$seed >> o.q.res.$sfx 2>&1
 
 echo "dbdir=$dbdir, nsecs=$nsecs" >> o.q.res.$sfx
 
