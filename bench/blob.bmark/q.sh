@@ -14,6 +14,7 @@ fillrand=$9
 block_align=${10}
 val_size=${11}
 odirect=${12}
+useblob=${13}
 
 if [ $fillrand == "yes" ]; then
   existingkeys=1
@@ -97,9 +98,24 @@ cache_opts="\
   --pin_l0_filter_and_index_blocks_in_cache=false"
 fi
 
+if [ $useblob == "yes" ]; then
+extra_flags="\
+  --enable_blob_files=true \
+  --min_blob_size=1024 \
+  --blob_file_size=536870912 \
+  --enable_blob_garbage_collection=true \
+  --blob_garbage_collection_age_cutoff=0.300000 \
+  --pin_l0_filter_and_index_blocks_in_cache=false \
+  --blob_garbage_collection_force_threshold=0.100000 "
+else
+extra_flags="\
+  --bloom_bits=10 \
+  --level_compaction_dynamic_level_bytes=true "
+fi
+
 seed=$( date +%s )
 
-/usr/bin/time -o o.q.time.$sfx -f '%e %U %S' \
+dbb_cmd="\
 ./db_bench \
   --benchmarks=readrandom,stats \
   --db=$dbdir \
@@ -126,7 +142,10 @@ seed=$( date +%s )
   --report_interval_seconds=1 \
   --block_align=$block_align \
   --compression_type=none \
-  --seed=$seed >> o.q.res.$sfx 2>&1
+  --seed=$seed "
+
+echo $dbb_cmd >> o.q.res.$sfx
+/usr/bin/time -o o.q.time.$sfx -f '%e %U %S' $dbb_cmd >> o.q.res.$sfx 2>&1
 
 echo "dbdir=$dbdir, nsecs=$nsecs" >> o.q.res.$sfx
 

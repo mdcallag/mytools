@@ -12,6 +12,7 @@ fillrand=$6
 block_align=$7
 val_size=$8
 odirect=$9
+useblob=${10}
 
 # TODO:   --use_shared_block_and_blob_cache=$use_shared_block_and_blob_cache \
 
@@ -38,9 +39,26 @@ if [ $odirect == "yes" ]; then
   odirect_flags="--use_direct_io_for_flush_and_compaction"
 fi
 
+if [ $useblob == "yes" ]; then
+extra_flags="\
+  --enable_blob_files=true \
+  --min_blob_size=1024 \
+  --blob_file_size=536870912 \
+  --enable_blob_garbage_collection=true \
+  --blob_garbage_collection_age_cutoff=0.300000 \
+  --pin_l0_filter_and_index_blocks_in_cache=false \
+  --blob_garbage_collection_force_threshold=0.100000 "
+else
+extra_flags="\
+  --bloom_bits=10 \
+  --level_compaction_dynamic_level_bytes=true "
+fi
+
+dbb_cmd="\
 ./db_bench \
   --benchmarks=$bmark,stats \
   --num=$(( nmkeys * 1000000 )) \
+  --compaction_style=0 \
   --threads=1 \
   --db=$dbdir \
   --key_size=16 \
@@ -48,19 +66,13 @@ fi
   --value_size=$val_size \
   --compression_type=none \
   --enable_pipelined_write=true \
-  --enable_blob_files=true \
-  --min_blob_size=1024 \
-  --enable_blob_garbage_collection=true \
-  --blob_garbage_collection_age_cutoff=0.300000 \
-  --blob_garbage_collection_force_threshold=0.100000 \
-  --pin_l0_filter_and_index_blocks_in_cache=false \
   --disable_wal=true \
   --write_buffer_size=536870912 \
-  --blob_file_size=536870912 \
   --target_file_size_base=67108864 \
   --max_bytes_for_level_base=671088640 \
   --cache_size=0 \
   $odirect_flags \
+  $extra_flags \
   --max_background_flushes=$bgflush \
   --max_background_compactions=$bgcomp \
   --subcompactions=$subcomp \
@@ -72,7 +84,10 @@ fi
   --max_bytes_for_level_multiplier=10 \
   --report_file=o.l.rep.$sfx \
   --report_interval_seconds=1 \
-  --seed=1665573037454110 >& o.l.res.$sfx
+  --seed=1665573037454110 "
+
+echo $dbb_cmd > o.l.res.$sfx
+$dbb_cmd >> o.l.res.$sfx 2>&1
 
 grep ^${bmark} o.l.res.$sfx
 echo "dbdir=$dbdir, bgflush=$bgflush, bgcomp=$bgcomp, subcomp=$subcomp" >> o.l.res.$sfx
