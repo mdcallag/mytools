@@ -16,11 +16,46 @@ ioengine=${10}
 
 shift 10
 
-first=yes
+# njobs in 1 2 4 8 16 32 48 64
 
-# The first run (njobs=3) is meant to be ignored
-# njobs in 3 1 2 4 8 16 32 48 64
-# njobs in 3 1 2 5 10 20 30 40 60 80 
+fpath=""
+for x in $( seq 1 $(( nfiles - 1)) ); do fpath=${fpath}${dbdir}"/fio.in."${x}":" ; done
+fpath=${fpath}${dbdir}"/fio.in."${nfiles}
+mb_per_file=$( echo $dbgb $nfiles | awk '{ printf "%.0f", ($1 * 1024) / $2 }' )
+
+# --randseed=$njobs \
+# --randrepeat=0 --norandommap \
+# --randrepeat=0 \
+fiocmd_noraw="fio --filename=$fpath --filesize=${mb_per_file}m --rw=randread \
+  --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth \
+  --time_based --group_reporting \
+  --name=iops-test-job --eta-newline=1 --eta-interval=1 \
+  --randrepeat=0 --norandommap \
+  --invalidate=0 \
+  --eta=always"
+
+# Create the test files if needed
+if [[ $makefiles == "yes" && ( $iotype == "dir" || $iotype == "buf" ) ]]; then
+  if [ $iotype == "dir" ]; then
+    exflags="--direct=1"
+  else
+    exflags="--direct=0"
+  fi
+
+  sfx=makefiles.iodepth${iodepth}.bs${bs}.ioengine_${ioengine}
+  touch o.fio.res.$sfx
+
+  echo "Removing $dbdir/fio.in.*"
+  sleep 5
+  rm -f $dbdir/fio.in.*
+  # Run fio to create the files, then sync them and rest
+  echo "$fiocmd_noraw $exflags --numjobs=1 --runtime=10" >> o.fio.res.$sfx
+  echo Create files like $dbdir/fio.in.*
+  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw $exflags --numjobs=1 --runtime=10 >> o.fio.res.$sfx 2>&1
+  ls -lh $dbdir/fio.in.*
+  echo sync and sleep 30
+  sync; sleep 30
+fi
 
 for njobs in "$@" ; do
 
@@ -46,44 +81,21 @@ if [ $iotype == "raw" ]; then
 elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
   if [ $iotype == "dir" ]; then exflags="--direct=1"; else exflags="--direct=0"; fi
 
-  fpath=""
-  for x in $( seq 1 $(( nfiles - 1)) ); do fpath=${fpath}${dbdir}"/fio.in."${x}":" ; done
-  fpath=${fpath}${dbdir}"/fio.in."${nfiles}
-
-  mb_per_file=$( echo $dbgb $nfiles | awk '{ printf "%.0f", ($1 * 1024) / $2 }' )
-
-  fiocmd="fio --filename=$fpath --filesize=${mb_per_file}m $exflags --rw=randread \
-    --bs=${bs} --ioengine=$ioengine --iodepth=$iodepth \
-    --numjobs=$njobs --time_based --group_reporting \
-    --name=iops-test-job --eta-newline=1 --eta-interval=1 \
-    --randseed=$seed \
-    --eta=always"
-
   touch o.fio.res.$sfx
 
-  if [[ $first == "yes" && $makefiles == "yes" ]]; then
-    echo "Removing $dbdir/fio.in.*"
-    sleep 5
-    rm -f $dbdir/fio.in.*
-    # Run fio to create the files, then sync them and rest
-    echo $fiocmd >> o.fio.res.$sfx
-    echo Create files like $dbdir/fio.in.*
-    /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd --runtime=30 >> o.fio.res.$sfx 2>&1
+  if [ $first == "yes" ]; then
+    echo Use existing files
     ls -lh $dbdir/fio.in.*
-    echo sync and sleep 30
-    sync; sleep 30
-  else
-    if [ $first == "yes" ]; then echo Use existing files; ls -lh $dbdir/fio.in.* ; fi
-    echo $fiocmd >> o.fio.res.$sfx
-    /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd --runtime=$nsecs >> o.fio.res.$sfx 2>&1
   fi
+
+  echo "$fiocmd_noraw --runtime=$nsecs" >> o.fio.res.$sfx
+  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  #strace -e trace=pread64 -f -o o.fio.st.$sfx $fiocmd_noraw --runtime=$nsecs >> o.fio.res.$sfx 2>&1
 
 else
   echo iotype :: $iotype :: is not supported
   exit 1
 fi
-
-first=no
 
 kill $ipid
 kill $vpid
