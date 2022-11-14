@@ -57,6 +57,9 @@ if [[ $makefiles == "yes" && ( $iotype == "dir" || $iotype == "buf" ) ]]; then
   sync; sleep 30
 fi
 
+echo Using files
+ls -lh $dbdir/fio.in.*
+
 for njobs in "$@" ; do
 
 sfx=njobs${njobs}.iodepth${iodepth}.bs${bs}.ioengine_${ioengine}
@@ -82,11 +85,6 @@ elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
   if [ $iotype == "dir" ]; then exflags="--direct=1"; else exflags="--direct=0"; fi
 
   touch o.fio.res.$sfx
-
-  if [ $first == "yes" ]; then
-    echo Use existing files
-    ls -lh $dbdir/fio.in.*
-  fi
 
   echo "$fiocmd_noraw --runtime=$nsecs" >> o.fio.res.$sfx
   /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --runtime=$nsecs >> o.fio.res.$sfx 2>&1
