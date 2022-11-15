@@ -21,7 +21,7 @@ odirect=${12}
 # yes or no
 useblob=${13}
 
-shift 12
+shift 13
 
 #rm -rf $dbdir; mkdir $dbdir
 bash l.sh $dbdir $bgflush $bgcomp $subcomp $nmkeys $fillrand $block_align $val_size $odirect $useblob
