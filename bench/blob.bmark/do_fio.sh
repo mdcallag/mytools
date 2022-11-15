@@ -86,9 +86,9 @@ elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
 
   touch o.fio.res.$sfx
 
-  echo "$fiocmd_noraw --runtime=$nsecs" >> o.fio.res.$sfx
-  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --runtime=$nsecs >> o.fio.res.$sfx 2>&1
-  #strace -e trace=pread64 -f -o o.fio.st.$sfx $fiocmd_noraw --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  echo "$fiocmd_noraw --numjobs=$njobs --runtime=$nsecs" >> o.fio.res.$sfx
+  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  #strace -e trace=pread64 -f -o o.fio.st.$sfx $fiocmd_noraw --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
 
 else
   echo iotype :: $iotype :: is not supported
