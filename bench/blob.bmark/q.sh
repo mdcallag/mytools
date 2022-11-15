@@ -23,67 +23,11 @@ else
 fi
 
 if [ $odirect == "yes" ]; then
-  odirect_flags="--use_direct_io_for_flush_and_compaction --use_direct_reads"
+  odirect_opts="--use_direct_io_for_flush_and_compaction --use_direct_reads"
 fi
 
 killall -q iostat
 killall -q vmstat
-
-sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}
-
-if [ $cleanup_todo == "L1" ]; then
-  echo "Flush memtable. Compact L0,L1"
-  ./db_bench \
-    --benchmarks=stats,flush,waitforcompaction,compact0,waitforcompaction,compact1,waitforcompaction,stats \
-    --db=$dbdir \
-    --use_existing_db=1 \
-    --block_align=$block_align \
-    --compression_type=none \
-    --use_direct_io_for_flush_and_compaction \
-    --use_direct_reads >& o.q.res.$sfx
-elif [ $cleanup_todo == "L0" ]; then
-  echo "Flush memtable. Compact L0"
-  ./db_bench \
-    --benchmarks=stats,flush,waitforcompaction,compact0,waitforcompaction,stats \
-    --db=$dbdir \
-    --use_existing_db=1 \
-    --block_align=$block_align \
-    --compression_type=none \
-    --use_direct_io_for_flush_and_compaction \
-    --use_direct_reads >& o.q.res.$sfx
-elif [ $cleanup_todo == "memtable" ]; then
-  echo "Flush memtable."
-  ./db_bench \
-    --benchmarks=stats,flush,waitforcompaction,stats \
-    --db=$dbdir \
-    --use_existing_db=1 \
-    --block_align=$block_align \
-    --compression_type=none \
-    --use_direct_io_for_flush_and_compaction \
-    --use_direct_reads >& o.q.res.$sfx
-else
-  echo "Just waitforcompaction."
-  ./db_bench \
-    --benchmarks=stats,waitforcompaction,stats \
-    --db=$dbdir \
-    --use_existing_db=1 \
-    --block_align=$block_align \
-    --compression_type=none \
-    --use_direct_io_for_flush_and_compaction \
-    --use_direct_reads >& o.q.res.$sfx
-fi
-
-if [ $existingkeys -eq 1 ]; then
-  ekopt="--use_existing_keys=1"
-else
-  ekopt="--num=$(( nmkeys * 1000000 ))"
-fi
-
-iostat -y -mx 1 >& o.q.io.$sfx &
-ipid=$!
-
-vmstat 1 >& o.q.vm.$sfx &
-vpid=$!
 
 cachebytes=$(( $cachemb * 1024 * 1024 ))
 
@@ -99,7 +43,7 @@ cache_opts="\
 fi
 
 if [ $useblob == "yes" ]; then
-extra_flags="\
+extra_opts="\
   --enable_blob_files=true \
   --min_blob_size=1024 \
   --blob_file_size=536870912 \
@@ -108,10 +52,83 @@ extra_flags="\
   --pin_l0_filter_and_index_blocks_in_cache=false \
   --blob_garbage_collection_force_threshold=0.100000 "
 else
-extra_flags="\
+extra_opts="\
   --bloom_bits=10 \
   --level_compaction_dynamic_level_bytes=true "
 fi
+
+common_opts="\
+  --write_buffer_size=536870912 \
+  --target_file_size_base=67108864 \
+  --max_bytes_for_level_base=671088640 \
+  --num_levels=8 \
+  --max_bytes_for_level_multiplier=10 \
+  --disable_wal=true \
+  --block_align=$block_align \
+  --compression_type=none \
+  --cache_size=$cachebytes "
+
+sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}
+
+if [ $cleanup_todo == "L1" ]; then
+  echo "Flush memtable. Compact L0,L1"
+  ./db_bench \
+    --benchmarks=stats,flush,waitforcompaction,compact0,waitforcompaction,compact1,waitforcompaction,stats \
+    --db=$dbdir \
+    --use_existing_db=1 \
+    $cache_opts \
+    $extra_opts \
+    $common_opts \
+    --use_direct_io_for_flush_and_compaction \
+    --use_direct_reads >& o.q.res.$sfx
+elif [ $cleanup_todo == "L0" ]; then
+  echo "Flush memtable. Compact L0"
+  ./db_bench \
+    --benchmarks=stats,flush,waitforcompaction,compact0,waitforcompaction,stats \
+    --db=$dbdir \
+    --use_existing_db=1 \
+    --block_align=$block_align \
+    --compression_type=none \
+    $cache_opts \
+    $extra_opts \
+    $common_opts \
+    --use_direct_io_for_flush_and_compaction \
+    --use_direct_reads >& o.q.res.$sfx
+elif [ $cleanup_todo == "memtable" ]; then
+  echo "Flush memtable."
+  ./db_bench \
+    --benchmarks=stats,flush,waitforcompaction,stats \
+    --db=$dbdir \
+    --use_existing_db=1 \
+    $cache_opts \
+    $extra_opts \
+    $common_opts \
+    --use_direct_io_for_flush_and_compaction \
+    --use_direct_reads >& o.q.res.$sfx
+else
+  echo "Just waitforcompaction."
+  ./db_bench \
+    --benchmarks=stats,waitforcompaction,stats \
+    --db=$dbdir \
+    --use_existing_db=1 \
+    $cache_opts \
+    $extra_opts \
+    $common_opts \
+    --use_direct_io_for_flush_and_compaction \
+    --use_direct_reads >& o.q.res.$sfx
+fi
+
+if [ $existingkeys -eq 1 ]; then
+  ek_opts="--use_existing_keys=1"
+else
+  ek_opts="--num=$(( nmkeys * 1000000 ))"
+fi
+
+iostat -y -mx 1 >& o.q.io.$sfx &
+ipid=$!
+
+vmstat 1 >& o.q.vm.$sfx &
+vpid=$!
 
 seed=$( date +%s )
 
@@ -121,27 +138,14 @@ dbb_cmd="\
   --db=$dbdir \
   --threads=$nthr \
   --duration=$nsecs \
-  --enable_blob_files=true \
-  --min_blob_size=1024 \
-  --enable_blob_garbage_collection=true \
-  --blob_garbage_collection_age_cutoff=0.30000 \
-  --blob_garbage_collection_force_threshold=0.100000 \
-  $cache_opts \
-  --write_buffer_size=536870912 \
-  --blob_file_size=536870912 \
-  --target_file_size_base=67108864 \
-  --max_bytes_for_level_base=671088640 \
-  --num_levels=8 \
-  --max_bytes_for_level_multiplier=10 \
-  --disable_wal=true \
   --use_existing_db=1 \
-  $ekopt \
-  --cache_size=$cachebytes \
-  $odirect_flags \
+  $cache_opts \
+  $extra_opts \
+  $common_opts \
+  $ek_opts \
+  $odirect_opts \
   --report_file=o.q.rep.$sfx \
   --report_interval_seconds=1 \
-  --block_align=$block_align \
-  --compression_type=none \
   --seed=$seed "
 
 echo $dbb_cmd >> o.q.res.$sfx
