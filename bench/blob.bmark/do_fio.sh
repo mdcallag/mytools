@@ -36,11 +36,6 @@ fiocmd_noraw="fio --filename=$fpath --filesize=${mb_per_file}m --rw=randread \
 
 # Create the test files if needed
 if [[ $makefiles == "yes" && ( $iotype == "dir" || $iotype == "buf" ) ]]; then
-  if [ $iotype == "dir" ]; then
-    exflags="--direct=1"
-  else
-    exflags="--direct=0"
-  fi
 
   sfx=makefiles.iodepth${iodepth}.bs${bs}.ioengine_${ioengine}
   touch o.fio.res.$sfx
@@ -49,9 +44,9 @@ if [[ $makefiles == "yes" && ( $iotype == "dir" || $iotype == "buf" ) ]]; then
   sleep 5
   rm -f $dbdir/fio.in.*
   # Run fio to create the files, then sync them and rest
-  echo "$fiocmd_noraw $exflags --numjobs=1 --runtime=10" >> o.fio.res.$sfx
+  echo "$fiocmd_noraw --direct=1 --numjobs=1 --runtime=10" >> o.fio.res.$sfx
   echo Create files like $dbdir/fio.in.*
-  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw $exflags --numjobs=1 --runtime=10 >> o.fio.res.$sfx 2>&1
+  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --direct=1 --numjobs=1 --runtime=10 >> o.fio.res.$sfx 2>&1
   ls -lh $dbdir/fio.in.*
   echo sync and sleep 30
   sync; sleep 30
@@ -82,13 +77,13 @@ if [ $iotype == "raw" ]; then
   /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd >> o.fio.res.$sfx 2>&1
 
 elif [[ $iotype == "dir" || $iotype == "buf" ]]; then
-  if [ $iotype == "dir" ]; then exflags="--direct=1"; else exflags="--direct=0"; fi
+  if [ $iotype == "dir" ]; then exflags="--direct=1"; else exflags="--direct=0 --fadvise_hint=random"; fi
 
   touch o.fio.res.$sfx
 
-  echo "$fiocmd_noraw --numjobs=$njobs --runtime=$nsecs" >> o.fio.res.$sfx
-  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
-  #strace -e trace=pread64 -f -o o.fio.st.$sfx $fiocmd_noraw --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  echo "$fiocmd_noraw $exflags --numjobs=$njobs --runtime=$nsecs" >> o.fio.res.$sfx
+  /usr/bin/time -o o.fio.time.$sfx -f '%e %U %S' $fiocmd_noraw $exflags --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
+  #strace -e trace=pread64 -f -o o.fio.st.$sfx $fiocmd_noraw $exflags --numjobs=$njobs --runtime=$nsecs >> o.fio.res.$sfx 2>&1
 
 else
   echo iotype :: $iotype :: is not supported
