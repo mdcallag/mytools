@@ -18,7 +18,7 @@ fi
 shift 10
 
 if [[ $npart -eq 0 ]]; then
-for dc in rx56.y9a rx56.y9b rx56.y9c rx56.y9c0 rx56.y9c1 rx56.y9c2 rx56.y13a rx56.y13b ; do
+for dc in rx56.y9c ; do
 for ver in fbmy5635 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/fbmy56; ln -s $mbd/$ver $mbd/fbmy56
@@ -32,7 +32,7 @@ fi
 
 if [[ $npart -eq 0 ]]; then
 for dc in rx80.y9c ; do
-for ver in fbmy8020 ; do
+for ver in fbmy8028 fbmy8020 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/fbmy80; ln -s $mbd/$ver $mbd/fbmy80
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
@@ -44,7 +44,7 @@ done
 fi
 
 for dc in in80.y8 ; do
-for ver in my8027 my8026 my8023 my8022 my8020 ; do
+for ver in my8031 ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
@@ -75,6 +75,8 @@ for ver in my5649 ; do
   sleep 600
 done
 done
+
+exit
 
 for dc in pg12.x7 ; do
 for ver in pg1211 ; do
