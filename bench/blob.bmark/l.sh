@@ -84,6 +84,7 @@ dbb_cmd="\
   --max_bytes_for_level_multiplier=10 \
   --report_file=o.l.rep.$sfx \
   --report_interval_seconds=1 \
+  --stats_per_interval=1 --stats_interval_seconds=60 \
   --seed=1665573037454110 "
 
 echo $dbb_cmd > o.l.res.$sfx
