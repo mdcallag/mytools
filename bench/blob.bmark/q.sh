@@ -68,7 +68,7 @@ common_opts="\
   --compression_type=none \
   --cache_size=$cachebytes "
 
-fx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}
+sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}
 
 if [ $cleanup_todo == "L1" ]; then
   echo "Flush memtable. Compact L0,L1"
