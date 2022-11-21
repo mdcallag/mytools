@@ -19,7 +19,7 @@ useblob=${10}
 killall -q vmstat
 killall -q iostat
 
-sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}
+sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}
 
 iostat -y -mx 1 >& o.l.io.$sfx &
 ipid=$!
