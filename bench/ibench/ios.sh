@@ -46,7 +46,7 @@ printf "nsamp\tr/s\trMB/s\tw/s\twMB/s\tr/i\trKB/i\tw/i\twKB/i\tips\n"
 
 grep $dname $iof | awk '{ rs += $crs; rkb += $crkb; ws += $cws; wkb += $cwkb; c += 1 } END { printf "%s\t%.1f\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f\t%.3f\t%s\n", c, rs/c, rkb/c/1024.0, ws/c, wkb/c/1024.0, rs/c/q, rkb/c/q, ws/c/q, wkb/c/q, q }' q=${insert_rate} p=$realdop r=$rpc crs=$crs crkb=$crkb cwkb=$cwkb cws=$cws
 
-> grep $dname $iof | awk '{ rs += $crs; rkb += $crkb; ws += $cws; wkb += $cwkb; c += 1 } END { printf "%s\t%.1f\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f\t%s\n", c, rs/c, rkb/c/1024.0, ws/c, wkb/c/1024.0, rs/c/q, rkb/c/q, wkb/c/q, q }' q=${ops} p=$realdop crs=$crs crkb=$crkb cwkb=$cwkb cws=$cws
+grep $dname $iof | awk '{ rs += $crs; rkb += $crkb; ws += $cws; wkb += $cwkb; c += 1 } END { printf "%s\t%.1f\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f\t%s\n", c, rs/c, rkb/c/1024.0, ws/c, wkb/c/1024.0, rs/c/q, rkb/c/q, wkb/c/q, q }' q=${ops} p=$realdop crs=$crs crkb=$crkb cwkb=$cwkb cws=$cws
 
 printf "\nnsamp\tcs/s\tcpu/s\tcs/q\tcpu/q\n"
 grep -v swpd $vmf | awk '{ if (NR>1) { cs += $12; cpu += $13 + $14; c += 1 } } END { printf "%s\t%.0f\t%.1f\t%.3f\t%.6f\n", c, cs/c, cpu/c, cs/c/q, cpu/c/q }' q=${insert_rate}
