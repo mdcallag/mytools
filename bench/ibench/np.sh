@@ -183,7 +183,7 @@ for n in $( seq 1 $realdop ) ; do
   fi
 
   upq=""
-  if [[ $dbms == "postgres" ;; then
+  if [ $dbms == "postgres" ] then
     upq="--use_prepared_query"
   fi
 
