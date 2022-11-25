@@ -1,10 +1,15 @@
 bin/mysqladmin -uroot -ppw shutdown
 
+rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy
+rm -rf /data/m/pg; mkdir -p /data/m/pg
+rm -rf /data/m/rx; mkdir -p /data/m/rx
+
+rm -rf /data/m/my; mkdir -p /data/m/my
+mkdir /data/m/my/binlogs
+mkdir /data/m/my/txlogs
+mkdir /data/m/my/data
+
 rm -rf var; mkdir var
-rm -rf /data/m/my/*
-mkdir -p /data/m/my/data
-mkdir -p /data/m/my/binlogs
-mkdir -p /data/m/my/txlogs
 
 csfx=def
 if [ "$#" -ge 1 ]; then

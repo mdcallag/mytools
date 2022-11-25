@@ -1,10 +1,14 @@
 bin/mysqladmin -uroot -ppw shutdown
 sleep 3
 
+rm -rf /data/m/my; mkdir -p /data/m/my
+rm -rf /data/m/pg; mkdir -p /data/m/pg
+rm -rf /data/m/rx; mkdir -p /data/m/rx
+
 rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy
-mkdir -p /data/m/fbmy/data
-mkdir -p /data/m/fbmy/binlogs
-mkdir -p /data/m/fbmy/txlogs
+mkdir /data/m/fbmy/binlogs
+mkdir /data/m/fbmy/txlogs
+mkdir /data/m/fbmy/data
 
 rm -rf var; mkdir var
 
