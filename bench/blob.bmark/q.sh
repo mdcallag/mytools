@@ -49,7 +49,6 @@ extra_opts="\
   --blob_file_size=536870912 \
   --enable_blob_garbage_collection=true \
   --blob_garbage_collection_age_cutoff=0.300000 \
-  --pin_l0_filter_and_index_blocks_in_cache=false \
   --blob_garbage_collection_force_threshold=0.100000 "
 else
 extra_opts="\
