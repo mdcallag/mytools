@@ -148,7 +148,7 @@ dbb_cmd="\
   --report_interval_seconds=1 \
   --seed=$seed "
 
-echo $dbb_cmd >> o.q.res.$sfx
+echo $dbb_cmd > o.q.res.$sfx
 /usr/bin/time -o o.q.time.$sfx -f '%e %U %S' $dbb_cmd >> o.q.res.$sfx 2>&1
 
 echo "dbdir=$dbdir, nsecs=$nsecs" >> o.q.res.$sfx
