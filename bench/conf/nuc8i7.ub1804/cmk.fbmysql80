@@ -1,0 +1,55 @@
+if [ -z $1 ]; then
+echo Requires prefix as arg1
+exit -1
+fi
+
+RXF=" -DROCKSDB_DEFAULT_TO_ADAPTIVE_MUTEX -DROCKSDB_SUPPORT_THREAD_LOCAL -DROCKSDB_SCHED_GETCPU_PRESENT"
+RXF+=" -DROCKSDB_RANGESYNC_PRESENT -DROCKSDB_MALLOC_USABLE_SIZE -DROCKSDB_FALLOCATE_PRESENT"
+RXF+=" -DHAVE_ALIGNED_NEW"
+RXF+=" -DROCKSDB_SUPPORT_THREAD_LOCAL"
+RXF+=" -DHAVE_PCLMUL -DHAVE_SSE42 -DHAVE_AVX2 -DHAVE_UINT128_EXTENSION"
+RXF+=" -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX"
+
+CXXF="-DNDEBUG -march=native -msse -msse4.2 -mpclmul"
+CXXF+=" -faligned-new"
+CXXF+=" $RXF"
+
+# extra flags to avoid warnings with gcc on ubuntu 18
+CF="-Wno-implicit-fallthrough -Wno-int-in-bool-context \
+  -Wno-shift-negative-value -Wno-misleading-indentation \
+  -Wno-format-overflow -Wno-nonnull -Wno-unused-function"
+
+CXXF+=" -Wno-implicit-fallthrough -Wno-int-in-bool-context \
+  -Wno-shift-negative-value -Wno-misleading-indentation \
+  -Wno-format-overflow -Wno-nonnull -Wno-unused-function"
+
+# -Wno-aligned-new"
+
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=system -DWITH_ZLIB=bundled -DMYSQL_MAINTAINER_MODE=0 -DENABLED_LOCAL_INFILE=1 -DENABLE_DTRACE=0  -DCMAKE_CXX_FLAGS="$CXXF" -DCMAKE_C_FLAGS="$CF" -DCMAKE_INSTALL_PREFIX=$1 \
+-DWITH_EMBEDDED_SERVER=0 \
+-DWITH_EMBEDDED_SHARED_LIBRARY=0 \
+-DWITH_BOOST=$PWD/../boost \
+-DWITH_SNAPPY=/usr/lib/x86_64-linux-gnu \
+-DWITH_LZ4=bundled \
+-DWITH_ZSTD=system
+
+#-DWITH_ZSTD=/usr/lib/x86_64-linux-gnu  
+
+# not used
+#-fno-rtti -g -W -Wextra -Wall -Wsign-compare -Wshadow -Wunused-parameter -Werror -I. -I./include -std=c++11
+# -fno-builtin-memcmp
+# -DSNAPPY -DGFLAGS=1 -DZLIB -DBZIP2 -DLZ4 -DZSTD -DNUMA
+# -DROCKSDB_BACKTRACE 
+# -DROCKSDB_JEMALLOC -DJEMALLOC_NO_DEMANGLE
+# -O2 -fno-omit-frame-pointer -momit-leaf-frame-pointer
+# -Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
+
+# used
+# -DNDEBUG
+# -march=native   -DHAVE_SSE42  -DHAVE_PCLMUL  -DHAVE_AVX2 -DHAVE_UINT128_EXTENSION
+# -DHAVE_ALIGNED_NEW -faligned-new 
+# -DROCKSDB_SUPPORT_THREAD_LOCAL
+# -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX  -DOS_LINUX
+# -DROCKSDB_MALLOC_USABLE_SIZE -DROCKSDB_PTHREAD_ADAPTIVE_MUTEX -DROCKSDB_RANGESYNC_PRESENT -DROCKSDB_SCHED_GETCPU_PRESENT
+# -DROCKSDB_FALLOCATE_PRESENT
+
