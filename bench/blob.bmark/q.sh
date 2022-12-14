@@ -15,6 +15,7 @@ block_align=${10}
 val_size=${11}
 odirect=${12}
 useblob=${13}
+partition=${14}
 
 if [ $fillrand == "yes" ]; then
   existingkeys=1
@@ -24,6 +25,10 @@ fi
 
 if [ $odirect == "yes" ]; then
   odirect_opts="--use_direct_io_for_flush_and_compaction --use_direct_reads"
+fi
+
+if [ $nthr -eq 1 ]; then
+  nsecs=$(( nsecs * 2 ))
 fi
 
 killall -q iostat
@@ -39,7 +44,15 @@ cache_opts="\
   --pin_l0_filter_and_index_blocks_in_cache=true"
 else
 cache_opts="\
+  --cache_index_and_filter_blocks=false \
   --pin_l0_filter_and_index_blocks_in_cache=false"
+fi
+
+if [ $partition == "yes" ]; then
+  cache_opts+="\
+  --partition_index_and_filters=true \
+  --metadata_block_size=4096 \
+  --pin_top_level_index_and_filter=true"
 fi
 
 if [ $useblob == "yes" ]; then
@@ -67,7 +80,7 @@ common_opts="\
   --compression_type=none \
   --cache_size=$cachebytes "
 
-sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}
+sfx=nthr${nthr}.cachemb${cachemb}.cleanup${cleanup_state}.existkey${existingkeys}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}.part${partition}
 
 if [ $cleanup_todo == "L1" ]; then
   echo "Flush memtable. Compact L0,L1"
@@ -143,11 +156,13 @@ dbb_cmd="\
   $common_opts \
   $ek_opts \
   $odirect_opts \
+  --stats_per_interval=1 --stats_interval_seconds=60 \
   --report_file=o.q.rep.$sfx \
   --report_interval_seconds=1 \
   --seed=$seed "
 
-echo $dbb_cmd > o.q.res.$sfx
+echo Run db_bench --benchmarks=readrandom
+echo $dbb_cmd >> o.q.res.$sfx
 /usr/bin/time -o o.q.time.$sfx -f '%e %U %S' $dbb_cmd >> o.q.res.$sfx 2>&1
 
 echo "dbdir=$dbdir, nsecs=$nsecs" >> o.q.res.$sfx

@@ -13,13 +13,14 @@ block_align=$7
 val_size=$8
 odirect=$9
 useblob=${10}
+partition=${11}
 
 # TODO:   --use_shared_block_and_blob_cache=$use_shared_block_and_blob_cache \
 
 killall -q vmstat
 killall -q iostat
 
-sfx=nthr${nthr}.cachegb${cachegb}.nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}
+sfx=nmkeys${nmkeys}.val${val_size}.odirect${odirect}.blob${useblob}.part${partition}
 
 iostat -y -mx 1 >& o.l.io.$sfx &
 ipid=$!
@@ -33,6 +34,14 @@ if [ $fillrand == "yes" ]; then
   bmark=fillrandom
 else
   bmark=filluniquerandom
+fi
+
+cache_opts=""
+if [ $partition == "yes" ]; then
+  cache_opts="\
+  --partition_index_and_filters=true \
+  --metadata_block_size=4096 \
+  --pin_top_level_index_and_filter=true"
 fi
 
 if [ $odirect == "yes" ]; then
@@ -72,6 +81,7 @@ dbb_cmd="\
   --cache_size=0 \
   $odirect_flags \
   $extra_flags \
+  $cache_opts \
   --max_background_flushes=$bgflush \
   --max_background_compactions=$bgcomp \
   --subcompactions=$subcomp \

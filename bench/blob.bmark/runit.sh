@@ -20,13 +20,15 @@ val_size=${11}
 odirect=${12}
 # yes or no
 useblob=${13}
+partition=${14}
 
-shift 13
+shift 14
 
 #rm -rf $dbdir; mkdir $dbdir
-bash l.sh $dbdir $bgflush $bgcomp $subcomp $nmkeys $fillrand $block_align $val_size $odirect $useblob
+bash l.sh $dbdir $bgflush $bgcomp $subcomp $nmkeys $fillrand $block_align $val_size $odirect $useblob $partition
 
-for cleanup in none memtable L0 L1 ; do
+#for cleanup in none memtable L0 L1 ; do
+for cleanup in memtable ; do
   echo
   first=1
   for nthr in "$@" ; do
@@ -37,7 +39,7 @@ for cleanup in none memtable L0 L1 ; do
       use_cleanup=none
     fi
     echo Run for nthr=$nthr and cleanup=$cleanup
-    bash q.sh $dbdir $nsecs $nthr $cachemb $cleanup $use_cleanup $nmkeys $dev_suffix $fillrand $block_align $val_size $odirect $useblob
+    bash q.sh $dbdir $nsecs $nthr $cachemb $cleanup $use_cleanup $nmkeys $dev_suffix $fillrand $block_align $val_size $odirect $useblob $partition
   done
 done
 
