@@ -1,0 +1,48 @@
+diff --git a/bench/rx2/benchmark_compare.sh b/bench/rx2/benchmark_compare.sh
+index dcf14fed..b14648e7 100644
+--- a/bench/rx2/benchmark_compare.sh
++++ b/bench/rx2/benchmark_compare.sh
+@@ -296,7 +296,7 @@ for v in "$@" ; do
+   fi
+ 
+   # Read-mostly tests with a rate-limited writer
+-  env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
++  #env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
+   env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
+   env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh readwhilewriting
+ 
+diff --git a/bench/rx2/x.sh b/bench/rx2/x.sh
+index 47b1f629..d018c04e 100644
+--- a/bench/rx2/x.sh
++++ b/bench/rx2/x.sh
+@@ -21,7 +21,7 @@ fi
+ 
+ cm=1
+ 
+-latest_versions=( 6.28.fb )
++latest_versions=( 7.9.fb )
+ first_last_versions=( 6.0.fb 6.29.fb )
+ six_versions=( 6.0.fb 6.1.fb 6.2.fb 6.3.fb 6.4.fb 6.5.fb 6.6.fb 6.7.fb 6.8.fb 6.9.fb 6.10.fb 6.11.fb 6.12.fb 6.13.fb 6.14.fb 6.15.fb 6.16.fb 6.17.fb 6.18.fb 6.19.fb 6.20.fb 6.21.fb 6.22.fb 6.23.fb 6.24.fb 6.25.fb 6.26.fb 6.27.fb 6.28.fb 6.29.fb )
+ seven_versions=( 7.0.fb 7.1.fb 7.2.fb 7.3.fb 7.4.fb 7.5.fb 7.6.fb 7.7.fb )
+@@ -38,6 +38,12 @@ else
+ fi
+ 
+ case $myhw in
++c8r32)
++  # Options for 4-core, 16g RAM
++  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=4 )
++  cache_mb=$(( 1024 * 24 ))
++  nsub=2
++  ;;
+ c4r16)
+   # Options for 4-core, 16g RAM
+   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=3 )
+@@ -129,7 +135,7 @@ echo leveled using $odir at $( date )
+ myargs=( "${args[@]}" )
+ myargs+=( MIN_LEVEL_TO_COMPRESS=3 COMPACTION_STYLE=leveled )
+ env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
+-
++exit
+ # for universal
+ 
+ odir=bm.uc.nt${nthreads}.cm${cm}.d${odirect}.sc${nsub}.tm
