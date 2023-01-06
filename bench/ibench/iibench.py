@@ -253,6 +253,9 @@ def rthist_result(obj, prefix):
   return res
 
 def fixup_options():
+  if FLAGS.inserts_per_second and (FLAGS.rows_per_commit > FLAGS.inserts_per_second):
+    FLAGS.rows_per_commit = FLAGS.inserts_per_second
+
   if FLAGS.dbms == 'mongo':
     if FLAGS.dbopt != 'none':
       mopts = FLAGS.dbopt.split(',')
