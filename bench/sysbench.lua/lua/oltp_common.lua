@@ -157,16 +157,10 @@ function get_pad_value()
 end
 
 function create_table(drv, con, table_num)
-   local id_index_def, id_def
+   local id_def
    local engine_def = ""
    local extra_table_options = ""
    local query
-
-   if sysbench.opt.secondary then
-     id_index_def = "KEY xid"
-   else
-     id_index_def = "PRIMARY KEY"
-   end
 
    if drv:name() == "mysql"
    then
@@ -176,6 +170,33 @@ function create_table(drv, con, table_num)
          id_def = "INTEGER NOT NULL"
       end
       engine_def = "/*! ENGINE = " .. sysbench.opt.mysql_storage_engine .. " */"
+
+      print(string.format("Creating table 'sbtest%d'...", table_num))
+
+      if not sysbench.opt.secondary then
+        query = string.format([[
+CREATE TABLE sbtest%d(
+  id %s,
+  k INTEGER DEFAULT '0' NOT NULL,
+  c CHAR(120) DEFAULT '' NOT NULL,
+  pad CHAR(60) DEFAULT '' NOT NULL,
+  PRIMARY KEY (id)
+) %s %s]],
+          table_num, id_def, engine_def, sysbench.opt.create_table_options)
+        con:query(query)
+      else
+        query = string.format([[
+CREATE TABLE sbtest%d(
+  id %s,
+  k INTEGER DEFAULT '0' NOT NULL,
+  c CHAR(120) DEFAULT '' NOT NULL,
+  pad CHAR(60) DEFAULT '' NOT NULL,
+  KEY (id)
+) %s %s]],
+          table_num, id_def, engine_def, sysbench.opt.create_table_options)
+        con:query(query)
+      end
+
    elseif drv:name() == "pgsql"
    then
       if not sysbench.opt.auto_inc then
@@ -185,24 +206,40 @@ function create_table(drv, con, table_num)
       else
         id_def = "SERIAL"
       end
-   else
-      error("Unsupported database driver:" .. drv:name())
-   end
 
-   print(string.format("Creating table 'sbtest%d'...", table_num))
+      print(string.format("Creating table 'sbtest%d'...", table_num))
 
-   query = string.format([[
+      if not sysbench.opt.secondary then
+        query = string.format([[
 CREATE TABLE sbtest%d(
   id %s,
   k INTEGER DEFAULT '0' NOT NULL,
   c CHAR(120) DEFAULT '' NOT NULL,
   pad CHAR(60) DEFAULT '' NOT NULL,
-  %s (id)
+  PRIMARY KEY (id)
 ) %s %s]],
-      table_num, id_def, id_index_def, engine_def,
-      sysbench.opt.create_table_options)
+          table_num, id_def, engine_def, sysbench.opt.create_table_options)
+        con:query(query)
+      else
+        query = string.format([[
+CREATE TABLE sbtest%d(
+  id %s,
+  k INTEGER DEFAULT '0' NOT NULL,
+  c CHAR(120) DEFAULT '' NOT NULL,
+  pad CHAR(60) DEFAULT '' NOT NULL
+) %s %s]],
+          table_num, id_def, engine_def, sysbench.opt.create_table_options)
+        con:query(query)
 
-   con:query(query)
+        print(string.format("Creating index for 'sbtest%d'...", table_num))
+        query = string.format([[CREATE INDEX xid%d on sbtest%d(id)]],
+          table_num, table_num)
+        con:query(query)
+      end
+
+   else
+      error("Unsupported database driver:" .. drv:name())
+   end
 
    if (sysbench.opt.table_size > 0) then
       print(string.format("Inserting %d records into 'sbtest%d'",
