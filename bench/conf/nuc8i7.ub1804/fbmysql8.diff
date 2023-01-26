@@ -1,0 +1,60 @@
+diff --git a/client/mysqlbinlog.cc b/client/mysqlbinlog.cc
+index ef3de1f2cb7..35cb04fc7e8 100644
+--- a/client/mysqlbinlog.cc
++++ b/client/mysqlbinlog.cc
+@@ -792,7 +792,7 @@ static const std::string binlog_server_finish_err_msg =
+     "The binlog server has finished sending all available binlogs from the "
+     "HDFS and has no more binlogs to send.";
+ 
+-enum class Check_database_decision : char {
++enum class Check_database_decision : signed char {
+   EMPTY_EVENT_DATABASE = 2,
+   CHANGED = 1,
+   OK = 0,
+diff --git a/include/my_checksum.h b/include/my_checksum.h
+index c35bf0aac1e..6d7f1878fdf 100644
+--- a/include/my_checksum.h
++++ b/include/my_checksum.h
+@@ -34,6 +34,7 @@
+ #include <type_traits>  // std::is_convertible
+ 
+ #include <zlib.h>  // crc32_z
++#include <string.h>
+ 
+ #include "my_base.h"      // ha_checksum
+ #include "my_compiler.h"  // My_ATTRIBUTE
+diff --git a/scripts/mysqld_safe.sh b/scripts/mysqld_safe.sh
+index 0434a87c6e8..7613b39ffa6 100755
+--- a/scripts/mysqld_safe.sh
++++ b/scripts/mysqld_safe.sh
+@@ -386,7 +386,7 @@ mysqld_ld_preload_text() {
+ # running mysqld.  See ld.so for details.
+ set_malloc_lib() {
+   # This list is kept intentionally simple.
+-  malloc_dirs="/usr/lib /usr/lib64 /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu"
++  malloc_dirs="/usr/lib /usr/lib64 /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu"
+   malloc_lib="$1"
+ 
+   # Allow --malloc-lib='' to override other settings
+@@ -405,6 +405,7 @@ set_malloc_lib() {
+         /usr/lib64) ;;
+         /usr/lib/i386-linux-gnu) ;;
+         /usr/lib/x86_64-linux-gnu) ;;
++        /usr/lib/aarch64-linux-gnu) ;;
+         *)
+           log_error "--malloc-lib must be located in one of the directories: $malloc_dirs"
+           exit 1
+diff --git a/storage/rocksdb/get_rocksdb_files.sh b/storage/rocksdb/get_rocksdb_files.sh
+index 2f60343beec..a057da41a5e 100755
+--- a/storage/rocksdb/get_rocksdb_files.sh
++++ b/storage/rocksdb/get_rocksdb_files.sh
+@@ -28,7 +28,8 @@ git_tag=$(git symbolic-ref -q --short HEAD || \
+ git_mod=$(git diff-index HEAD --quiet 2>/dev/null; echo $?)
+ git_date=$(git log -1 --date=format:"%Y-%m-%d %T" --format="%ad" 2>/dev/null)
+ popd>/dev/null
+-if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++#if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++if [ ! -f $bv ] || [ -z $git_sha ] || ! grep -q $git_sha $bv
+ then
+ sed -e s/@GIT_SHA@/$git_sha/ -e s:@GIT_TAG@:"$git_tag":  \
+     -e s/@GIT_MOD@/"$git_mod"/ -e s/@BUILD_DATE@/"$build_date"/  \
