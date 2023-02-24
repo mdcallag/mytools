@@ -4,6 +4,7 @@ package main
    * batchSize for inserts
    * reduce frequency at which PerfTimer updated
    * responseUsecs configurable
+   * option to insert metrics X measurements, today just does metrics
  */
 
 import (
