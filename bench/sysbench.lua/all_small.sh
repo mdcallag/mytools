@@ -70,9 +70,6 @@ bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-index   
 echo update-nonindex
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-nonindex 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
-echo update-nonindex
-bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-nonindex 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
 echo update-one
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-one      100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
