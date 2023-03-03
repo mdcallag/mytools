@@ -272,6 +272,9 @@ fi
 
 # Do this after sysbench is done because it can use a lot of CPU
 
+last_loop=""
+if [ -f sb.perf.last.$sfx ]; then
+
 read last_loop < sb.perf.last.$sfx
 echo last_loop is $last_loop for $sfx
 
@@ -297,6 +300,7 @@ for x in $( seq 0 $last_loop ); do
   $perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
   gzip --fast $outf
 done
+fi
 fi
 
 kill $vmpid
