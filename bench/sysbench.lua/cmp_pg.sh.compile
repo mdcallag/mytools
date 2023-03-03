@@ -26,17 +26,23 @@ function dbms_down() {
   cd $bdir; bash down.sh $cnf >& o.down; cd $cdir
 }
 
-dbcreds=mysql,root,pw,127.0.0.1,test,rocksdb
-for dcnf in fbmy5635.ay9c fbmy8028.ay9c ; do
+dbcreds=postgres,root,pw,127.0.0.1,ib
+for dcnf in \
+  pg1119_o3_native.x7 pg1214_o3_native.x7 pg1310_o3_native.x7 pg147_o3_native.x7 \
+  pg151_def.x7 pg151_o2_nofp.x7 pg151_o3.x7 pg151_o3_native.x7 pg151_o3_native_lto.x7 \
+  pg152_o3_native \
+; do
+
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 
   dbdir=$basedir/$dbms
-  client=$dbdir/bin/mysql
+  client=$dbdir/bin/psql
   echo Run for $dbms with $cnf config from $dbdir
 
   dbms_up $dbdir $cnf
-  bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 0 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
-  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* x.$dcnf.pk${usepk}
-  dbms_down $dbdir $cnf
+  bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 1 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
+  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/conf.diff $dbdir/o.ini* x.$dcnf.pk${usepk}
+  dbms_down $dbdir $cnf 
 done
+

@@ -26,8 +26,15 @@ function dbms_down() {
   cd $bdir; bash down.sh $cnf >& o.down; cd $cdir
 }
 
-dbcreds=mysql,root,pw,127.0.0.1,test,rocksdb
-for dcnf in fbmy5635.ay9c fbmy8028.ay9c ; do
+dbcreds=mysql,root,pw,127.0.0.1,test,innodb
+for dcnf in \
+  my5651_rel.y8 my5651_rel_native.y8 my5651_rel_o2.y8 \
+  my5740_rel.y8 my5740_rel_lto.y8 my5740_rel_native_lto.y8 my5740_rel_o2.y8 my5740_rel_o2_lto.y8 \
+  my8022_rel.y9 my8022_rel_lto.y9 my8022_rel_native_lto.y9 my8022_rel_o2.y9 my8022_rel_o2_lto.y9 \
+  my8028_rel.y9 my8028_rel_lto.y9 my8028_rel_native_lto.y9 my8028_rel_o2.y9 my8028_rel_o2_lto.y9 \
+  my8031_rel.y9 my8031_rel_lto.y9 my8031_rel_native.y9 my8031_rel_native_lto.y9 my8031_rel_o2.y9 my8031_rel_o2_lto.y9 my8031_rel_withdbg.y9 \
+  my8032_rel.y9 my8032_rel_lto.y9 my8032_rel_native.y9 my8032_rel_native_lto.y9 my8032_rel_o2.y9 my8032_rel_o2_lto.y9 my8032_rel_withdbg.y9 \
+; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 
@@ -38,5 +45,6 @@ for dcnf in fbmy5635.ay9c fbmy8028.ay9c ; do
   dbms_up $dbdir $cnf
   bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 0 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
   mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* x.$dcnf.pk${usepk}
-  dbms_down $dbdir $cnf
+  dbms_down $dbdir $cnf 
 done
+

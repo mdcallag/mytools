@@ -27,9 +27,7 @@ function dbms_down() {
 }
 
 dbcreds=postgres,root,pw,127.0.0.1,ib
-#for dcnf in pg1211.x5 pg137.x5 pg143.x5 pg15b1.x5 ; do
-#for dcnf in pg140.x5 pg141.x5 pg142.x5 ; do
-for dcnf in pg15b1.x5a pg15b1.x5b pg15b1.x5c ; do
+for dcnf in pg151.x7 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 
