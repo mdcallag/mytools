@@ -201,22 +201,52 @@ vmpid=$!
 iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
 iopid=$!
 
-dbpid=-1 # remove this to use perf
-#dbpid=$( pidof mysqld )
-if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then
-  while :; do
-    ts=$( date +'%b%d.%H%M%S' ); tsf=sb.perf.data.$sfx.$ts
-    perf record -a -F 99 -g -p $dbpid -o $tsf.perf -- sleep 10
-    sleep 5
-  done >& sb.perf.$sfx &
-  fpid=$!
+perf=perf
+PERF_METRIC=${PERF_METRIC:-cycles}
+x=0
+perfpid="-1"
+if [ $x -gt 0 ]; then
+fgp="$HOME/git/FlameGraph"
+if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+echo PERF_METRIC is $PERF_METRIC
+while [ $x -eq 0 ]; do
+  perf_secs=20
+  pause_secs=10
+  perf="perf"
 
-  while :; do
-    ts=$( date +'%b%d.%H%M%S' ); tsf=sb.plist.$sfx.$ts
-    $client "${clientArgs[@]}" -e "show full processlist" >& $tsf
-    sleep 5
-  done >& sb.plist.$sfx &
-  plpid=$!
+  if [ $x -eq 0 ]; then
+    sleep 60
+  else
+    sleep $pause_secs
+  fi
+
+  dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+  if [ -z $dbbpid ]; then echo Cannot get mysqld PID; continue; fi
+
+  hw_secs=10
+  outf="sb.perf.hw.$sfx.$x"
+  $perf stat -o $outf -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
+
+  outf="sb.perf.rec.g.$sfx.$x"
+  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
+  $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+
+  sleep $pause_secs
+  outf="sb.perf.rec.f.$sfx.$x"
+  $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+
+  echo $x > sb.perf.last.$sfx
+  x=$(( $x + 1 ))
+done &
+# This sets a global value
+perfpid=$!
 fi
 
 # Optionally disable use of prepared statements
@@ -235,14 +265,38 @@ echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.
 echo "$realdop CPUs" >> sb.o.$sfxn
 /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
 
-if [[ $dbpid -ne -1 && $nt -eq 1 ]] ; then 
-  kill $fpid
-  kill $plpid
-  for f in sb.perf.data.$sfx.*.perf ; do
-    perf report --no-children --stdio -i $f > $f.rep 
-    perf script -i $f | gzip > $f.scr.gz
-    rm -f $f
-  done
+
+if [ $perfpid -ge 0 ]; then
+  kill $perfpid
+fi
+
+# Do this after sysbench is done because it can use a lot of CPU
+
+read last_loop < sb.perf.last.$sfx
+echo last_loop is $last_loop for $sfx
+
+if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
+for x in $( seq 0 $last_loop ); do
+  echo forloop $x perf rep for $sfx 
+  #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
+  #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
+  #$perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
+
+  outf="sb.perf.rec.g.$sfx.$x"
+  $perf report --stdio -n -g folded -i $outf --no-children > sb.perf.rep.g.f1.c0.$sfx.$x
+  $perf report --stdio -n -g folded -i $outf --children > sb.perf.rep.g.f1.c1.$sfx.$x
+  $perf script -i $outf > sb.perf.rep.g.scr.$sfx.$x
+  gzip --fast $outf
+
+  cat sb.perf.rep.g.scr.$sfx.$x | $fgp/stackcollapse-perf.pl > sb.perf.g.fold.$sfx.$x
+  $fgp/flamegraph.pl sb.perf.g.fold.$sfx.$x > sb.perf.g.$sfx.$x.svg
+  gzip --fast sb.perf.rep.g.scr.$sfx.$x
+
+  outf="sb.perf.rec.f.$sfx.$x"
+  $perf report --stdio -i $outf > sb.perf.rep.f.$sfx.$x
+  $perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
+  gzip --fast $outf
+done
 fi
 
 kill $vmpid
