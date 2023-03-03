@@ -1,0 +1,133 @@
+nr1=$1
+nr2=$2
+nrt=$3
+dop=$4
+nsecs=$5
+mbd=$6
+rdir=$7
+dev=$8
+only1t=$9
+npart=${10}
+
+if [[ $npart -gt 0 ]]; then
+  ps=part${npart}
+else
+  ps=""
+fi
+
+shift 10
+
+if [[ $npart -eq 0 ]]; then
+for dc in rx56.ay9c ; do
+for ver in fbmy5635_rel fbmy5635_rel_o2 fbmy5635_rel_withdbg ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/fbmy56; ln -s $mbd/$ver $mbd/fbmy56
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.rx56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+fi
+
+if [[ $npart -eq 0 ]]; then
+for dc in rx80.ay9c ; do
+for ver in fbmy8028_rel fbmy8028_rel_lto fbmy8028_rel_native fbmy8028_rel_o2 fbmy8028_rel_o2_lto fbmy8028_rel_withdbg ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/fbmy80; ln -s $mbd/$ver $mbd/fbmy80
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.rx80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+fi
+
+for dc in in80.y9 ; do
+for ver in my8022_rel my8022_rel_lto my8022_rel_native_lto my8022_rel_o2 my8022_rel_o2_lto my8028_rel my8028_rel_lto my8028_rel_native_lto my8028_rel_o2 my8028_rel_o2_lto my8031_rel my8031_rel_lto my8031_rel_native my8031_rel_native_lto my8031_rel_o2 my8031_rel_o2_lto my8031_rel_withdbg my8032_rel my8032_rel_lto my8032_rel_native my8032_rel_native_lto my8032_rel_o2 my8032_rel_o2_lto my8032_rel_withdbg ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in in57.y8 ; do
+for ver in my5740_rel my5740_rel_lto my5740_rel_native_lto my5740_rel_o2 my5740_rel_o2_lto ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in57.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in in56.y8 ; do
+for ver in my5651_rel my5651_rel_native my5651_rel_o2 ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my56; ln -s $mbd/$ver $mbd/my56
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg14.x7 ; do
+for ver in pg147_o3_native ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg14; ln -s $mbd/$ver $mbd/pg14
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg14.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg13.x7 ; do
+for ver in pg1310_o3_native ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg13; ln -s $mbd/$ver $mbd/pg13
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg13.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg12.x7 ; do
+for ver in pg1214_o3_native ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg12; ln -s $mbd/$ver $mbd/pg12
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg12.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg11.x7 ; do
+for ver in pg1119_o3_native ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg11; ln -s $mbd/$ver $mbd/pg11
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg11.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in pg15.x7 ; do
+for ver in pg152_o3_native pg151_def pg151_o2_nofp pg151_o3 pg151_o3_native pg151_o3_native_lto ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg15; ln -s $mbd/$ver $mbd/pg15
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg15.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
