@@ -1,0 +1,23 @@
+diff --git a/storage/rocksdb/get_rocksdb_files.sh b/storage/rocksdb/get_rocksdb_files.sh
+index c9d3aa14b36..4e7076c9d45 100755
+--- a/storage/rocksdb/get_rocksdb_files.sh
++++ b/storage/rocksdb/get_rocksdb_files.sh
+@@ -4,7 +4,7 @@ MKFILE=`mktemp`
+ # include rocksdb make file relative to the path of this script
+ echo "include rocksdb/src.mk
+ all:
+-	@echo \$(LIB_SOURCES)" > $MKFILE
++	@echo \"\$(LIB_SOURCES)\"" > $MKFILE
+ for f in `make --makefile $MKFILE`
+ do
+   echo ../../rocksdb/$f
+@@ -22,7 +22,8 @@ git_tag=$(git symbolic-ref -q --short HEAD || \
+ git_mod=$(git diff-index HEAD --quiet 2>/dev/null; echo $?)
+ git_date=$(git log -1 --date=format:"%Y-%m-%d %T" --format="%ad" 2>/dev/null)
+ popd>/dev/null
+-if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++#if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++if [ ! -f $bv ] || [ -z $git_sha ] || ! grep -q $git_sha $bv
+ then
+ sed -e s/@GIT_SHA@/$git_sha/ -e s:@GIT_TAG@:"$git_tag":  \
+     -e s/@GIT_MOD@/"$git_mod"/ -e s/@BUILD_DATE@/"$build_date"/  \
