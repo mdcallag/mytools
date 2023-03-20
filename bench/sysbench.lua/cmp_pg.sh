@@ -36,8 +36,10 @@ for dcnf in pg151.x7 ; do
   echo Run for $dbms with $cnf config from $dbdir
 
   dbms_up $dbdir $cnf
+  grep -i huge /proc/meminfo > sb.hp.pre
   bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 1 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
-  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/conf.diff $dbdir/o.ini* x.$dcnf.pk${usepk}
+  grep -i huge /proc/meminfo > sb.hp.post
+  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/conf.diff $dbdir/o.ini* $dbdir/o.down x.$dcnf.pk${usepk} ; cp $dbdir/logfile x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
 done
 

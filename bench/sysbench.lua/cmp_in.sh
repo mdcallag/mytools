@@ -36,8 +36,10 @@ for dcnf in my8032.y9 my5740.y8 my5651.y8 ; do
   echo Run for $dbms with $cnf config from $dbdir
 
   dbms_up $dbdir $cnf
+  grep -i huge /proc/meminfo > sb.hp.pre
   bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 0 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
-  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* x.$dcnf.pk${usepk}
+  grep -i huge /proc/meminfo > sb.hp.post
+  mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* $dbdir/o.down x.$dcnf.pk${usepk}; cp /data/m/my/data/*.err x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
 done
 

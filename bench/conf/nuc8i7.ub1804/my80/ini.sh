@@ -23,7 +23,12 @@ if [ "$#" -ge 1 ]; then
   fi
 fi
 
-killall mongod mysqld
+killall -s KILL mongod
+killall -s KILL mysqld
+sleep 3
+
+#sudo bash ~/mytools/scripts/compact_vm.sh
+sleep 3
 
 bin/mysqld --initialize-insecure  >& o.ini.$csfx
 # bin/mysqld --initialize --initialize-insecure --defaults-file=etc/my.cnf >& o.init; cat o.init

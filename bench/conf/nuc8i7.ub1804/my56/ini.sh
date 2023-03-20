@@ -1,4 +1,5 @@
 bin/mysqladmin -uroot -ppw shutdown
+sleep 3
 
 rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy
 rm -rf /data/m/pg; mkdir -p /data/m/pg
@@ -22,7 +23,12 @@ if [ "$#" -ge 1 ]; then
   fi
 fi
 
-killall mongod mysqld
+killall -s KILL mongod
+killall -s KILL mysqld
+sleep 3
+
+#sudo bash ~/mytools/scripts/compact_vm.sh
+sleep 3
 
 scripts/mysql_install_db --defaults-file=etc/my.cnf >& o.ini.$csfx
 
