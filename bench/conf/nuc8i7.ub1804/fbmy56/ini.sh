@@ -24,6 +24,7 @@ if [ "$#" -ge 1 ]; then
 fi 
 
 killall mongod mysqld
+sleep 3
 
 scripts/mysql_install_db --defaults-file=etc/my.cnf >& o.ini.$csfx
 

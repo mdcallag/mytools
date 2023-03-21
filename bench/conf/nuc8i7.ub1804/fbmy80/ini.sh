@@ -24,6 +24,7 @@ if [ "$#" -ge 1 ]; then
 fi
 
 killall mongod mysqld
+sleep 3
 
 bin/mysqld --initialize-insecure  >& o.ini.$csfx
 # bin/mysqld --initialize --initialize-insecure --defaults-file=etc/my.cnf >& o.init; cat o.init
