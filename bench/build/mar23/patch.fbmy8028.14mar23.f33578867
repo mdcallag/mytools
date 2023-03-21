@@ -1,0 +1,46 @@
+diff --git a/storage/rocksdb/ha_rocksdb.cc b/storage/rocksdb/ha_rocksdb.cc
+index e634cced587..2cbe2cb3e07 100644
+--- a/storage/rocksdb/ha_rocksdb.cc
++++ b/storage/rocksdb/ha_rocksdb.cc
+@@ -593,6 +593,25 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
+       cf_handle->GetDescriptor(&cf_descr);
+       c_options.output_file_size_limit = cf_descr.options.target_file_size_base;
+ 
++      // Lets RocksDB use the configured compression for this level
++      c_options.compression = rocksdb::kDisableCompressionOption;
++
++      uint64_t base_level;
++      if (!rdb->GetIntProperty(cf_handle.get(),
++                               rocksdb::DB::Properties::kBaseLevel, &base_level)) {
++        LogPluginErrMsg(
++          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
++          "MyRocks: force flush cannot get base level");
++        break;
++      }
++
++      if (base_level == 0) {
++        LogPluginErrMsg(
++          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
++          "MyRocks: force flush cannot flush to base level when 0");
++        break;
++      }
++
+       assert(metadata.levels[0].level == 0);
+       std::vector<std::string> file_names;
+       for (auto &file : metadata.levels[0].files) {
+@@ -600,11 +619,14 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
+       }
+ 
+       if (file_names.empty()) {
++        LogPluginErrMsg(
++          INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
++          "MyRocks: no files in L0");
+         break;
+       }
+ 
+       rocksdb::Status s;
+-      s = rdb->CompactFiles(c_options, cf_handle.get(), file_names, 1);
++      s = rdb->CompactFiles(c_options, cf_handle.get(), file_names, base_level);
+ 
+       if (!s.ok()) {
+         std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
