@@ -5,6 +5,7 @@ bin/pg_ctl -D $bdir stop
 rm -rf $bdir/*
 rm -f logfile; touch logfile
 killall mysqld mongod
+sleep 3
 
 rm -rf /data/m/fbmy; mkdir -p /data/m/fbmy
 rm -rf /data/m/my; mkdir -p /data/m/my
@@ -20,6 +21,7 @@ if [ "$#" -ge 1 ]; then
   fi
 fi
 
+sleep 3
 echo "init"
 bin/initdb --data-checksums -D $bdir >& o.ini.1
 mv $bdir/postgresql.conf $bdir/postgresql.conf.orig
