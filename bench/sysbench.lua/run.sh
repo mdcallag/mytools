@@ -375,9 +375,14 @@ if [[ $postwrite -eq 1 ]]; then
       $client "${clientArgs[@]}" -e 'set global innodb_idle_flush_pct=100' >> sb.o.pw.$sfx 2>&1
 
     elif [[ $engine == "rocksdb" ]]; then
-      echo Enable flush memtable and L0 >> sb.o.pw.$sfx
+      echo Enable flush memtable and L0 in 2 parts >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es1.$sfx
+      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable=1' >> sb.o.pw.$sfx 2>&1
+      sleep 60
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es2.$sfx
       $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> sb.o.pw.$sfx 2>&1
-      sleep 30
+      sleep 60
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es3.$sfx
     fi
 
     for x in $( seq 1 $ntabs ); do
@@ -398,6 +403,7 @@ if [[ $postwrite -eq 1 ]]; then
     elif [[ $engine == "rocksdb" ]]; then
       echo Disable flush memtable and L0 >> sb.o.pw.$sfx
       $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=0' >> sb.o.pw.$sfx 2>&1
+      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable=0' >> sb.o.pw.$sfx 2>&1
     fi
 
   elif [[ $driver == "pgsql" ]]; then
