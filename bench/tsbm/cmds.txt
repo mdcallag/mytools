@@ -1,0 +1,9 @@
+
+bin/psql tsbm < ~/git/mytools/bench/tsbm/ddl/postgres_basic_4.sql
+go run cmd/tsbm_loader/tsbm_loader.go -dbms=postgres -dbms_conn="postgres://root:pw@localhost/tsbm?sslmode=disable" --devices=50000 --tables=1
+go run cmd/tsbm_runner/tsbm_runner.go -dbms=postgres -dbms_conn="postgres://root:pw@localhost/tsbm?sslmode=disable" --devices=50000 --tables=1 --batches=10000
+
+bin/mysql -uroot -ppw  < ~/git/mytools/bench/tsbm/ddl/mysql_innodb_basic_4.sql 
+go run cmd/tsbm_loader/tsbm_loader.go -dbms=mysql -dbms_conn="root:pw@tcp(127.0.0.1:3306)/tsbm" --devices=50000 --tables=1 
+go run cmd/tsbm_runner/tsbm_runner.go -dbms=mysql -dbms_conn="root:pw@tcp(127.0.0.1:3306)/tsbm" --devices=50000 --tables=1 --batches=10000 
+

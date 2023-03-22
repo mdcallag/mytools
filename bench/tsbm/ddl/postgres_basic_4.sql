@@ -5,7 +5,7 @@ create table t1 (
   deviceID      bigint not null,
   metricID      int    not null,
   metricValue   bigint not null,
-  PRIMARY KEY(timestamp, deviceID, metricID)
+  PRIMARY KEY(deviceID, timestamp, metricID)
 ); 
 
 drop table if exists t2;
@@ -14,7 +14,7 @@ create table t2 (
   deviceID      bigint not null,
   metricID      int    not null,
   metricValue   bigint not null,
-  PRIMARY KEY(timestamp, deviceID, metricID)
+  PRIMARY KEY(deviceID, timestamp, metricID)
 ); 
 
 drop table if exists t3;
@@ -23,7 +23,7 @@ create table t3 (
   deviceID      bigint not null,
   metricID      int    not null,
   metricValue   bigint not null,
-  PRIMARY KEY(timestamp, deviceID, metricID)
+  PRIMARY KEY(deviceID, timestamp, metricID)
 ); 
 
 drop table if exists t4;
@@ -32,5 +32,5 @@ create table t4 (
   deviceID      bigint not null,
   metricID      int    not null,
   metricValue   bigint not null,
-  PRIMARY KEY(timestamp, deviceID, metricID)
+  PRIMARY KEY(deviceID, timestamp, metricID)
 ); 

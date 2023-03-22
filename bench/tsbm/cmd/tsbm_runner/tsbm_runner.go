@@ -67,7 +67,7 @@ func main() {
 		writeTimers[x] = &util.PerfTimer{}
 		insertHistograms[x] = util.MakeHistogram(responseUsecs)
 		deleteHistograms[x] = util.MakeHistogram(responseUsecs)
-		go doWrites(x, &wg, db, writeTimers[x], insertHistograms[x], deleteHistograms[x])
+		go doWrites(x+1, &wg, db, writeTimers[x], insertHistograms[x], deleteHistograms[x])
 	}
 
 	watcherCancel := make(chan bool)
@@ -119,10 +119,23 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 	}
 	defer insertPS.Close()
 
-        // delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
-	deleteSQL := fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
-				*dbmsTablePrefix, myID, getPH(*dbms, 1),
-				*dbmsTablePrefix, myID, getPH(*dbms, 2))
+	deleteSQL := ""
+	if *dbms == "postgres" {
+		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
+				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
+				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
+	} else if *dbms == "mysql" {
+        	// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
+		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
+		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp = 1", *dbmsTablePrefix, myID, getPH(*dbms, 1))
+		// Workaround for the dreaded error 1093. Alas, this appears to materialize the subquery which might hurt perf.
+		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as XX)",
+				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
+				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
+	} else {
+		log.Fatalf("DBMS %s is not known", *dbms)
+	}
+
 	fmt.Println(deleteSQL)
 	deletePS, err := db.Prepare(deleteSQL)
 	if err != nil {
@@ -163,6 +176,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 				// fmt.Printf("deviceId = %s from %d of %d\n", deviceId, xFrom, rowsPerBatch*4)
 
 				start := time.Now()
+				// res, err := deletePS.Exec(deviceId) -- TODO hack for debugging mysql perf
 				res, err := deletePS.Exec(deviceId, deviceId)
 				end := time.Now()
 
@@ -174,6 +188,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 				if err != nil {
 					log.Fatalf("RowsAffected failed sql=%s params=%v: %v\n", deleteSQL, deviceId, err)
 				}
+				// if rowCnt > int64(*nMetrics) {  -- TODO hack for debugging mysql perf
 				if rowCnt != int64(*nMetrics) {
 					log.Fatalf("Delete expected %d rows, but RowsAffected=%d: sql=%s params=%v\n", *nMetrics, rowCnt, deleteSQL, deviceId)
 				}
@@ -184,6 +199,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 		if err = tx.Commit(); err != nil {
 			log.Fatalf("Transaction commit failed: %s\n", err)
 		}
+		// log.Printf("Commit done\n")
 
 		writeTimer.Report(int64(rowsPerBatch))
 

@@ -56,7 +56,7 @@ func main() {
 		wg.Add(1)
 		timers[x] = &util.PerfTimer{}
 		histograms[x] = util.MakeHistogram(responseUsecs)
-		go doLoad(x, &wg, db, timers[x], histograms[x])
+		go doLoad(x+1, &wg, db, timers[x], histograms[x])
 	}
 
 	watcherCancel := make(chan bool)
