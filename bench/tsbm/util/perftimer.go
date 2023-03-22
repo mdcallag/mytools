@@ -86,6 +86,12 @@ func (p *PerfTimer) TotalRate(fromNow bool) float64 {
 	return float64(p.totalOps) / secs
 }
 
+func (p *PerfTimer) TotalOps() int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.totalOps
+}
+
 func (p *PerfTimer) LastRate() float64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -114,25 +120,29 @@ func PerfWatcher(timers []*PerfTimer, updateDuration time.Duration, cancel chan 
 
 		select {
 		case <-cancel:
-			tSum := 0.0
+			rateSum := 0.0
+			totalOps := int64(0)
 			for x, t := range timers {
 				rates[x] = t.TotalRate(false)
-				tSum += rates[x]
+				rateSum += rates[x]
+				totalOps += t.TotalOps()
 			}
-			fmt.Printf("Final rate: %.1f total : totals per-timer= %s\n", tSum, FloatArrayToString(rates))
+			fmt.Printf("Final rate: %.1f : totals per-timer= %s : total ops %d\n", rateSum, FloatArrayToString(rates), totalOps)
 			cancel <- true
 			return
 		default:
 		}
 
 		iSum := 0.0
-		tSum := 0.0
+		rateSum := 0.0
+		totalOps := int64(0)
 		for x, t := range timers {
 			t.MarkInterval()
 			rates[x] = t.LastRate()
 			iSum += rates[x]
-			tSum += t.TotalRate(false)
+			rateSum += t.TotalRate(false)
+			totalOps += t.TotalOps()
 		}
-		fmt.Printf("Rate: %.1f interval, %.1f total : intervals per-timer= %s\n", iSum, tSum, FloatArrayToString(rates))
+		fmt.Printf("Rate: %.1f interval, %.1f total : intervals per-timer= %s : total ops %d\n", iSum, rateSum, FloatArrayToString(rates), totalOps)
 	}
 }

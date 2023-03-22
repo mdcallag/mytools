@@ -69,10 +69,10 @@ func main() {
 
 	hSum := util.MakeHistogram(responseUsecs)
 	for x, h := range histograms {
-		fmt.Printf("table %d: %s\n", x, h.Summary(false))
+		fmt.Printf("Response time(usecs) for table %d: %s\n", x, h.Summary(false))
 		hSum.Merge(h)
 	}
-	fmt.Printf("table all: %s\n", hSum.Summary(false))
+	fmt.Printf("Response time(usecs) for all tables: %s\n", hSum.Summary(false))
 }
 
 func doLoad(myID int, wg *sync.WaitGroup, db *sql.DB, timer *util.PerfTimer, histogram *util.Histogram) {
