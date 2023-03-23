@@ -29,8 +29,8 @@ var dbmsTablePrefix = flag.String("dbms_table_prefix", "t", "Prefix for DBMS tab
 
 var nDevices = flag.Int("devices", 100, "Number of devices per table")
 var nTables = flag.Int("tables", 1, "Number of tables")
-var nMeasurements = flag.Int("measurements", 5, "Number of measurements per device")
-var nMetrics = flag.Int("metrics", 2, "Number of metrics per device")
+var nMeasurements = flag.Int("measurements", 10, "Number of measurements per device")
+var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")
 
 func main() {
 	flag.Parse()
