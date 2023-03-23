@@ -93,8 +93,49 @@ func main() {
 	fmt.Printf("Deletes, all tables: %s\n", deleteHistSum.Summary(false))
 }
 
-func doOneWrite(myID int, db *sql.DB) {
+func explainSQL(db *sql.DB, sqlText string) {
 
+	fmt.Println(sqlText)
+
+	rows, err := db.Query(sqlText)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// ctypes, err := rows.ColumnTypes()
+	// for x, ct := range ctypes {
+	//	fmt.Printf("[%d] = %s, %s, %s\n", x, ct.Name(), ct.DatabaseTypeName(), ct.ScanType().Name())
+	// }
+
+	cNames, err := rows.Columns()
+	// fmt.Printf("ncols : %d and %s\n", len(cNames), cNames)
+	nCols := len(cNames)
+	acols := make([]any, nCols)
+	scols := make([]sql.NullString, nCols)
+	for x := 0; x < nCols; x++ {
+		acols[x] = &scols[x]
+	}
+
+	for rows.Next() {
+		if err := rows.Scan(acols...); err != nil {
+			log.Fatal(err)
+		}
+		for x, e := range scols {
+			if e.Valid {
+				fmt.Printf(e.String)
+			} else {
+				fmt.Printf("NULL")
+			}
+			if x < (len(scols) - 1) {
+				fmt.Printf("\t")
+			} else {
+				fmt.Printf("\n")
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}    
 }
 
 func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTimer, insertHistogram *util.Histogram, deleteHistogram *util.Histogram) {
@@ -120,21 +161,30 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 	defer insertPS.Close()
 
 	deleteSQL := ""
+	explainDelete := ""
+
 	if *dbms == "postgres" {
 		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
 				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
 				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
+		explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1)",
+				 	    *dbmsTablePrefix, myID, *dbmsTablePrefix, myID)
 	} else if *dbms == "mysql" {
         	// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
 		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
 		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp = 1", *dbmsTablePrefix, myID, getPH(*dbms, 1))
 		// Workaround for the dreaded error 1093. Alas, this appears to materialize the subquery which might hurt perf.
-		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as XX)",
+		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as HACK)",
 				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
 				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
+		explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1) as HACK)",
+			   	 	    *dbmsTablePrefix, myID, *dbmsTablePrefix, myID)
 	} else {
 		log.Fatalf("DBMS %s is not known", *dbms)
 	}
+
+
+	explainSQL(db, explainDelete)
 
 	fmt.Println(deleteSQL)
 	deletePS, err := db.Prepare(deleteSQL)
