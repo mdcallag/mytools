@@ -1,5 +1,6 @@
 
 pk=$1
+as_csv=$2
 
 #sb.r.qps.read-only.pre.range10.pk1
 
@@ -48,5 +49,9 @@ for x1 in $( seq 1 $nTests ) ; do
   preQps=$( cat $preName | awk '{ print $1 }' )
   postQps=$( cat $postName | awk '{ print $1 }' )
   ratio=$( echo $preQps $postQps | awk '{ printf "%.2f", $2 / $1 }' )
-  echo -e "$preQps\t$postQps\t$ratio\t$postName"
+  if [ $as_csv -eq 0 ]; then
+    echo -e "$preQps\t$postQps\t$ratio\t$postName"
+  else
+    echo "$postName,$ratio,$preQps,$postQps"
+  fi
 done
