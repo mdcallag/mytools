@@ -50,8 +50,8 @@ for x1 in $( seq 1 $nTests ) ; do
   postQps=$( cat $postName | awk '{ print $1 }' )
   ratio=$( echo $preQps $postQps | awk '{ printf "%.2f", $2 / $1 }' )
   if [ $as_csv -eq 0 ]; then
-    echo -e "$preQps\t$postQps\t$ratio\t$postName"
+    echo -e "$preQps\t$postQps\t$ratio\t${tPost[$x]}"
   else
-    echo "$postName,$ratio,$preQps,$postQps"
+    echo "${tPost[$x]},$ratio,$preQps,$postQps"
   fi
 done
