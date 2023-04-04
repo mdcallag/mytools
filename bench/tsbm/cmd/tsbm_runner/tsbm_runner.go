@@ -234,7 +234,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 	var durPerBatch time.Duration = 0
 	if *insertsPerSecond > 0 {
 		batchesPerSecond := *insertsPerSecond / rowsPerBatch
-		durPerBatch = time.Duration(int(time.Second) / batchesPerSecond)
+		durPerBatch = time.Duration(time.Second.Nanoseconds() / int64(batchesPerSecond))
 		fmt.Printf("durPerBatch = %v, batchesPerSecond = %v\n", durPerBatch, batchesPerSecond)
 	}
 
