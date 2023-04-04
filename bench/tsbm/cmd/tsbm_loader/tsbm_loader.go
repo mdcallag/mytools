@@ -27,7 +27,7 @@ var dbms = flag.String("dbms", "mysql", "Database driver name")
 var dbmsConn = flag.String("dbms_conn", "root:pw@tcp(127.0.0.1:3306)/tsbm", "DBMS connection string")
 var dbmsTablePrefix = flag.String("dbms_table_prefix", "t", "Prefix for DBMS table names")
 
-var nDevices = flag.Int("devices", 100, "Number of devices per table")
+var nDevices = flag.Int("devices", 1000, "Number of devices per table")
 var nTables = flag.Int("tables", 1, "Number of tables")
 var nMeasurements = flag.Int("measurements", 10, "Number of measurements per device")
 var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")

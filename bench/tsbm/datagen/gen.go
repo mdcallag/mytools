@@ -154,6 +154,7 @@ func (g *RandGeneratorFlat) getMeasurement(timestamp int64) []interface{} {
 		usedIds = append(usedIds, deviceId)
 
 		getOneFlatMeasurement(timestamp, deviceId, g.nMetrics, values[b*4*g.nMetrics:])
+		// fmt.Printf("batch %d of %d: ts=%d dev=%d nMet=%d\n", b, g.batchSize, timestamp, deviceId, g.nMetrics)
 	}
 	return values
 }

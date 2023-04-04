@@ -6,6 +6,7 @@ package main
    * split timers for insert vs delete
    * time transactions in addition to inserts and deletes
    * RNG seed
+   * create table, load then create index
  */
 
 import (
@@ -28,13 +29,13 @@ var dbms = flag.String("dbms", "mysql", "Database driver name")
 var dbmsConn = flag.String("dbms_conn", "root:pw@tcp(127.0.0.1:3306)/tsbm", "DBMS connection string")
 var dbmsTablePrefix = flag.String("dbms_table_prefix", "t", "Prefix for DBMS table names")
 
-var nDevices = flag.Int("devices", 100, "Number of devices per table")
+var nDevices = flag.Int("devices", 1000, "Number of devices per table")
 var nTables = flag.Int("tables", 1, "Number of tables")
 var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")
 
 var nWriters = flag.Int("writers", 1, "Number of concurrent writers")
 var nReaders = flag.Int("readers", 1, "Number of concurrent readers")
-var fixedSize = flag.Bool("fixed", true, "When true delete oldest metric when adding a new metric")
+var fixedSize = flag.Bool("fixed", true, "When true delete oldest measurement when adding a new measurement")
 var batchSize = flag.Int("batch_size", 2, "Number of devices per insert")
 var nBatches = flag.Int64("batches", 5, "Number of batches of inserts")
 var insertsPerSecond = flag.Int("inserts_per_second", 0,
@@ -266,6 +267,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 		if rowCnt != int64(rowsPerBatch) {
 			log.Fatalf("Inserted %d rows, but RowsAffected=%d: tableID=%d, params=%v\n", rowsPerBatch, rowCnt, tableID, m)
 		}
+		// fmt.Printf("Inserted %d rows, but RowsAffected=%d: tableID=%d, params=%v\n", rowsPerBatch, rowCnt, tableID, m)
 		nInserted += rowsPerBatch
 
 		var deleteDur time.Duration = 0
@@ -273,7 +275,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 			stepFrom := 4 * (*nMetrics)
 			for xFrom := 1; xFrom <= (rowsPerBatch*4); xFrom += stepFrom { 
 				deviceId := (m[xFrom]).(string)
-				// fmt.Printf("deviceId = %s from %d of %d\n", deviceId, xFrom, rowsPerBatch*4)
+				// fmt.Printf("DELETE deviceId = %s from %d of %d\n", deviceId, xFrom, rowsPerBatch*4)
 
 				start := time.Now()
 				// res, err := deletePS.Exec(deviceId) -- TODO hack for debugging mysql perf
