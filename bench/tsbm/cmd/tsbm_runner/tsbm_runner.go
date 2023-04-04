@@ -5,6 +5,7 @@ package main
    * responseUsecs configurable
    * split timers for insert vs delete
    * time transactions in addition to inserts and deletes
+   * RNG seed
  */
 
 import (
@@ -16,6 +17,7 @@ import (
 	"github.com/mdcallag/mytools/bench/tsbm/datagen"
 	"github.com/mdcallag/mytools/bench/tsbm/util"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -35,12 +37,18 @@ var nReaders = flag.Int("readers", 1, "Number of concurrent readers")
 var fixedSize = flag.Bool("fixed", true, "When true delete oldest metric when adding a new metric")
 var batchSize = flag.Int("batch_size", 2, "Number of devices per insert")
 var nBatches = flag.Int64("batches", 5, "Number of batches of inserts")
+var insertsPerSecond = flag.Int("inserts_per_second", 0,
+                                "Number of rows inserted/second/writer. When <= 0 there is no rate limit.")
 
 func main() {
 	flag.Parse()
 
 	if *batchSize > *nDevices {
 		log.Fatal("--batch_size must be <= --devices")
+	}
+
+	if *nTables < 1 {
+		log.Fatal("--tables must be >= 1")
 	}
 
 	db, err := sql.Open(*dbms, *dbmsConn)
@@ -68,7 +76,7 @@ func main() {
 		writeTimers[x] = &util.PerfTimer{}
 		insertHistograms[x] = util.MakeHistogram(responseUsecs)
 		deleteHistograms[x] = util.MakeHistogram(responseUsecs)
-		go doWrites(x+1, &wg, db, writeTimers[x], insertHistograms[x], deleteHistograms[x])
+		go doWrites(x, &wg, db, writeTimers[x], insertHistograms[x], deleteHistograms[x])
 	}
 
 	watcherCancel := make(chan bool)
@@ -81,17 +89,17 @@ func main() {
 
 	insertHistSum := util.MakeHistogram(responseUsecs)
 	for x, h := range insertHistograms {
-		fmt.Printf("table %d: %s\n", x, h.Summary(false))
+		fmt.Printf("Inserts(%d) %s\n", x, h.Summary(false))
 		insertHistSum.Merge(h)
 	}
-	fmt.Printf("Inserts, all tables: %s\n", insertHistSum.Summary(false))
+	fmt.Printf("Inserts(all) %s\n", insertHistSum.Summary(false))
 
 	deleteHistSum := util.MakeHistogram(responseUsecs)
 	for x, h := range deleteHistograms {
-		fmt.Printf("table %d: %s\n", x, h.Summary(false))
+		fmt.Printf("Deletes(%d) %s\n", x, h.Summary(false))
 		deleteHistSum.Merge(h)
 	}
-	fmt.Printf("Deletes, all tables: %s\n", deleteHistSum.Summary(false))
+	fmt.Printf("Deletes(all) %s\n", deleteHistSum.Summary(false))
 }
 
 func explainSQL(db *sql.DB, sqlText string) {
@@ -139,6 +147,70 @@ func explainSQL(db *sql.DB, sqlText string) {
 	}    
 }
 
+func makeDeleteStmts(myID int, db *sql.DB) []*sql.Stmt {
+	deleteStmts := make([]*sql.Stmt, *nTables)
+	for nStmt := 0; nStmt < *nTables; nStmt++ {
+		deleteSQL := ""
+		explainDelete := ""
+
+		if *dbms == "postgres" {
+			deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
+					 	*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
+					 	*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
+			explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1)",
+					 	    *dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
+		} else if *dbms == "mysql" {
+       	 		// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
+			// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
+			// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp = 1", *dbmsTablePrefix, nStmt, getPH(*dbms, 1))
+			// Workaround for the dreaded error 1093. Alas, this appears to materialize the subquery which might hurt perf.
+			deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as HACK)",
+				 		*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
+				 		*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
+			explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1) as HACK)",
+		   	 	    		    *dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
+		} else {
+			log.Fatalf("DBMS %s is not known", *dbms)
+		}
+
+		if myID == 0 {
+			explainSQL(db, explainDelete)
+			fmt.Println(deleteSQL)
+		}
+
+		deletePS, err := db.Prepare(deleteSQL)
+		if err != nil {
+			log.Fatalf("Prepare failed for (%s): %v\n", deleteSQL, err)
+		}
+		deleteStmts[nStmt] = deletePS
+	}
+	return deleteStmts
+}
+
+func makeInsertStmts(myID int, db *sql.DB, rowsPerBatch int) []*sql.Stmt {
+
+	insertStmts := make([]*sql.Stmt, *nTables)
+	for nStmt := 0; nStmt < *nTables; nStmt++ {
+		insertSQL := fmt.Sprintf("INSERT INTO %s%d(timestamp,deviceID,metricID,metricValue) VALUES ", *dbmsTablePrefix, nStmt)
+		for x := 1; x <= rowsPerBatch; x++ {
+			phx := (x - 1) * 4
+			insertSQL += fmt.Sprintf("(%s,%s,%s,%s)", getPH(*dbms, phx+1), getPH(*dbms, phx+2), getPH(*dbms, phx+3), getPH(*dbms, phx+4))
+			if x < rowsPerBatch {
+				insertSQL += ", "
+			}
+		}
+		if myID == 0 {
+			fmt.Println(insertSQL)
+		}
+		insertPS, err := db.Prepare(insertSQL)
+		if err != nil {
+			log.Fatalf("Prepare failed for (%s): %v\n", insertSQL, err)
+		}
+		insertStmts[nStmt] = insertPS
+	}
+	return insertStmts
+}
+
 func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTimer, insertHistogram *util.Histogram, deleteHistogram *util.Histogram) {
 	defer wg.Done()
 	dgen := datagen.MakeRandGeneratorFlat(*nDevices, *nMetrics, *batchSize, *nBatches)
@@ -146,80 +218,57 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 	nDeleted := 0
 	rowsPerBatch := (*nMetrics) * (*batchSize)
 
-	insertSQL := fmt.Sprintf("INSERT INTO %s%d(timestamp,deviceID,metricID,metricValue) VALUES ", *dbmsTablePrefix, myID)
-	for x := 1; x <= rowsPerBatch; x++ {
-		phx := (x - 1) * 4
-		insertSQL += fmt.Sprintf("(%s,%s,%s,%s)", getPH(*dbms, phx+1), getPH(*dbms, phx+2), getPH(*dbms, phx+3), getPH(*dbms, phx+4))
-		if x < rowsPerBatch {
-			insertSQL += ", "
+	var insertStmts []*sql.Stmt = makeInsertStmts(myID, db, rowsPerBatch)
+	for _, insertPS := range insertStmts {
+		defer insertPS.Close()
+	}
+
+	var deleteStmts []*sql.Stmt
+	if *fixedSize {
+		deleteStmts = makeDeleteStmts(myID, db)
+		for _, deletePS := range deleteStmts {
+			defer deletePS.Close()
 		}
 	}
-	fmt.Println(insertSQL)
-	insertPS, err := db.Prepare(insertSQL)
-	if err != nil {
-		log.Fatalf("Prepare failed for (%s): %v\n", insertSQL, err)
+
+	var durPerBatch time.Duration = 0
+	if *insertsPerSecond > 0 {
+		batchesPerSecond := *insertsPerSecond / rowsPerBatch
+		durPerBatch = time.Duration(int(time.Second) / batchesPerSecond)
+		fmt.Printf("durPerBatch = %v, batchesPerSecond = %v\n", durPerBatch, batchesPerSecond)
 	}
-	defer insertPS.Close()
-
-	deleteSQL := ""
-	explainDelete := ""
-
-	if *dbms == "postgres" {
-		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
-				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
-				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
-		explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1)",
-				 	    *dbmsTablePrefix, myID, *dbmsTablePrefix, myID)
-	} else if *dbms == "mysql" {
-        	// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
-		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
-		// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp = 1", *dbmsTablePrefix, myID, getPH(*dbms, 1))
-		// Workaround for the dreaded error 1093. Alas, this appears to materialize the subquery which might hurt perf.
-		deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as HACK)",
-				 	*dbmsTablePrefix, myID, getPH(*dbms, 1),
-				 	*dbmsTablePrefix, myID, getPH(*dbms, 2))
-		explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1) as HACK)",
-			   	 	    *dbmsTablePrefix, myID, *dbmsTablePrefix, myID)
-	} else {
-		log.Fatalf("DBMS %s is not known", *dbms)
-	}
-
-
-	explainSQL(db, explainDelete)
-
-	fmt.Println(deleteSQL)
-	deletePS, err := db.Prepare(deleteSQL)
-	if err != nil {
-		log.Fatalf("Prepare failed for (%s): %v\n", deleteSQL, err)
-	}
-	defer deletePS.Close()
 
 	writeTimer.Start()
 	loop := 0
 	for m := range dgen.Data {
 
+		tableID := rand.Intn(*nTables)
+	
 		tx, err := db.Begin()
 		if err != nil {
 			log.Fatalf("Transaction begin failed: %s\n", err)
 		}
 
 		start := time.Now()
+		insertPS := insertStmts[tableID]
 		res, err := insertPS.Exec(m...)
 		end := time.Now()
 		if err != nil {
-			log.Fatalf("Insert failed sql=%s params=%v: %v\n", insertSQL, m, err)
+			log.Fatalf("Insert failed tableID=%d, params=%v: %v\n", tableID, m, err)
 		}
-		insertHistogram.Add(end.Sub(start).Microseconds(), false)
+		insertDur := end.Sub(start)
+		insertHistogram.Add(insertDur.Microseconds(), false)
 
 		rowCnt, err := res.RowsAffected()
 		if err != nil {
-			log.Fatalf("RowsAffected failed sql=%s params=%v: %v\n", insertSQL, m, err)
+			log.Fatalf("RowsAffected failed tableID=%d, params=%v: %v\n", tableID, m, err)
 		}
 		if rowCnt != int64(rowsPerBatch) {
-			log.Fatalf("Inserted %d rows, but RowsAffected=%d: sql=%s params=%v\n", rowsPerBatch, rowCnt, insertSQL, m)
+			log.Fatalf("Inserted %d rows, but RowsAffected=%d: tableID=%d, params=%v\n", rowsPerBatch, rowCnt, tableID, m)
 		}
 		nInserted += rowsPerBatch
 
+		var deleteDur time.Duration = 0
 		if *fixedSize {
 			stepFrom := 4 * (*nMetrics)
 			for xFrom := 1; xFrom <= (rowsPerBatch*4); xFrom += stepFrom { 
@@ -228,23 +277,30 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 
 				start := time.Now()
 				// res, err := deletePS.Exec(deviceId) -- TODO hack for debugging mysql perf
+				deletePS := deleteStmts[tableID]
 				res, err := deletePS.Exec(deviceId, deviceId)
 				end := time.Now()
 
 				if err != nil {
-					log.Fatalf("Delete failed sql=%s params=%v: %v\n", deleteSQL, deviceId, err)
+					log.Fatalf("Delete failed tableID=%d, params=%v: %v\n", tableID, deviceId, err)
 				}
-				deleteHistogram.Add(end.Sub(start).Microseconds(), false)
+				deleteDur = end.Sub(start)
+				deleteHistogram.Add(deleteDur.Microseconds(), false)
 				rowCnt, err := res.RowsAffected()
 				if err != nil {
-					log.Fatalf("RowsAffected failed sql=%s params=%v: %v\n", deleteSQL, deviceId, err)
+					log.Fatalf("RowsAffected failed tableID=%d, params=%v: %v\n", tableID, deviceId, err)
 				}
 				// if rowCnt > int64(*nMetrics) {  -- TODO hack for debugging mysql perf
 				if rowCnt != int64(*nMetrics) {
-					log.Fatalf("Delete expected %d rows, but RowsAffected=%d: sql=%s params=%v\n", *nMetrics, rowCnt, deleteSQL, deviceId)
+					log.Fatalf("Delete expected %d rows, but RowsAffected=%d: tableID=%d, params=%v\n", *nMetrics, rowCnt, tableID, deviceId)
 				}
 			}
 			nDeleted += rowsPerBatch
+		}
+		if (insertDur + deleteDur) < durPerBatch {
+			sleepDur := durPerBatch - (insertDur + deleteDur)
+			// fmt.Printf("Sleeping %v microseconds\n", sleepDur.Microseconds())
+			time.Sleep(sleepDur)
 		}
 
 		if err = tx.Commit(); err != nil {

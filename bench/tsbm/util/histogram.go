@@ -106,7 +106,7 @@ func (h *Histogram) Summary(onePerLine bool) string {
 	if onePerLine {
 		return strings.Join(summary, "\n")
 	} else {
-		return strings.Join(summary, ", ")
+		return strings.Join(summary, " ")
 	}
 }
 
