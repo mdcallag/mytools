@@ -27,19 +27,25 @@ type Measurement struct {
 }
 
 type SeqGenerator struct {
-	stop          chan bool
-	data          chan Measurement
-	nDevices      int
-	nMetrics      int
-	nMeasurements int
+	stop		chan bool
+	data		chan Measurement
+	minDeviceID	int
+	nDevices	int
+	nMetrics	int
+	startTime	time.Time
+	nMeasurements	int
+	measurementDur	time.Duration
 }
 
 type SeqGeneratorFlat struct {
-	stop          chan bool
-	data          chan []interface{}
-	nDevices      int
-	nMetrics      int
-	nMeasurements int
+	stop		chan bool
+	data		chan []interface{}
+	minDeviceID	int
+	nDevices	int
+	nMetrics	int
+	startTime	time.Time
+	nMeasurements	int
+	measurementDur	time.Duration
 }
 
 type RandGeneratorFlat struct {
@@ -72,11 +78,11 @@ func (g *SeqGenerator) getMeasurement(deviceId, timestamp int64) Measurement {
 
 func (g *SeqGenerator) genData() {
 
-	for dID := 1; dID <= g.nDevices; dID++ {
-		timestamp := int64(1)
-		for nMeasure := 1; nMeasure <= g.nMeasurements; nMeasure++ {
-			m := g.getMeasurement(int64(dID), timestamp)
-			timestamp++
+	timestamp := g.startTime
+
+	for nMeasure := 0; nMeasure < g.nMeasurements; nMeasure++ {
+		for d := 0; d < g.nDevices; d++ {
+			m := g.getMeasurement(int64(d + g.minDeviceID), timestamp.UnixMicro())
 
 			select {
 			case <-g.stop:
@@ -86,6 +92,7 @@ func (g *SeqGenerator) genData() {
 			case g.data <- m:
 			}
 		}
+		timestamp = timestamp.Add(g.measurementDur)
 	}
 	close(g.data)
 	// log.Printf("SeqGenerator closed: done")
@@ -113,11 +120,12 @@ func (g *SeqGeneratorFlat) getMeasurement(deviceId, timestamp int64) []interface
 
 func (g *SeqGeneratorFlat) genData() {
 
-	for deviceId := 1; deviceId <= g.nDevices; deviceId++ {
-		timestamp := int64(1)
-		for nMeasure := 1; nMeasure <= g.nMeasurements; nMeasure++ {
-			values := g.getMeasurement(int64(deviceId), timestamp)
-			timestamp++
+	timestamp := g.startTime
+	log.Printf("flat: nm=%d\n", g.nMeasurements)
+	for nMeasure := 0; nMeasure < g.nMeasurements; nMeasure++ {
+		log.Printf("... m = %d\n", nMeasure)
+		for d := 0; d < g.nDevices; d++ {
+			values := g.getMeasurement(int64(d + g.minDeviceID), timestamp.UnixMicro())
 
 			select {
 			case <-g.stop:
@@ -127,9 +135,10 @@ func (g *SeqGeneratorFlat) genData() {
 			case g.data <- values:
 			}
 		}
+		timestamp = timestamp.Add(g.measurementDur)
 	}
 	close(g.data)
-	// log.Printf("SeqGeneratorFlat closed: done")
+	log.Printf("SeqGeneratorFlat closed: done")
 }
 
 func arrContains(usedIds []int64, val int64) bool {
@@ -193,19 +202,19 @@ func (g *RandGeneratorFlat) genData() {
 	// log.Printf("RandGeneratorFlat closed: done")
 }
 
-func MakeSeqGenerator(nDevices, nMetrics, nMeasurements int) GeneratorChan {
+func MakeSeqGenerator(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int, measurementDur time.Duration) GeneratorChan {
 	stopChan := make(chan bool)
 	dataChan := make(chan Measurement)
-	sg := SeqGenerator{stopChan, dataChan, nDevices, nMetrics, nMeasurements}
+	sg := SeqGenerator{stopChan, dataChan, minDeviceID, nDevices, nMetrics, startTime, nMeasurements, measurementDur}
 	go sg.genData()
 	return GeneratorChan{dataChan, stopChan}
 }
 
-func MakeSeqGeneratorFlat(nDevices, nMetrics, nMeasurements int) GeneratorChanFlat {
+func MakeSeqGeneratorFlat(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int, measurementDur time.Duration) GeneratorChanFlat {
 	stopChan := make(chan bool)
         // The consumer, DB prepared statements, needs []interface{} even though all elements are string
 	dataChan := make(chan []interface{})
-	sg := SeqGeneratorFlat{stopChan, dataChan, nDevices, nMetrics, nMeasurements}
+	sg := SeqGeneratorFlat{stopChan, dataChan, minDeviceID, nDevices, nMetrics, startTime, nMeasurements, measurementDur}
 	go sg.genData()
 	return GeneratorChanFlat{dataChan, stopChan}
 }

@@ -36,8 +36,8 @@ var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")
 var nWriters = flag.Int("writers", 1, "Number of concurrent writers")
 var nReaders = flag.Int("readers", 1, "Number of concurrent readers")
 var fixedSize = flag.Bool("fixed", true, "When true delete oldest measurement when adding a new measurement")
-var batchSize = flag.Int("batch_size", 2, "Number of devices per insert")
-var nBatches = flag.Int64("batches", 5, "Number of batches of inserts")
+var batchSize = flag.Int("batch_size", 1, "Number of devices per insert")
+var nBatches = flag.Int64("batches", 100, "Number of batches of inserts")
 var insertsPerSecond = flag.Int("inserts_per_second", 0,
                                 "Number of rows inserted/second/writer. When <= 0 there is no rate limit.")
 
