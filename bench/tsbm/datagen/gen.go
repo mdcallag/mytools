@@ -121,9 +121,7 @@ func (g *SeqGeneratorFlat) getMeasurement(deviceId, timestamp int64) []interface
 func (g *SeqGeneratorFlat) genData() {
 
 	timestamp := g.startTime
-	log.Printf("flat: nm=%d\n", g.nMeasurements)
 	for nMeasure := 0; nMeasure < g.nMeasurements; nMeasure++ {
-		log.Printf("... m = %d\n", nMeasure)
 		for d := 0; d < g.nDevices; d++ {
 			values := g.getMeasurement(int64(d + g.minDeviceID), timestamp.UnixMicro())
 

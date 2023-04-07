@@ -107,7 +107,7 @@ func main() {
 
 	nMeasurementsPerSec = float64(*nMetricsPerSec) / float64(*nDevices * *nMetrics)
 	measurementDur := time.Duration((1 / nMeasurementsPerSec) * float64(time.Second))
-	fmt.Printf("measurementDur is %v with %d micros\n", measurementDur, measurementDur.Microseconds())
+	fmt.Printf("measurementDur: %v or %d micros\n", measurementDur, measurementDur.Microseconds())
 
 	// dataDur is endTime - startTime
 	dataDur = time.Duration((float64(nMeasurements) / nMeasurementsPerSec)) * time.Second
