@@ -58,7 +58,7 @@ bash $bdir/plot_report.sh $m $dop $( cat $ch )
 echo E
 bash $bdir/gen_html.sh "${m}M docs and $dop client(s)" $m $ht $resdir $rtdir > report/all.html
 
-mv z1 z1f z1q z2 z3 ztmp tput.tab do.ch tput_hdr iput.tab report
+mv z1 z1f z1q z2.asRel0 z2.asRel1 z3 ztmp tput.tab tputr.tab do.ch tput_hdr iput.tab report
 mv do.gp.* report
 rm -rf report.$etldirs; mv report report.$etldirs
 

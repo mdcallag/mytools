@@ -193,6 +193,12 @@ done
 
 # generate summary table
 
+firstRowCols=()
+for c in $( seq 1 7 ); do
+  firstRowCols[$c]=$( get_row_col 1 $c z1 )  
+done
+
+for asRel in 0 1 ; do
 for r in $( seq 1 $nRows ); do
 dbms=$( get_row_col $r 1 z1 )
 # TODO: this (=7) assumes there are 3 query steps
@@ -201,7 +207,14 @@ for c in $( seq 1 7 ); do
   if [[ $c -eq 1 ]]; then
     printf "<tr><td>%s</td> " $val
   else
-    if [[ $val -le ${botq[$c]} ]]; then
+    if [ $asRel -eq 1 ]; then
+      if [ $r -gt 1 ]; then
+        retVal=$( echo $val ${firstRowCols[$c]} | awk '{ printf "%.2f", $1 / $2 }' )
+        printf "<td>%s</td>" $retVal
+      else
+        printf "<td>1.00</td>"
+      fi
+    elif [[ $val -le ${botq[$c]} ]]; then
       printf "<td id=\"cmin\">%s</td>" $val
     elif [[ $c -gt 4 && ${sla[${dbms}.$(( $c - 3 ))]} -eq 0 ]]; then
       printf "<td id=\"cgray\">%s</td>" $val
@@ -213,9 +226,13 @@ for c in $( seq 1 7 ); do
     if [[ $c -eq 10 ]]; then printf "</tr>\n"; fi
   fi
 done
-done > z2
+done > z2.asRel${asRel}
+done
 
 cat tput_hdr > z3
 printf "<tr><th>dbms</th><th>l.i0</th><th>l.x</th><th>l.i1</th><th>q100.1</th><th>q500.1</th><th>q1000.1</th></tr>\n" >> z3
-cat z3 z2 > tput.tab
+cat z3 z2.asRel0 > tput.tab
 printf "</table>\n" >> tput.tab
+
+cat z3 z2.asRel1 > tputr.tab
+printf "</table>\n" >> tputr.tab

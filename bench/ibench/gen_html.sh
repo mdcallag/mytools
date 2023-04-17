@@ -103,6 +103,15 @@ SumEOF
 
 catme tput.tab
 
+cat <<SumrEOF
+<p>
+This table has relative throughput, throughput for the DBMS relative to the DBMS in the first line,
+using the absolute throughput from the previous table.
+</p>
+SumrEOF
+
+catme tputr.tab
+
 cat <<Sum2EOF
 <p>
 This lists the average rate of inserts/s for the tests that do inserts concurrent with queries.
