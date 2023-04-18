@@ -1,12 +1,12 @@
 package main
 
 /* TODO
-   * reduce frequency at which PerfTimer updated
-   * responseUsecs configurable
-   * split timers for insert vs delete
-   * time transactions in addition to inserts and deletes
-   * RNG seed
-   * create table, load then create index
+ * reduce frequency at which PerfTimer updated
+ * responseUsecs configurable
+ * split timers for insert vs delete
+ * time transactions in addition to inserts and deletes
+ * RNG seed
+ * create table, load then create index
  */
 
 import (
@@ -29,28 +29,138 @@ var dbms = flag.String("dbms", "mysql", "Database driver name")
 var dbmsConn = flag.String("dbms_conn", "root:pw@tcp(127.0.0.1:3306)/tsbm", "DBMS connection string")
 var dbmsTablePrefix = flag.String("dbms_table_prefix", "t", "Prefix for DBMS table names")
 
-var nDevices = flag.Int("devices", 1000, "Number of devices per table")
-var nTables = flag.Int("tables", 1, "Number of tables")
-var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")
+/*
+   See description in tsbm_loader
+*/
+var nDevices = flag.Int("devices", 100, "Number of devices per table")
+var nMetrics = flag.Int("metrics", 10, "Number of metrics per device")
 
-var nWriters = flag.Int("writers", 1, "Number of concurrent writers")
-var nReaders = flag.Int("readers", 1, "Number of concurrent readers")
-var fixedSize = flag.Bool("fixed", true, "When true delete oldest measurement when adding a new measurement")
-var batchSize = flag.Int("batch_size", 1, "Number of devices per insert")
-var nBatches = flag.Int64("batches", 100, "Number of batches of inserts")
-var insertsPerSecond = flag.Int("inserts_per_second", 0,
-                                "Number of rows inserted/second/writer. When <= 0 there is no rate limit.")
+/*
+   When fixedSize is true this should be the same as the value used during the load to maintain the same
+   density of measurements/second/device. When fixedSize is false then use whatever you want.
+*/
+var nMetricsPerSec = flag.Int("metrics_per_sec", 1000,
+	"Number of metrics to insert per second, when == 0 there is no rate limit.")
+
+var nMeasurementsPerBatch = flag.Int("batch_size", 1, "Number of measurements per insert batch (per commit)")
+
+var nTables = flag.Int("tables", 1, "Number of tables")
+var nWritersPerTable = flag.Int("writers_per_table", 1, "Number of writers per table")
+var nReadersPerTable = flag.Int("readers_per_table", 1, "Number of readers per table")
+
+var fixedSize = flag.Bool("fixed", true,
+	"When true delete oldest measurement when inserting a new measurement so that the table has a fixed size.")
+
+var dataDur = flag.Duration("data_duration", 3600 * time.Second,
+	"Duration for which data was loaded, latest timestamp - oldest timestamp. Value of 'measurement_duration' printed by tsbm_loader.")
+
+var runDur = flag.Duration("run_duration", 60 * time.Second, "Duration for which this test runs.")
 
 func main() {
+
+	// Computed values
+	var nMeasurementsPerSec int
+	var nMeasurementsPerSecPerWriter int
+	var nMeasurementsPerDev int64
+	// All devices insert one measurement per measurementDur units of time
+	var measurementDur time.Duration
+	var nReaders int
+	var nWriters int
+	var devicesPerWriter int
+	var devicesPerTable int
+	var now time.Time
+
+	// Other values
+	var startTime time.Time
+
 	flag.Parse()
 
-	if *batchSize > *nDevices {
-		log.Fatal("--batch_size must be <= --devices")
+	const startTimePattern = "2006-01-02 15:04:05 MST"
+	const startTimeStr = "2000-01-01 12:00:00 PST"
+	startTime, e := time.Parse(startTimePattern, startTimeStr)
+	// fmt.Printf("Parsed time is :: %v ::\n", startTime)
+	if e != nil {
+		log.Fatalf("Cannot parse start_time: error is %v", e)
 	}
 
-	if *nTables < 1 {
-		log.Fatal("--tables must be >= 1")
+	if *nDevices < 1 {
+		log.Fatalf("--devices was %d, must be >= 1", *nDevices)
 	}
+	if *nMetrics < 1 {
+		log.Fatalf("--metrics was %d, must be >= 1", *nMetrics)
+	}
+	if *nMetricsPerSec < 0 {
+		log.Fatalf("--metrics_per_sec was %d, must be >= 1", *nMetricsPerSec)
+	}
+	if *nTables < 1 {
+		log.Fatalf("--tables was %d, must be >= 1", *nTables)
+	}
+	if *nWritersPerTable < 1 {
+		log.Fatalf("--writers_per_table was %d, must be >= 1", *nWritersPerTable)
+	}
+	if *nReadersPerTable < 1 {
+		log.Fatalf("--readers_per_table was %d, must be >= 1", *nWritersPerTable)
+	}
+	if *nMeasurementsPerBatch < 1 {
+		log.Fatalf("--batch_size was %d, must be >= 1", *nMeasurementsPerBatch)
+	}
+
+	nSeconds := runDur.Nanoseconds() / int64(time.Second)
+	if (nSeconds * int64(time.Second)) != runDur.Nanoseconds() {
+		log.Fatalf("run_duration must be a whole number of seconds")
+	}
+
+	// Computed values
+	nReaders = *nTables * *nReadersPerTable
+	nWriters = *nTables * *nWritersPerTable
+
+        nMeasurementsPerSec = *nMetricsPerSec / *nMetrics
+        if (nMeasurementsPerSec * (*nMetrics)) != *nMetricsPerSec {
+                log.Fatalf("Remainder for nMetricsPerSec / nMetrics must be zero")
+        }
+
+	nMeasurementsPerSecPerWriter = nMeasurementsPerSec / nWriters
+	if (nMeasurementsPerSecPerWriter * nWriters) != nMeasurementsPerSec {
+		log.Fatalf("Remainder for nMeasurementsPerSec / nWriters must be zero")
+	}
+
+	batchesPerSecond := nMeasurementsPerSecPerWriter / *nMeasurementsPerBatch
+	if (batchesPerSecond * (*nMeasurementsPerBatch)) != nMeasurementsPerSecPerWriter {
+		log.Fatalf("Remainder for nMeasurementsPerSecPerWriter / nMeasurements must be zero")
+	}
+
+        devicesPerTable = *nDevices / *nTables
+        if (devicesPerTable * *nTables) != *nDevices {
+                log.Fatalf("Remainder for nDevices / nTables must be zero")
+        }
+        devicesPerWriter = devicesPerTable / *nWritersPerTable
+        if (devicesPerWriter * *nWritersPerTable) != devicesPerTable {
+                log.Fatalf("Remainder for devicesPerTable / nWritersPerTable must be zero")
+        }
+
+	nMeasurementsPerDev = int64(nMeasurementsPerSec) * int64(runDur.Seconds())
+
+	nBatches := nMeasurementsPerDev / int64(*nMeasurementsPerBatch)
+	if (nBatches * int64(*nMeasurementsPerBatch)) != nMeasurementsPerDev {
+		log.Fatalf("Remainder for nMeasurementsPerDev / nMeasurementsPerBatch must be zero")
+	}	
+
+	measurementDur = time.Duration(float64(int64(*nDevices) * int64(time.Second)) / float64(nMeasurementsPerSec))
+
+	now = startTime.Add(*dataDur).Add(1 * time.Second)
+
+        fmt.Printf("devices: %d total, %d per-writer, %d per-table\n", *nDevices, devicesPerWriter, devicesPerTable)
+        fmt.Printf("metrics: %d\n", *nMetrics)
+        fmt.Printf("metrics_per_sec: %d\n", *nMetricsPerSec)
+	fmt.Printf("measurements_per_dev: %d\n", nMeasurementsPerDev)
+	fmt.Printf("measurements_per_sec: %d\n", nMeasurementsPerSec)
+	fmt.Printf("measurements_per_sec_per_writer: %d\n", nMeasurementsPerSecPerWriter)
+	fmt.Printf("measurement_duration: %v or %.3f seconds\n", measurementDur, measurementDur.Seconds())
+	fmt.Printf("now: %v\n", now)
+        fmt.Printf("run_duration: %v\n", *runDur)
+        fmt.Printf("tables: %d\n", *nTables)
+	fmt.Printf("writers: %d\n", nWriters)
+	fmt.Printf("readers: %d\n", nReaders)
 
 	db, err := sql.Open(*dbms, *dbmsConn)
 	if err != nil {
@@ -65,23 +175,31 @@ func main() {
 
 	wg := sync.WaitGroup{}
 
-	writeTimers := make([]*util.PerfTimer, *nWriters)
+	writeTimers := make([]*util.PerfTimer, nWriters)
 
-	insertHistograms := make([]*util.Histogram, *nWriters)
-	deleteHistograms := make([]*util.Histogram, *nWriters)
+	insertHistograms := make([]*util.Histogram, nWriters)
+	deleteHistograms := make([]*util.Histogram, nWriters)
 
 	responseUsecs := []int64{256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
 
-	for x := 0; x < *nWriters; x++ {
-		wg.Add(1)
-		writeTimers[x] = &util.PerfTimer{}
-		insertHistograms[x] = util.MakeHistogram(responseUsecs)
-		deleteHistograms[x] = util.MakeHistogram(responseUsecs)
-		go doWrites(x, &wg, db, writeTimers[x], insertHistograms[x], deleteHistograms[x])
+	myID := 0
+	for t := 0; t < *nTables; t++ {
+		minDeviceID := 0
+		for w := 0; w < *nWritersPerTable; w++ {
+			wg.Add(1)
+			writeTimers[myID] = &util.PerfTimer{}
+			insertHistograms[myID] = util.MakeHistogram(responseUsecs)
+			deleteHistograms[myID] = util.MakeHistogram(responseUsecs)
+			go doWrites(t, w, myID, &wg, db, writeTimers[myID], insertHistograms[myID], deleteHistograms[myID], now,
+				nMeasurementsPerDev, measurementDur, minDeviceID, devicesPerWriter, *nMeasurementsPerBatch,
+				nMeasurementsPerSecPerWriter)
+			myID++
+			minDeviceID += devicesPerWriter
+		}
 	}
 
 	watcherCancel := make(chan bool)
-	go util.PerfWatcher(writeTimers, 1 * time.Second, watcherCancel)
+	go util.PerfWatcher(writeTimers, 1*time.Second, watcherCancel)
 
 	fmt.Println("main wait")
 	wg.Wait()
@@ -145,7 +263,7 @@ func explainSQL(db *sql.DB, sqlText string) {
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
-	}    
+	}
 }
 
 func makeDeleteStmts(myID int, db *sql.DB) []*sql.Stmt {
@@ -156,20 +274,20 @@ func makeDeleteStmts(myID int, db *sql.DB) []*sql.Stmt {
 
 		if *dbms == "postgres" {
 			deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
-					 	*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
-					 	*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
+				*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
+				*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
 			explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1)",
-					 	    *dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
+				*dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
 		} else if *dbms == "mysql" {
-       	 		// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
+			// delete from t0 where deviceid = 8081 and timestamp in (select min(timestamp) from t0 where deviceid=8081);
 			// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s)",
 			// deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp = 1", *dbmsTablePrefix, nStmt, getPH(*dbms, 1))
 			// Workaround for the dreaded error 1093. Alas, this appears to materialize the subquery which might hurt perf.
 			deleteSQL = fmt.Sprintf("DELETE FROM %s%d WHERE deviceid=%s AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=%s) as HACK)",
-				 		*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
-				 		*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
+				*dbmsTablePrefix, nStmt, getPH(*dbms, 1),
+				*dbmsTablePrefix, nStmt, getPH(*dbms, 2))
 			explainDelete = fmt.Sprintf("EXPLAIN DELETE FROM %s%d WHERE deviceid=1 AND timestamp IN (SELECT * FROM (SELECT MIN(timestamp) FROM %s%d WHERE deviceid=1) as HACK)",
-		   	 	    		    *dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
+				*dbmsTablePrefix, nStmt, *dbmsTablePrefix, nStmt)
 		} else {
 			log.Fatalf("DBMS %s is not known", *dbms)
 		}
@@ -212,12 +330,16 @@ func makeInsertStmts(myID int, db *sql.DB, rowsPerBatch int) []*sql.Stmt {
 	return insertStmts
 }
 
-func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTimer, insertHistogram *util.Histogram, deleteHistogram *util.Histogram) {
+func doWrites(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTimer,
+	insertHistogram *util.Histogram, deleteHistogram *util.Histogram, now time.Time,
+	nMeasurementsPerDev int64, measurementDur time.Duration,
+	minDeviceID int, devicesPerWriter int, nMeasurementsPerBatch int, nMeasurementsPerSecPerWriter int) {
+
 	defer wg.Done()
-	dgen := datagen.MakeRandGeneratorFlat(*nDevices, *nMetrics, *batchSize, *nBatches)
+	dgen := datagen.MakeSeqGeneratorFlat(minDeviceID, devicesPerWriter, *nMetrics, now, nMeasurementsPerDev, measurementDur)
 	nInserted := 0
 	nDeleted := 0
-	rowsPerBatch := (*nMetrics) * (*batchSize)
+	rowsPerBatch := (*nMetrics) * nMeasurementsPerBatch
 
 	var insertStmts []*sql.Stmt = makeInsertStmts(myID, db, rowsPerBatch)
 	for _, insertPS := range insertStmts {
@@ -233,18 +355,20 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 	}
 
 	var durPerBatch time.Duration = 0
-	if *insertsPerSecond > 0 {
-		batchesPerSecond := *insertsPerSecond / rowsPerBatch
+	if nMeasurementsPerSecPerWriter > 0 {
+		batchesPerSecond := nMeasurementsPerSecPerWriter / nMeasurementsPerBatch
 		durPerBatch = time.Duration(time.Second.Nanoseconds() / int64(batchesPerSecond))
 		fmt.Printf("durPerBatch = %v, batchesPerSecond = %v\n", durPerBatch, batchesPerSecond)
 	}
+
+	nBatches := nMeasurementsPerDev / int64(nMeasurementsPerBatch)
 
 	writeTimer.Start()
 	loop := 0
 	for m := range dgen.Data {
 
 		tableID := rand.Intn(*nTables)
-	
+
 		tx, err := db.Begin()
 		if err != nil {
 			log.Fatalf("Transaction begin failed: %s\n", err)
@@ -273,7 +397,7 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 		var deleteDur time.Duration = 0
 		if *fixedSize {
 			stepFrom := 4 * (*nMetrics)
-			for xFrom := 1; xFrom <= (rowsPerBatch*4); xFrom += stepFrom { 
+			for xFrom := 1; xFrom <= (rowsPerBatch * 4); xFrom += stepFrom {
 				deviceId := (m[xFrom]).(string)
 				// fmt.Printf("DELETE deviceId = %s from %d of %d\n", deviceId, xFrom, rowsPerBatch*4)
 
@@ -315,8 +439,8 @@ func doWrites(myID int, wg *sync.WaitGroup, db *sql.DB, writeTimer *util.PerfTim
 		loop++
 		// log.Printf("Inserted %d rows with %s\n", rowsPerBatch, m)
 	}
-	if int64(loop) != *nBatches {
-		log.Fatalf("Expected %s batches but did %s\n", *nBatches, loop)
+	if int64(loop) != nBatches {
+		log.Fatalf("Expected %d batches but did %d\n", nBatches, loop)
 	}
 }
 
@@ -331,4 +455,3 @@ func getPH(dbms string, n int) string {
 		return ""
 	}
 }
-

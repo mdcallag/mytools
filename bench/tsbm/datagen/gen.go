@@ -22,7 +22,7 @@ type MetricPair struct {
 
 type Measurement struct {
 	Timestamp int64
-	DeviceID  int64
+	DeviceID  int
 	Metrics   []MetricPair
 }
 
@@ -33,7 +33,7 @@ type SeqGenerator struct {
 	nDevices	int
 	nMetrics	int
 	startTime	time.Time
-	nMeasurements	int
+	nMeasurements	int64
 	measurementDur	time.Duration
 }
 
@@ -44,7 +44,7 @@ type SeqGeneratorFlat struct {
 	nDevices	int
 	nMetrics	int
 	startTime	time.Time
-	nMeasurements	int
+	nMeasurements	int64
 	measurementDur	time.Duration
 }
 
@@ -67,7 +67,7 @@ type GeneratorChanFlat struct {
 	Stop chan<- bool
 }
 
-func (g *SeqGenerator) getMeasurement(deviceId, timestamp int64) Measurement {
+func (g *SeqGenerator) getMeasurement(deviceId int, timestamp int64) Measurement {
 	pairs := make([]MetricPair, g.nMetrics)
 	for x, _ := range pairs {
 		pairs[x].MetricID = int32(x)
@@ -80,9 +80,9 @@ func (g *SeqGenerator) genData() {
 
 	timestamp := g.startTime
 
-	for nMeasure := 0; nMeasure < g.nMeasurements; nMeasure++ {
+	for nMeasure := int64(0); nMeasure < g.nMeasurements; nMeasure++ {
 		for d := 0; d < g.nDevices; d++ {
-			m := g.getMeasurement(int64(d + g.minDeviceID), timestamp.UnixMicro())
+			m := g.getMeasurement(d + g.minDeviceID, timestamp.UnixMicro())
 
 			select {
 			case <-g.stop:
@@ -98,9 +98,9 @@ func (g *SeqGenerator) genData() {
 	// log.Printf("SeqGenerator closed: done")
 }
 
-func getOneFlatMeasurement(timestamp int64, deviceId int64, nMetrics int, values []interface{}) {
+func getOneFlatMeasurement(timestamp int64, deviceId int, nMetrics int, values []interface{}) {
 	timestampStr := strconv.FormatInt(timestamp, 10)
-	deviceStr := strconv.FormatInt(deviceId, 10)
+	deviceStr := strconv.FormatInt(int64(deviceId), 10)
 
 	for x := 0; x < nMetrics; x++ {
 		values[x*4] = timestampStr
@@ -111,7 +111,7 @@ func getOneFlatMeasurement(timestamp int64, deviceId int64, nMetrics int, values
 	}
 }
 
-func (g *SeqGeneratorFlat) getMeasurement(deviceId, timestamp int64) []interface{} {
+func (g *SeqGeneratorFlat) getMeasurement(deviceId int, timestamp int64) []interface{} {
 	// Ugh - https://stackoverflow.com/questions/57868506/cannot-use-args-type-string-as-type-interface
 	values := make([]interface{}, 4 * g.nMetrics)
 	getOneFlatMeasurement(timestamp, deviceId, g.nMetrics, values)
@@ -121,9 +121,9 @@ func (g *SeqGeneratorFlat) getMeasurement(deviceId, timestamp int64) []interface
 func (g *SeqGeneratorFlat) genData() {
 
 	timestamp := g.startTime
-	for nMeasure := 0; nMeasure < g.nMeasurements; nMeasure++ {
+	for nMeasure := int64(0); nMeasure < g.nMeasurements; nMeasure++ {
 		for d := 0; d < g.nDevices; d++ {
-			values := g.getMeasurement(int64(d + g.minDeviceID), timestamp.UnixMicro())
+			values := g.getMeasurement(d + g.minDeviceID, timestamp.UnixMicro())
 
 			select {
 			case <-g.stop:
@@ -139,7 +139,7 @@ func (g *SeqGeneratorFlat) genData() {
 	log.Printf("SeqGeneratorFlat closed: done")
 }
 
-func arrContains(usedIds []int64, val int64) bool {
+func arrContains(usedIds []int, val int) bool {
 	for _, v := range usedIds {
 		if v == val {
 			return true
@@ -151,12 +151,12 @@ func arrContains(usedIds []int64, val int64) bool {
 func (g *RandGeneratorFlat) getMeasurement(timestamp int64) []interface{} {
 	// Ugh - https://stackoverflow.com/questions/57868506/cannot-use-args-type-string-as-type-interface
 	values := make([]interface{}, 4 * g.nMetrics * g.batchSize)
-	usedIds := make([]int64, g.batchSize)
+	usedIds := make([]int, g.batchSize)
 
 	for b := 0; b < g.batchSize; b++ {
-		deviceId := int64(rand.Intn(g.nDevices))
+		deviceId := rand.Intn(g.nDevices)
 		for arrContains(usedIds, deviceId) {
-			deviceId = int64(rand.Intn(g.nDevices))
+			deviceId = rand.Intn(g.nDevices)
 		}
 		usedIds = append(usedIds, deviceId)
 
@@ -200,7 +200,7 @@ func (g *RandGeneratorFlat) genData() {
 	// log.Printf("RandGeneratorFlat closed: done")
 }
 
-func MakeSeqGenerator(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int, measurementDur time.Duration) GeneratorChan {
+func MakeSeqGenerator(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int64, measurementDur time.Duration) GeneratorChan {
 	stopChan := make(chan bool)
 	dataChan := make(chan Measurement)
 	sg := SeqGenerator{stopChan, dataChan, minDeviceID, nDevices, nMetrics, startTime, nMeasurements, measurementDur}
@@ -208,7 +208,7 @@ func MakeSeqGenerator(minDeviceID int, nDevices int, nMetrics int, startTime tim
 	return GeneratorChan{dataChan, stopChan}
 }
 
-func MakeSeqGeneratorFlat(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int, measurementDur time.Duration) GeneratorChanFlat {
+func MakeSeqGeneratorFlat(minDeviceID int, nDevices int, nMetrics int, startTime time.Time, nMeasurements int64, measurementDur time.Duration) GeneratorChanFlat {
 	stopChan := make(chan bool)
         // The consumer, DB prepared statements, needs []interface{} even though all elements are string
 	dataChan := make(chan []interface{})

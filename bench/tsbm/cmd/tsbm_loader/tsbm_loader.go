@@ -1,10 +1,10 @@
 package main
 
 /* TODO
-   * batchSize for inserts
-   * reduce frequency at which PerfTimer updated
-   * responseUsecs configurable
-   * option to insert metrics X measurements, today just does metrics
+ * batchSize for inserts
+ * reduce frequency at which PerfTimer updated
+ * responseUsecs configurable
+ * option to insert metrics X measurements, today just does metrics
  */
 
 import (
@@ -20,7 +20,6 @@ import (
 	"time"
 )
 
-// var batchSize = flag.Int("batch", 1, "Size of an insert batch")
 var dbms = flag.String("dbms", "mysql", "Database driver name")
 
 // postgres://root:pw@localhost/tsbm?sslmode=disable
@@ -28,50 +27,63 @@ var dbmsConn = flag.String("dbms_conn", "root:pw@tcp(127.0.0.1:3306)/tsbm", "DBM
 var dbmsTablePrefix = flag.String("dbms_table_prefix", "t", "Prefix for DBMS table names")
 
 /*
-  A measurement is all metrics for one device from one point in time.
+  A measurement is all metrics for one device from one point in time. It is inserted in one transaction.
 
-  Configuring a load:
-    * Database size (nRows) = nDevices * nMetrics * nMeasurements
-    * nMetricsPerSec = nDevices * nMetrics * nMeasurementsPerSec
-    * Data inserted for time range (startTime, endTime)
+  Configuration:
+    * Database size -> nRows = nDevices * nMeasurementsPerDev * nMetrics
+    * nMetricsPerSec = nMeasurementsPerSec * nMetrics
+    * Data is inserted for time range (startTime, endTime)
 
   Some of these values are set by the user while others are computed.
-    * User provides values for nRows, nDevices and nMetrics while nMeasurements is computed.
-	nMeasurements = nRows / (nDevices * nMetrics)	
+    * nMetricsPerSec is the insert rate assuming there is a row per metric
+    * User provides values for nRows, nDevices and nMetrics while nMeasurementsPerDev is computed.
+	nMeasurementsPerDev = nRows / (nDevices * nMetrics)
     * User provides values for nMetricsPerSec, nDevices and nMetrics while nMeasurementsPerSec is computed.
-	nMeasurementsPerSec = nMetricsPerSec / (nDevices * nMetrics)      
+	nMeasurementsPerSec = nMetricsPerSec / nMetrics
     * startTime is fixed while endTime is computed.
-	endTime = startTime + (nMeasurements / nMeasurementsPerSec) seconds
+	endTime = startTime + ((nMeasurementsPerDev * nDevices) / nMeasurementsPerSec) seconds
+    * all devices report one measurement every measurementDur units of time
+        measurementDur = (nDevices / nMeasurementsPerSec) * time.Second
 */
-
-var nRows = flag.Int64("rows", 10000000, "Number of rows to load")
+var nRows = flag.Int64("rows", 1000000, "Number of rows to load")
 var nDevices = flag.Int("devices", 100, "Number of devices per table")
-var nMetrics = flag.Int("metrics", 100, "Number of metrics per device")
+var nMetrics = flag.Int("metrics", 10, "Number of metrics per device")
 
-// This is the insert rate that should be sustained in normal operation (after the load is done).
-// But it is also used to determine the rate at which devices must report measurements during the
-// load so that the density of data (number of metric/second/device) in the loaded data matches
-// the density after the load (assuming that insert rate can be sustained after the load).
-//
+/*
+   This is the insert rate that should be sustained in normal operation (after the load is done).
+   But it also determines the rate at which devices must report measurements during the load so
+   that the density of data (number of metric/second/device) in the loaded data matches
+   the density after the load (assuming that the post-load insert rate can be sustained).
+
+   By density of data during the load I don't mean the insert rate during the load. I do mean
+   the measurements per second if you did something like:
+     select count(*), as_second(timestamp), deviceID from Table group by 2, 3
+*/
 var nMetricsPerSec = flag.Int("metrics_per_sec", 1000, "Number of metrics to insert per second")
 
-var nWritersPerTable = flag.Int("writers_per_table", 1, "Number of writers per table")
 var nTables = flag.Int("tables", 1, "Number of tables. Data is evenly split across tables.")
+var nWritersPerTable = flag.Int("writers_per_table", 1, "Number of writers per table")
 
 func main() {
 	// Computed values
-	var nMeasurements int
-	var nMeasurementsPerSec float64
+	var nMeasurementsPerDev int64
+	var nMeasurementsPerSec int
 	var endTime time.Time
-	var dataDur time.Duration	// endTime - startTime
+	// dataDur = endTime - startTime
+	var dataDur time.Duration
+	// All devices insert one measurement per measurementDur units of time
+	var measurementDur time.Duration
 
 	// Parsed values
+	// TODO
+
+	// Other values
 	var startTime time.Time
 
 	flag.Parse()
 
 	const startTimePattern = "2006-01-02 15:04:05 MST"
-	const startTimeStr     = "2000-01-01 12:00:00 PST"
+	const startTimeStr = "2000-01-01 12:00:00 PST"
 	startTime, e := time.Parse(startTimePattern, startTimeStr)
 	// fmt.Printf("Parsed time is :: %v ::\n", startTime)
 	if e != nil {
@@ -90,7 +102,6 @@ func main() {
 	if *nMetricsPerSec < 1 {
 		log.Fatalf("--metrics_per_sec was %d, must be >= 1", *nMetricsPerSec)
 	}
-
 	if *nTables < 1 {
 		log.Fatalf("--tables was %d, must be >= 1", *nTables)
 	}
@@ -98,33 +109,51 @@ func main() {
 		log.Fatalf("--writers_per_table was %d, must be >= 1", *nWritersPerTable)
 	}
 
-	// Computed values 
+	// Computed values
 
-	nMeasurements = int(*nRows / int64(*nDevices * *nMetrics))
-	if nMeasurements < 10 {
-		log.Fatalf("measurements, rows/(devices*metrics), must be >= 10 * devices * metrics, was %d", nMeasurements)
+	nMeasurementsPerDev = *nRows / (int64(*nDevices) * int64(*nMetrics))
+	if nMeasurementsPerDev < 10 {
+		log.Fatalf("measurements per device, rows/(devices*metrics), must be >= 10, was %d", nMeasurementsPerDev)
+	}
+	if (nMeasurementsPerDev * int64(*nDevices) * int64(*nMetrics)) != *nRows {
+		log.Fatalf("Remainder for nRows / (nDevices * nMetrics) must be zero")
 	}
 
-	nMeasurementsPerSec = float64(*nMetricsPerSec) / float64(*nDevices * *nMetrics)
-	measurementDur := time.Duration((1 / nMeasurementsPerSec) * float64(time.Second))
-	fmt.Printf("measurementDur: %v or %d micros\n", measurementDur, measurementDur.Microseconds())
+	nMeasurementsPerSec = *nMetricsPerSec / *nMetrics
+	if (nMeasurementsPerSec * (*nMetrics)) != *nMetricsPerSec {
+		log.Fatalf("Remainder for nMetricsPerSec / nMetrics must be zero")
+	}
+
+	measurementDur = time.Duration(float64(int64(*nDevices) * int64(time.Second)) / float64(nMeasurementsPerSec))
 
 	// dataDur is endTime - startTime
-	dataDur = time.Duration((float64(nMeasurements) / nMeasurementsPerSec)) * time.Second
+	dataDur = time.Duration((float64(nMeasurementsPerDev * int64(*nDevices)) / float64(nMeasurementsPerSec))) * time.Second
 	endTime = startTime.Add(dataDur)
+
+	nWriters := *nTables * *nWritersPerTable
+
+	devicesPerTable := *nDevices / *nTables
+	if (devicesPerTable * *nTables) != *nDevices {
+		log.Fatalf("Remainder for nDevices / nTables must be zero")
+	}
+	devicesPerWriter := devicesPerTable / *nWritersPerTable
+	if (devicesPerWriter * *nWritersPerTable) != devicesPerTable {
+		log.Fatalf("Remainder for devicesPerTable / nWritersPerTable must be zero")
+	}
 
 	// Print
 	fmt.Printf("rows: %d\n", *nRows)
-	fmt.Printf("devices: %d\n", *nDevices)
+	fmt.Printf("devices: %d total, %d per-writer, %d per-table\n", *nDevices, devicesPerWriter, devicesPerTable)
 	fmt.Printf("metrics: %d\n", *nMetrics)
 	fmt.Printf("metrics_per_sec: %d\n", *nMetricsPerSec)
-	fmt.Printf("measurements: %d\n", nMeasurements)
-	fmt.Printf("measurements_per_sec: %f\n", nMeasurementsPerSec)
+	fmt.Printf("measurements_per_device: %d\n", nMeasurementsPerDev)
+	fmt.Printf("measurements_per_sec: %d\n", nMeasurementsPerSec)
+	fmt.Printf("measurement_duration: %v or %.3f seconds\n", measurementDur, measurementDur.Seconds())
 	fmt.Printf("start_time: %v\n", startTime)
 	fmt.Printf("end_time: %v\n", endTime)
-	fmt.Printf("duration: %v\n", dataDur)
+	fmt.Printf("data_duration: %v\n", dataDur)
 	fmt.Printf("tables: %d\n", *nTables)
-	fmt.Printf("writers_per_table: %d\n", *nWritersPerTable)
+	fmt.Printf("writers: %d\n", nWriters)
 
 	if dataDur < (1 * time.Second) {
 		log.Fatalf("end_time - start_time is %v, must be >= 1 seconds", dataDur)
@@ -142,31 +171,27 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
-	nWriters := *nTables * *nWritersPerTable
 
 	timers := make([]*util.PerfTimer, nWriters)
 	histograms := make([]*util.Histogram, nWriters)
 	responseUsecs := []int64{256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
 
-	devicesPerTable := *nDevices / *nTables
-	devicesPerWriter := devicesPerTable / *nWritersPerTable
-	fmt.Printf("Devices: %d per-writer, %d per-table\n", devicesPerWriter, devicesPerTable)
-
 	myID := 0
 	for t := 0; t < *nTables; t++ {
 		minDeviceID := 0
-		for w := 0; w < *nWritersPerTable; w++ {	
+		for w := 0; w < *nWritersPerTable; w++ {
 			wg.Add(1)
 			timers[myID] = &util.PerfTimer{}
 			histograms[myID] = util.MakeHistogram(responseUsecs)
-			go doLoad(t, w, myID, &wg, db, timers[myID], histograms[myID], startTime, nMeasurements, measurementDur, minDeviceID, devicesPerWriter)
+			go doLoad(t, w, myID, &wg, db, timers[myID], histograms[myID], startTime,
+				nMeasurementsPerDev, measurementDur, minDeviceID, devicesPerWriter)
 			myID++
 			minDeviceID += devicesPerWriter
 		}
 	}
 
 	watcherCancel := make(chan bool)
-	go util.PerfWatcher(timers, 1 * time.Second, watcherCancel)
+	go util.PerfWatcher(timers, 1*time.Second, watcherCancel)
 
 	fmt.Println("main wait")
 	wg.Wait()
@@ -183,11 +208,11 @@ func main() {
 
 func doLoad(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.DB, timer *util.PerfTimer,
 	histogram *util.Histogram, startTime time.Time,
-	nMeasurements int, measurementDur time.Duration,
-	minDeviceID int, devicesPerTable int) {
+	nMeasurementsPerDev int64, measurementDur time.Duration,
+	minDeviceID int, devicesPerWriter int) {
 
 	defer wg.Done()
-	dgen := datagen.MakeSeqGeneratorFlat(minDeviceID, devicesPerTable, *nMetrics, startTime, nMeasurements, measurementDur)
+	dgen := datagen.MakeSeqGeneratorFlat(minDeviceID, devicesPerWriter, *nMetrics, startTime, nMeasurementsPerDev, measurementDur)
 	nInserted := 0
 
 	ps := fmt.Sprintf("INSERT INTO %s%d(timestamp,deviceID,metricID,metricValue) VALUES ", *dbmsTablePrefix, tableID)
@@ -223,23 +248,12 @@ func doLoad(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.DB,
 			log.Fatalf("RowsAffected failed sql=%s params=%v: %v\n", ps, m, err)
 		}
 		if rowCnt != int64(*nMetrics) {
-			log.Fatalf("Inserted %d rows, but RowsAffected=%d: sql=%s params=%v\n", nMeasurements, rowCnt, ps, m)
+			log.Fatalf("Inserted %d rows, but RowsAffected=%d: sql=%s params=%v\n", nMeasurementsPerDev, rowCnt, ps, m)
 		}
 		nInserted += *nMetrics
 		timer.Report(int64(*nMetrics))
 	}
 
-	/*
-		numValues := devicesPerTable * nMeasurements
-		xm := 1
-		for m := range dgen.Data {
-			fmt.Printf("gen[%d] (%d of %d) = %v\n", myID, xm, numValues, m)
-			for metric := range m.Metrics {
-				stmt.Exec
-			}
-			xm++
-		}
-	*/
 	// nSecs := timer.Seconds()
 	// fmt.Printf("doLoad %d inserted %d rows in %.3f seconds, %.1f rows/sec\n", myID, nInserted, nSecs, float64(nInserted) / nSecs)
 }
@@ -255,4 +269,3 @@ func getPH(dbms string, n int) string {
 		return ""
 	}
 }
-
