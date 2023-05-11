@@ -180,7 +180,7 @@ func main() {
 	insertHistograms := make([]*util.Histogram, nWriters)
 	deleteHistograms := make([]*util.Histogram, nWriters)
 
-	responseUsecs := []int64{256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
+	writeResponseUsecs := []int64{256, 512, 1024, 2048, 4096, 8192, 16384, 32768}
 
 	myID := 0
 	for t := 0; t < *nTables; t++ {
@@ -188,8 +188,8 @@ func main() {
 		for w := 0; w < *nWritersPerTable; w++ {
 			wg.Add(1)
 			writeTimers[myID] = &util.PerfTimer{}
-			insertHistograms[myID] = util.MakeHistogram(responseUsecs)
-			deleteHistograms[myID] = util.MakeHistogram(responseUsecs)
+			insertHistograms[myID] = util.MakeHistogram(writeResponseUsecs)
+			deleteHistograms[myID] = util.MakeHistogram(writeResponseUsecs)
 			go doWrites(t, w, myID, &wg, db, writeTimers[myID], insertHistograms[myID], deleteHistograms[myID], now,
 				nMeasurementsPerDev, measurementDur, minDeviceID, devicesPerWriter, *nMeasurementsPerBatch,
 				nMeasurementsPerSecPerWriter)
@@ -206,14 +206,14 @@ func main() {
 	watcherCancel <- true
 	<-watcherCancel
 
-	insertHistSum := util.MakeHistogram(responseUsecs)
+	insertHistSum := util.MakeHistogram(writeResponseUsecs)
 	for x, h := range insertHistograms {
 		fmt.Printf("Inserts(%d) %s\n", x, h.Summary(false))
 		insertHistSum.Merge(h)
 	}
 	fmt.Printf("Inserts(all) %s\n", insertHistSum.Summary(false))
 
-	deleteHistSum := util.MakeHistogram(responseUsecs)
+	deleteHistSum := util.MakeHistogram(writeResponseUsecs)
 	for x, h := range deleteHistograms {
 		fmt.Printf("Deletes(%d) %s\n", x, h.Summary(false))
 		deleteHistSum.Merge(h)
@@ -363,6 +363,12 @@ func doWrites(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.D
 
 	nBatches := nMeasurementsPerDev / int64(nMeasurementsPerBatch)
 
+	var adjustInterval int64 = 0
+	var adjustNsecs int64 = 0
+	var adjustAmount float64 = 0.0
+	var adjustFraction float64 = 0.95
+	adjustStart := time.Now()
+
 	writeTimer.Start()
 	loop := 0
 	for m := range dgen.Data {
@@ -425,8 +431,16 @@ func doWrites(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.D
 		}
 		if (insertDur + deleteDur) < durPerBatch {
 			sleepDur := durPerBatch - (insertDur + deleteDur)
-			// fmt.Printf("Sleeping %v microseconds\n", sleepDur.Microseconds())
+			if sleepDur.Nanoseconds() > adjustNsecs {
+				sleepDur = time.Duration(sleepDur.Nanoseconds() - adjustNsecs)
+			}
+			if adjustInterval == 99 {
+				//fmt.Printf("Sleeping %v microseconds with iDur, dDur = (%v, %v)\n",
+				//	sleepDur.Microseconds(), insertDur.Microseconds(), deleteDur.Microseconds())
+			}
 			time.Sleep(sleepDur)
+		} else {
+			fmt.Printf("No sleep, over by %v microseconds\n", (durPerBatch - (insertDur + deleteDur)).Microseconds())
 		}
 
 		if err = tx.Commit(); err != nil {
@@ -437,6 +451,26 @@ func doWrites(tableID int, writerID int, myID int, wg *sync.WaitGroup, db *sql.D
 		writeTimer.Report(int64(rowsPerBatch))
 
 		loop++
+
+		adjustInterval++
+		if adjustInterval == 100 {
+			expectedNsecs := adjustInterval * durPerBatch.Nanoseconds()
+			now = time.Now()
+			actualNsecs := now.Sub(adjustStart).Nanoseconds()
+			deltaNsecs := (expectedNsecs - actualNsecs) / adjustInterval
+			adjustAmount = (adjustFraction * adjustAmount) + ((1.0-adjustFraction) * float64(deltaNsecs))
+			adjustInterval = 0
+			adjustStart = now
+			if adjustAmount < 0 {
+				adjustNsecs = int64(-adjustAmount)
+			} else {
+				adjustNsecs = 0
+			}
+			//log.Printf("usecs (expected, actual, diff_per_batch) = (%v, %v, %v) and adjust=%v\n",
+			//		expectedNsecs/1000, actualNsecs/1000, deltaNsecs/1000, int64(adjustAmount)/1000)
+									
+		}
+
 		// log.Printf("Inserted %d rows with %s\n", rowsPerBatch, m)
 	}
 	if int64(loop) != nBatches {

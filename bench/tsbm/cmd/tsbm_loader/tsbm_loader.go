@@ -55,8 +55,7 @@ var nMetrics = flag.Int("metrics", 10, "Number of metrics per device")
    that the density of data (number of metric/second/device) in the loaded data matches
    the density after the load (assuming that the post-load insert rate can be sustained).
 
-   By density of data during the load I don't mean the insert rate during the load. I do mean
-   the measurements per second if you did something like:
+   By density of data during the load I mean the measurements per second if you did something like:
      select count(*), as_second(timestamp), deviceID from Table group by 2, 3
 */
 var nMetricsPerSec = flag.Int("metrics_per_sec", 1000, "Number of metrics to insert per second")
