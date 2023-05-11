@@ -125,6 +125,7 @@ def ShowUsage():
 # options
 #
 
+DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
 DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
 DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
 DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
@@ -730,6 +731,20 @@ def generate_insert_rows(rand_data_buf, use_prepared):
   else:
     assert False
 
+def dump_pg_backend_id(cursor, output_file_name):
+  assert FLAGS.dbms == 'postgres'
+
+  try: 
+    cursor.execute('select pg_backend_pid()')
+    process_id = cursor.fetchone()
+    outf = open(output_file_name, "w")
+    outf.write("backend_id: %s\n" % process_id)
+    outf.close()
+
+  except psycopg2.Error as e:
+    print("select pg_backend_id() fails: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+    sys.exit(-1)
+
 def Query(query_generators, shared_var, done_flag, lock, result_q):
 
   # block on this until main thread wants all processes to run
@@ -749,6 +764,8 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
   elif FLAGS.dbms in ['mysql', 'postgres']:
     db_thing = db_conn.cursor()
     mongo_session = None
+    if FLAGS.dbms == 'postgres':
+      dump_pg_backend_id(db_thing, "o.pgid.%d.query.%s" % (FLAGS.my_id, FLAGS.table_name))
   else:
     assert False
 
@@ -973,6 +990,9 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
     mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
+    if FLAGS.dbms == 'postgres':
+      dump_pg_backend_id(cursor, "o.pgid.%d.insert.%s" % (FLAGS.my_id, FLAGS.table_name))
+
   else:
     assert False
 

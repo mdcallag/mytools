@@ -86,8 +86,8 @@ killall vmstat
 killall iostat
 killall top
 
-$mypy mstat.py --db_user=root --db_password=pw --db_host=$host --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
-mpid=$!
+# $mypy mstat.py --db_user=root --db_password=pw --db_host=$host --loops=10000000 --interval=5 2> /dev/null > o.mstat.$sfx &
+# mpid=$!
 
 vmstat 5 >& o.vm.$sfx &
 vpid=$!
@@ -100,13 +100,13 @@ PERF_METRIC=${PERF_METRIC:-cycles}
 x=0
 perfpid=0
 if [ $x -gt 0 ]; then
-fgp="$HOME/git/FlameGraph.me"
+fgp="$HOME/git/FlameGraph"
 if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
-  perf_secs=20
+  perf_secs=10
   if [ $nqt -ge 1 ]; then
-    pause_secs=180
+    pause_secs=30
   else
     pause_secs=20
   fi
@@ -114,11 +114,27 @@ while :; do
 
   sleep $pause_secs
 
-  # postgres: mdcallag ib 127.0.0.1(56000) CREATE INDEX
-  dbpid=$( ps aux | grep "postgres: mdcallag" | grep -v grep | tail -1 | awk '{ print $2 }' )
-  # mysql
-  #dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
-  if [ -z $dbpid ]; then echo Cannot get db_bench PID; continue; fi
+  if [[ $dbms == "postgres" ]]; then
+    # postgres: mdcallag ib 127.0.0.1(56000) CREATE INDEX
+    if [ $nqt -ge 1 ]; then
+      fn="o.pgid.1.query.pi1"
+    else
+      fn="o.pgid.1.insert.pi1"
+    fi
+    # dbpid=$( ps aux | grep "postgres: mdcallag" | grep -v grep | tail -1 | awk '{ print $2 }' )
+    dbpid=$( cat $fn | awk '{ print $2 }' )
+    echo Using Postgres backend PID $dbpid from $fn
+  elif [[ $dbms == "mysql" ]]; then
+    # mysql
+    dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
+  fi
+
+  if [ -z $dbpid ]; then
+    echo Cannot get PID for $dbms
+    continue;
+  else
+    echo Using PID $dbpid for perf
+  fi
 
   ts=$( date +'%b%d.%H%M%S' )
   sfx="$x.$ts"
@@ -192,7 +208,7 @@ for n in $( seq 1 $realdop ) ; do
   fi
 
   spr=1
-  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt $upq $names"
+  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --my_id=$n $upq $names"
   echo $cmdline > o.ib.dop${dop}.${n} 
   /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
   pids[${n}]=$!
@@ -248,7 +264,7 @@ done > o.rate.c.$x
 cat o.rate.c.$x | tr ',' '\t' > o.rate.t.$x
 done 
 
-kill $mpid >& /dev/null
+# kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
