@@ -17,8 +17,9 @@ querysecs=${14}
 dbopt=${15}
 npart=${16}
 perpart=${17}
+delete_per_insert=${18}
 
-shift 17
+shift 18
 
 if [[ $dbms == "mongo" ]] ; then 
 echo Use mongo
@@ -29,6 +30,13 @@ echo Use postgres
 else
 echo "dbms must be one of: mongo, mysql, postgres"
 exit -1
+fi
+
+if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
+  if [[ $only1t == "yes" || $only1t == "1" ]]; then
+    echo Cannot enable both delete_per_insert and only1t
+    exit -1
+  fi
 fi
 
 function vac_all {
@@ -65,18 +73,18 @@ vac=2
 ns=3
 
 # insert only without secondary indexes
-bash np.sh $nr1 $e "$eo" 0 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk no $dbopt 0 $npart $perpart >& o.a
+bash np.sh $nr1 $e "$eo" 0 $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 yes $dbms $short $bulk no $dbopt 0 $npart $perpart no >& o.a
 mkdir l.i0
 mv o.* l.i0
 
 # insert only -- short running, then create indexes
-# if 100000 (ninerts) is changed then also update perpart computation in rall1.sh
-bash np.sh 100000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 $npart $perpart >& o.a
+# if 100000 (ninserts) is changed then also update perpart computation in rall1.sh
+bash np.sh 100000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 $npart $perpart no >& o.a
 mkdir l.x
 mv o.* l.x
 
-# insert only with secondary indexes. Insert 1/10 of what was inserted in the previous step.
-bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 $npart $perpart >& o.a
+# insert only with secondary indexes
+bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
 mkdir l.i1
 mv o.* l.i1
 
@@ -111,7 +119,7 @@ for ips in "$@"; do
 
   # Run for querysecs seconds regardless of concurrency
   echo Run with ips $ips
-  bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart >& o.a
+  bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
 
   rdir=q.L${loop}.ips${ips}
   mkdir $rdir; mv o.* $rdir

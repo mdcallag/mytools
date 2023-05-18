@@ -20,27 +20,9 @@
      iibench.py --db_user=foo --db_password=bar --max_rows=1000000000
 
    Results are printed after each secs_per_report (approximately)
-   The output is:
-     Legend:
-       #rows = total number of rows inserted
-       #seconds = number of seconds for the last insert batch
-       #total_seconds = total number of seconds the test has run
-       cum_ips = #rows / #total_seconds
-       table_size = actual table size (inserts - deletes)
-       last_ips = #rows / #seconds
-       #queries = total number of queries
-       cum_qps = #queries / #total_seconds
-       last_ips = #queries / #seconds
-       #rows #seconds cum_ips table_size last_ips #queries cum_qps last_qps
-     1000000 895 1118 1000000 1118 5990 5990 7 7
-     2000000 1897 1054 2000000 998 53488 47498 28 47
 
-  The insert benchmark is defined at http://blogs.tokutek.com/tokuview/iibench
-
-  This differs with the original by running queries concurrent with the inserts.
-  For procesess are started and each is assigned one of the indexes. Each
-  process then runs index-only queries in a loop that scan and fetch data
-  from rows_per_query index entries.
+  The insert benchmark was implemented in C++ and defined at http://blogs.tokutek.com/tokuview/iibench
+  This has long since diverged.
 """
 
 __author__ = 'Mark Callaghan'
@@ -146,8 +128,8 @@ DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
 DEFINE_integer('warmup', 0, 'TODO')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
-DEFINE_boolean('with_max_table_rows', False,
-               'When True, allow table to grow to max_table_rows, then delete oldest')
+DEFINE_boolean('delete_per_insert', False,
+               'When True, do a delete for every insert')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
@@ -198,7 +180,7 @@ DEFINE_string('name_data', 'data', 'Name for data attribute')
 # iibench
 #
 
-insert_done='insert_done'
+you_are_done='done'
 
 def rthist_new():
   obj = {}
@@ -248,8 +230,7 @@ def rthist_finish(obj, start):
 def rthist_result(obj, prefix):
   rt = obj['hist']
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
-        '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % (
-         prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
+        '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % ( prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
   return res
 
@@ -745,6 +726,42 @@ def dump_pg_backend_id(cursor, output_file_name):
     print("select pg_backend_id() fails: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
     sys.exit(-1)
 
+def get_min_trxid():
+  db_conn = get_conn()
+  db_cursor = db_conn.cursor()
+
+  sql = 'select min(transactionid) from %s' % FLAGS.table_name
+  val = -99
+
+  if FLAGS.dbms == 'mysql':
+    # print("Query is:", query)
+    try:
+      db_cursor.execute(sql)
+      row = db_cursor.fetchone()
+      val = row[0]
+    except MySQLdb.Error as e:
+      if e[0] != 2006:
+        #print("Ignoring MySQL exception: ", e)
+        shared_var[3].value += 1
+      else:
+        print("Query error: ", e)
+        raise e
+
+  elif FLAGS.dbms == 'postgres':
+    try:
+      db_cursor.execute(sql)
+      row = db_cursor.fetchone()
+      val = row[0]
+      
+    except psycopg2.Error as e:
+      print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+      raise e
+  else:
+    assert False
+
+  db_cursor.close()
+  return val
+
 def Query(query_generators, shared_var, done_flag, lock, result_q):
 
   # block on this until main thread wants all processes to run
@@ -862,21 +879,24 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
-def Insert(rounds, insert_q, lock):
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
   
-  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
-  table_size = 0
   inserted = 0
 
-  # we use the tail pointer for deletion - it tells us the first row in the
-  # table where we should start deleting
-  tail = 0
   sum_queries = 0
 
   rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
+
+  # Smallest trxid which is used for deletes
+  min_trxid = -1
+  if FLAGS.delete_per_insert:
+    assert FLAGS.dbms != 'mongo'
+    min_trxid = get_min_trxid()
+    assert min_trxid >= 0
+    # print('min_trxid = %d\n' % min_trxid)
 
   rounds_per_second = 0
   if (FLAGS.inserts_per_second):
@@ -886,28 +906,20 @@ def Insert(rounds, insert_q, lock):
     last_rate_check = time.time()
     # print("rounds per second = %d" % rounds_per_second)
 
-  # generate insert rows in this loop and place into queue
+  # generate rows to insert and delete statements
   for r in range(rounds):
     rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
 
-    insert_q.put(rows)
+    insert_stmt_q.put(rows)
     inserted += FLAGS.rows_per_commit
-    table_size += FLAGS.rows_per_commit
 
     # deletes - TODO support for MongoDB
-    if FLAGS.with_max_table_rows:
-      if table_size > FLAGS.max_table_rows:
-        if FLAGS.dbms == 'mongo':
-          assert False
-        elif FLAGS.dbms == 'mysql':
-          sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
-                 % (FLAGS.table_name, tail, tail + FLAGS.rows_per_commit))
-        else:
-          assert False
-
-        insert_q.put(sql)
-        table_size -= FLAGS.rows_per_commit
-        tail += FLAGS.rows_per_commit
+    if FLAGS.delete_per_insert:
+      delete_sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
+                    % (FLAGS.table_name, min_trxid, min_trxid + FLAGS.rows_per_commit))
+      # print('%s\n' % delete_sql)
+      delete_stmt_q.put(delete_sql)
+      min_trxid += FLAGS.rows_per_commit
 
     # enforce write rate limit if set
     now = time.time()
@@ -919,9 +931,12 @@ def Insert(rounds, insert_q, lock):
       last_rate_check = time.time()
 
   # block until the queue is empty
-  insert_q.put(insert_done)
-  insert_q.close()
+  insert_stmt_q.put(you_are_done)
+  insert_stmt_q.close()
 
+  if FLAGS.delete_per_insert:
+    delete_stmt_q.put(you_are_done)
+    delete_stmt_q.close()
 
 def insert_ps_pg(cursor, table_name):
   #col_sql = 'transactionid bigserial primary key, '\
@@ -963,7 +978,7 @@ def insert_ps_pg(cursor, table_name):
   params = '%s,' * ((6 * FLAGS.rows_per_commit) - 1) + '%s'
   return 'execute insert_ps (%s)' % (params)
 
-def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
+def statement_executor(stmt_q, shared_var, done_flag, lock, result_q, is_inserter):
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
@@ -986,17 +1001,20 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
     cursor.close()
 
   if FLAGS.dbms == 'mongo':
+    assert is_inserter
     db = db_conn[FLAGS.db_name]
     mongo_session, mongo_collection = get_mongo_session(db, db_conn)
   elif FLAGS.dbms in ['mysql', 'postgres']:
     cursor = db_conn.cursor()
     if FLAGS.dbms == 'postgres':
-      dump_pg_backend_id(cursor, "o.pgid.%d.insert.%s" % (FLAGS.my_id, FLAGS.table_name))
+      s = 'insert'
+      if not is_inserter: s = 'delete' 
+      dump_pg_backend_id(cursor, "o.pgid.%d.%s.%s" % (FLAGS.my_id, s, FLAGS.table_name))
 
   else:
     assert False
 
-  if FLAGS.use_prepared_insert:
+  if is_inserter and FLAGS.use_prepared_insert:
     assert FLAGS.dbms == 'postgres'
     insert_ps = insert_ps_pg(cursor, FLAGS.table_name)
 
@@ -1005,7 +1023,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
   while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
-    if stmt == insert_done:
+    if stmt == you_are_done:
       break
 
     ts = rthist_start(rthist)
@@ -1042,7 +1060,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
           sys.exit(-1)
     elif FLAGS.dbms == 'postgres':
       try:
-        if not FLAGS.use_prepared_insert:
+        if not is_inserter or not FLAGS.use_prepared_insert:
           #print(stmt)
           cursor.execute(stmt)
         else:
@@ -1051,7 +1069,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
           cursor.execute(insert_ps, stmt)
 
       except psycopg2.Error as e:
-        print("Insert error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+        print("SQL error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
         sys.exit(-1)
     else:
       assert False
@@ -1060,22 +1078,25 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q):
     with shared_var[2].get_lock():
       if elapsed > shared_var[2].value: shared_var[2].value = elapsed
 
-    # This assumes that deletes aren't done. Maybe fix this, eventually.
     shared_var[0].value = shared_var[0].value + FLAGS.rows_per_commit
 
   done_flag.value = 1
   stmt_q.close()
   db_conn.close()
-  result_q.put(rthist_result(rthist, 'Insert rt:'))
+  if is_inserter:
+    result_q.put(rthist_result(rthist, 'Insert rt:'))
+  else:
+    result_q.put(rthist_result(rthist, 'Delete rt:'))
 
 def sum_queries(shared_vars, inserted):
   total = 0
   max_q = 0
   retry_q = 0
   retry_i = 0
+  retry_d = 0
 
-  # All but the last have the number of queries completed per thread
-  for c in shared_vars[0:-1]:
+  # All but the last two have the number of queries completed per thread
+  for c in shared_vars[0:-2]:
     total += c[1].value
     c[0].value = inserted
     v = c[2].value
@@ -1083,27 +1104,35 @@ def sum_queries(shared_vars, inserted):
     if v > max_q: max_q = v
     retry_q += c[3].value
 
-  retry_i = shared_vars[-1][3].value
+  retry_i = shared_vars[-2][3].value
+  retry_d = shared_vars[-1][3].value
 
-  return max_q, total, retry_q, retry_i
+  return max_q, total, retry_q, retry_i, retry_d
 
-def print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now):
+def print_stats(shared_vars, inserted, prev_inserted, deleted, prev_deleted, prev_sum, start_time, last_report, now):
   sum_q = 0
   max_q = 0
-  max_i = shared_vars[-1][2].value
+
+  max_i = shared_vars[-2][2].value
+  shared_vars[-2][2].value = -1
+  if max_i == -1: max_i = 0
+
+  max_d = shared_vars[-1][2].value
   shared_vars[-1][2].value = -1
+  if max_d == -1: max_d = 0
 
-  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
+  max_q, sum_q, retry_q, retry_i, retry_d = sum_queries(shared_vars, inserted)
 
-  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d\t%d\t%d' % (
+  print('%.1f\t%.1f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d' % (
       now - last_report,                                # i_sec
       now - start_time,                                 # t_sec
       (inserted - prev_inserted) / (now - last_report), # i_ips
       inserted / (now - start_time),                    # t_ips
+      (deleted - prev_deleted) / (now - last_report),   # i_dps
+      deleted / (now - start_time),                     # t_dps
       (sum_q - prev_sum) / (now - last_report),         # i_qps
       sum_q / (now - start_time),                       # t_qps
-      max_i, max_q, inserted, sum_q, retry_i, retry_q))
-      #max_i, max_q, ws, sumq))
+      max_i, max_d, max_q, inserted, deleted, sum_q, retry_i, retry_d, retry_q))
   sys.stdout.flush()
   return sum_q
 
@@ -1116,7 +1145,7 @@ def run_benchmark():
   lock.acquire()
 
   # Array of tuple of Values, each tuple is ...
-  #   [0] tracks the number of inserts
+  #   [0] tracks the number of inserts or deletes
   #   [1] num_queries, returns number of queries done by query process
   #   [2] max response time per interval for queries or insert (inserter is last index entry)
   #   [3] num_retries for Query and statement_executor to return number of times a transaction is retried
@@ -1141,15 +1170,27 @@ def run_benchmark():
       query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, lock, query_result)))
 
   if not FLAGS.no_inserts:
-    stmt_q = Queue(4)
-    stmt_result = Queue()
+    insert_stmt_q = Queue(8)
+    delete_stmt_q = Queue(8)
+    insert_stmt_result = Queue()
+    delete_stmt_result = Queue()
+
     shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
-    insert_delete = Process(target=statement_executor, args=(stmt_q, shared_vars[-1], done_flag, lock, stmt_result))
-    inserter = Process(target=Insert, args=(rounds, stmt_q, lock))
+    shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
+
+    inserter = Process(target=statement_executor, args=(insert_stmt_q, shared_vars[-2], done_flag, lock, insert_stmt_result, True))
+
+    deleter = None
+    if FLAGS.delete_per_insert:
+      deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, lock, delete_stmt_result, False))
+
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, lock))
 
     # start up the insert execution process with this queue
-    insert_delete.start()
     inserter.start()
+    if FLAGS.delete_per_insert:
+      deleter.start()
+    request_gen.start()
 
   # start up the query processes
   if FLAGS.query_threads:
@@ -1172,32 +1213,44 @@ def run_benchmark():
   start_time = time.time()
   last_report = start_time
   inserted = 0
+  deleted = 0
   prev_inserted = 0
+  prev_deleted = 0
   prev_sum = 0
-  # TODO: fix this, starting at 0 assumes table was empty at start which isn't required
-  table_size = 0
 
   while True:
     time.sleep(FLAGS.secs_per_report)
 
     # print progress
-    inserted = shared_vars[-1][0].value
-    table_size = inserted
+    inserted = shared_vars[-2][0].value
+    deleted = shared_vars[-1][0].value
     now = time.time()
-    prev_sum = print_stats(shared_vars, inserted, prev_inserted, prev_sum, start_time, table_size, last_report, now)
+    prev_sum = print_stats(shared_vars, inserted, prev_inserted, deleted, prev_deleted, prev_sum, start_time, last_report, now)
     prev_inserted = inserted
+    prev_deleted = deleted
     last_report = now
 
     if done_flag.value == 1 or (FLAGS.max_seconds and (now - start_time) >= FLAGS.max_seconds):
       done_flag.value = 1  # setting this might be redundant
 
       if not FLAGS.no_inserts:
-        insert_delete.join()
-        print(stmt_result.get())
+        # print('Wait for inserter')
+        inserter.join()
+        print(insert_stmt_result.get())
+
+        if FLAGS.delete_per_insert:
+          # print('Wait for deleter')
+          deleter.join()
+          print(delete_stmt_result.get())
+
         sys.stdout.flush()
+        request_gen.terminate()
+        sys.stdout.flush()
+
         inserter.terminate()
-        sys.stdout.flush()
-        insert_delete.terminate()
+
+        if FLAGS.delete_per_insert:
+          deleter.terminate()
 
       # exit the while loop to continue shutting down
       break
@@ -1215,16 +1268,16 @@ def run_benchmark():
     print('Created secondary indexes in %.1f seconds' % (x_end - x_start))
 
   test_end = time.time()
-  max_q, sum_q, retry_q, retry_i = sum_queries(shared_vars, inserted)
-  print('Totals: %.1f secs, %.1f rows/sec, %s rows, %d insert retry, %d query retry' % (
+  max_q, sum_q, retry_q, retry_i, retry_d = sum_queries(shared_vars, inserted)
+  print('Totals: %.1f secs, %.1f rows/sec, %s rows, %d %d %d insert-delete-query retry' % (
       test_end - test_start,
       FLAGS.max_rows / (test_end - test_start),
-      FLAGS.max_rows, retry_i, retry_q))
+      FLAGS.max_rows, retry_i, retry_d, retry_q))
   print('Done')
 
 def main(argv):
-  if FLAGS.with_max_table_rows:
-      print('Not supported: with_max_table_rows')
+  if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
+      print('Not supported: delete_per_insert')
       sys.exit(-1)
 
   if FLAGS.max_seconds and FLAGS.no_inserts:
@@ -1233,7 +1286,7 @@ def main(argv):
 
   fixup_options()
 
-  print('i_sec\tt_sec\ti_ips\tt_ips\ti_qps\tt_qps\tmax_i\tmax_q\tt_ins\tt_query\tretry_i\tretry_q')
+  print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
   run_benchmark()
   return 0
 

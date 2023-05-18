@@ -23,6 +23,7 @@ dbopt=${22}
 extra_insert=${23}
 npart=${24}
 perpart=${25}
+delete_per_insert=${26}
 
 mypy=python3
 #mypy="/media/ephemeral1/pypy-36-al2/bin/pypy3"
@@ -207,6 +208,10 @@ for n in $( seq 1 $realdop ) ; do
     db_args+=" --secondary_at_end"
   fi
 
+  if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
+    db_args+=" --delete_per_insert"
+  fi
+
   spr=1
   cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --my_id=$n $upq $names"
   echo $cmdline > o.ib.dop${dop}.${n} 
@@ -234,27 +239,40 @@ tot_secs=$(( $stop_secs - $start_secs ))
 if [[ $tot_secs -eq 0 ]]; then tot_secs=1; fi
 
 insert_rate=$( echo "scale=1; $nr / $tot_secs" | bc )
+delete_rate=0
+ins_and_del_rate=$insert_rate
 insert_per=$( echo "scale=1; $insert_rate / $realdop" | bc )
+
+if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
+  delete_rate=$insert_rate
+  ins_and_del_rate=$( echo "scale=1; 2 * ( $nr / $tot_secs )" | bc )
+fi
 
 if [[ $extra_insert -gt 0 ]]; then
   # Account for rows indexed if this step creates the index
+  # Don't worry about delete_per_insert as it wouldn't be used in this case
   insert_rate=$( echo "scale=1; ( $nr + $extra_insert ) / $tot_secs" | bc )
+  ins_and_del_rate=$insert_rate
   maxr=$(( ( $nr + $extra_insert ) / $realdop ))
 fi
 
 echo rates
-total_query=$( for n in $( seq 1 $realdop ); do awk '{ if (NF==12) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $10; } END { print tq }' )
+total_query=$( for n in $( seq 1 $realdop ); do awk '{ if (NF==17) print $0 }' o.ib.dop${dop}.$n | tail -1 ; done | awk '{ tq += $14; } END { print tq }' )
 query_rate=$( echo "scale=1; $total_query / $tot_secs" | bc )
 
 # echo $dop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user
-echo $realdop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second > o.res.$sfx
+echo $realdop processes, $maxr rows-per-process, $tot_secs seconds, $insert_rate rows-per-second, $insert_per rows-per-second-per-user, $total_query queries, $query_rate queries-per-second, $delete_per_insert deletes > o.res.$sfx
 
 echo per interval
 # Compute average rates per interval using 10 intervals
-for x in 3 5 ; do
+# Get the per-interval value: 3 is insert, 5 is delete, 7 is queries
+for x in 3 5 7 ; do
 for n in $( seq 1 $realdop ); do
   f=o.ib.dop${dop}.$n
-  xa=$( wc -l $f | awk '{ print $1 }' ); xm=$(( $xa - 2 )); xp=$(( $xm / 10 ))
+  # Get the number of lines for which per-interval metrics are printed
+  xa=$( cat $f | awk '{ if (NF == 17) { print $0 }}' | wc -l | awk '{ print $1 }' )
+  xm=$(( $xa - 2 ))
+  xp=$(( $xm / 10 ))
   for s in $( seq 0 9 ); do
     ha=$(( ($s * $xp) + $xp + 2 ))
     head -${ha} $f | tail -${xp} | awk '{ c += 1; s += $x } END { printf "%.0f,", s/c }' x=$x
@@ -327,6 +345,8 @@ $client -uroot -ppw -A -h$host -e 'reset master'
 
 elif [[ $dbms == "postgres" ]]; then
 echo "TODO reset replication state"
+#echo Count for pi1
+#$client ib -c "select count(*) from pi1"
 $client ib -c 'show all' > o.pg.conf
 $client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
 $client ib -x -c 'select * from pg_stat_database' > o.pgs.db
@@ -394,6 +414,8 @@ fi
 echo >> o.res.$sfx
 echo "Max insert" >> o.res.$sfx
 grep -h "Insert rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
+echo "Max delete" >> o.res.$sfx
+grep -h "Delete rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
 echo "Max query" >> o.res.$sfx
 grep -h "Query rt" o.ib.dop${dop}.* | grep -v max | awk '{ printf "%.3f\n", $13 }' | sort -rnk 1 | head -3 >> o.res.$sfx
 
@@ -404,27 +426,35 @@ done
 
 echo >> o.res.$sfx
 for n in $( seq 1 $realdop ) ; do
+  grep "Delete rt" o.ib.dop${dop}.${n} >> o.res.$sfx
+done
+
+echo >> o.res.$sfx
+for n in $( seq 1 $realdop ) ; do
   grep "Query rt" o.ib.dop${dop}.${n} >> o.res.$sfx
 done
 
-printf "\ninsert and query rate at nth percentile\n" >> o.res.$sfx
+printf "\ninsert, delete and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $realdop ) ; do
-  lines=$( awk '{ if (NF == 12) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
+  lines=$( awk '{ if (NF == 17) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
   for x in 50 75 90 95 99 ; do
     if [[ $lines -ge 10 ]]; then
       off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-      i_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 12) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-      q_nth=$( grep -v "Insert rt" o.ib.dop${dop}.$n | grep -v "Query rt" | grep -v max_q | awk '{ if (NF == 12) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-      echo ${x}th, ${off} / ${lines} = $i_nth insert, $q_nth query >> o.res.$sfx
+      i_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      d_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      q_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $7 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      echo ${x}th, ${off} / ${lines} = $i_nth insert, $d_nth delete, $q_nth query >> o.res.$sfx
     else
       # not enough input lines
-      echo ${x}th, 0 / ${lines} = NA insert, NA query >> o.res.$sfx
+      echo ${x}th, 0 / ${lines} = NA insert, NA delete, NA query >> o.res.$sfx
     fi
   done
 done
 
 bash rth.sh . . $dop "Insert rt"               > o.rt.c.insert
 bash rth.sh . . $dop "Insert rt" | tr ',' '\t' > o.rt.t.insert
+bash rth.sh . . $dop "Delete rt"               > o.rt.c.delete
+bash rth.sh . . $dop "Delete rt" | tr ',' '\t' > o.rt.t.delete
 bash rth.sh . . $dop "Query rt"                > o.rt.c.query
 bash rth.sh . . $dop "Query rt" | tr ',' '\t'  > o.rt.t.query
 

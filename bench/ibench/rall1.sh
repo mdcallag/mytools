@@ -11,8 +11,9 @@ only1t=$9
 dbms_pfx=${10}
 dbopt=${11}
 npart=${12}
+delete_per_insert=${13}
 
-shift 12
+shift 13
 
 if [[ $npart -gt 0 ]] ; then
   # Figure out total number of inserts used to determine per-partition ranges
@@ -66,7 +67,7 @@ function do_rx56 {
   echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=rx.$rmemt.dop$dop.c$cnf
   cd $dmyfb56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh rocksdb "" $dmyfb56/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" $dmyfb56/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmyfb56; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx56.c${cnf}${ps}
   mkdir -p $rdir
@@ -85,7 +86,7 @@ function do_rx80 {
   echo "myrocks $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=rx.$rmemt.dop$dop.c$cnf
   cd $dmyfb80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh rocksdb "" $dmyfb80/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh rocksdb "" $dmyfb80/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmyfb80; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx80.c${cnf}${ps}
   mkdir -p $rdir
@@ -104,7 +105,7 @@ function do_in80 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy80/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy80/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmy80; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in80.c${cnf}${ps}
   mkdir -p $rdir
@@ -123,7 +124,7 @@ function do_in57 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy57; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy57/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy57/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmy57; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in57.c${cnf}${ps}
   mkdir -p $rdir
@@ -142,7 +143,7 @@ function do_in56 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dmy56; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dmy56/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy56/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmy56; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in56.c${cnf}${ps}
   mkdir -p $rdir
@@ -163,7 +164,7 @@ function do_pg11 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg11.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg11/logfile $rdir
   cd $dpg11; bash down.sh; cd $dgit
   mv $dpg11/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
@@ -183,7 +184,7 @@ function do_pg12 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg12.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg12/logfile $rdir
   cd $dpg12; bash down.sh; cd $dgit
   mv $dpg12/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
@@ -203,7 +204,7 @@ function do_pg13 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg13.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg13; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg13/logfile $rdir
   cd $dpg13; bash down.sh; cd $dgit
   mv $dpg13/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
@@ -223,7 +224,7 @@ function do_pg14 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg14.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg14; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg14/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg14/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg14/logfile $rdir
   cd $dpg14; bash down.sh; cd $dgit
   mv $dpg14/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
@@ -243,7 +244,7 @@ function do_pg15 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg15.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg15; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg15/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg15/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg15/logfile $rdir
   cd $dpg15; bash down.sh; cd $dgit
   mv $dpg15/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
@@ -261,7 +262,7 @@ function do_mo40 {
   echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=mo.$rmemt.dop$dop.c$cnf
   cd $dmo40; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh wiredtiger "" $dmo40/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" $dmo40/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmo40; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo40.c${cnf}${ps}
   mkdir -p $rdir
@@ -280,7 +281,7 @@ function do_mo42 {
   echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=mo.$rmemt.dop$dop.c$cnf
   cd $dmo42; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh wiredtiger "" $dmo42/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" $dmo42/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmo42; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo42.c${cnf}${ps}
   mkdir -p $rdir
@@ -299,7 +300,7 @@ function do_mo44 {
   echo "mongo $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=mo.$rmemt.dop$dop.c$cnf
   cd $dmo44; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh wiredtiger "" $dmo44/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh wiredtiger "" $dmo44/bin/mongo /data/m/mo $dev 1 $dop mongo yes $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dmo44; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo44.c${cnf}${ps}
   mkdir -p $rdir
