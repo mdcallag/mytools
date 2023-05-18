@@ -148,8 +148,8 @@ from_by $f 12 15 13 5
 ddir_sz $f $ddir
 dbms_vsz_rss $f $uname
 get_max $f "Max query"
-get_ptile $f 50th 8
-get_ptile $f 99th 8
+get_ptile $f 50th 10
+get_ptile $f 99th 10
 echo $tag
 loop=$(( $loop + 1 ))
 done

@@ -21,10 +21,12 @@ f1=${farr[0]}
 for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
-    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==12 || NF==10) { print $2, $3 }}' > $f/$y/gpi.ips
-    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==12 || NF==10) { print $2, $5 }}' > $f/$y/gpi.qps
-    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==12 || NF==10) { print $2, $7 }}' > $f/$y/gpi.imax
-    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==12 || NF==10) { print $2, $8 }}' > $f/$y/gpi.qmax
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $3 }}' > $f/$y/gpi.ips
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $5 }}' > $f/$y/gpi.dps
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $7 }}' > $f/$y/gpi.qps
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $9 }}' > $f/$y/gpi.imax
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $10 }}' > $f/$y/gpi.dmax
+    grep -v iibench $f/$y/o.ib.dop${dop}.1 | grep -v max_q | awk '{ if (NF==17) { print $2, $11 }}' > $f/$y/gpi.qmax
   fi
 done
 done
