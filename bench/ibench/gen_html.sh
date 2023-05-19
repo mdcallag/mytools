@@ -153,6 +153,11 @@ if [[ $sec != "l.x" ]]; then
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For the <b>max</b> column values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
 catme $rtdir/mrg.${sec}.rt.insert.ht
 
+if [ -f $rtdir/mrg.${sec}.rt.delete.ht ]; then
+printf "<p>Delete response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For the <b>max</b> column values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
+catme $rtdir/mrg.${sec}.rt.delete.ht
+fi
+
 fi
 
 cat <<H3IpsEOF
@@ -190,6 +195,11 @@ catme $rtdir/mrg.${sec2}.rt.query.ht
 
 printf "<p>Insert response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
 catme $rtdir/mrg.${sec2}.rt.insert.ht
+
+if [ -f $rtdir/mrg.${sec2}.rt.delete.ht ]; then
+printf "<p>Delete response time histogram: each cell has the percentage of responses that take <= the time in the header and <b>max</b> is the max response time in seconds. For <b>max</b> values in the top 25&#37; of the range have a red background and in the bottom 25&#37; of the range have a green background. The red background is not used when the min value is within 80&#37 of the max value.</p>" 
+catme $rtdir/mrg.${sec2}.rt.delete.ht
+fi
 
 cat <<H3QpsEOF
 <p>
@@ -267,6 +277,13 @@ echo "<p>Insert response time histogram</p>"
 echo "<pre>"
 catme $rtdir/mrg.${fsec}.rt.insert
 echo "</pre>"
+
+if [ -f $rtdir/mrg.${fsec}.rt.delete.ht ]; then
+echo "<p>Delete response time histogram</p>"
+echo "<pre>"
+catme $rtdir/mrg.${fsec}.rt.delete
+echo "</pre>"
+fi
 
 done
 

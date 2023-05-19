@@ -453,8 +453,10 @@ done
 
 bash rth.sh . . $dop "Insert rt"               > o.rt.c.insert
 bash rth.sh . . $dop "Insert rt" | tr ',' '\t' > o.rt.t.insert
-bash rth.sh . . $dop "Delete rt"               > o.rt.c.delete
-bash rth.sh . . $dop "Delete rt" | tr ',' '\t' > o.rt.t.delete
+if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
+  bash rth.sh . . $dop "Delete rt"               > o.rt.c.delete
+  bash rth.sh . . $dop "Delete rt" | tr ',' '\t' > o.rt.t.delete
+fi
 bash rth.sh . . $dop "Query rt"                > o.rt.c.query
 bash rth.sh . . $dop "Query rt" | tr ',' '\t'  > o.rt.t.query
 

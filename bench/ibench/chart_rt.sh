@@ -17,6 +17,17 @@ done
 done
 
 # head -1 because there can be dups in $@
+for f in "${ifiles[@]}" "${q2files[@]}" ; do
+if [ -f $rtdir/mrg.$f.rt.delete ]; then
+outf="$rtdir/mrg.$f.rt.delete.some"
+head -1 $rtdir/mrg.$f.rt.delete > $outf
+for e in "$@" ; do
+  grep "$e\$" $rtdir/mrg.$f.rt.delete | head -1 >> $outf
+done 
+fi
+done
+
+# head -1 because there can be dups in $@
 for f in "${q2files[@]}" ; do
 outf="$rtdir/mrg.$f.rt.query.some"
 head -1 $rtdir/mrg.$f.rt.query > $outf
@@ -114,10 +125,16 @@ function make_table {
 
 for f in "${ifiles[@]}" ; do
   make_table $f insert
+  if [ -f $rtdir/mrg.$f.rt.delete ]; then
+    make_table $f delete
+  fi
 done
 
 for f in "${q2files[@]}" ; do
   make_table $f insert
   make_table $f query
+  if [ -f $rtdir/mrg.$f.rt.delete ]; then
+    make_table $f delete
+  fi
 done
 

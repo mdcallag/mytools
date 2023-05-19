@@ -31,8 +31,9 @@ cat <<IHeaderEOF > tput.$t.html
 </head>
 <body>
 <p>
-These have results per 1-second interval for: insert rate (IPS) and max insert reponse time.
+These have results per 1-second interval for: insert rate (IPS), max insert response time, delete rate (DPS) and max delete response time.
 The results are from 1 client while the test may have N clients where N > 1.
+Deletes might not have been enabled for this benchmark step, in which case those graphs will show zero values.
 </p>
 <h1 id=\"toc\">Contents</h1>
 <ul>
@@ -53,6 +54,14 @@ printf "<img src=\"$x.$t.ips.png\">$x</a>\n" >> tput.$t.html
 printf "<hr />\n"  >> tput.$t.html
 printf "<h1 id=\"${x}.imax\">${x}: max insert response time</h1>\n" >> tput.$t.html
 printf "<img src=\"$x.$t.imax.png\">$x</a>\n" >> tput.$t.html
+
+printf "<hr />\n"  >> tput.$t.html
+printf "<h1 id=\"${x}.dps\">${x}: DPS</h1>\n" >> tput.$t.html
+printf "<img src=\"$x.$t.dps.png\">$x</a>\n" >> tput.$t.html
+
+printf "<hr />\n"  >> tput.$t.html
+printf "<h1 id=\"${x}.dmax\">${x}: max delete response time</h1>\n" >> tput.$t.html
+printf "<img src=\"$x.$t.dmax.png\">$x</a>\n" >> tput.$t.html
 
 done
 
@@ -79,8 +88,9 @@ cat <<QHeaderEOF > tput.$t.html
 </head>
 <body>
 <p>
-These have results per 1-second interval for: insert rate (IPS), max insert reponse time, query rate (QPS) and max query response time.
+These have results per 1-second interval for: insert rate (IPS), max insert reponse time, delete rate (DPS), max delete response time, query rate (QPS) and max query response time.
 The results are from 1 client while the test may have N clients where N > 1.
+Deletes might not have been enabled for this benchmark step, in which case those graphs will show zero values.
 The test is run with a rate limit for the number of inserts/s. In some cases the DBMS is unable to sustain that rate. When a DBMS can sustain that rate IPS will be a horizontal line.
 </p>
 <h1 id=\"toc\">Contents</h1>
@@ -88,7 +98,7 @@ The test is run with a rate limit for the number of inserts/s. In some cases the
 QHeaderEOF
 
 for x in "$@"; do
-printf "<li>$x: <a href=\"#${x}.ips\">IPS</a>, <a href=\"#${x}.imax\">max insert response time</a>, <a href=\"#${x}.qps\">QPS</a> and <a href=\"#${x}.qmax\">max query response time</a>\n" >> tput.$t.html
+printf "<li>$x: <a href=\"#${x}.ips\">IPS</a>, <a href=\"#${x}.imax\">max insert response time</a>, <a href=\"#${x}.dps\">DPS</a>, <a href=\"#${x}.dmax\">max delete response time</a>, <a href=\"#${x}.qps\">QPS</a> and <a href=\"#${x}.qmax\">max query response time</a>\n" >> tput.$t.html
 done
 
 printf "</ul>\n" >> tput.$t.html
@@ -102,6 +112,14 @@ printf "<img src=\"$x.$t.ips.png\">$x</a>\n" >> tput.$t.html
 printf "<hr />\n"  >> tput.$t.html
 printf "<h1 id=\"${x}.imax\">${x}: max insert response time</h1>\n" >> tput.$t.html
 printf "<img src=\"$x.$t.imax.png\">$x</a>\n" >> tput.$t.html
+
+printf "<hr />\n"  >> tput.$t.html
+printf "<h1 id=\"${x}.dps\">${x}: DPS</h1>\n" >> tput.$t.html
+printf "<img src=\"$x.$t.dps.png\">$x</a>\n" >> tput.$t.html
+
+printf "<hr />\n"  >> tput.$t.html
+printf "<h1 id=\"${x}.dmax\">${x}: max delete response time</h1>\n" >> tput.$t.html
+printf "<img src=\"$x.$t.dmax.png\">$x</a>\n" >> tput.$t.html
 
 printf "<hr />\n"  >> tput.$t.html
 printf "<h1 id=\"${x}.qps\">${x}: QPS</h1>\n" >> tput.$t.html

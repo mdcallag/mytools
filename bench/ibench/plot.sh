@@ -37,13 +37,13 @@ if [ $logscale == "y" ]; then
   echo "set logscale y" >> do.gp
 fi
 
-lab=(IPS maxInsertUsecs QPS maxQueryUsecs)
-inp=(ips imax qps qmax)
+lab=(IPS maxInsertUsecs DPS maxDeleteUsecs QPS maxQueryUsecs )
+inp=(ips imax dps dmax qps qmax )
 
 for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
-for x in 0 1 2 3 ; do
+for x in 0 1 2 3 4 5 ; do
 
-  if [[ $x -gt 1 && ( $y == "l.i0" || $y == "l.i1" ) ]] ; then
+  if [[ $x -gt 3 && ( $y == "l.i0" || $y == "l.i1" ) ]] ; then
     continue
   fi
 
@@ -59,6 +59,7 @@ for x in 0 1 2 3 ; do
   # echo "unset yrange" >> do.gp
   # get max value for y-axis
   maxy=$( for f in "$@"; do awk '{ print $2 }' $f/$y/gpi.${inp[$x]}; done | sort -rn | head -1 )
+  if [[ $maxy < 1 ]]; then maxy=1; fi
   maxy_adj=$( echo "scale=0; ( $maxy * $sf )/1.0" | bc )
   echo "set yrange [0:${maxy_adj}]" >> do.gp
 
