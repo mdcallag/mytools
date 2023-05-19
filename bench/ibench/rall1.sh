@@ -43,6 +43,7 @@ dpg12=${dbms_pfx}/pg12
 dpg13=${dbms_pfx}/pg13
 dpg14=${dbms_pfx}/pg14
 dpg15=${dbms_pfx}/pg15
+dpg16=${dbms_pfx}/pg16
 dmy80=${dbms_pfx}/my80
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
@@ -251,6 +252,26 @@ function do_pg15 {
   cp $dpg15/conf.diff $rdir
 }
 
+function do_pg16 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=pg.$rmemt.dop$dop.c$cnf
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg16.c${cnf}${ps}
+  mkdir -p $rdir
+  cd $dpg16; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg16/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cp $dpg16/logfile $rdir
+  cd $dpg16; bash down.sh; cd $dgit
+  mv $dpg16/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
+  cp $dpg16/conf.diff $rdir
+}
+
 function do_mo40 {
   dop=$1
   cnf=$2
@@ -324,6 +345,8 @@ elif [[ $dbms == "pg14" ]]; then
   do_pg14 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg15" ]]; then
   do_pg15 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "pg16" ]]; then
+  do_pg16 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in57" ]]; then
