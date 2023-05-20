@@ -1,15 +1,16 @@
 ntabs=$1
 nrows=$2
-nsecs=$3
-basedir=$4
-sysbdir=$5
-datadir=$6
-devname=$7
-usepk=$8
-prepstmt=$9
+nsecs_r=$3
+nsecs_w=$4
+basedir=$5
+sysbdir=$6
+datadir=$7
+devname=$8
+usepk=$9
+prepstmt=${10}
 
 # Remaining args are numbers of threads for which to run benchmarks, "1 2 4"
-shift 9
+shift 10
 
 function dbms_up() {
   bdir=$1
@@ -37,7 +38,7 @@ for dcnf in fbmy5635.ay9c fbmy8028.ay9c ; do
 
   dbms_up $dbdir $cnf
   grep -i huge /proc/meminfo > sb.hp.pre
-  bash all_small.sh $ntabs $nrows $nsecs $nsecs $nsecs $dbcreds 1 0 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
+  bash all_small.sh $ntabs $nrows $nsecs_r $nsecs_w $nsecs_w $dbcreds 1 0 $client none $sysbdir $datadir $devname $usepk $prepstmt $@
   grep -i huge /proc/meminfo > sb.hp.post
   mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/etc/my.cnf $dbdir/o.ini* x.$dcnf.pk${usepk}
   cp /data/m/fbmy/data/*.err x.$dcnf.pk${usepk}
