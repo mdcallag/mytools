@@ -265,7 +265,7 @@ function do_pg16 {
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg16.c${cnf}${ps}
   mkdir -p $rdir
   cd $dpg16; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh pg "" $dpg16/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg16/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg16/logfile $rdir
   cd $dpg16; bash down.sh; cd $dgit
   mv $dpg16/o.ini.* l.i0 l.i1 l.x end q.L* a.$sfx $rdir
