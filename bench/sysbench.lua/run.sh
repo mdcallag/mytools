@@ -325,6 +325,7 @@ if [[ $driver == "mysql" ]]; then
 
 elif [[ $driver == "pgsql" ]]; then
   $client "${clientArgs[@]}" -c 'show all' > sb.pg.conf.$sfx
+  $client "${clientArgs[@]}" -x -c 'select * from pg_stat_io' > sb.pgs.io.$sfx
   $client "${clientArgs[@]}" -x -c 'select * from pg_stat_bgwriter' > sb.pgs.bg.$sfx
   $client "${clientArgs[@]}" -x -c 'select * from pg_stat_database' > sb.pgs.db.$sfx
   $client "${clientArgs[@]}" -x -c "select * from pg_stat_all_tables where schemaname='public'" > sb.pgs.tabs.$sfx
