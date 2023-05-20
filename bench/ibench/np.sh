@@ -348,6 +348,7 @@ echo "TODO reset replication state"
 #echo Count for pi1
 #$client ib -c "select count(*) from pi1"
 $client ib -c 'show all' > o.pg.conf
+$client ib -x -c 'select * from pg_stat_io' > o.pgs.io
 $client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
 $client ib -x -c 'select * from pg_stat_database' > o.pgs.db
 $client ib -x -c 'select * from pg_stat_wal' > o.pgs.wal
