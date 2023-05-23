@@ -124,7 +124,7 @@ while :; do
       if [[ $odd_or_even == "even" ]]; then
         fn="o.pgid.1.insert.pi1"
       else
-	if [ -f o.pid.1.delete.pi1 ]; then
+	if [ -f o.pgid.1.delete.pi1 ]; then
           fn="o.pgid.1.delete.pi1"
         else
           fn="o.pgid.1.insert.pi1"
