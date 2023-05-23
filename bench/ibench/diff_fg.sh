@@ -15,7 +15,7 @@ for ndir in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
     f1=$( ls -rt $dir1/$ndir/*.fold.* | head -${x} | tail -1 )
     f2=$( ls -rt $dir2/$ndir/*.fold.* | head -${x} | tail -1 )
     echo Diff $x : $f1 and $f2
-    ~/git/FlameGraph/difffolded.pl $f1 $f2 | ~/git/FlameGraph/flamegraph.pl > $resdir/$ndir/$tag.$ndir.$x.svg
+    ~/git/FlameGraph/difffolded.pl -n $f1 $f2 | ~/git/FlameGraph/flamegraph.pl > $resdir/$ndir/$tag.$ndir.$x.svg
   done
 done
 

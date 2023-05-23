@@ -120,7 +120,16 @@ while :; do
     if [ $nqt -ge 1 ]; then
       fn="o.pgid.1.query.pi1"
     else
-      fn="o.pgid.1.insert.pi1"
+      odd_or_even=$( echo $x | awk '{ if (( $1 % 2 ) == 0) { print "even" } else { print "odd" }}' )
+      if [[ $odd_or_even == "even" ]]; then
+        fn="o.pgid.1.insert.pi1"
+      else
+	if [ -f o.pid.1.delete.pi1 ]; then
+          fn="o.pgid.1.delete.pi1"
+        else
+          fn="o.pgid.1.insert.pi1"
+        fi
+      fi
     fi
     # dbpid=$( ps aux | grep "postgres: mdcallag" | grep -v grep | tail -1 | awk '{ print $2 }' )
     dbpid=$( cat $fn | awk '{ print $2 }' )
