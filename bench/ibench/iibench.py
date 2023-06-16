@@ -732,6 +732,7 @@ def get_min_trxid():
 
   sql = 'select min(transactionid) from %s' % FLAGS.table_name
   val = -99
+  st = time.time()
 
   if FLAGS.dbms == 'mysql':
     # print("Query is:", query)
@@ -760,6 +761,8 @@ def get_min_trxid():
     assert False
 
   db_cursor.close()
+  et = time.time()
+  print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
   return val
 
 def Query(query_generators, shared_var, done_flag, lock, result_q):
@@ -880,9 +883,11 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
 def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
+  # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
+  # print("statement_maker: post-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   
   inserted = 0
 
@@ -904,8 +909,9 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
     if rounds_per_second < 1:
       rounds_per_second = 1
     last_rate_check = time.time()
-    # print("rounds per second = %d" % rounds_per_second)
+    # print("rounds per second = %d" % rounds_per_second, flush=True)
 
+  # print("statement_maker: loop start at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # generate rows to insert and delete statements
   for r in range(rounds):
     rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
@@ -926,6 +932,7 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
     if rounds_per_second and (r % rounds_per_second) == 0:
       if now > last_rate_check and now < (last_rate_check + 0.95):
         sleep_time = 1.0 - (now - last_rate_check)
+        assert sleep_time > 0.0 and sleep_time < 1.0
         # print("sleep %s" % sleep_time)
         time.sleep(sleep_time)
       last_rate_check = time.time()
@@ -979,9 +986,11 @@ def insert_ps_pg(cursor, table_name):
   return 'execute insert_ps (%s)' % (params)
 
 def statement_executor(stmt_q, shared_var, done_flag, lock, result_q, is_inserter):
+  # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
   # block on this until main thread wants all processes to run
   lock.acquire()
   lock.release()
+  # print("statement_exec(inserter=%s): post-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
 
   db_conn = get_conn()
   if FLAGS.dbms == 'mysql':
@@ -1020,6 +1029,7 @@ def statement_executor(stmt_q, shared_var, done_flag, lock, result_q, is_inserte
 
   rthist = rthist_new()
 
+  # print("statement_exec(inserter=%s): enter loop at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
   while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 

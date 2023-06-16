@@ -54,16 +54,25 @@ if [[ $dbms == "mongo" ]]; then
   echo "no need to reset MongoDB replication as oplog is capped"
   while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
+  splid="-1"
+  top -b -d 20 > o.top.$sfx &
+  topid=$!
 elif [[ $dbms == "mysql" ]]; then
   dbid=ib
   $client -uroot -ppw -A -h$host -e 'reset master'
   while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
+  while :; do date; $client -uroot -ppw -A -h$host -e 'show processlist'; sleep 20; done > o.espl.$sfx &
+  splid=$!
+  top -b -d 20 > o.top.$sfx &
+  topid=$!
 elif [[ $dbms == "postgres" ]]; then
   dbid=ib
   echo "TODO: reset Postgres replication"
   while :; do ps aux | grep postgres | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
+  top -b -d 20 > o.top.$sfx &
+  topid=$!
 fi
 
 if [[ $setup == "yes" ]] ; then
@@ -296,6 +305,8 @@ kill $vpid >& /dev/null
 kill $ipid >& /dev/null
 kill $tpid >& /dev/null
 kill $spid >& /dev/null
+kill $splid >& /dev/null
+kill $topid >& /dev/null
 gzip -9 o.top.$sfx 
 
 if [[ $dbms == "mongo" ]]; then
