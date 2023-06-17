@@ -30,7 +30,7 @@ __author__ = 'Mark Callaghan'
 import os
 import base64
 import string
-from multiprocessing import Queue, Process, Pipe, Value, Lock
+from multiprocessing import Queue, Process, Pipe, Value, Lock, Barrier
 import optparse
 from datetime import datetime
 import time
@@ -765,11 +765,10 @@ def get_min_trxid():
   print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
   return val
 
-def Query(query_generators, shared_var, done_flag, lock, result_q):
+def Query(query_generators, shared_var, done_flag, barrier, result_q):
 
   # block on this until main thread wants all processes to run
-  lock.acquire()
-  lock.release()
+  barrier.wait()
 
   # print('Query thread running')
   db_conn = get_conn()
@@ -882,18 +881,7 @@ def Query(query_generators, shared_var, done_flag, lock, result_q):
   db_conn.close()
   result_q.put(rthist_result(rthist, 'Query rt:'))
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
-  # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
-  # block on this until main thread wants all processes to run
-  lock.acquire()
-  lock.release()
-  # print("statement_maker: post-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
-  
-  inserted = 0
-
-  sum_queries = 0
-
-  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier):
 
   # Smallest trxid which is used for deletes
   min_trxid = -1
@@ -902,6 +890,17 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, lock):
     min_trxid = get_min_trxid()
     assert min_trxid >= 0
     # print('min_trxid = %d\n' % min_trxid)
+
+  # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+  # block on this until main thread wants all processes to run
+  barrier.wait()
+  # print("statement_maker: post-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+  
+  inserted = 0
+
+  sum_queries = 0
+
+  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
 
   rounds_per_second = 0
   if (FLAGS.inserts_per_second):
@@ -985,11 +984,10 @@ def insert_ps_pg(cursor, table_name):
   params = '%s,' * ((6 * FLAGS.rows_per_commit) - 1) + '%s'
   return 'execute insert_ps (%s)' % (params)
 
-def statement_executor(stmt_q, shared_var, done_flag, lock, result_q, is_inserter):
+def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inserter):
   # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
   # block on this until main thread wants all processes to run
-  lock.acquire()
-  lock.release()
+  barrier.wait()
   # print("statement_exec(inserter=%s): post-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
 
   db_conn = get_conn()
@@ -1150,9 +1148,18 @@ def run_benchmark():
   random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
-  # Lock is held until processes can start running
-  lock = Lock()
-  lock.acquire()
+  n_parties = 1
+
+  if FLAGS.query_threads:
+    n_parties += FLAGS.query_threads
+
+  if not FLAGS.no_inserts:
+    n_parties += 2
+    if FLAGS.delete_per_insert:
+      n_parties += 1
+
+  # Used to get all threads running at the same point in time
+  barrier = Barrier(n_parties)
 
   # Array of tuple of Values, each tuple is ...
   #   [0] tracks the number of inserts or deletes
@@ -1177,7 +1184,7 @@ def run_benchmark():
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, lock, query_result)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result)))
 
   if not FLAGS.no_inserts:
     insert_stmt_q = Queue(8)
@@ -1188,13 +1195,13 @@ def run_benchmark():
     shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
     shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
 
-    inserter = Process(target=statement_executor, args=(insert_stmt_q, shared_vars[-2], done_flag, lock, insert_stmt_result, True))
+    inserter = Process(target=statement_executor, args=(insert_stmt_q, shared_vars[-2], done_flag, barrier, insert_stmt_result, True))
 
     deleter = None
     if FLAGS.delete_per_insert:
-      deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, lock, delete_stmt_result, False))
+      deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, lock))
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier))
 
     # start up the insert execution process with this queue
     inserter.start()
@@ -1217,7 +1224,7 @@ def run_benchmark():
     conn.close()
 
   # After the insert and query processes lock/unlock this they can run
-  lock.release()
+  barrier.wait()
   test_start = time.time()
 
   start_time = time.time()
