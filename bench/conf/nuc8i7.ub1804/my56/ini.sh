@@ -30,13 +30,17 @@ sleep 3
 #sudo bash ~/mytools/scripts/compact_vm.sh
 sleep 3
 
-scripts/mysql_install_db --defaults-file=etc/my.cnf >& o.ini.$csfx
+echo Install db at $( date ) > o.ini.$csfx
+scripts/mysql_install_db --defaults-file=etc/my.cnf >> o.ini.$csfx 2>&1
 
+sleep 3
 bin/mysqld_safe &
 sleep 30
-bin/mysqladmin -uroot --password="" password pw
+echo Change password at $( date ) >> o.ini.$csfx
+x=0
+while ! bin/mysqladmin -uroot --password="" password pw >> o.ini.$csfx 2>&1 ; do echo change pw failed; x=$(( x + 1 )); if [[ $x -ge 12 ]]; then echo Break after 60; exit 1; fi; sleep 10; done
 
-bin/mysql -uroot -ppw mysql -e "grant all on *.* to root@'%' identified by 'pw'"
+bin/mysql -uroot -ppw mysql -e "grant all on *.* to root@'%' identified by 'pw'" >> o.ini.$csfx 2>&1
 bin/mysql -uroot -ppw mysql -e "delete from user where length(Password) = 0; flush privileges;"
 
 bin/mysql -uroot -ppw -A -e 'drop database test'
