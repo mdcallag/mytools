@@ -69,7 +69,7 @@ elif [[ $dbms == "mysql" ]]; then
 elif [[ $dbms == "postgres" ]]; then
   dbid=ib
   echo "TODO: reset Postgres replication"
-  while :; do ps aux | grep postgres | grep -v grep; sleep 30; done >& o.ps.$sfx &
+  while :; do ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
   top -b -d 20 > o.top.$sfx &
   topid=$!
@@ -424,12 +424,11 @@ x1=$( awk '{ printf "%.3f", $1 / (1024*1024*1024) }' o.dbdirsz.$sfx )
 printf "dbdirGB\t%s\t${ddir}\n" $x1 >> o.res.$sfx
 
 echo >> o.res.$sfx
-if [[ $dbms == "mongo" ]]; then
-  ps aux | grep mongod | grep "\-\-config" | grep -v grep | tail -1 >> o.res.$sfx
-elif [[ $dbms == "mysql" ]]; then
-  ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep | tail -1 >> o.res.$sfx
+if [[ $dbms == "postgres" ]]; then
+  # Sort by vsz because rss won't show shared buffers
+  sort -nk 5,5 o.ps.$sfx | tail -1 >> o.res.$sfx
 else
-  ps aux | grep postgres | grep -v grep | tail -1 >> o.res.$sfx
+  sort -nk 6,6 o.ps.$sfx | tail -1 >> o.res.$sfx
 fi
 
 echo >> o.res.$sfx
@@ -457,13 +456,13 @@ done
 
 printf "\ninsert, delete and query rate at nth percentile\n" >> o.res.$sfx
 for n in $( seq 1 $realdop ) ; do
-  lines=$( awk '{ if (NF == 17) { print $3 } }' o.ib.dop${dop}.${n} | wc -l )
+  lines=$( awk '{ if (NF == 17) { print $3 } }' o.ib.dop${dop}.${n} | grep -v i_ips | wc -l )
   for x in 50 75 90 95 99 ; do
     if [[ $lines -ge 10 ]]; then
       off=$( printf "%.0f" $( echo "scale=3; ($x / 100.0 ) * $lines " | bc ) )
-      i_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $3 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-      d_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $5 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
-      q_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $7 } }' | sort -rnk 1,1 | head -${off} | tail -1 )
+      i_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $3 } }' | grep -v i_ips | sort -rnk 1,1 | head -${off} | tail -1 )
+      d_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $5 } }' | grep -v i_ips | sort -rnk 1,1 | head -${off} | tail -1 )
+      q_nth=$( cat o.ib.dop${dop}.$n | awk '{ if (NF == 17) { print $7 } }' | grep -v i_ips | sort -rnk 1,1 | head -${off} | tail -1 )
       echo ${x}th, ${off} / ${lines} = $i_nth insert, $d_nth delete, $q_nth query >> o.res.$sfx
     else
       # not enough input lines

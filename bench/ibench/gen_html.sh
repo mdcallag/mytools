@@ -107,6 +107,7 @@ cat <<SumrEOF
 <p>
 This table has relative throughput, throughput for the DBMS relative to the DBMS in the first line,
 using the absolute throughput from the previous table.
+Values less than 0.95 have a yellow background. Values greater than 1.05 have a blue background.
 </p>
 SumrEOF
 

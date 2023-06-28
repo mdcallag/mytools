@@ -89,9 +89,12 @@ function dbms_vsz_rss {
   fname=$1
   username=$2
 
-  if grep $username $fname > /dev/null ; then
-    vsz=$( grep $username $fname | head -1 | awk '{ printf "%.1f", $5 / (1024*1024) }' )
-    rss=$( grep $username $fname | head -1 | awk '{ printf "%.1f", $6 / (1024*1024) }' )
+  # ps truncates long usernames
+  uname7=$( echo $username | awk '{ print substr($1, 1, 7) }' )
+
+  if grep $uname7 $fname > /dev/null ; then
+    vsz=$( grep $uname7 $fname | head -1 | awk '{ printf "%.1f", $5 / (1024*1024) }' )
+    rss=$( grep $uname7 $fname | head -1 | awk '{ printf "%.1f", $6 / (1024*1024) }' )
   else
     vsz=NA
     rss=NA

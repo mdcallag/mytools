@@ -13,8 +13,8 @@ qfiles=( q100.1 q500.1 q1000.1 )
 # Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${ifiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" $resdir/mrg.$f | head -1
-  done | awk '{ if (NF == 21) { printf "%s\t%s\n", $1, $21 } }' > $resdir/mrg.$f.ips
+    grep "$e\$" $resdir/mrg.$f | head -1 | awk '{ if (NF == 21) { printf "%s\t%s\n", $1, e } }' e=$e
+  done > $resdir/mrg.$f.ips
 
   head -1 $resdir/mrg.$f > $resdir/mrg.$f.some
   for e in "$@" ; do grep "$e\$" $resdir/mrg.$f | head -1 ; done >> $resdir/mrg.$f.some
@@ -23,8 +23,8 @@ done
 # Note - there can be multiple matches for the same value of e because the input list can have dups, thus "head -1"
 for f in "${qfiles[@]}" ; do
   for e in "$@" ; do
-    grep "$e\$" $resdir/mrg.$f | head -1
-  done | awk '{ if (NF == 21) { printf "%s\t%s\t%s\n", $1, $2, $21 } }' > $resdir/mrg.$f.qps
+    grep "$e\$" $resdir/mrg.$f | head -1 | awk '{ if (NF == 21) { printf "%s\t%s\t%s\n", $1, $2, e } }' e=$e
+  done > $resdir/mrg.$f.qps
 
   head -1 $resdir/mrg.$f > $resdir/mrg.$f.some
   for e in "$@" ; do grep "$e\$" $resdir/mrg.$f | head -1 ; done >> $resdir/mrg.$f.some
@@ -98,6 +98,8 @@ function get_row_col {
 
 cat <<TabEOF > tput_hdr
 <style type="text/css">
+  table td#clo { background-color:#FFDD81 }
+  table td#chi { background-color:#81FFF9 }
   table td#cmin { background-color:#FF9A9A }
   table td#cmax { background-color:#81FFA6 }
   table td#csla { background-color:#FFC172 }
@@ -127,13 +129,15 @@ for e in "$@" ; do
     trate=$(( $dop * $rate ))
     t95=$( echo $trate | awk '{ printf "%.0f", ( 0.95 * $1 ) }' )
     val=$( get_row_col $r $c z1q )
+    # echo $e e, $dbms dbms, $rate rate, $val val, $c c, $t95 t95 >> o.dbg
     if [[ $val -ge $t95 ]]; then
       printf "<td>$val</td>"
       sla[${e}.${c}]=1
+      # echo ge t95 : set ${e}.${c} to 1 >> o.dbg
     else
       printf "<td id=\"cmin\">$val</td>"
       sla[${e}.${c}]=0
-      # echo "ZZZ $e misses sla for rate $rate"
+      # echo miss t95 : set ${e}.${c} to 1 >> o.dbg
     fi
     c=$(( $c + 1 ))
   done
@@ -210,13 +214,24 @@ for c in $( seq 1 7 ); do
     if [ $asRel -eq 1 ]; then
       if [ $r -gt 1 ]; then
         retVal=$( echo $val ${firstRowCols[$c]} | awk '{ printf "%.2f", $1 / $2 }' )
-        printf "<td>%s</td>" $retVal
+	retValBy100=$( echo $val ${firstRowCols[$c]} | awk '{ printf "%.0f", ($1 / $2) * 100 }' )
+	if [[ $retValBy100 -gt 105 ]]; then
+	  # echo $retVal $retValBy100 retval BLUE >> o.dbg
+          printf "<td id=\"chi\">%s</td>" $retVal
+	elif [[ $retValBy100 -lt 95 ]]; then
+	  # echo $retVal $retValBy100 retval MUSTARD >> o.dbg
+          printf "<td id=\"clo\">%s</td>" $retVal
+	else
+	  # echo $retVal $retValBy100 retval NONE >> o.dbg
+          printf "<td>%s</td>" $retVal
+	fi
       else
         printf "<td>1.00</td>"
       fi
     elif [[ $val -le ${botq[$c]} ]]; then
       printf "<td id=\"cmin\">%s</td>" $val
     elif [[ $c -gt 4 && ${sla[${dbms}.$(( $c - 3 ))]} -eq 0 ]]; then
+      # echo $asRel asRel, $r r, $c c, ${dbms}.$(( $c - 3 )) set to ${sla[${dbms}.$(( $c - 3 ))]} >> o.dbg
       printf "<td id=\"cgray\">%s</td>" $val
     elif [[ $val -ge ${topq[$c]} ]]; then
       printf "<td id=\"cmax\">%s</td>" $val
