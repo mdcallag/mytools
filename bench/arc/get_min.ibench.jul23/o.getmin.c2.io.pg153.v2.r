@@ -1,0 +1,11 @@
+l.i0	q100	q500	q1000	dbms				
+0.004	0.022	0.028	0.168	4000m.pg153_o3_native_lto.cx7a10_gcp_c2s30
+0.004	0.717	0.040	0.179	4000m.pg153_o3_native_lto.cx7a12_gcp_c2s30
+0.062	0.022	0.028	0.169	4000m.pg153_o3_native_lto.cx7a15_gcp_c2s30
+0.004	0.077	0.039	0.220	4000m.pg153_o3_native_lto.cx7a16_gcp_c2s30
+0.005	0.423	0.116	0.231	4000m.pg153_o3_native_lto.cx7a1_gcp_c2s30
+0.004	0.126	0.033	0.192	4000m.pg153_o3_native_lto.cx7a4_gcp_c2s30
+0.004	0.025	0.028	0.202	4000m.pg153_o3_native_lto.cx7a7_gcp_c2s30
+0.004	0.023	0.028	0.165	4000m.pg153_o3_native_lto.cx7a_gcp_c2s30
+0.005	0.139	0.049	0.202	4000m.pg153_o3_native_lto.cx7a21_gcp_c2s30
+0.004	0.197	0.101	0.271	4000m.pg153_o3_native_lto.cx7a22_gcp_c2s30
