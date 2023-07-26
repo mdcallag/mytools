@@ -92,7 +92,7 @@ cat <<SumEOF
 <hr />
 <h1 id="summary">Summary</h1>
 <p>
-The numbers are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and queries/s for q*.2.
+The numbers are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and queries/s for q100, q500, q1000.
 The values are the average rate over the entire test for inserts (IPS) and queries (QPS).
 The range of values for IPS and QPS is split into 3 parts: bottom 25&#37;, middle 50&#37;, top 25&#37;.
 Values in the bottom 25&#37; have a red background, values in the top 25&#37; have a green background and values in the middle have no color.
