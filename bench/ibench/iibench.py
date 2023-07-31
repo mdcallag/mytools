@@ -124,6 +124,7 @@ DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
 DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
 DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
 DEFINE_integer('query_threads', 0, 'Number of query threads')
+DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
 DEFINE_integer('warmup', 0, 'TODO')
@@ -560,7 +561,7 @@ def generate_pdc_query_ps_pg(cursor, table_name):
     raise e
   return 'execute pdc_query_ps (%s)'
 
-def generate_pdc_query(cursor, table_name, session, give_me_ps, vals_only):
+def generate_pdc_query(cursor, table_name, session, give_me_ps, vals_only, min_id, max_id):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
@@ -616,7 +617,7 @@ def generate_market_query_ps_pg(cursor, table_name):
     raise e
   return 'execute market_query_ps (%s)'
 
-def generate_market_query(cursor, table_name, session, give_me_ps, vals_only):
+def generate_market_query(cursor, table_name, session, give_me_ps, vals_only, min_id, max_id):
   customerid = random.randrange(0, FLAGS.customers)
   price = ((random.random() * FLAGS.max_price) + customerid) / 100.0
 
@@ -674,7 +675,7 @@ def generate_register_query_ps_pg(cursor, table_name):
     raise e
   return 'execute register_query_ps (%s)'
 
-def generate_register_query(cursor, table_name, session, give_me_ps, vals_only):
+def generate_register_query(cursor, table_name, session, give_me_ps, vals_only, min_id, max_id):
   cashregisterid = random.randrange(0, FLAGS.cashregisters)
 
   if FLAGS.dbms == 'mongo':
@@ -690,6 +691,49 @@ def generate_register_query(cursor, table_name, session, give_me_ps, vals_only):
       return [cashregisterid]
     else:
       return generate_register_query_mysql_pg(cursor, cashregisterid, False, table_name)
+
+def generate_pk_query_mysql_pg(cursor, ids, table_name):
+  sql = 'SELECT transactionid, productid, data FROM %s '\
+        'WHERE transactionid in (%s)' % (table_name, ','.join(ids))
+  return sql
+
+def generate_pk_query_ps_pg(cursor, table_name, num_params):
+  params_str = ["$%d" % x for x in range(1, num_params+1)]
+  types_str = ["int" for x in range(num_params)]
+  str_arr = ["%s" for x in range(num_params)]
+
+  prep_sql = 'PREPARE pk_query_ps (%s) as '\
+             'SELECT transactionid, productid, data FROM %s '\
+             'WHERE transactionid in (%s)' % (','.join(types_str), table_name, ','.join(params_str))
+  # print(prep_sql)
+
+  try:
+    cursor.execute(prep_sql)
+  except psycopg2.Error as e:
+    print("pk_query prepare error: %s\n%s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag, prep_sql))
+    raise e
+
+  str_arr_joined = ','.join(str_arr)
+  # print('execute pk_query_ps (%s)' % str_arr_joined)
+  return 'execute pk_query_ps (%s)' % str_arr_joined
+
+def generate_pk_query(cursor, table_name, session, give_me_ps, vals_only, min_id, max_id):
+
+  if FLAGS.dbms == 'mongo':
+    # TODO not implemented
+    assert False
+  elif FLAGS.dbms == 'mysql':
+    assert not give_me_ps and not vals_only
+    ids = [str(random.randrange(min_id, max_id)) for x in range(FLAGS.rows_per_query)]
+    return generate_pk_query_mysql_pg(cursor, ids, table_name)
+  else:
+    if give_me_ps:
+      return generate_pk_query_ps_pg(cursor, table_name, FLAGS.rows_per_query)
+    elif vals_only:
+      return [random.randrange(min_id, max_id) for x in range(FLAGS.rows_per_query)]
+    else:
+      ids = [str(random.randrange(min_id, max_id)) for x in range(FLAGS.rows_per_query)]
+      return generate_pk_query_mysql_pg(cursor, ids, table_name)
 
 def generate_insert_rows(rand_data_buf, use_prepared):
   if FLAGS.dbms == 'mongo':
@@ -731,11 +775,15 @@ def dump_pg_backend_id(cursor, output_file_name):
     print("select pg_backend_id() fails: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
     sys.exit(-1)
 
-def get_min_trxid():
+def get_min_or_max_trxid(get_min):
   db_conn = get_conn()
   db_cursor = db_conn.cursor()
 
-  sql = 'select min(transactionid) from %s' % FLAGS.table_name
+  if get_min:
+    sql = 'select min(transactionid) from %s' % FLAGS.table_name
+  else:
+    sql = 'select max(transactionid) from %s' % FLAGS.table_name
+
   val = -99
   st = time.time()
 
@@ -767,7 +815,8 @@ def get_min_trxid():
 
   db_cursor.close()
   et = time.time()
-  print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
+  if get_min:
+    print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
   return val
 
 def HtapTrx(done_flag, barrier):
@@ -849,7 +898,7 @@ def HtapTrx(done_flag, barrier):
   db_conn.close()
   #print("HTAP done at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
 
-def Query(query_generators, shared_var, done_flag, barrier, result_q):
+def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid):
 
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -872,17 +921,33 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
   else:
     assert False
 
+  rthist = rthist_new()
+
+  # Smallest trxid
+  min_trxid = 0
+
+  # Largest trxid 
+  max_trxid = -1
+  if FLAGS.query_pk_only:
+    assert FLAGS.dbms != 'mongo'
+    max_trxid = get_min_or_max_trxid(False)
+    assert max_trxid >= 0
+    # print('max_trxid = %d\n' % max_trxid)
+  
   ps_names = []
   if FLAGS.use_prepared_query:
     assert FLAGS.dbms == 'postgres'
     for q in query_generators:
-      ps_names.append(q(db_thing, FLAGS.table_name, None, True, False))
+      ps_names.append(q(db_thing, FLAGS.table_name, None, True, False, min_trxid, max_trxid))
 
-  rthist = rthist_new()
+  total_count = 0
 
   while True:
     query_id = random.randrange(0, len(query_generators))
     query_func = query_generators[query_id]
+
+    # Smallest trxid
+    min_trxid = shared_min_trxid.value
 
     ts = rthist_start(rthist)
 
@@ -893,10 +958,11 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
           # TODO -- autocommit would be nice here
           if mongo_session: mongo_session.start_transaction()
 
-          query = query_func(db_thing, FLAGS.table_name, mongo_session, False, False)
+          query = query_func(db_thing, FLAGS.table_name, mongo_session, False, False, min_trxid, max_trxid)
 
           count = 0
           for r in query: count += 1
+          total_count += count
           # if count: print('fetched %d' % count) print('fetched %d' % count)
 
           if mongo_session: mongo_session.commit_transaction()
@@ -911,11 +977,12 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
             raise e
 
     elif FLAGS.dbms == 'mysql':
-      # print("Query is:", query)
       try:
-        query = query_func(db_thing, FLAGS.table_name, None, False, False)
+        query = query_func(db_thing, FLAGS.table_name, None, False, False, min_trxid, max_trxid)
+        # print("Query is:", query)
         db_thing.execute(query)
         count = len(db_thing.fetchall())
+        total_count += count
       except MySQLdb.Error as e:
         if e[0] != 2006:
           #print("Ignoring MySQL exception: ", e)
@@ -927,13 +994,15 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
     elif FLAGS.dbms == 'postgres':
       try:
         if not FLAGS.use_prepared_query:
-          query = query_func(db_thing, FLAGS.table_name, None, False, False)
+          query = query_func(db_thing, FLAGS.table_name, None, False, False, min_trxid, max_trxid)
+          # print("Query is:", query)
           db_thing.execute(query)
         else:
-          query_args = query_func(db_thing, FLAGS.table_name, None, False, True)
+          query_args = query_func(db_thing, FLAGS.table_name, None, False, True, min_trxid, max_trxid)
           db_thing.execute(ps_names[query_id], query_args)
 
         count = len(db_thing.fetchall())
+        total_count += count
       except psycopg2.Error as e:
         print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
         raise e
@@ -955,6 +1024,11 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
       if done_flag.value == 1:
         break
 
+    if (loops % 100) == 0 and FLAGS.query_pk_only:
+      max_trxid = get_min_or_max_trxid(False)
+      assert max_trxid >= 0
+      # print('trxid(min,max) = (%d, %d)\n' % (min_trxid, max_trxid))
+
   if FLAGS.dbms == 'mongo':
     pass
   elif FLAGS.dbms in ['mysql', 'postgres']:
@@ -962,16 +1036,19 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q):
   else:
     assert False
 
-  db_conn.close()
-  result_q.put(rthist_result(rthist, 'Query rt:'))
+  extra = 'Query thread: %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
+  # print('%s\n' % extra)
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier):
+  db_conn.close()
+  result_q.put((rthist_result(rthist, 'Query rt:'), extra))
+
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid):
 
   # Smallest trxid which is used for deletes
   min_trxid = -1
   if FLAGS.delete_per_insert:
     assert FLAGS.dbms != 'mongo'
-    min_trxid = get_min_trxid()
+    min_trxid = get_min_or_max_trxid(True)
     assert min_trxid >= 0
     # print('min_trxid = %d\n' % min_trxid)
 
@@ -1009,6 +1086,7 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier):
       # print('%s\n' % delete_sql)
       delete_stmt_q.put(delete_sql)
       min_trxid += FLAGS.rows_per_commit
+      shared_min_trxid.value = min_trxid
 
     # enforce write rate limit if set
     now = time.time()
@@ -1266,13 +1344,19 @@ def run_benchmark():
 
   query_args = []
 
+  # Estimate for current min value of transactionid column in the test table
+  shared_min_trxid = Value('i', 0)
+
   # Flag to indicate that inserts are done
   done_flag = Value('i', 0)
 
   if FLAGS.query_threads:
-    query_args.append(generate_pdc_query)
-    query_args.append(generate_market_query)
-    query_args.append(generate_register_query)
+    if not FLAGS.query_pk_only:
+      query_args.append(generate_pdc_query)
+      query_args.append(generate_market_query)
+      query_args.append(generate_register_query)
+    else:
+      query_args.append(generate_pk_query)
 
     for i in range(FLAGS.query_threads):
       shared_vars.append((Value('i', 0), Value('i', 0), Value('i', -1), Value('i', 0)))
@@ -1280,7 +1364,7 @@ def run_benchmark():
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid)))
 
   if not FLAGS.no_inserts:
     insert_stmt_q = Queue(8)
@@ -1297,7 +1381,7 @@ def run_benchmark():
     if FLAGS.delete_per_insert:
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier))
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid))
 
     # start up the insert execution process with this queue
     inserter.start()
@@ -1370,11 +1454,16 @@ def run_benchmark():
   if FLAGS.htap_transaction_seconds:
     htap_thr.join()
 
+  extra_arr = []
   if FLAGS.query_threads:
     for qthr in query_thr: qthr.join()
-    for qthr in query_thr: print(query_result.get())
+    (qr1, qr2) = query_result.get()
+    for qthr in query_thr: print(qr1)
+    extra_arr.append(qr2)
     sys.stdout.flush()
     for qthr in query_thr: qthr.terminate()
+
+  for qr2 in extra_arr: print(qr2)
 
   if FLAGS.secondary_at_end:
     x_start = time.time()
