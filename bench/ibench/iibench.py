@@ -144,6 +144,10 @@ DEFINE_boolean('use_prepared_query', False,
 DEFINE_boolean('use_prepared_insert', False,
                'Use prepared statements for inserts, only supported for Postgres today')
 
+DEFINE_integer('htap_transaction_seconds', 0,
+               'Number of seconds for which HTAP transactions are open. '
+               'There are not HTAP transactions when 0.')
+
 # MySQL & MongoDB flags
 DEFINE_string('db_host', 'localhost', 'Hostname for the test')
 DEFINE_string('db_name', 'test', 'Name of database for the test')
@@ -257,18 +261,19 @@ def fixup_options():
           FLAGS.mongo_w = w
     print('Using Mongo w=%s, r=%s, j=%d, trx=%s' % (FLAGS.mongo_w, FLAGS.mongo_r, FLAGS.mongo_j, FLAGS.mongo_trx))
 
-def get_conn():
+def get_conn(autocommit_trx=True):
   if FLAGS.dbms == 'mongo':
+    assert autocommit_trx
     return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
   elif FLAGS.dbms == 'mysql':
     return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
                            db=FLAGS.db_name, passwd=FLAGS.db_password,
                            unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file,
-                           autocommit=True)
+                           autocommit=autocommit_trx)
   else:
     # TODO user, passwd, etc
     conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
-    conn.set_session(autocommit=True)
+    conn.set_session(autocommit=autocommit_trx)
     return conn
 
 def get_mongo_session(db, db_conn):
@@ -765,6 +770,85 @@ def get_min_trxid():
   print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
   return val
 
+def HtapTrx(done_flag, barrier):
+
+  # block on this until main thread wants all processes to run
+  barrier.wait()
+
+  # print('HTAP thread running')
+  db_conn = get_conn(False)
+
+  mongo_session = None
+  if FLAGS.dbms == 'mongo':
+    # db = db_conn[FLAGS.db_name]
+    # db_thing = db[FLAGS.table_name]
+    # mongo_session, mongo_collection = get_mongo_session(db, db_conn)
+    print('HtapTrx not supported for MongoDB')
+    assert False
+  elif FLAGS.dbms in ['mysql', 'postgres']:
+    db_thing = db_conn.cursor()
+  else:
+    assert False
+
+  while True:
+    if FLAGS.dbms == 'mongo':
+      assert False
+    elif FLAGS.dbms == 'mysql':
+      # print("Query is:", query)
+      try:
+        # print("HTAP query at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+        query = 'select * from %s limit 1' % FLAGS.table_name;
+        db_thing.execute(query)
+        count = len(db_thing.fetchall())
+        for x in range(FLAGS.htap_transaction_seconds):
+          if done_flag.value == 1:
+            break
+          time.sleep(1)
+          
+        # print("HTAP commit at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+        db_conn.commit()
+
+      except MySQLdb.Error as e:
+        if e[0] != 2006:
+          #print("Ignoring MySQL exception: ", e)
+          shared_var[3].value += 1
+        else:
+          print("Query error: ", e)
+          raise e
+
+    elif FLAGS.dbms == 'postgres':
+      try:
+        # print("HTAP query at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+        query = 'select * from %s limit 1' % FLAGS.table_name;
+        db_thing.execute(query)
+        count = len(db_thing.fetchall())
+        for x in range(FLAGS.htap_transaction_seconds):
+          if done_flag.value == 1:
+            break
+          time.sleep(1)
+        # print("HTAP commit at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+        db_conn.commit()
+
+      except psycopg2.Error as e:
+        print("Query error: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
+        raise e
+
+    else:
+      assert False
+
+    if done_flag.value == 1:
+      break
+
+  if FLAGS.dbms == 'mongo':
+    pass
+  elif FLAGS.dbms in ['mysql', 'postgres']:
+    db_thing.close()
+  else:
+    assert False
+
+  db_conn.close()
+  #print("HTAP done at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+
 def Query(query_generators, shared_var, done_flag, barrier, result_q):
 
   # block on this until main thread wants all processes to run
@@ -1150,6 +1234,9 @@ def run_benchmark():
 
   n_parties = 1
 
+  if FLAGS.htap_transaction_seconds:
+    n_parties += 1
+
   if FLAGS.query_threads:
     n_parties += FLAGS.query_threads
 
@@ -1157,6 +1244,15 @@ def run_benchmark():
     n_parties += 2
     if FLAGS.delete_per_insert:
       n_parties += 1
+
+  if FLAGS.setup:
+    create_table()
+    if not FLAGS.secondary_at_end:
+      create_index()
+    # print('created table')
+  else:
+    conn = get_conn()
+    conn.close()
 
   # Used to get all threads running at the same point in time
   barrier = Barrier(n_parties)
@@ -1209,19 +1305,17 @@ def run_benchmark():
       deleter.start()
     request_gen.start()
 
+  htap_thr = None
+  if FLAGS.htap_transaction_seconds:
+    htap_thr = Process(target=HtapTrx, args=(done_flag, barrier))
+
   # start up the query processes
   if FLAGS.query_threads:
     for qthr in query_thr:
       qthr.start()
 
-  if FLAGS.setup:
-    create_table()
-    if not FLAGS.secondary_at_end:
-      create_index()
-    # print('created table')
-  else:
-    conn = get_conn()
-    conn.close()
+  if FLAGS.htap_transaction_seconds:
+    htap_thr.start()
 
   # After the insert and query processes lock/unlock this they can run
   barrier.wait()
@@ -1271,6 +1365,10 @@ def run_benchmark():
 
       # exit the while loop to continue shutting down
       break
+
+  # print("Join threads at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
+  if FLAGS.htap_transaction_seconds:
+    htap_thr.join()
 
   if FLAGS.query_threads:
     for qthr in query_thr: qthr.join()
