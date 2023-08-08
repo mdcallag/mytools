@@ -133,6 +133,7 @@ DEFINE_boolean('delete_per_insert', False,
                'When True, do a delete for every insert')
 DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
 DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
+DEFINE_boolean('secondary_at_start', False, 'Create secondary index at start')
 DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
 DEFINE_integer('seed', 3221223452, 'RNG seed')
 # Can override other options, see get_conn
@@ -1325,7 +1326,7 @@ def run_benchmark():
 
   if FLAGS.setup:
     create_table()
-    if not FLAGS.secondary_at_end:
+    if FLAGS.secondary_at_start:
       create_index()
     # print('created table')
   else:
