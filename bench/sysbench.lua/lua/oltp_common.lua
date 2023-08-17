@@ -75,6 +75,9 @@ sysbench.cmdline.options = {
        0},
    mysql_storage_engine =
       {"Storage engine, if MySQL is used", "innodb"},
+   pgsql_conn_id =
+     { "Write the Postgres backend process ID for this connection  " ..
+          "into a file named o.pgid.$threadID", false },
    pgsql_variant =
       {"Use this PostgreSQL variant when running with the " ..
           "PostgreSQL driver. The only currently supported " ..
@@ -411,6 +414,16 @@ function prepare_delete_inserts()
    prepare_for_each_table("inserts")
 end
 
+function log_id_if_pgsql()
+   if sysbench.opt.pgsql_conn_id then
+      thread_id = sysbench.tid % sysbench.opt.threads
+      pgid = con:query_row("select pg_backend_pid()")
+      f = io.open("sb.pgid." .. thread_id, "w")
+      f:write("PG_backend: " .. pgid)
+      f:close()
+   end
+end
+
 function thread_init()
    drv = sysbench.sql.driver()
    con = drv:connect()
@@ -428,6 +441,8 @@ function thread_init()
 
    -- This function is a 'callback' defined by individual benchmark scripts
    prepare_statements()
+
+   log_id_if_pgsql()
 end
 
 -- Close prepared statements

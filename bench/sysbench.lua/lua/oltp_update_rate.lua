@@ -33,6 +33,7 @@ function thread_init()
       stmt[t]:bind_param(params[t])
    end
 
+   log_id_if_pgsql()
 end
 
 function thread_done()

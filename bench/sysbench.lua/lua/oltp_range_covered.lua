@@ -51,6 +51,8 @@ function thread_init()
       params[t][2] = stmt[t]:bind_create(sysbench.sql.type.INT)
       stmt[t]:bind_param(unpack(params[t]))
    end
+
+   log_id_if_pgsql()
 end
 
 function thread_done()

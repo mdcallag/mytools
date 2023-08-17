@@ -26,6 +26,8 @@ function prepare()
           k INTEGER DEFAULT '0' NOT NULL,
           PRIMARY KEY (id))]], i))
    end
+
+   log_id_if_pgsql()
 end
 
 function event()
