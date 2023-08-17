@@ -13,7 +13,7 @@ nr1=$(( $mr1 * 1000000 * $dop ))
 nrm=$(( $mr1 * $dop ))
 nr2=$(( $mr2 * 1000000 * $dop ))
 
-ips="100 500 1000"
+ips="100:range 100:point 500:range 500:point 1000:range 1000:point"
 bash ra1.sh  $nr1 $nr2 ${nrm}m $dop $secs $mbd $rdir $dev $only1t $npart $delete_per_insert $ips
 
 #ips="100 500 1000"

@@ -101,29 +101,43 @@ fi
 loop=1
 farr=("$@")
 
-for ips in "$@"; do
-  if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
-    # Don't wait for vacuum to finish
-    vac_all 0
-    sleep 5
+for ipsAndpk in "$@"; do
+  ips=$( echo $ipsAndpk | tr ":" " " | awk '{ print $1 }' )
+  querypk=$( echo $ipsAndpk | tr ":" " " | awk '{ print $2}' )
+
+  # TODO - assume autovac is sufficient
+  # if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
+  # Don't wait for vacuum to finish
+  #  vac_all 0
+  #  sleep 5
+  # fi
+
+  # TODO - assume autovac is sufficient
+  # if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
+  # Vaccum during read-write tests. Do not wait because that would be downtime.
+  #  pga="-h 127.0.0.1 -U root ib"
+  #  for n in $( seq 1 $ntabs ) ; do
+  #    PGPASSWORD="pw" $client $pga -x -c "vacuum (verbose) pi${n}" >& o.pgvac.pi${n} &
+  #  done
+  #  sleep 5
+  # fi
+
+  if [[ $querypk == "range" ]]; then
+    # Run for querysecs seconds regardless of concurrency using range queries on the secondary indexes
+    echo Run with ips $ips
+    bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert range >& o.a.r
+    rdir=r.L${loop}.ips${ips}
+    mkdir $rdir; mv o.* $rdir
+  else
+    # Run for querysecs seconds regardless of concurrency using point queries on the PK index
+    echo Run with ips $ips
+    bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert point >& o.a.p
+    rdir=p.L${loop}.ips${ips}
+    mkdir $rdir; mv o.* $rdir
   fi
 
-  if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
-    # Vaccum during read-write tests. Do not wait because that would be downtime.
-    pga="-h 127.0.0.1 -U root ib"
-    for n in $( seq 1 $ntabs ) ; do
-      PGPASSWORD="pw" $client $pga -x -c "vacuum (verbose) pi${n}" >& o.pgvac.pi${n} &
-    done
-    sleep 5
-  fi
-
-  # Run for querysecs seconds regardless of concurrency
-  echo Run with ips $ips
-  bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
-
-  rdir=q.L${loop}.ips${ips}
-  mkdir $rdir; mv o.* $rdir
   loop=$(( $loop + 1 ))
+
 done
 
 mkdir end

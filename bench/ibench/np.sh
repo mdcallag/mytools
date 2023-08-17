@@ -24,6 +24,8 @@ extra_insert=${23}
 npart=${24}
 perpart=${25}
 delete_per_insert=${26}
+# one of point, range
+querypk=${27}
 
 mypy=python3
 #mypy="/media/ephemeral1/pypy-36-al2/bin/pypy3"
@@ -228,6 +230,10 @@ for n in $( seq 1 $realdop ) ; do
 
   if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
     db_args+=" --delete_per_insert"
+  fi
+
+  if [[ $querypk == "point" ]]; then
+    db_args+=" --query_pk_only"
   fi
 
   spr=1
