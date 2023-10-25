@@ -1,0 +1,64 @@
+huge_pages = 	try			# on, off, or try
+max_parallel_workers_per_gather = 0	# taken from max_parallel_workers
+max_parallel_workers = 0		# maximum number of max_worker_processes that
+checkpoint_warning = 1800s               # 0 disables
+wal_sync_method = fdatasync		# the default is the first option
+wal_level='replica'                     # to log what replication needs
+full_page_writes = on			# recover from partial page writes
+track_io_timing = on
+synchronous_commit = off		# synchronization level;
+shared_buffers = 128MB
+bgwriter_lru_maxpages =  5000           # max buffers written/round, 0 disables
+bgwriter_delay = 100ms                  # 10-10000ms between rounds
+wal_compression = off
+max_wal_size = 70GB
+log_autovacuum_min_duration=0
+log_checkpoints = on
+
+#autovacuum_max_workers=4
+autovacuum_naptime=10s
+autovacuum_vacuum_cost_delay=1ms
+#autovacuum_vacuum_cost_limit=2000
+
+# a27
+checkpoint_timeout=1800s
+wal_buffers=64MB
+max_wal_size=32GB
+autovacuum_vacuum_scale_factor=0.05
+autovacuum_vacuum_insert_scale_factor=0.05
+autovacuum_vacuum_cost_limit=4000
+autovacuum_max_workers=8
+
+# the size of shared memory, where hot data pages of OrioleDB tables are cached. This parameter is analog of the built-in shared_buffers GUC parameter. Default is 64 MB.
+orioledb.main_buffers = 70GB
+
+# shared memory size for metadata of block allocators for compressed tables. The default is 8 MB. We recommend increasing the value of this parameter to work with large compressed tables.
+# orioledb.free_tree_buffers
+
+# shared memory size of table metadata. The default value is 8 MB. We recommend increasing the value of this parameter to work with a large number of tables.
+orioledb.catalog_buffers = 64MB
+
+# the shared memory ring buffer size for older versions of rows and pages. The default is 1 MB.
+#orioledb.undo_buffers = 256MB
+orioledb.undo_buffers = 4GB
+
+# the number of recovery workers row-level WAL based recovery. The default is 3. We recommend increasing the value of this parameter for the systems with a large number of CPU cores.
+# orioledb.recovery_pool_size
+
+# the size of shared memory for message queues related to recovery workers. The default is 8 MB.
+orioledb.recovery_queue_size = 64MB
+
+# the fraction of OrioleDB tables checkpoint time within the whole checkpoint time. The default is 0.5. We recommend setting this value to 1.0 if only OrioleDB tables are used.
+orioledb.checkpoint_completion_ratio = 1.0
+
+# the number background writer processes, which flushes dirty pages of OrioleDB tables in background. We recommend setting values greater than 1 for the systems with a large number of CPU cores. The default is 1.
+orioledb.bgwriter_num_workers = 4
+
+# maximum number of concurrent IO operations issued by OrioleDB in parallel. We recommend setting this parameter when the OS kernel becomes a bottleneck for high concurrent IO. The default is 0 (off).
+# orioledb.max_io_concurrency
+
+# orioledb.device_filename -- path to the block device for block device mode. Not set by default.
+# orioledb.device_length -- the length of the block device. The default is 1 GB.
+# orioledb.use_mmap -- specify whether use mmap to work with the block device. It could be on and off. We recommend setting on value for NVRAM. The default is off.
+
+shared_preload_libraries = 'orioledb.so'

@@ -50,6 +50,7 @@ rm -f o.res.$sfx
 
 moauth="--authenticationDatabase admin -u root -p pw"
 pgauth="--host $host"
+uses_oriole=0
 
 if [[ $dbms == "mongo" ]]; then
   dbid=ib
@@ -69,6 +70,7 @@ elif [[ $dbms == "mysql" ]]; then
   top -b -d 20 > o.top.$sfx &
   topid=$!
 elif [[ $dbms == "postgres" ]]; then
+  if [[ $client == *"oriole"* ]]; then uses_oriole=1; fi
   dbid=ib
   echo "TODO: reset Postgres replication"
   while :; do ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 30; done >& o.ps.$sfx &
@@ -216,7 +218,8 @@ for n in $( seq 1 $realdop ) ; do
   elif [[ $dbms == "mysql" ]]; then
     db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
   else
-    db_args="--db_user=root --db_password=pw --engine=pg --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
+    #db_args="--db_user=root --db_password=pw --engine=pg --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
+    db_args="--db_user=root --db_password=pw --engine=pg --unique_checks=${unique} --bulk_load=${bulk}"
   fi
 
   upq=""
@@ -238,9 +241,16 @@ for n in $( seq 1 $realdop ) ; do
 
   spr=1
   cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --my_id=$n $upq $names"
-  echo $cmdline > o.ib.dop${dop}.${n} 
-  /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
-  pids[${n}]=$!
+
+  if [[ uses_oriole -eq 1 ]]; then
+    echo $cmdline --engine_options="using orioledb" > o.ib.dop${dop}.${n} 
+    /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline --engine_options="using orioledb" >> o.ib.dop${dop}.${n} 2>&1 &
+    pids[${n}]=$!
+  else 
+    echo $cmdline > o.ib.dop${dop}.${n} 
+    /usr/bin/time -o o.ctime.${sfx}.${n} $cmdline >> o.ib.dop${dop}.${n} 2>&1 &
+    pids[${n}]=$!
+  fi
 
   # This is a hack. The longer sleep (10) is done to give the first client enough time to create the tables
   if [[ $setup == "yes" && $n -eq 1 ]]; then

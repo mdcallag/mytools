@@ -69,7 +69,7 @@ function vac_all {
 # if =1 then only vacuum once, after index create
 # if > 1 then vacuum after index create and before each read-write step (except the first)
 # vacuum after index create is blocking, others are not
-vac=2
+vac=1
 ns=3
 
 # insert only without secondary indexes
@@ -105,22 +105,11 @@ for ipsAndpk in "$@"; do
   ips=$( echo $ipsAndpk | tr ":" " " | awk '{ print $1 }' )
   querypk=$( echo $ipsAndpk | tr ":" " " | awk '{ print $2}' )
 
-  # TODO - assume autovac is sufficient
-  # if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
-  # Don't wait for vacuum to finish
-  #  vac_all 0
-  #  sleep 5
-  # fi
-
-  # TODO - assume autovac is sufficient
-  # if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
-  # Vaccum during read-write tests. Do not wait because that would be downtime.
-  #  pga="-h 127.0.0.1 -U root ib"
-  #  for n in $( seq 1 $ntabs ) ; do
-  #    PGPASSWORD="pw" $client $pga -x -c "vacuum (verbose) pi${n}" >& o.pgvac.pi${n} &
-  #  done
-  #  sleep 5
-  # fi
+  if [[ vac -gt 1 && $loop -gt 1 && $dbms == "postgres" ]] ; then
+    #Don't wait for vacuum to finish
+    vac_all 0
+    sleep 5
+  fi
 
   if [[ $querypk == "range" ]]; then
     # Run for querysecs seconds regardless of concurrency using range queries on the secondary indexes

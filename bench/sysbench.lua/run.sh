@@ -157,11 +157,24 @@ vmstat $samp $nsamp >& sb.prepare.vm.$sfx &
 vmpid=$!
 iostat -y -kx $samp $nsamp >& sb.prepare.io.$sfx &
 iopid=$!
-start_secs=$( date +'%s' )
 
+if [[ ${dbA[0]} == "mysql" ]]; then
+  while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  pspid=$!
+elif [[ ${dbA[0]} == "postgres" ]]; then
+  while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  pspid=$!
+fi
+
+start_secs=$( date +'%s' )
 exA=(--db-driver=$driver $setupArgs $engineArg --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare)
-echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
-$sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
+if [[ $client == *"oriole"* ]]; then 
+  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx
+  $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx 2>&1
+else
+  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
+  $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
+fi
 status=$?
 if [[ $status != 0 ]]; then
   echo sysbench prepare failed, see sb.prepare.o.$sfx
@@ -174,6 +187,7 @@ mrps=$( echo "scale=3; ( $ntabs * $nr ) / $tot_secs / 1000000.0" | bc )
 rps=$( echo "scale=0; ( $ntabs * $nr ) / $tot_secs" | bc )
 echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" >> sb.prepare.o.$sfx
 
+kill $pspid
 kill $vmpid
 kill $iopid
 bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
@@ -200,6 +214,14 @@ vmstat $samp $nsamp >& sb.vm.$sfxn &
 vmpid=$!
 iostat -y -kx $samp $nsamp >& sb.io.$sfxn &
 iopid=$!
+
+if [[ ${dbA[0]} == "mysql" ]]; then
+  while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
+  pspid=$!
+elif [[ ${dbA[0]} == "postgres" ]]; then
+  while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
+  pspid=$!
+fi
 
 perf=perf
 PERF_METRIC=${PERF_METRIC:-cycles}
@@ -261,10 +283,15 @@ else
   exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $sysbdir/share/sysbench/$lua run)
 fi
 
-echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
-echo "$realdop CPUs" >> sb.o.$sfxn
-/usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
-
+if [[ $client == *"oriole"* ]]; then 
+  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb"  > sb.o.$sfxn
+  echo "$realdop CPUs" >> sb.o.$sfxn
+  /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb" >> sb.o.$sfxn 2>&1
+else
+  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
+  echo "$realdop CPUs" >> sb.o.$sfxn
+  /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
+fi
 
 if [ $perfpid -ge 0 ]; then
   kill $perfpid
@@ -303,6 +330,7 @@ done
 fi
 fi
 
+kill $pspid
 kill $vmpid
 kill $iopid
 qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
@@ -406,24 +434,45 @@ if [[ $postwrite -eq 1 ]]; then
     fi
 
   elif [[ $driver == "pgsql" ]]; then
+    if [[ $client == *"oriole"* ]]; then 
+    for x in $( seq 1 $ntabs ); do
+      echo analyze sbtest${x} >> sb.o.pw.$sfx
+      echo $client "${clientArgs[@]}" -${sqlF} "analyze sbtest${x}" 
+      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "analyze sbtest${x}" > sb.o.pw.$sfx.a2${x} 2>&1 &
+      pids[${n}]=$!
+    done
+    else
     for x in $( seq 1 $ntabs ); do
       echo Vacuum analyze table sbtest${x} >> sb.o.pw.$sfx
+      echo $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" 
       /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" > sb.o.pw.$sfx.a2${x} 2>&1 &
       pids[${n}]=$!
     done
+    fi
 
     for x in $( seq 1 $ntabs ); do
       wait ${pids[${n}]}
     done
 
+    if [[ $client == *"oriole"* ]]; then 
+    # TODO is checkpoint needed for OrioleDB?
     echo Checkpoint >> sb.o.pw.$sfx
+    echo $client "${clientArgs[@]}" -${sqlF} "checkpoint" 
     /usr/bin/time -o sb.o.pw.$sfx.cp $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.o.pw.$sfx.cp2 2>&1 &
     cpid=$!
-
     echo "Sleep for $sleepSecs" >> sb.o.pw.$sfx
     sleep $sleepSecs
-
     wait $cpid
+    else
+    echo Checkpoint >> sb.o.pw.$sfx
+    echo $client "${clientArgs[@]}" -${sqlF} "checkpoint" 
+    /usr/bin/time -o sb.o.pw.$sfx.cp $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.o.pw.$sfx.cp2 2>&1 &
+    cpid=$!
+    echo "Sleep for $sleepSecs" >> sb.o.pw.$sfx
+    sleep $sleepSecs
+    wait $cpid
+    fi
+
   fi
 
 fi # if postwrite ...
@@ -473,4 +522,24 @@ for nt in "$@"; do
   grep percentile: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | awk '{ printf "%s\t", $1 }' 
 done > sb.r.rt95.$sfx
 echo "$engine $testType range=$range" >> sb.r.rt95.$sfx
+
+du -hs $ddir > sb.sz.$sfx
+echo "with apparent size " >> sb.sz.$sfx
+du -hs --apparent-size $ddir >> sb.sz.$sfx
+echo "all" >> sb.sz.$sfx
+du -hs ${ddir}/* >> sb.sz.$sfx
+
+ls -asShR $ddir > sb.lsh.r.$sfx
+
+ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
+x=0
+for xd in ${ddirs[@]}; do
+  if [ -d $xd ]; then
+    ls -asS --block-size=1M $xd > sb.ls.${x}.$sfx
+    ls -asSh $xd > sb.lsh.${x}.$sfx
+    x=$(( $x + 1 ))
+  fi
+done
+
+cat sb.ls.*.$sfx | grep -v "^total" | sort -rnk 1,1 > sb.lsa.$sfx
 
