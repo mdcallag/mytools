@@ -115,13 +115,13 @@ for ipsAndpk in "$@"; do
     # Run for querysecs seconds regardless of concurrency using range queries on the secondary indexes
     echo Run with ips $ips
     bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert range >& o.a.r
-    rdir=r.L${loop}.ips${ips}
+    rdir=qr.L${loop}.ips${ips}
     mkdir $rdir; mv o.* $rdir
   else
     # Run for querysecs seconds regardless of concurrency using point queries on the PK index
     echo Run with ips $ips
     bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert point >& o.a.p
-    rdir=p.L${loop}.ips${ips}
+    rdir=qp.L${loop}.ips${ips}
     mkdir $rdir; mv o.* $rdir
   fi
 
