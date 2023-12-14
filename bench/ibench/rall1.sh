@@ -72,7 +72,7 @@ function do_rx56 {
   cd $dmyfb56; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx56.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmyfb56/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmyfb56/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmyfb56/etc/my.cnf $rdir
 }
 
@@ -91,7 +91,7 @@ function do_rx80 {
   cd $dmyfb80; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx80.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmyfb80/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmyfb80/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmyfb80/etc/my.cnf $rdir
 }
 
@@ -110,7 +110,7 @@ function do_in80 {
   cd $dmy80; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in80.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmy80/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmy80/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmy80/etc/my.cnf $rdir
 }
 
@@ -129,7 +129,7 @@ function do_in57 {
   cd $dmy57; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in57.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmy57/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmy57/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmy57/etc/my.cnf $rdir
 }
 
@@ -148,7 +148,7 @@ function do_in56 {
   cd $dmy56; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in56.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmy56/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmy56/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmy56/etc/my.cnf $rdir
 }
 
@@ -168,7 +168,7 @@ function do_pg11 {
   cd $dgit; bash iq.sh pg "" $dpg11/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg11/logfile $rdir
   cd $dpg11; bash down.sh; cd $dgit
-  mv $dpg11/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg11/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg11/conf.diff $rdir
 }
 
@@ -188,7 +188,7 @@ function do_pg12 {
   cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg12/logfile $rdir
   cd $dpg12; bash down.sh; cd $dgit
-  mv $dpg12/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg12/o.ini.* l.i0 l.i1 l.il2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
 }
 
@@ -208,7 +208,7 @@ function do_pg13 {
   cd $dgit; bash iq.sh pg "" $dpg13/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg13/logfile $rdir
   cd $dpg13; bash down.sh; cd $dgit
-  mv $dpg13/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg13/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg13/conf.diff $rdir
 }
 
@@ -228,7 +228,7 @@ function do_pg14 {
   cd $dgit; bash iq.sh pg "" $dpg14/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg14/logfile $rdir
   cd $dpg14; bash down.sh; cd $dgit
-  mv $dpg14/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg14/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg14/conf.diff $rdir
 }
 
@@ -248,7 +248,7 @@ function do_pg15 {
   cd $dgit; bash iq.sh pg "" $dpg15/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg15/logfile $rdir
   cd $dpg15; bash down.sh; cd $dgit
-  mv $dpg15/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg15/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg15/conf.diff $rdir
 }
 
@@ -268,7 +268,7 @@ function do_pg16 {
   cd $dgit; bash iq.sh pg "" $dpg16/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg16/logfile $rdir
   cd $dpg16; bash down.sh; cd $dgit
-  mv $dpg16/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dpg16/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dpg16/conf.diff $rdir
 }
 
@@ -287,7 +287,7 @@ function do_mo40 {
   cd $dmo40; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo40.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmo40/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmo40/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmo40/mongo.conf $rdir
 }
 
@@ -306,7 +306,7 @@ function do_mo42 {
   cd $dmo42; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo42.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmo42/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmo42/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmo42/mongo.conf $rdir
 }
 
@@ -325,7 +325,7 @@ function do_mo44 {
   cd $dmo44; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.mo44.c${cnf}${ps}
   mkdir -p $rdir
-  mv $dmo44/o.ini.* l.i0 l.i1 l.x end qr.L* qp.L* a.$sfx $rdir
+  mv $dmo44/o.ini.* l.i0 l.i1 l.i2 l.x end qr.L* qp.L* a.$sfx $rdir
   cp $dmo44/mongo.conf $rdir
 }
 

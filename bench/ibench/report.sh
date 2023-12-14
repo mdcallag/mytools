@@ -34,16 +34,6 @@ cp ${m}m.*/o.sum.t.* $sumdir
 rm -rf $resdir; mkdir -p $resdir
 bash $bdir/mrg3.sh $sumdir $resdir ${m}m $( cat $etldirs )
 
-# TODO - delete this
-# d=latest; for f in l.i0 l.x l.i1 q100.1 q100.2 q200.1 q200.2 q400.1 q400.2 q600.1 q600.2 q800.1 q800.2 q1000.1 q1000.2 ; do cat res.$d/mrg.$f | awk -f ../../sum_met.awk > res.$d/rel.$f ; done
-# d=latest; for f in l.i0 l.x l.i1 q100.2 q200.2 q800.2 q1000.2; do echo; echo $f ; cat res.$d/mrg.$f ; done
-
-# TODO - delete this
-# cd sum
-# ls | grep sum | grep -v grep > o.a
-# bash ~/git/mytools/bench/ibench/mrg3.sh 40m $( cat o.a )
-# cd ..
-
 fi
 
 rm -rf report; mkdir -p report

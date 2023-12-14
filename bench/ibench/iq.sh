@@ -83,10 +83,15 @@ bash np.sh 100000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $check
 mkdir l.x
 mv o.* l.x
 
-# insert only with secondary indexes
+# insert only with secondary indexes and 50 rows per commit
 bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
 mkdir l.i1
 mv o.* l.i1
+
+# insert only with secondary indexes and 5 rows per commit
+bash np.sh $nr2 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 5 0 0 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
+mkdir l.i2
+mv o.* l.i2
 
 ntabs=$dop
 if [[ $only1t == "yes" ]]; then ntabs=1; fi
@@ -115,13 +120,13 @@ for ipsAndpk in "$@"; do
     # Run for querysecs seconds regardless of concurrency using range queries on the secondary indexes
     echo Run with ips $ips
     bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert range >& o.a.r
-    rdir=qr.L${loop}.ips${ips}
+    rdir=qr${ips}.L${loop}
     mkdir $rdir; mv o.* $rdir
   else
     # Run for querysecs seconds regardless of concurrency using point queries on the PK index
     echo Run with ips $ips
     bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert point >& o.a.p
-    rdir=qp.L${loop}.ips${ips}
+    rdir=qr${ips}.L${loop}
     mkdir $rdir; mv o.* $rdir
   fi
 
