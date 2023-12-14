@@ -127,8 +127,9 @@ echo "ips,qps,rps,rmbps,wps,wmbps,rpq,rkbpq,wpi,wkbpi,csps,cpups,cspq,cpupq,dbgb
 l0res=$d/l.i0/o.res.dop${dop}
 lxres=$d/l.x/o.res.dop${dop}
 l1res=$d/l.i1/o.res.dop${dop}
+l2res=$d/l.i2/o.res.dop${dop}
 
-for f in $l0res $lxres $l1res ; do
+for f in $l0res $lxres $l1res $l2res ; do
 #echo load hdr_i $f 
 from_hdr_i $f
 echo -n "0,"
@@ -143,7 +144,8 @@ done
 
 loop=1
 for n in 100 500 1000 ; do
-f="${d}/q.L${loop}.ips${n}/o.res.dop${dop}"
+for y in r p ; do
+f="${d}/q${y}${n}.L${loop}/o.res.dop${dop}"
 # echo run $f 
 from_hdr_i $f
 from_hdr_q $f
@@ -155,5 +157,6 @@ get_ptile $f 50th 10
 get_ptile $f 99th 10
 echo $tag
 loop=$(( $loop + 1 ))
+done
 done
 

@@ -3,9 +3,9 @@ rtdir=$2
 
 shift 2
 
-ifiles=( l.i0 l.i1 )
-qfiles=( q100.1 q500.1 q1000.1 )
-q2files=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
+ifiles=( l.i0 l.i1 l.i2 )
+qfiles=( qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
+q2files=( qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
 
 # head -1 because there can be dups in $@
 for f in "${ifiles[@]}" "${q2files[@]}" ; do

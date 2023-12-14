@@ -1,6 +1,8 @@
 sumdir=$1
 resdir=$2
-rmprefix=$2
+rmprefix=$3
+
+# echo mrg3: $@
 
 shift 3
 
@@ -17,10 +19,12 @@ f1=$sumdir/o.sum.t.${farr[0]}
 # ips     qps     rps     rkbps   wkbps   rpq     rkbpq   wkbpq   csps    cpups   cspq    cpupq   ccpupq  dbgb    vsz     rss     maxop   p50     p90     tag
 # 1846.5        0       0.0     0       252327  0.000   0.000   1.315   21711   63.0    0.113   53      2       55      NA      NA      0.458   28103.5 4253.4  pg12.c7b40
 
-linemap=( none none l.i0 l.x l.i1 q100.1 q500.1 q1000.1 )
+linemap=( none none l.i0 l.x l.i1 l.i2 qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
+alen=${#linemap[@]}
 
-for x in $( seq 2 16 ) ; do
+for x in $( seq 2 $(( $alen - 1 )) ) ; do
   outf="mrg.${linemap[$x]}"
+  # echo mrg3: x is $x, outf is $outf
   # echo "f1 is :: $f1 ::"
   head -1 $f1 > $resdir/$outf
   for inf in "$@"; do

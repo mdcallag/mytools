@@ -27,19 +27,23 @@ cat <<HeaderEOF
 <body>
 HeaderEOF
 
-sections=( l.i0 l.x l.i1 q100.1 q500.1 q1000.1 )
-isections=( l.i0 l.x l.i1 )
-qsections=( q100.1 q500.1 q1000.1 )
-# Ugh, I didn't use the same filename pattern
-q2sections=( q.L1.ips100 q.L2.ips500 q.L3.ips1000 )
+sections=( l.i0 l.x l.i1 l.i2 qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
+isections=( l.i0 l.x l.i1 l.i2 )
+qsections=( qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
+# Ugh, previously I didn't use the same filename pattern
+q2sections=( qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
 
 sectionText=( \
 "l.i0: load without secondary indexes" \
 "l.x: create secondary indexes" \
-"l.i1: continue load after secondary indexes created" \
-"q100.1: range queries with 100 insert/s per client" \
-"q500.1: range queries with 500 insert/s per client" \
-"q1000.1: range queries with 1000 insert/s per client" \
+"l.i1: continue load after secondary indexes created with 50 inserts per transaction" \
+"l.i2: continue load after secondary indexes created with 5 inserts per transaction" \
+"qr100.L1: range queries with 100 insert/s per client" \
+"qp100.L2: point queries with 100 insert/s per client" \
+"qr500.L3: range queries with 500 insert/s per client" \
+"qp500.L4: point queries with 500 insert/s per client" \
+"qr1000.L5: range queries with 1000 insert/s per client" \
+"qp1000.L6: point queries with 1000 insert/s per client" \
 )
 
 # ----- Generate Intro
@@ -92,7 +96,7 @@ cat <<SumEOF
 <hr />
 <h1 id="summary">Summary</h1>
 <p>
-The numbers are inserts/s for l.i0 and l.i1, indexed docs (or rows) /s for l.x and queries/s for q100, q500, q1000.
+The numbers are inserts/s for l.i0, l.i1 and l.i2, indexed docs (or rows) /s for l.x and queries/s for qr100, qp100 thru qr1000, qp1000"
 The values are the average rate over the entire test for inserts (IPS) and queries (QPS).
 The range of values for IPS and QPS is split into 3 parts: bottom 25&#37;, middle 50&#37;, top 25&#37;.
 Values in the bottom 25&#37; have a red background, values in the top 25&#37; have a green background and values in the middle have no color.
@@ -178,7 +182,7 @@ for sx in $( seq ${#qsections[@]}  ) ; do
 x=$(( $sx - 1 ))
 sec=${qsections[$x]}
 sec2=${q2sections[$x]}
-txt=${sectionText[$(( $x + 3))]}
+txt=${sectionText[$(( $x + 4))]}
 
 cat <<H0QpsEOF
 <hr />
@@ -246,8 +250,8 @@ txt=${sectionText[$x]}
 
 # Ugh, fixup because different naming pattern was used
 fsec=$sec
-if [[ $x -ge 3 ]]; then
-  fsec=${q2sections[$(( $x - 3 ))]}
+if [[ $x -ge 4 ]]; then
+  fsec=${q2sections[$(( $x - 4 ))]}
 fi
 
 cat <<RtHeaderEOF
@@ -267,7 +271,7 @@ echo "<p>TODO - determine whether there is data for create index response time</
 continue
 fi
 
-if [[ $x -ge 3 ]]; then
+if [[ $x -ge 4 ]]; then
 echo "<p>Query response time histogram</p>"
 echo "<pre>"
 catme $rtdir/mrg.${fsec}.rt.query

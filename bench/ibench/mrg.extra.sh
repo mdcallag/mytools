@@ -7,7 +7,7 @@ farr=("$@")
 f1=${farr[0]}
 # f1=$sdir/o.sum.t.${farr[0]}
 
-for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in l.i0 l.i1 l.i2 qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 head -1 ${f1}/$y/o.rt.t.insert > $odir/mrg.$y.rt.insert
 for f in "$@"; do
   # fn=$sdir/o.sum.t.$f
@@ -19,7 +19,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rt.insert
 done
 
-for y in l.i0 l.i1 q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in l.i0 l.i1 l.i2 qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 if [ -f ${f1}/$y/o.rt.t.delete ] ; then
 head -1 ${f1}/$y/o.rt.t.delete > $odir/mrg.$y.rt.delete
 for f in "$@"; do
@@ -33,7 +33,7 @@ done >> $odir/mrg.$y.rt.delete
 fi
 done
 
-for y in q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 head -1 ${f1}/$y/o.rt.t.query > $odir/mrg.$y.rt.query
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
@@ -44,7 +44,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rt.query
 done
 
-for y in q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 rm -f $odir/mrg.$y.rate.insert
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
@@ -57,7 +57,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rate.insert
 done
 
-for y in q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 rm -f $odir/mrg.$y.rate.delete
 for f in "$@"; do
   if [ $f != "BREAK" ]; then
@@ -70,7 +70,7 @@ for f in "$@"; do
 done >> $odir/mrg.$y.rate.delete
 done
 
-for y in q.L1.ips100 q.L2.ips500 q.L3.ips1000 ; do
+for y in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
 rm -f $odir/mrg.$y.rate.query
 for f in "$@"; do
   if [ $f != "BREAK" ]; then

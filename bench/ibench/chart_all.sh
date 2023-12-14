@@ -4,8 +4,8 @@ resdir=$3
 
 shift 3
 
-ifiles=( l.i0 l.x l.i1 )
-qfiles=( q100.1 q500.1 q1000.1 )
+ifiles=( l.i0 l.x l.i1 l.i2 )
+qfiles=( qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 )
 
 #ips     qps     rps     rmbps   wps     wmbps   rpq     rkbpq   wpi     wkbpi   csps    cpups   cspq    cpupq   dbgb1   dbgb2   rss     maxop   p50     p99     tag
 #139860  0       1238    4.8     51.3    32.2    0.009   0.035   0.000   0.236   15177   45.7    0.109   13      1.3     41.8    2.0     0.265   143193  18274   my5649.cx6d
@@ -74,14 +74,17 @@ mv ch*.png report
 
 # Get IPS from insert-only tests and QPS from read+write tests
 awk '{ printf "%s\t%s\n", $2, $1 }' $resdir/mrg.l.i0.ips > z1
-for f in l.x l.i1 ; do awk '{ print $1 }' $resdir/mrg.${f}.ips > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
-for f in q100.1 q500.1 q1000.1 ; do awk '{ print $2 }' $resdir/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
+for f in l.x l.i1 l.i2 ; do awk '{ print $1 }' $resdir/mrg.${f}.ips > ztmp ; paste z1 ztmp > z2; mv z2 z1 ; done
+
+for f in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
+  awk '{ print $2 }' $resdir/mrg.${f}.qps > ztmp ; paste z1 ztmp > z2; mv z2 z1
+done
 
 # Get IPS from read+write tests
 rm -f z1q; touch z1q
 for e in "$@" ; do
   printf "$e" > ztmp
-  for f in q100.1 q500.1 q1000.1 ; do
+  for f in qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
     ips=$( grep "$e\$" $resdir/mrg.$f.qps | head -1 | awk '{ print $1 }' )
     printf "\t${ips}" >> ztmp
   done
@@ -112,7 +115,7 @@ cat <<TabEOF > tput_hdr
 TabEOF
 
 cat tput_hdr > iput.tab
-printf "<tr><th>dbms</th><th>q100.1</th><th>q500.1</th><th>q1000.1</th></tr>\n" >> iput.tab
+printf "<tr><th>dbms</th><th>qr100.L1</th><th>qp100.L2</th><th>qr500.L3</th><th>qp500.L4</th><th>qr1000.L5</th><th>qp1000.L6</th></tr>\n" >> iput.tab
 
 # accessed by dbms.columnNumber, 0 = did not sustain target insert rate, 1 = sustained target insert rate
 declare -A sla
@@ -125,7 +128,7 @@ for e in "$@" ; do
   printf "<tr><td>$dbms</td>"
 
   c=2
-  for rate in 100 500 1000 ; do
+  for rate in 100 100 500 500 1000 1000 ; do
     trate=$(( $dop * $rate ))
     t95=$( echo $trate | awk '{ printf "%.0f", ( 0.95 * $1 ) }' )
     val=$( get_row_col $r $c z1q )
@@ -145,7 +148,9 @@ for e in "$@" ; do
 
   r=$(( $r + 1 ))
 done >> iput.tab
-printf "<tr><td>target</td><td id="cgray">$(( 100 * $dop ))</td><td id="cgray">$(( 500 * $dop ))</td><td id="cgray">$(( 1000 * $dop ))</td></tr>\n" >> iput.tab
+
+printf "<tr><td>target</td><td id="cgray">$(( 100 * $dop ))</td><td id="cgray">$(( 100 * $dop ))</td><td id="cgray">$(( 500 * $dop ))</td><td id="cgray">$(( 500 * $dop ))</td><td id="cgray">$(( 1000 * $dop ))</td><td id="cgray">$(( 1000 * $dop ))</td>
+</tr>\n" >> iput.tab
 printf "</table>\n" >> iput.tab
 
 function filter_by_sla {
@@ -157,12 +162,14 @@ function filter_by_sla {
   cat $inf > $outf
 
   # This is messy. The sla array uses the column numbering for the table written to iput.tab which excludes
-  # the columns for l.i0, l.x and l.i1. So colNum must be adjusted to account for that.
+  # the columns for l.i0, l.x, l.i1 and l.i2. So colNum must be adjusted to account for that.
 
-  if [[ $colNum -le 4 ]]; then
+  if [[ $colNum -le 5 ]]; then
+    # TODO: this is for l.i0=2, l.x=3, l.i1=4, l.i2=5
     return
   else
-    colNum=$(( $colNum - 3 ))
+    # TODO: there are 4 load tests
+    colNum=$(( $colNum - 4 ))
   fi
 
   for e in "$@" ; do
@@ -177,8 +184,9 @@ function filter_by_sla {
 
 nRows=$( wc -l z1 | awk '{ print $1 }' )
 
-# For c in first to last column with data, depends on the number of query tests. This is hardwired for 3.
-for c in $( seq 2 7 ) ; do
+# For c in first to last column with data, depends on the number of query tests.
+# TODO 11 assumes 4 load tests, 6 query tests and 1 header line
+for c in $( seq 2 11 ) ; do
   minv=$( awk 'BEGIN { mv=999999999 } { if ($x < mv) { mv=$x } } END { print mv }' x=$c z1 )
   filter_by_sla z1 z1f $c "$@"
   maxv=$( awk 'BEGIN { mv=0 }         { if ($x > mv) { mv=$x } } END { print mv }' x=$c z1f )
@@ -198,15 +206,16 @@ done
 # generate summary table
 
 firstRowCols=()
-for c in $( seq 1 7 ); do
+# TODO: this (=11) assumes there are 6 query steps and 4 load steps + 1 for the header line
+for c in $( seq 1 11 ); do
   firstRowCols[$c]=$( get_row_col 1 $c z1 )  
 done
 
 for asRel in 0 1 ; do
 for r in $( seq 1 $nRows ); do
 dbms=$( get_row_col $r 1 z1 )
-# TODO: this (=7) assumes there are 3 query steps
-for c in $( seq 1 7 ); do
+# TODO: this (=11) assumes there are 6 query steps and 4 load steps + 1 for the header line
+for c in $( seq 1 11 ); do
   val=$( get_row_col $r $c z1 )
   if [[ $c -eq 1 ]]; then
     printf "<tr><td>%s</td> " $val
@@ -230,7 +239,8 @@ for c in $( seq 1 7 ); do
       fi
     elif [[ $val -le ${botq[$c]} ]]; then
       printf "<td id=\"cmin\">%s</td>" $val
-    elif [[ $c -gt 4 && ${sla[${dbms}.$(( $c - 3 ))]} -eq 0 ]]; then
+    elif [[ $c -gt 5 && ${sla[${dbms}.$(( $c - 4 ))]} -eq 0 ]]; then
+      # TODO: this assumes 4 load, 6 query tests
       # echo $asRel asRel, $r r, $c c, ${dbms}.$(( $c - 3 )) set to ${sla[${dbms}.$(( $c - 3 ))]} >> o.dbg
       printf "<td id=\"cgray\">%s</td>" $val
     elif [[ $val -ge ${topq[$c]} ]]; then
@@ -238,14 +248,14 @@ for c in $( seq 1 7 ); do
     else
       printf "<td>%s</td>" $val
     fi
-    if [[ $c -eq 10 ]]; then printf "</tr>\n"; fi
+    if [[ $c -eq 11 ]]; then printf "</tr>\n"; fi
   fi
 done
 done > z2.asRel${asRel}
 done
 
 cat tput_hdr > z3
-printf "<tr><th>dbms</th><th>l.i0</th><th>l.x</th><th>l.i1</th><th>q100.1</th><th>q500.1</th><th>q1000.1</th></tr>\n" >> z3
+printf "<tr><th>dbms</th><th>l.i0</th><th>l.x</th><th>l.i1</th><th>l.i2</th><th>qr100</th><th>qp100</th><th>qr500</th><th>qp500</th><th>qr1000</th><th>qp1000</th></tr>\n" >> z3
 cat z3 z2.asRel0 > tput.tab
 printf "</table>\n" >> tput.tab
 
