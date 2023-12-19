@@ -1,0 +1,23 @@
+
+prefix=$1
+
+BF=" -g1 -fno-omit-frame-pointer"
+CF=" $BF "
+CXXF=" $BF "
+
+# CC=/usr/bin/gcc-9 CXX=/usr/bin/g++-9 \
+
+cmake .. \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX:PATH=$prefix \
+      -DWITH_SSL=/home/mdcallag/d/openssl-102 \
+      -DWITH_ZLIB="bundled" \
+      -DMYSQL_DATADIR="${prefix}/data" \
+      -DMYSQL_UNIX_ADDR="${prefix}/var/mysql.sock" \
+      -DENABLED_LOCAL_INFILE=1 \
+      -DMYSQL_MAINTAINER_MODE=0 \
+      -DWITH_BOOST=/home/mdcallag/b/boost_1_57_0 \
+      -DWITH_NUMA=ON \
+      -DCMAKE_CXX_FLAGS="$CXXF" -DCMAKE_C_FLAGS="$CF" \
+      -DWITH_UNIT_TESTS=OFF
+

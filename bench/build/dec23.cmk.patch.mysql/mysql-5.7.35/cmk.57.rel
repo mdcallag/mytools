@@ -1,0 +1,20 @@
+prefix=$1
+
+BF=" -g1 "
+CF=" $BF "
+CXXF=" $BF "
+
+cmake .. \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX:PATH=$prefix \
+      -DWITH_SSL=/home/mdcallag/d/openssl-111 \
+      -DWITH_ZLIB="bundled" \
+      -DMYSQL_DATADIR="${prefix}/data" \
+      -DMYSQL_UNIX_ADDR="${prefix}/var/mysql.sock" \
+      -DENABLED_LOCAL_INFILE=1 \
+      -DMYSQL_MAINTAINER_MODE=0 \
+      -DWITH_BOOST=$PWD/../boost \
+      -DWITH_NUMA=ON \
+      -DCMAKE_CXX_FLAGS="$CXXF" -DCMAKE_C_FLAGS="$CF" \
+      -DWITH_UNIT_TESTS=OFF
+

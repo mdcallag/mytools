@@ -1,0 +1,116 @@
+diff -u --recursive x/mysql-8.0.0-dmr/sql/histograms/histogram.h mysql-8.0.0-dmr/sql/histograms/histogram.h
+--- mysql-8.0.0-dmr/sql/histograms/histogram.h	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/sql/histograms/histogram.h	2023-12-12 02:26:34.524053397 +0000
+@@ -111,7 +111,7 @@
+ 
+ // Typedefs.
+ template<typename T>
+-using value_map_allocator = Memroot_allocator<std::pair<T, ha_rows> >;
++using value_map_allocator = Memroot_allocator<std::pair<const T, ha_rows>>;
+ 
+ template<typename T>
+ using value_map_type = std::map<T, ha_rows, Histogram_comparator,
+diff -u --recursive x/mysql-8.0.0-dmr/sql/histograms/singleton.h mysql-8.0.0-dmr/sql/histograms/singleton.h
+--- mysql-8.0.0-dmr/sql/histograms/singleton.h	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/sql/histograms/singleton.h	2023-12-12 02:22:52.086804528 +0000
+@@ -89,7 +89,7 @@
+ 
+   /// The buckets for this histogram [key, cumulative frequency].
+   std::map<const T, double, Histogram_comparator,
+-           Memroot_allocator<std::pair<T, double> > > m_buckets;
++           Memroot_allocator<std::pair<const T, double>>> m_buckets;
+ public:
+   /**
+     Singleton constructor.
+diff -u --recursive x/mysql-8.0.0-dmr/sql/json_dom.h mysql-8.0.0-dmr/sql/json_dom.h
+--- mysql-8.0.0-dmr/sql/json_dom.h	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/sql/json_dom.h	2023-12-12 01:54:38.541078871 +0000
+@@ -337,7 +337,7 @@
+   Json_object class.
+ */
+ typedef std::map<std::string, Json_dom *, Json_key_comparator,
+-  Malloc_allocator<std::pair<std::string, Json_dom *> > > Json_object_map;
++  Malloc_allocator<std::pair<const std::string, Json_dom *> > > Json_object_map;
+ 
+ /**
+   Represents a JSON container value of type "object" (ECMA), type
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/buf/buf0buf.cc mysql-8.0.0-dmr/storage/innobase/buf/buf0buf.cc
+--- mysql-8.0.0-dmr/storage/innobase/buf/buf0buf.cc	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/buf/buf0buf.cc	2023-12-12 01:24:26.428895005 +0000
+@@ -296,7 +296,7 @@
+ 	const byte*,
+ 	buf_chunk_t*,
+ 	std::less<const byte*>,
+-	ut_allocator<std::pair<const byte*, buf_chunk_t*> > >
++	ut_allocator<std::pair<const byte* const, buf_chunk_t*> > >
+ 	buf_pool_chunk_map_t;
+ 
+ static buf_pool_chunk_map_t*			buf_chunk_map_reg;
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/dict/dict0stats.cc mysql-8.0.0-dmr/storage/innobase/dict/dict0stats.cc
+--- mysql-8.0.0-dmr/storage/innobase/dict/dict0stats.cc	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/dict/dict0stats.cc	2023-12-12 01:26:47.636051780 +0000
+@@ -140,7 +140,7 @@
+ typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t> >	boundaries_t;
+ 
+ /** Allocator type used for index_map_t. */
+-typedef ut_allocator<std::pair<const char*, dict_index_t*> >
++typedef ut_allocator<std::pair<const char* const, dict_index_t*> >
+ 	index_map_t_allocator;
+ 
+ /** Auxiliary map used for sorting indexes by name in dict_stats_save(). */
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/include/os0thread-create.h mysql-8.0.0-dmr/storage/innobase/include/os0thread-create.h
+--- mysql-8.0.0-dmr/storage/innobase/include/os0thread-create.h	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/include/os0thread-create.h	2023-12-12 01:18:10.622369876 +0000
+@@ -31,6 +31,7 @@
+ 
+ #include <my_thread.h>
+ #include <atomic>
++#include <functional>
+ 
+ /** Maximum number of threads inside InnoDB */
+ extern ulint	srv_max_n_threads;
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/sync/sync0debug.cc mysql-8.0.0-dmr/storage/innobase/sync/sync0debug.cc
+--- mysql-8.0.0-dmr/storage/innobase/sync/sync0debug.cc	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/sync/sync0debug.cc	2023-12-12 01:39:05.167156282 +0000
+@@ -425,7 +425,7 @@
+ 		latch_level_t,
+ 		std::string,
+ 		latch_level_less,
+-		ut_allocator<std::pair<latch_level_t, std::string> > >
++		ut_allocator<std::pair<const latch_level_t, std::string> > >
+ 		Levels;
+ 
+ 	/** Mutex protecting the deadlock detector data structures. */
+@@ -1769,7 +1769,7 @@
+ 		const void*,
+ 		File,
+ 		std::less<const void*>,
+-		ut_allocator<std::pair<const void*, File> > >
++		ut_allocator<std::pair<const void* const, File> > >
+ 		Files;
+ 
+ 	typedef OSMutex	Mutex;
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/trx/trx0purge.cc mysql-8.0.0-dmr/storage/innobase/trx/trx0purge.cc
+--- mysql-8.0.0-dmr/storage/innobase/trx/trx0purge.cc	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/trx/trx0purge.cc	2023-12-12 01:47:29.500096348 +0000
+@@ -1668,7 +1668,7 @@
+ 	using GroupBy = std::map<
+ 		table_id_t, purge_node_t::Recs*,
+ 		std::less<table_id_t>,
+-		mem_heap_allocator<std::pair<table_id_t, purge_node_t::Recs*>>>;
++	        mem_heap_allocator< std::pair<const table_id_t, purge_node_t::Recs*>>>;
+ 
+ 	GroupBy		group_by{
+ 		GroupBy::key_compare{},
+diff -u --recursive x/mysql-8.0.0-dmr/storage/innobase/trx/trx0trx.cc mysql-8.0.0-dmr/storage/innobase/trx/trx0trx.cc
+--- mysql-8.0.0-dmr/storage/innobase/trx/trx0trx.cc	2016-08-25 12:32:09.000000000 +0000
++++ mysql-8.0.0-dmr/storage/innobase/trx/trx0trx.cc	2023-12-12 01:51:26.103113994 +0000
+@@ -63,7 +63,7 @@
+ typedef std::map<
+ 	trx_t*, table_id_set,
+ 	std::less<trx_t*>,
+-	ut_allocator<table_id_set> >	trx_table_map;
++        ut_allocator<std::pair<trx_t* const, table_id_set>>>    trx_table_map;
+ 
+ /** Map of resurrected transactions to affected table_id */
+ static trx_table_map	resurrected_trx_tables;

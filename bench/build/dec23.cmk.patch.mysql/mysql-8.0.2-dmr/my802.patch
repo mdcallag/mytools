@@ -1,0 +1,41 @@
+diff -u --recursive x/mysql-8.0.2-dmr/include/my_hash_combine.h mysql-8.0.2-dmr/include/my_hash_combine.h
+--- mysql-8.0.2-dmr/include/my_hash_combine.h	2017-06-27 11:44:29.000000000 +0000
++++ mysql-8.0.2-dmr/include/my_hash_combine.h	2023-12-11 23:50:43.679166870 +0000
+@@ -51,6 +51,7 @@
+ hash distribution.
+ 
+ Steinar */
++#include <cstdint>
+ 
+ #ifndef MY_HASH_COMBINE_INCLUDED
+ #define MY_HASH_COMBINE_INCLUDED
+diff -u --recursive x/mysql-8.0.2-dmr/sql/dd/impl/cache/storage_adapter.cc mysql-8.0.2-dmr/sql/dd/impl/cache/storage_adapter.cc
+--- mysql-8.0.2-dmr/sql/dd/impl/cache/storage_adapter.cc	2017-06-27 11:44:29.000000000 +0000
++++ mysql-8.0.2-dmr/sql/dd/impl/cache/storage_adapter.cc	2023-12-11 23:51:05.236448112 +0000
+@@ -623,5 +623,15 @@
+ template bool Storage_adapter::store(THD *, Index_stat*);
+ template bool Storage_adapter::drop(THD *, const Index_stat*);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ } // namespace cache
+ } // namespace dd
+diff -u --recursive x/mysql-8.0.2-dmr/sql/rpl_transaction_write_set_ctx.h mysql-8.0.2-dmr/sql/rpl_transaction_write_set_ctx.h
+--- mysql-8.0.2-dmr/sql/rpl_transaction_write_set_ctx.h	2017-06-27 11:44:29.000000000 +0000
++++ mysql-8.0.2-dmr/sql/rpl_transaction_write_set_ctx.h	2023-12-12 01:28:07.423828233 +0000
+@@ -19,6 +19,7 @@
+ #include <vector>
+ #include <map>
+ #include <list>
++#include <string>
+ 
+ #include "my_inttypes.h"
+ 

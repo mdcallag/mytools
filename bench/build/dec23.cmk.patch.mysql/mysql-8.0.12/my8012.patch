@@ -1,0 +1,23 @@
+diff -u --recursive x/mysql-8.0.12/client/mysqltest.cc mysql-8.0.12/client/mysqltest.cc
+--- mysql-8.0.12/client/mysqltest.cc	2018-06-28 16:18:27.000000000 +0000
++++ mysql-8.0.12/client/mysqltest.cc	2023-12-11 22:47:05.516022759 +0000
+@@ -76,6 +76,7 @@
+ #include <functional>
+ #include <new>
+ #include <string>
++#include <stdexcept>
+ 
+ #include "my_stacktrace.h"
+ #include "prealloced_array.h"
+diff -u --recursive x/mysql-8.0.12/include/my_hash_combine.h mysql-8.0.12/include/my_hash_combine.h
+--- mysql-8.0.12/include/my_hash_combine.h	2018-06-28 16:18:27.000000000 +0000
++++ mysql-8.0.12/include/my_hash_combine.h	2023-12-11 22:38:03.591788759 +0000
+@@ -61,6 +61,8 @@
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) (x << r) | (x >> (32 - r))
+ #endif /* _MSC_VER */
+ 
++#include <cstdint>
++
+ template <typename SizeT>
+ inline void my_hash_combine(SizeT &seed, SizeT value) {
+   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);

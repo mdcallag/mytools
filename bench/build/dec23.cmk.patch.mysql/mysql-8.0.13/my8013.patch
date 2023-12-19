@@ -1,0 +1,61 @@
+diff -u --recursive x/mysql-8.0.13/client/mysqltest.cc mysql-8.0.13/client/mysqltest.cc
+--- mysql-8.0.13/client/mysqltest.cc	2018-10-07 08:44:22.000000000 +0000
++++ mysql-8.0.13/client/mysqltest.cc	2023-05-12 15:31:23.643217624 +0000
+@@ -37,6 +37,7 @@
+ #include <limits>
+ #include <new>
+ #include <string>
++#include <stdexcept>
+ #ifdef _WIN32
+ #include <thread>  // std::thread
+ #endif
+diff -u --recursive x/mysql-8.0.13/CMakeLists.txt mysql-8.0.13/CMakeLists.txt
+--- mysql-8.0.13/CMakeLists.txt	2018-10-07 08:44:22.000000000 +0000
++++ mysql-8.0.13/CMakeLists.txt	2023-05-12 15:47:19.309371177 +0000
+@@ -1045,9 +1045,9 @@
+     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
+ 
+ # depends on mysql_version.h to exist
+-IF(NOT WITHOUT_SERVER)
+-  ADD_SUBDIRECTORY(router)
+-ENDIF()
++#IF(NOT WITHOUT_SERVER)
++#  ADD_SUBDIRECTORY(router)
++#ENDIF()
+ 
+ GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+ CONFIGURE_FILE(
+diff -u --recursive x/mysql-8.0.13/include/my_hash_combine.h mysql-8.0.13/include/my_hash_combine.h
+--- mysql-8.0.13/include/my_hash_combine.h	2018-10-07 08:44:22.000000000 +0000
++++ mysql-8.0.13/include/my_hash_combine.h	2023-05-12 15:10:16.448057822 +0000
+@@ -55,6 +55,8 @@
+ #ifndef MY_HASH_COMBINE_INCLUDED
+ #define MY_HASH_COMBINE_INCLUDED
+ 
++#include <cstdint>
++
+ #if defined(_MSC_VER)
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) _rotl(x, r)
+ #else
+diff -u --recursive x/mysql-8.0.13/router/src/http/include/mysqlrouter/http_common.h mysql-8.0.13/router/src/http/include/mysqlrouter/http_common.h
+--- mysql-8.0.13/router/src/http/include/mysqlrouter/http_common.h	2018-10-07 08:44:22.000000000 +0000
++++ mysql-8.0.13/router/src/http/include/mysqlrouter/http_common.h	2023-05-12 15:03:06.468952396 +0000
+@@ -32,6 +32,7 @@
+ #include <functional>  // std::function
+ #include <memory>
+ #include <vector>
++#include <stdexcept>
+ 
+ struct evhttp_uri;
+ struct evhttp_request;
+diff -u --recursive x/mysql-8.0.13/router/src/router/include/mysqlrouter/uri.h mysql-8.0.13/router/src/router/include/mysqlrouter/uri.h
+--- mysql-8.0.13/router/src/router/include/mysqlrouter/uri.h	2018-10-07 08:44:22.000000000 +0000
++++ mysql-8.0.13/router/src/router/include/mysqlrouter/uri.h	2023-05-12 15:40:16.886306126 +0000
+@@ -33,6 +33,7 @@
+ #include <string>
+ #include <tuple>
+ #include <vector>
++#include <stdexcept>
+ #ifndef _WIN32
+ #include <unistd.h>
+ #endif

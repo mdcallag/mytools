@@ -1,0 +1,37 @@
+diff -u --recursive x/mysql-8.0.17/include/my_hash_combine.h mysql-8.0.17/include/my_hash_combine.h
+--- mysql-8.0.17/include/my_hash_combine.h	2019-06-25 10:23:30.000000000 +0000
++++ mysql-8.0.17/include/my_hash_combine.h	2023-05-12 17:15:45.110195413 +0000
+@@ -55,6 +55,8 @@
+ #ifndef MY_HASH_COMBINE_INCLUDED
+ #define MY_HASH_COMBINE_INCLUDED
+ 
++#include <cstdint>
++
+ #if defined(_MSC_VER)
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) _rotl(x, r)
+ #else
+diff -u --recursive x/mysql-8.0.17/include/mysql/components/services/page_track_service.h mysql-8.0.17/include/mysql/components/services/page_track_service.h
+--- mysql-8.0.17/include/mysql/components/services/page_track_service.h	2019-06-25 10:23:30.000000000 +0000
++++ mysql-8.0.17/include/mysql/components/services/page_track_service.h	2023-05-12 17:43:42.251797991 +0000
+@@ -27,6 +27,9 @@
+ #include <mysql/components/service.h>
+ #include <functional>
+ 
++#include <cstdint>
++#include <cstddef>
++
+ #ifdef __cplusplus
+ class THD;
+ #define MYSQL_THD THD *
+diff -u --recursive x/mysql-8.0.17/sql-common/sql_string.cc mysql-8.0.17/sql-common/sql_string.cc
+--- mysql-8.0.17/sql-common/sql_string.cc	2019-06-25 10:23:30.000000000 +0000
++++ mysql-8.0.17/sql-common/sql_string.cc	2023-05-12 17:19:58.407439904 +0000
+@@ -23,6 +23,8 @@
+ #include "sql_string.h"
+ 
+ #include <algorithm>
++#include <stdexcept>
++#include <limits>
+ 
+ #include "my_dbug.h"
+ #include "my_macros.h"

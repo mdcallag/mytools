@@ -1,0 +1,30 @@
+diff -u --recursive x/mysql-8.0.4-rc/include/my_hash_combine.h mysql-8.0.4-rc/include/my_hash_combine.h
+--- mysql-8.0.4-rc/include/my_hash_combine.h	2018-01-18 15:52:52.000000000 +0000
++++ mysql-8.0.4-rc/include/my_hash_combine.h	2023-12-11 23:21:29.936093665 +0000
+@@ -60,6 +60,7 @@
+ #else
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) (x << r) | (x >> (32 - r))
+ #endif /* _MSC_VER */
++#include <cstdint>
+ 
+ template <typename SizeT>
+ inline void my_hash_combine(SizeT& seed, SizeT value) {
+diff -u --recursive x/mysql-8.0.4-rc/sql/dd/impl/cache/storage_adapter.cc mysql-8.0.4-rc/sql/dd/impl/cache/storage_adapter.cc
+--- mysql-8.0.4-rc/sql/dd/impl/cache/storage_adapter.cc	2018-01-18 15:52:52.000000000 +0000
++++ mysql-8.0.4-rc/sql/dd/impl/cache/storage_adapter.cc	2023-12-11 23:30:13.695459024 +0000
+@@ -669,5 +669,15 @@
+ template bool Storage_adapter::store(THD *, Index_stat*);
+ template bool Storage_adapter::drop(THD *, const Index_stat*);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ } // namespace cache
+ } // namespace dd

@@ -1,0 +1,50 @@
+diff -u --recursive x/mysql-8.0.15/client/mysqltest.cc mysql-8.0.15/client/mysqltest.cc
+--- mysql-8.0.15/client/mysqltest.cc	2019-01-25 22:33:03.000000000 +0000
++++ mysql-8.0.15/client/mysqltest.cc	2023-05-12 17:07:12.907305217 +0000
+@@ -37,6 +37,7 @@
+ #include <limits>
+ #include <new>
+ #include <string>
++#include <stdexcept>
+ #ifdef _WIN32
+ #include <thread>  // std::thread
+ #endif
+diff -u --recursive x/mysql-8.0.15/CMakeLists.txt mysql-8.0.15/CMakeLists.txt
+--- mysql-8.0.15/CMakeLists.txt	2019-01-25 22:33:03.000000000 +0000
++++ mysql-8.0.15/CMakeLists.txt	2023-05-12 16:25:33.022951253 +0000
+@@ -1079,9 +1079,9 @@
+     ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
+ 
+ # depends on mysql_version.h to exist
+-IF(NOT WITHOUT_SERVER)
+-  ADD_SUBDIRECTORY(router)
+-ENDIF()
++#IF(NOT WITHOUT_SERVER)
++#  ADD_SUBDIRECTORY(router)
++#ENDIF()
+ 
+ GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+ CONFIGURE_FILE(
+diff -u --recursive x/mysql-8.0.15/include/my_hash_combine.h mysql-8.0.15/include/my_hash_combine.h
+--- mysql-8.0.15/include/my_hash_combine.h	2019-01-25 22:33:03.000000000 +0000
++++ mysql-8.0.15/include/my_hash_combine.h	2023-05-12 16:55:50.396709674 +0000
+@@ -55,6 +55,8 @@
+ #ifndef MY_HASH_COMBINE_INCLUDED
+ #define MY_HASH_COMBINE_INCLUDED
+ 
++#include <cstdint>
++
+ #if defined(_MSC_VER)
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) _rotl(x, r)
+ #else
+diff -u --recursive x/mysql-8.0.15/sql-common/sql_string.cc mysql-8.0.15/sql-common/sql_string.cc
+--- mysql-8.0.15/sql-common/sql_string.cc	2019-01-25 22:33:03.000000000 +0000
++++ mysql-8.0.15/sql-common/sql_string.cc	2023-05-12 16:35:12.966906687 +0000
+@@ -23,6 +23,7 @@
+ #include "sql_string.h"
+ 
+ #include <algorithm>
++#include <limits>
+ 
+ #include "my_dbug.h"
+ #include "my_macros.h"

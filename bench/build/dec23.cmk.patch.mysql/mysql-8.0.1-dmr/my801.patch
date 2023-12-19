@@ -1,0 +1,30 @@
+diff -u --recursive x/mysql-8.0.1-dmr/sql/dd/impl/cache/storage_adapter.cc mysql-8.0.1-dmr/sql/dd/impl/cache/storage_adapter.cc
+--- mysql-8.0.1-dmr/sql/dd/impl/cache/storage_adapter.cc	2017-03-23 04:52:16.000000000 +0000
++++ mysql-8.0.1-dmr/sql/dd/impl/cache/storage_adapter.cc	2023-12-11 23:53:21.678793063 +0000
+@@ -604,5 +604,15 @@
+ template bool Storage_adapter::store(THD *, Index_stat*);
+ template bool Storage_adapter::drop(THD *, const Index_stat*);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ } // namespace cache
+ } // namespace dd
+diff -u --recursive x/mysql-8.0.1-dmr/sql/rpl_transaction_write_set_ctx.h mysql-8.0.1-dmr/sql/rpl_transaction_write_set_ctx.h
+--- mysql-8.0.1-dmr/sql/rpl_transaction_write_set_ctx.h	2017-03-23 04:52:16.000000000 +0000
++++ mysql-8.0.1-dmr/sql/rpl_transaction_write_set_ctx.h	2023-12-12 01:19:19.654998699 +0000
+@@ -19,6 +19,7 @@
+ #include <vector>
+ #include <map>
+ #include <list>
++#include <string>
+ 
+ #include "my_inttypes.h"
+ 

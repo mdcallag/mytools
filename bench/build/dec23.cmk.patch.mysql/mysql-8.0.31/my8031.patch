@@ -1,0 +1,12 @@
+diff -u --recursive x/mysql-8.0.31/sql/handler.cc mysql-8.0.31/sql/handler.cc
+--- mysql-8.0.31/sql/handler.cc	2022-09-13 16:15:16.000000000 +0000
++++ mysql-8.0.31/sql/handler.cc	2023-05-16 23:41:58.177239728 +0000
+@@ -6131,6 +6131,8 @@
+             b) The range is an equality range but the index is either not
+                unique or all of the keyparts are not used.
+     */
++    // hack for b109595
++    // if (1) return 10;
+     int keyparts_used = 0;
+     if ((range.range_flag & UNIQUE_RANGE) &&  // 1)
+         !(range.range_flag & NULL_RANGE))

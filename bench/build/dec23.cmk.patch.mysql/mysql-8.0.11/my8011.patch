@@ -1,0 +1,53 @@
+diff -u --recursive x/mysql-8.0.11/client/mysqltest.cc mysql-8.0.11/client/mysqltest.cc
+--- mysql-8.0.11/client/mysqltest.cc	2018-04-08 06:44:49.000000000 +0000
++++ mysql-8.0.11/client/mysqltest.cc	2023-12-11 22:48:31.992536529 +0000
+@@ -76,6 +76,7 @@
+ #include <functional>
+ #include <new>
+ #include <string>
++#include <stdexcept>
+ 
+ #include "my_stacktrace.h"
+ #include "prealloced_array.h"
+diff -u --recursive x/mysql-8.0.11/include/my_hash_combine.h mysql-8.0.11/include/my_hash_combine.h
+--- mysql-8.0.11/include/my_hash_combine.h	2018-04-08 06:44:49.000000000 +0000
++++ mysql-8.0.11/include/my_hash_combine.h	2023-12-11 22:48:43.848642463 +0000
+@@ -61,6 +61,8 @@
+ #define MY_FUNCTIONAL_HASH_ROTL32(x, r) (x << r) | (x >> (32 - r))
+ #endif /* _MSC_VER */
+ 
++#include <cstdint>
++
+ template <typename SizeT>
+ inline void my_hash_combine(SizeT &seed, SizeT value) {
+   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+diff -u --recursive x/mysql-8.0.11/plugin/x/ngs/src/thread.cc mysql-8.0.11/plugin/x/ngs/src/thread.cc
+--- mysql-8.0.11/plugin/x/ngs/src/thread.cc	2018-04-08 06:44:49.000000000 +0000
++++ mysql-8.0.11/plugin/x/ngs/src/thread.cc	2023-12-11 22:49:36.199210873 +0000
+@@ -30,6 +30,7 @@
+ #include "my_systime.h"
+ #include "my_thread.h"
+ #include "plugin/x/ngs/include/ngs/memory.h"
++#include <stdexcept>
+ 
+ void ngs::thread_create(PSI_thread_key key MY_ATTRIBUTE((unused)),
+                         Thread_t *thread, Start_routine_t func, void *arg) {
+diff -u --recursive x/mysql-8.0.11/sql/dd/impl/cache/storage_adapter.cc mysql-8.0.11/sql/dd/impl/cache/storage_adapter.cc
+--- mysql-8.0.11/sql/dd/impl/cache/storage_adapter.cc	2018-04-08 06:44:49.000000000 +0000
++++ mysql-8.0.11/sql/dd/impl/cache/storage_adapter.cc	2023-12-11 22:50:17.657619267 +0000
+@@ -595,5 +595,15 @@
+ template bool Storage_adapter::store(THD *, Index_stat *);
+ template bool Storage_adapter::drop(THD *, const Index_stat *);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ }  // namespace cache
+ }  // namespace dd
