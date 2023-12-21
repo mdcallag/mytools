@@ -126,7 +126,7 @@ for ipsAndpk in "$@"; do
     # Run for querysecs seconds regardless of concurrency using point queries on the PK index
     echo Run with ips $ips
     bash np.sh $(( $querysecs * $ips * $dop )) $e "$eo" 3 $client $data $dop 10 20 0 $dname $only1t 1 50 $ips 1 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert point >& o.a.p
-    rdir=qr${ips}.L${loop}
+    rdir=qp${ips}.L${loop}
     mkdir $rdir; mv o.* $rdir
   fi
 
