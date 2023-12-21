@@ -115,10 +115,9 @@ x=0
 perfpid=0
 if [ $x -gt 0 ]; then
 fgp="$HOME/git/FlameGraph"
-if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+#if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
-  perf_secs=10
   if [ $nqt -ge 1 ]; then
     pause_secs=30
   else
@@ -159,11 +158,16 @@ while :; do
     echo Using PID $dbpid for perf
   fi
 
+  doit=0
+  if [[ doit -eq 1 ]]; then
+  perf_secs=10
   ts=$( date +'%b%d.%H%M%S' )
   sfx="$x.$ts"
   outf="o.perf.rec.g.$sfx"
-  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs"
-  $perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs
+  #echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs"
+  #$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs
+  echo "$perf record -e $PERF_METRIC -g -p $dbpid -o $outf -- sleep $perf_secs"
+  $perf record -e $PERF_METRIC -g -p $dbpid -o $outf -- sleep $perf_secs
 
   $perf report --stdio -n -g folded -i $outf --no-children > o.perf.rep.g.f1.c0.$sfx
   $perf report --stdio -n -g folded -i $outf --children > o.perf.rep.g.f1.c1.$sfx
@@ -172,6 +176,36 @@ while :; do
   cat o.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > o.perf.g.fold.$sfx
   $fgp/flamegraph.pl o.perf.g.fold.$sfx > o.perf.g.$sfx.svg
   gzip --fast o.perf.rep.g.scr.$sfx
+  fi
+
+  doit=0
+  if  [[ doit -eq 1 ]]; then
+  perf_secs=10
+  ts=$( date +'%b%d.%H%M%S' )
+  sfx="$x.$ts"
+  outf="o.perf.rec.f.$sfx"
+  #echo "$perf record -e $PERF_METRIC -c 500000 -p $dbpid -o $outf -- sleep $perf_secs"
+  #$perf record -e $PERF_METRIC -c 500000 -p $dbpid -o $outf -- sleep $perf_secs
+  echo "$perf record -e $PERF_METRIC -p $dbpid -o $outf -- sleep $perf_secs"
+  $perf record -e $PERF_METRIC -p $dbpid -o $outf -- sleep $perf_secs
+  $perf report --stdio -i $outf > o.perf.rep.f.$sfx
+  fi
+
+  doit=0
+  if  [[ doit -eq 1 ]]; then
+  perf_secs=5
+  ts=$( date +'%b%d.%H%M%S' )
+  sfx="$x.$ts"
+  outf="o.perfstat.$sfx"
+
+  $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbpid -- sleep $perf_secs ; sleep 2
+  $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbpid -- sleep $perf_secs ; sleep 2
+  fi
 
   x=$(( $x + 1 ))
 done &

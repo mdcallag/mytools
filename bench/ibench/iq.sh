@@ -78,8 +78,8 @@ mkdir l.i0
 mv o.* l.i0
 
 # insert only -- short running, then create indexes
-# if 100000 (ninserts) is changed then also update perpart computation in rall1.sh
-bash np.sh 100000 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 $npart $perpart no >& o.a
+# if 100 (ninserts) is changed then also update perpart computation in rall1.sh
+bash np.sh 100 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 100 0 0 no $dbms $short 0 yes $dbopt $nr1 $npart $perpart no >& o.a
 mkdir l.x
 mv o.* l.x
 

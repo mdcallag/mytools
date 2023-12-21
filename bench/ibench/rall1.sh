@@ -17,8 +17,8 @@ shift 13
 
 if [[ $npart -gt 0 ]] ; then
   # Figure out total number of inserts used to determine per-partition ranges
-  # This assumes the create index step first inserts 100000
-  nins=$( echo $nr1 $nr2 | awk '{ print $1 + $2 + 100000 }' )
+  # This assumes the create index step first inserts 100
+  nins=$( echo $nr1 $nr2 | awk '{ print $1 + $2 + 100 }' )
   for ips in "$@"; do
     tins=$( echo $ips $qsecs $dop | awk '{ print ($1 * $2 * $3) }' )
     nins=$( echo $nins $tins | awk '{ print ($1 + $2) }' )
