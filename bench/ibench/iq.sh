@@ -182,10 +182,10 @@ mkdir l.x
 mv o.* l.x
 
 # l.i1 does 4/5 of the requested random writes
-nr2_50=$(( echo nr2 | awk '{ x = $1 * (4/5); if (x < 1) { x=1 }; printf "%.0f", x }' ))
+nr2_50=$( echo nr2 | awk '{ x = $1 * (4/5); if (x < 1) { x=1 }; printf "%.0f", x }' )
 
 # l.i2 does 1/5 of the requested random writes
-nr2_5=$(( echo nr2 | awk '{ x = $1 * (1/5); if (x < 1) { x=1 }; printf "%.0f", x }' ))
+nr2_5=$( echo nr2 | awk '{ x = $1 * (1/5); if (x < 1) { x=1 }; printf "%.0f", x }' )
 
 # insert only with secondary indexes and 50 rows per commit
 bash np.sh $nr2_50 $e "$eo" $ns $client $data  $dop 10 20 0 $dname $only1t $checku 50 0 0 no $dbms $short 0 no $dbopt 0 $npart $perpart $delete_per_insert >& o.a
