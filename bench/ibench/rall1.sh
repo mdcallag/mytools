@@ -209,7 +209,7 @@ function do_pg12 {
   cd $dgit; bash iq.sh pg "" $dpg12/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cp $dpg12/logfile $rdir
   cd $dpg12; bash down.sh; cd $dgit
-  mv $dpg12/o.ini.* l.i0 l.i1 l.il2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  mv $dpg12/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dpg12/conf.diff $rdir
 }
 
