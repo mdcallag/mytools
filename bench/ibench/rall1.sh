@@ -38,6 +38,7 @@ else
 fi
 
 dgit=$PWD
+dpg9=${dbms_pfx}/pg9
 dpg10=${dbms_pfx}/pg10
 dpg11=${dbms_pfx}/pg11
 dpg12=${dbms_pfx}/pg12
@@ -151,6 +152,26 @@ function do_in56 {
   mkdir -p $rdir
   mv $dmy56/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmy56/etc/my.cnf $rdir
+}
+
+function do_pg9 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=pg.$rmemt.dop$dop.c$cnf
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg9.c${cnf}${ps}
+  mkdir -p $rdir
+  cd $dpg9; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh pg "" $dpg9/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cp $dpg9/logfile $rdir
+  cd $dpg9; bash down.sh; cd $dgit
+  mv $dpg9/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dpg9/conf.diff $rdir
 }
 
 function do_pg10 {
@@ -356,6 +377,8 @@ if [[ $dbms == "rx56" ]]; then
   do_rx56 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "rx80" ]]; then
   do_rx80 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "pg9" ]]; then
+  do_pg9 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg10" ]]; then
   do_pg10 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg11" ]]; then
