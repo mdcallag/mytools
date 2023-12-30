@@ -62,6 +62,25 @@ fbmy8032_rel_clang15_221222 \
 done
 done
 
+for dc in pg9.x9a2_bee ; do
+for ver in \
+pg9023_def \
+pg9124_def \
+pg9224_def \
+pg9325_def \
+pg9426_def \
+pg9525_def \
+pg9624_def \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg9; ln -s $mbd/$ver $mbd/pg9
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg9.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
 for dc in pg10.x9a2_bee ; do
 for ver in pg1023_def ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
