@@ -328,22 +328,43 @@ def create_index_mysql():
     conn = get_conn()
     cursor = conn.cursor()
 
+    ddls = []
+
     # Comparing create index isn't apples-to-apples here. Eventually I will revisit this.
     # 1) I think that MySQL can create multiple indexes via one table scan. MongoDB and PG cannot.
     # 2) Postgres can create an index with parallelism. I usually disable that in the config file.
 
-    index_ddl = "alter table %s add index %s_marketsegment (productid, customerid, price) " % (
-                   FLAGS.table_name, FLAGS.table_name)
+    if FLAGS.engine.lower() == 'rocksdb22':
+      # Don't understand it yet by mysqld VSZ and RSS grow too much during create index for MyRocks
+      ddls.append("alter table %s add index %s_marketsegment (productid, customerid, price) " % (
+                  FLAGS.table_name, FLAGS.table_name))
 
-    if FLAGS.num_secondary_indexes >= 2:
-      index_ddl += ", add index %s_registersegment (cashregisterid, customerid, price) " % (
-                   FLAGS.table_name)
+      if FLAGS.num_secondary_indexes >= 2:
+        ddls.append("alter table %s add index %s_registersegment (cashregisterid, customerid, price) " % (
+                    FLAGS.table_name, FLAGS.table_name))
 
-    if FLAGS.num_secondary_indexes >= 3:
-      index_ddl += ", add index %s_pdc (price, dateandtime, customerid) " % (
-                   FLAGS.table_name)
+      if FLAGS.num_secondary_indexes >= 3:
+        ddls.append("alter table %s add index %s_pdc (price, dateandtime, customerid) " % (
+                     FLAGS.table_name, FLAGS.table_name))
 
-    cursor.execute(index_ddl)
+    else:
+      index_ddl = "alter table %s add index %s_marketsegment (productid, customerid, price) " % (
+                     FLAGS.table_name, FLAGS.table_name)
+
+      if FLAGS.num_secondary_indexes >= 2:
+        index_ddl += ", add index %s_registersegment (cashregisterid, customerid, price) " % (
+                     FLAGS.table_name)
+
+      if FLAGS.num_secondary_indexes >= 3:
+        index_ddl += ", add index %s_pdc (price, dateandtime, customerid) " % (
+                     FLAGS.table_name)
+
+      ddls.append(index_ddl)
+
+    for ddl_sql in ddls:
+      #print("DDL: %s" % ddl_sql)
+      cursor.execute(ddl_sql)
+
     cursor.close()
     conn.close()
 
