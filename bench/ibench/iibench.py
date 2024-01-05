@@ -334,7 +334,7 @@ def create_index_mysql():
     # 1) I think that MySQL can create multiple indexes via one table scan. MongoDB and PG cannot.
     # 2) Postgres can create an index with parallelism. I usually disable that in the config file.
 
-    if FLAGS.engine.lower() == 'rocksdb22':
+    if FLAGS.engine.lower() == 'rocksdb':
       # Don't understand it yet by mysqld VSZ and RSS grow too much during create index for MyRocks
       ddls.append("alter table %s add index %s_marketsegment (productid, customerid, price) " % (
                   FLAGS.table_name, FLAGS.table_name))
