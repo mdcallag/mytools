@@ -116,6 +116,7 @@ function vac_my {
   done
 
   if [[ $e == "innodb" ]]; then
+    $client "${mya[@]}" -e "show engine innodb status\G" >& o.myvac.es1
     maxDirty=$( $client "${mya[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct"' | awk '{ print $2 }' )
     maxDirtyLwm=$( $client "${mya[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct_lwm"' | awk '{ print $2 }' )
     # This option is only in 8.0.18+
@@ -159,6 +160,7 @@ function vac_my {
     echo "Reset idle_pct to $idlePct" >> o.myvac
     $client "${mya[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> o.myvac 2>&1
     $client "${mya[@]}" -e 'show global variables' >> o.myvac.show.2 2>&1
+    $client "${mya[@]}" -e "show engine innodb status\G" >& o.myvac.es3
   elif [[ $e == "rocksdb" ]]; then
     $client "${mya[@]}" -e "show engine rocksdb status\G" >& o.myvac.es3
   fi
