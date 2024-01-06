@@ -40,16 +40,19 @@ if [[ $delete_per_insert == "yes" || $delete_per_insert == "1" ]]; then
 fi
 
 function vac_pg {
+  my_nr=$1
+  my_ntabs=$2
 
   # Sleep for 60 + 1 second per 1M rows
-  sleep_secs=$( echo $nr $ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
+  sleep_secs=$( echo $my_nr $my_ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
   echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > o.pgvac
+  echo nr is :: $my_nr :: and ntabs is :: $my_ntabs :: >> o.pgvac
   start_secs=$( date +%s )
   done_secs=$(( start_secs + sleep_secs ))
 
   pga=( -h 127.0.0.1 -U root ib )
   x=0
-  for n in $( seq 1 $ntabs ) ; do
+  for n in $( seq 1 $my_ntabs ) ; do
     if [[ $npart -eq 0 ]]; then
       PGPASSWORD="pw" $client "${pga[@]}" -x -c "vacuum (verbose, analyze) pi${n}" >& o.pgvac.pi${n} &
       vpid[${x}]=$!
@@ -91,9 +94,13 @@ function vac_my {
   #  2) Get LSM tree into deterministic state
   #  3) Collect stats
 
+  my_nr=$1
+  my_ntabs=$2
+
   # Sleep for 60 + 1 second per 1M rows
-  sleep_secs=$( echo $nr $ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
+  sleep_secs=$( echo $my_nr $my_ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
   echo "vac_my starts at $( date ) with sleep_secs = $sleep_secs" > o.myvac
+  echo nr is :: $my_nr :: and ntabs is :: $my_ntabs :: >> o.myvac
   start_secs=$( date +%s )
   done_secs=$(( start_secs + sleep_secs ))
 
@@ -102,7 +109,7 @@ function vac_my {
   # Reduce chance of a full disk
   $client "${mya[@]}" -e 'reset master' 2> /dev/null
 
-  for x in $( seq 1 $ntabs ); do
+  for x in $( seq 1 $my_ntabs ); do
     echo Analyze table pi${x} >> o.myvac
     /usr/bin/time -o o.myvac.time.$x $client "${mya[@]}" -e "analyze table pi${x}" > o.myvac.at.$x 2>&1 &
     apid[${x}]=$!
@@ -139,7 +146,7 @@ function vac_my {
     sleep $diff_secs
   fi
 
-  for x in $( seq 1 $ntabs ); do
+  for x in $( seq 1 $my_ntabs ); do
     echo After load: wait for analyze $n >> o.myvac
     wait ${apid[${x}]}
   done
@@ -204,10 +211,10 @@ sfx=dop${ntabs}
 if [[ vac -ge 1 ]] ; then
   if [[ $dbms == "postgres" ]] ; then
     # Vaccum after load & index. Wait for vacuum to finish before starting read-write tests
-    vac_pg 
+    vac_pg $nr1 $ntabs
     mv o.* l.i2
   elif [[ $dbms == "mysql" ]]; then
-    vac_my 1
+    vac_my $nr1 $ntabs
     mv o.* l.i2
   fi
 fi
