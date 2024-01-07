@@ -44,7 +44,7 @@ function vac_pg {
   my_ntabs=$2
 
   # Sleep for 60 + 1 second per 1M rows
-  sleep_secs=$( echo $my_nr $my_ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
+  sleep_secs=$( echo $my_nr | awk '{ nsecs = ($1 / 1000000) + 60; if (nsecs > 1200) nsecs = 1200; printf "%.0f", nsecs }' )
   echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > o.pgvac
   echo nr is :: $my_nr :: and ntabs is :: $my_ntabs :: >> o.pgvac
   start_secs=$( date +%s )
@@ -98,7 +98,7 @@ function vac_my {
   my_ntabs=$2
 
   # Sleep for 60 + 1 second per 1M rows
-  sleep_secs=$( echo $my_nr $my_ntabs | awk '{ printf "%.0f", ((($1 * $2) / 1000000) + 1) + 60 }' )
+  sleep_secs=$( echo $my_nr | awk '{ nsecs = ($1 / 1000000) + 60; if (nsecs > 1200) nsecs = 1200; printf "%.0f", nsecs }' )
   echo "vac_my starts at $( date ) with sleep_secs = $sleep_secs" > o.myvac
   echo nr is :: $my_nr :: and ntabs is :: $my_ntabs :: >> o.myvac
   start_secs=$( date +%s )
