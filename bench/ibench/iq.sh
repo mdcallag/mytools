@@ -135,9 +135,12 @@ function vac_my {
     echo "Flush memtable at $( date )" >> o.myvac
     $client "${mya[@]}" -e 'set global rocksdb_force_flush_memtable_now=1' >> o.myvac 2>&1
     sleep 20
-    echo "Flush memtable and lzero at $( date )" >> o.myvac
+    echo "Flush lzero at $( date )" >> o.myvac
     $client "${mya[@]}" -e "show engine rocksdb status\G" >& o.myvac.es2
-    $client "${mya[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> o.myvac 2>&1
+    # Not safe to use, see issues 1200 and 1295
+    #$client "${mya[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> o.myvac 2>&1
+    # Alas, this only works on releases from mid 2023 or more recent
+    $client "${mya[@]}" -e 'set global rocksdb_compact_lzero_now=1' >> o.myvac 2>&1
   fi
 
   now_secs=$( date +%s )
