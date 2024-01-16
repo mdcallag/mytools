@@ -409,13 +409,13 @@ def create_index_postgres():
     cursor = conn.cursor()
 
     # TODO: should fillfactor be set?
-    # ddl = "create index %s_marketsegment on %s (productid, customerid) with (deduplicate_items=off)" % (
+    # ddl = "create index %s_marketsegment on %s (productid, customerid, price) with (deduplicate_items=off)" % (
     ddl = "create index %s_marketsegment on %s (productid, customerid, price) " % (
           FLAGS.table_name, FLAGS.table_name)
     cursor.execute(ddl)
 
     if FLAGS.num_secondary_indexes >= 2:
-      #ddl = "create index %s_registersegment on %s (cashregisterid, price, customerid) with (deduplicate_items=off)" % (
+      #ddl = "create index %s_registersegment on %s (cashregisterid, customerid, price) with (deduplicate_items=off)" % (
       ddl = "create index %s_registersegment on %s (cashregisterid, customerid, price) " % (
             FLAGS.table_name, FLAGS.table_name)
       cursor.execute(ddl)
@@ -645,7 +645,7 @@ def generate_market_query_ps_pg(cursor, table_name):
   return 'execute market_query_ps (%s)'
 
 def generate_market_query(cursor, table_name, session, give_me_ps, vals_only, min_id, max_id):
-  productid = random.randrange(0, FLAGS.max_price)
+  productid = random.randrange(0, FLAGS.products)
 
   if FLAGS.dbms == 'mongo':
     assert not give_me_ps and not vals_only
