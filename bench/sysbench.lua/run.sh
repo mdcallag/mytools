@@ -384,94 +384,123 @@ if [[ $postwrite -eq 1 ]]; then
   #  2) Get LSM tree into deterministic state
   #  3) Collect stats
 
-  # Sleep for 60 + 60 seconds per 10M rows
-  sleepSecs=$( echo $nr $ntabs | awk '{ printf "%.0f", ((($1 * $2) / 10000000) + 1) * 60 }' )
-  echo sleepSecs is $sleepSecs > sb.o.pw.$sfx
+  total_nr=$(( nr * ntabs ))
+  # Sleep for 60s + 1s per 1M rows, with a max of 1200s
+  sleep_secs=$( echo $total_nr | awk '{ nsecs = ($1 / 1000000) + 60; if (nsecs > 1200) nsecs = 1200; printf "%.0f", nsecs }' )
+  start_secs=$( date +%s )
+  done_secs=$(( start_secs + sleep_secs ))
 
   if [[ $driver == "mysql" ]]; then
     $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
 
+    echo "vac_my starts at $( date ) with sleep_secs = $sleep_secs" > sb.o.myvac
+    echo nr is :: $total_nr :: and ntabs is :: $ntabs :: >> sb.o.myvac
+
+    for x in $( seq 1 $ntabs ); do
+      echo Analyze table sbtest${x} >> sb.o.myvac
+      /usr/bin/time -o sb.o.myvac.time.$x $client "${clientArgs[@]}" -e "analyze table sbtest${x}" > sb.o.myvac.at.$x 2>&1 &
+      apid[${x}]=$!
+    done
+
     if [[ $engine == "innodb" ]]; then
+      $client "${clientArgs[@]}" -e "show engine innodb status\G" >& sb.o.myvac.es1
       maxDirty=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct"' | awk '{ print $2 }' )
       maxDirtyLwm=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct_lwm"' | awk '{ print $2 }' )
       # This option is only in 8.0.18+
       idlePct=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_idle_flush_pct"' 2> /dev/null | awk '{ print $2 }' )
 
-      echo "Reduce max_dirty to 0 to flush InnoDB buffer pool" >> sb.o.pw.$sfx
-      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct_lwm=0' >> sb.o.pw.$sfx 2>&1
-      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct=0' >> sb.o.pw.$sfx 2>&1
-      echo "Increase idle_pct to 100 to flush InnoDB buffer pool" >> sb.o.pw.$sfx
-      $client "${clientArgs[@]}" -e 'set global innodb_idle_flush_pct=100' >> sb.o.pw.$sfx 2>&1
+      echo "Reduce max_dirty to 0 to flush InnoDB buffer pool" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct_lwm=1' >> sb.o.myvac 2>&1
+      $client "${clientArgs[@]}" -e 'set global innodb_max_dirty_pages_pct=1' >> sb.o.myvac 2>&1
+      echo "Increase idle_pct to 100 to flush InnoDB buffer pool" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e 'set global innodb_idle_flush_pct=100' >> sb.o.myvac 2>&1
+      $client "${clientArgs[@]}" -e 'show global variables' >> sb.o.myvac.show.1 2>&1
 
     elif [[ $engine == "rocksdb" ]]; then
-      echo Enable flush memtable and L0 in 2 parts >> sb.o.pw.$sfx
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es1.$sfx
-      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_now=1' >> sb.o.pw.$sfx 2>&1
-      sleep 60
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es2.$sfx
-      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> sb.o.pw.$sfx 2>&1
-      sleep 60
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.pw.es3.$sfx
+      echo Enable flush memtable and L0 in 2 parts >> sb.o.myvac
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es1
+      echo "Flush memtable at $( date )" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_now=1' >> sb.o.myvac 2>&1
+      sleep 20
+      echo "Flush lzero at $( date )" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es2
+      # Not safe to use, see issues 1200 and 1295
+      #$client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> sb.o.myvac 2>&1
+      # Alas, this only works on releases from mid 2023 or more recent
+      $client "${clientArgs[@]}" -e 'set global rocksdb_compact_lzero_now=1' >> sb.o.myvac 2>&1
+    fi
+
+    now_secs=$( date +%s )
+    if [[ now_secs -lt done_secs ]]; then
+      diff_secs=$(( done_secs - now_secs ))
+      echo Sleep $diff_secs >> sb.o.myvac
+      sleep $diff_secs
     fi
 
     for x in $( seq 1 $ntabs ); do
-      echo Analyze table sbtest${x} >> sb.o.pw.$sfx
-      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "analyze table sbtest${x}" >> sb.o.pw.$sfx 2>&1
+      echo After load: wait for analyze $n >> sb.o.myvac
+      wait ${apid[${x}]}
     done
-
-    echo "Sleep for $sleepSecs with engine $engine" >> sb.o.pw.$sfx
-    sleep $sleepSecs
+    echo "Done waiting for analyze" >> sb.o.myvac
 
     if [[ $engine == "innodb" ]]; then
-      echo "Reset max_dirty to $maxDirty and lwm to $maxDirtyLwm" >> sb.o.pw.$sfx
-      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct=$maxDirty" >> sb.o.pw.$sfx 2>&1
-      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct_lwm=$maxDirtyLwm" >> sb.o.pw.$sfx 2>&1
-      echo "Reset idle_pct to $idlePct" >> sb.o.pw.$sfx
-      $client "${clientArgs[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> sb.o.pw.$sfx 2>&1
-
+      echo "Reset max_dirty to $maxDirty and lwm to $maxDirtyLwm" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct=$maxDirty" >> sb.o.myvac 2>&1
+      $client "${clientArgs[@]}" -e "set global innodb_max_dirty_pages_pct_lwm=$maxDirtyLwm" >> sb.o.myvac 2>&1
+      echo "Reset idle_pct to $idlePct" >> sb.o.myvac
+      $client "${clientArgs[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> sb.o.myvac 2>&1
+      $client "${clientArgs[@]}" -e 'show global variables' >> sb.o.myvac.show.2 2>&1
+      $client "${clientArgs[@]}" -e "show engine innodb status\G" >& sb.o.myvac.es3
     elif [[ $engine == "rocksdb" ]]; then
-      echo Nothing to do for MyRocks after sleep >> sb.o.pw.$sfx
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es3
     fi
+
+    now_secs=$( date +%s )
+    diff_secs=$(( now_secs - start_secs ))
+    echo "vac_my done after $diff_secs at $( date )" >> sb.o.myvac
 
   elif [[ $driver == "pgsql" ]]; then
-    if [[ $client == *"oriole"* ]]; then 
-    for x in $( seq 1 $ntabs ); do
-      echo analyze sbtest${x} >> sb.o.pw.$sfx
-      echo $client "${clientArgs[@]}" -${sqlF} "analyze sbtest${x}" 
-      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "analyze sbtest${x}" > sb.o.pw.$sfx.a2${x} 2>&1 &
-      pids[${n}]=$!
-    done
-    else
-    for x in $( seq 1 $ntabs ); do
-      echo Vacuum analyze table sbtest${x} >> sb.o.pw.$sfx
-      echo $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" 
-      /usr/bin/time -o sb.o.pw.$sfx.a${x} $client "${clientArgs[@]}" -${sqlF} "vacuum (analyze, verbose) sbtest${x}" > sb.o.pw.$sfx.a2${x} 2>&1 &
-      pids[${n}]=$!
-    done
-    fi
 
-    for x in $( seq 1 $ntabs ); do
-      wait ${pids[${n}]}
-    done
-
-    if [[ $client == *"oriole"* ]]; then 
+    # if [[ $client == *"oriole"* ]]; then
     # TODO is checkpoint needed for OrioleDB?
-    echo Checkpoint >> sb.o.pw.$sfx
-    echo $client "${clientArgs[@]}" -${sqlF} "checkpoint" 
-    /usr/bin/time -o sb.o.pw.$sfx.cp $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.o.pw.$sfx.cp2 2>&1 &
-    cpid=$!
-    echo "Sleep for $sleepSecs" >> sb.o.pw.$sfx
-    sleep $sleepSecs
-    wait $cpid
-    else
-    echo Checkpoint >> sb.o.pw.$sfx
-    echo $client "${clientArgs[@]}" -${sqlF} "checkpoint" 
-    /usr/bin/time -o sb.o.pw.$sfx.cp $client "${clientArgs[@]}" -${sqlF} "checkpoint" >> sb.o.pw.$sfx.cp2 2>&1 &
-    cpid=$!
-    echo "Sleep for $sleepSecs" >> sb.o.pw.$sfx
-    sleep $sleepSecs
-    wait $cpid
+
+    echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > sb.o.pgvac
+    echo nr is :: $total_nr :: and ntabs is :: $ntabs :: >> sb.o.pgvac
+
+    x=0
+    for n in $( seq 1 $ntabs ) ; do
+      if [[ $npart -eq 0 ]]; then
+        PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum (verbose, analyze) sbtest${n}" >& sb.o.pgvac.sbtest${n} &
+        vpid[${x}]=$!
+        x=$(( $x + 1 ))
+      else
+        for p in $( seq 0 $(( $npart - 1 )) ); do
+          PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum (verbose, analyze) sbtest${n}_p${p}" >& sb.o.pgvac.sbttest${n}.p${p} &
+          vpid[${x}]=$!
+          x=$(( $x + 1 ))
+        done
+      fi
+    done
+
+    for n in $( seq 0 $(( $x - 1 )) ) ; do
+      echo After load: wait for vacuum $n >> sb.o.pgvac
+      wait ${vpid[${n}]}
+    done
+
+    echo "Checkpoint started at $( date )" >> sb.o.pgvac
+    PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "checkpoint" 2>&1 >> sb.o.pgvac
+    echo "Checkpoint done at $( date )" >> sb.o.pgvac
+
+    now_secs=$( date +%s )
+    if [[ now_secs -lt done_secs ]]; then
+      diff_secs=$(( done_secs - now_secs ))
+      echo Sleep $diff_secs >> sb.o.pgvac
+      sleep $diff_secs
     fi
+
+    now_secs=$( date +%s )
+    diff_secs=$(( now_secs - start_secs ))
+    echo "vac_pg done after $diff_secs at $( date )" >> sb.o.pgvac
 
   fi
 
