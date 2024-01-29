@@ -51,15 +51,23 @@ function vac_pg {
   done_secs=$(( start_secs + sleep_secs ))
 
   pga=( -h 127.0.0.1 -U root ib )
+
+  major_version=$( PGPASSWORD="pw" $client "${pga[@]}" bin/psql ib -x -c 'show server_version' | grep server_version | awk '{ print $3 }' | tr '.' ' ' | awk '{ print $1 }' )
+  vac_args="(verbose, analyze)"
+  if [[ $major_version -ge 12 ]]; then
+    vac_args="(verbose, analyze, index_cleanup ON)"
+  fi
+  echo "vac_args is $vac_args" >> o.pgvac
+
   x=0
   for n in $( seq 1 $my_ntabs ) ; do
     if [[ $npart -eq 0 ]]; then
-      PGPASSWORD="pw" $client "${pga[@]}" -x -c "vacuum (verbose, analyze) pi${n}" >& o.pgvac.pi${n} &
+      PGPASSWORD="pw" $client "${pga[@]}" -x -c "vacuum $vac_args pi${n}" >& o.pgvac.pi${n} &
       vpid[${x}]=$!
       x=$(( $x + 1 ))
     else
       for p in $( seq 0 $(( $npart - 1 )) ); do
-        PGPASSWORD="pw" $client "${pga[@]}" -x -c "vacuum (verbose, analyze) pi${n}_p${p}" >& o.pgvac.pi${n}.p${p} &
+        PGPASSWORD="pw" $client "${pga[@]}" -x -c "vacuum $vac_args pi${n}_p${p}" >& o.pgvac.pi${n}.p${p} &
         vpid[${x}]=$!
         x=$(( $x + 1 ))
       done

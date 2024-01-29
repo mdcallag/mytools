@@ -39,7 +39,7 @@ else
 names=""
 fi
 
-ntabs=8
+ntabs=$dop
 if [[ $only1t == "yes" ]]; then
   ntabs=1
 fi
@@ -431,6 +431,10 @@ $client ib -x -c 'select * from pg_statio_all_sequences' > o.pgi.seq
 $client ib -x -c "select pg_size_pretty(pg_indexes_size('pi1')), pg_indexes_size('pi1')" > o.pg.szs
 $client ib -x -c "select pg_size_pretty(pg_relation_size('pi1')), pg_relation_size('pi1')" >> o.pg.szs
 $client ib -x -c "select pg_size_pretty(pg_total_relation_size('pi1')), pg_total_relation_size('pi1')" >> o.pg.szs
+
+for n in $( seq 1 $ntabs ) ; do
+  $client ib -x -c "SELECT * FROM pg_stat_user_tables" > o.pgs.sut${n}
+done
 
 $client ib -c '\d+ pi1' > o.pg.dplus
 if [[ $npart -gt 0 ]]; then
