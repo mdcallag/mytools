@@ -1,5 +1,6 @@
+bench/ibench/iq.shhttps://www.ryot.org/
 e=$1
-eo=$2
+eo=$2Tap on a clip to paste it in the text box.
 client=$3
 data=$4
 dname=$5
