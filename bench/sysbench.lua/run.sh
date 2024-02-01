@@ -467,15 +467,22 @@ if [[ $postwrite -eq 1 ]]; then
     echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > sb.o.pgvac
     echo nr is :: $total_nr :: and ntabs is :: $ntabs :: >> sb.o.pgvac
 
+    major_version=$( PGPASSWORD="pw" $client "${clientArgs[@]}" ib -x -c 'show server_version' | grep server_version | awk '{ print $3 }' | tr '.' ' ' | awk '{ print $1 }' )
+    vac_args="(verbose, analyze)"
+    if [[ $major_version -ge 12 ]]; then
+      vac_args="(verbose, analyze, index_cleanup ON)"
+    fi
+    echo "vac_args is $vac_args" >> sb.o.pgvac
+
     x=0
     for n in $( seq 1 $ntabs ) ; do
       if [[ $npart -eq 0 ]]; then
-        PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum (verbose, analyze) sbtest${n}" >& sb.o.pgvac.sbtest${n} &
+        PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum $vac_args sbtest${n}" >& sb.o.pgvac.sbtest${n} &
         vpid[${x}]=$!
         x=$(( $x + 1 ))
       else
         for p in $( seq 0 $(( $npart - 1 )) ); do
-          PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum (verbose, analyze) sbtest${n}_p${p}" >& sb.o.pgvac.sbttest${n}.p${p} &
+          PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c "vacuum $vac_args sbtest${n}_p${p}" >& sb.o.pgvac.sbttest${n}.p${p} &
           vpid[${x}]=$!
           x=$(( $x + 1 ))
         done

@@ -52,7 +52,7 @@ function vac_pg {
 
   pga=( -h 127.0.0.1 -U root ib )
 
-  major_version=$( PGPASSWORD="pw" $client "${pga[@]}" bin/psql ib -x -c 'show server_version' | grep server_version | awk '{ print $3 }' | tr '.' ' ' | awk '{ print $1 }' )
+  major_version=$( PGPASSWORD="pw" $client "${pga[@]}" ib -x -c 'show server_version' | grep server_version | awk '{ print $3 }' | tr '.' ' ' | awk '{ print $1 }' )
   vac_args="(verbose, analyze)"
   if [[ $major_version -ge 12 ]]; then
     vac_args="(verbose, analyze, index_cleanup ON)"
