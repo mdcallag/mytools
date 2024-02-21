@@ -40,6 +40,7 @@ import math
 import timeit
 import traceback
 import cProfile
+from simple_pid import PID
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -106,6 +107,9 @@ def ShowUsage():
 #
 # options
 #
+DEFINE_boolean('control_autovac', False, 'If we are taking control of the autovacuuming')
+DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
+DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
 
 DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
 DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
@@ -1173,6 +1177,164 @@ def insert_ps_pg(cursor, table_name):
   params = '%s,' * ((6 * FLAGS.rows_per_commit) - 1) + '%s'
   return 'execute insert_ps (%s)' % (params)
 
+def log_tuples(queue, cursor, query, schema):
+    # TODO: db_id, exp_group, exp_name,
+    now = datetime.now()
+    stmts = []
+    insert_stmts = []
+
+    cursor.execute(query)
+    tuples = cursor.fetchall()
+
+    for tuple in tuples:
+        for field_name, v in zip(schema, tuple):
+            stmt = []
+            insert_stmt = "("
+
+            stmt.append(now)
+            insert_stmt += "'%s'" % now + ", "
+
+            stmt.append(query)
+            insert_stmt += "'%s'" % query.replace("'", "''") + ", "
+
+            stmt.append(field_name)
+            insert_stmt += "'%s'" % field_name + ", "
+
+            if v is None:
+                stmt.extend([None, None, None, None, None])
+                insert_stmt += "NULL, NULL, NULL, NULL, NULL"
+            elif type(v) is str:
+                stmt.extend([v, None, None, None, None])
+                insert_stmt += "'%s', NULL, NULL, NULL, NULL" % v
+            elif type(v) is int:
+                stmt.extend([None, v, None, None, None])
+                insert_stmt += "NULL, '%d', NULL, NULL, NULL" % v
+            elif type(v) is float:
+                stmt.extend([None, None, v, None, None])
+                insert_stmt += "NULL, NULL, '%.2f', NULL, NULL" % v
+            elif type(v) is bool:
+                stmt.extend([None, None, None, v, None])
+                insert_stmt += "NULL, NULL, NULL, %s, NULL" % v
+            elif type(v) is datetime:
+                stmt.extend([None, None, None, None, v])
+                insert_stmt += "NULL, NULL, NULL, NULL, '%s'" % v
+            else:
+                print("Unknown type for value: ", v)
+                print(type(v))
+                assert False
+
+            #print("Statement: ", stmt)
+            stmts.append(stmt)
+
+            insert_stmt += ")"
+            insert_stmts.append(insert_stmt)
+
+    final_insert_stmt = "insert into logging (reading_time, reading_name, reading_metadata, reading_value_str, reading_value_int, reading_value_float, reading_value_bool, reading_value_time) values %s" % ", ".join(insert_stmts)
+    #print(final_insert_stmt)
+    cursor.execute(final_insert_stmt)
+    return tuples
+
+def agent_thread(done_flag):
+    db_conn = get_conn()
+    cursor = db_conn.cursor()
+    event_queue = Queue()
+
+    #create logging table
+    ddl = "create table if not exists logging (reading_id bigserial primary key, reading_time timestamp without time zone, reading_metadata varchar(4000), reading_name varchar(1000) not null, reading_value_str varchar(4000), reading_value_int bigint, reading_value_float float, reading_value_bool bool, reading_value_time timestamp without time zone)"
+    cursor.execute(ddl)
+
+    current_delay = FLAGS.initial_autovac_delay
+    prev_delay = current_delay
+    delay_adjustment_count = 0
+
+    cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
+    if FLAGS.control_autovac:
+        cursor.execute("alter system set autovacuum_vacuum_scale_factor to 0")
+        cursor.execute("alter system set autovacuum_vacuum_insert_scale_factor to 0")
+        cursor.execute("alter system set autovacuum_vacuum_threshold to 0")
+        cursor.execute("alter system set autovacuum_analyze_threshold to 0")
+        cursor.execute("alter system set autovacuum_vacuum_cost_delay to 0")
+        cursor.execute("alter system set autovacuum_vacuum_cost_limit to 10000")
+    else:
+        cursor.execute("alter system set autovacuum_vacuum_scale_factor to default")
+        cursor.execute("alter system set autovacuum_vacuum_insert_scale_factor to default")
+        cursor.execute("alter system set autovacuum_vacuum_threshold to default")
+        cursor.execute("alter system set autovacuum_analyze_threshold to default")
+        cursor.execute("alter system set autovacuum_vacuum_cost_delay to default")
+        cursor.execute("alter system set autovacuum_vacuum_cost_limit to default")
+
+    cursor.execute("select from pg_reload_conf()")
+
+    range_min = math.log(1/(5*60.0))
+    range_max = math.log(1.0)
+    #print("Range: ", range_min, range_max)
+    pid = PID(Kp=0.5, Ki=0.5, Kd=2.0, setpoint=60.0, output_limits=(range_min, range_max), auto_mode=True)
+
+    count = 0
+    live_sum = 0.0
+    dead_sum = 0.0
+    free_sum = 0.0
+
+    while not done_flag.value:
+        pgstattuples = log_tuples(event_queue, cursor,"select * from pgstattuple('purchases_index')",
+                                  ("table_len", "tuple_count", "tuple_len", "tuple_percent", "dead_tuple_count", "dead_tuple_len", "dead_tuple_percent", "free_space", "free_percent"))
+
+        log_tuples(event_queue, cursor,"select * from pg_stat_user_tables where relname = 'purchases_index'",
+                   ("relid", "schemaname", "relname", "seq_scan", "seq_tup_read", "idx_scan", "idx_tup_fetch",
+                    "n_tup_ins", "n_tup_upd", "n_tup_del", "n_tup_hot_upd", "n_live_tup", "n_dead_tup", "n_mod_since_analyze",
+                    "n_ins_since_vacuum", "last_vacuum", "last_autovacuum", "last_analyze",  "last_autoanalyze", "vacuum_count",
+                    "autovacuum_count", "analyze_count", "autoanalyze_count"))
+
+        log_tuples(event_queue, cursor, "select pg_visibility_map_summary('purchases_index')", ("pg_visibility_map_summary", ))
+
+        log_tuples(event_queue, cursor, "select * from pg_sys_cpu_usage_info()",
+                   ("usermode_normal_process_percent", "usermode_niced_process_percent",
+                    "kernelmode_process_percent", "idle_mode_percent", "io_completion_percent",
+                    "servicing_irq_percent", "servicing_softirq_percent", "user_time_percent",
+                    "processor_time_percent", "privileged_time_percent", "interrupt_time_percent"))
+
+        log_tuples(event_queue, cursor, "select * from pg_sys_memory_info()",
+                   ("total_memory", "used_memory", "free_memory", "swap_total",
+                    "swap_used", "swap_free", "cache_total", "kernel_total", "kernel_paged", "kernel_non_paged",
+                    "total_page_file", "avail_page_file"))
+
+        log_tuples(event_queue, cursor, "select * from pg_sys_load_avg_info()",
+                   ("load_avg_one_minute", "load_avg_five_minutes", "load_avg_ten_minutes", "load_avg_fifteen_minutes"))
+
+        log_tuples(event_queue, cursor, "select * from pg_sys_process_info()",
+                   ("total_processes", "running_processes", "sleeping_processes", "stopped_processes", "zombie_processes"))
+
+        t = pgstattuples[0]
+        live_pct = t[3]
+        dead_pct = t[6]
+        free_pct = t[8]
+
+        count += 1
+        live_sum += live_pct
+        dead_sum += dead_pct
+        free_sum += free_pct
+        #print("Live tuple % (avg): ", live_pct, live_sum / count, "Dead tuple % (avg):", dead_pct, dead_sum / count, "Free space % (avg):", free_pct, free_sum / count)
+
+        pid_out = pid(live_pct)
+        if FLAGS.enable_pid:
+            current_delay = int(math.ceil(1.0/math.exp(pid_out)))
+        #print("PID output %f, current_delay %d" % (pid_out, current_delay))
+        if prev_delay != current_delay:
+            prev_delay = current_delay
+            delay_adjustment_count += 1
+            #print("alter system set autovacuum_naptime to %d" % current_delay)
+            if FLAGS.control_autovac:
+                cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
+                cursor.execute("select from pg_reload_conf()")
+
+        time.sleep(1)
+
+    cursor.execute("select autovacuum_count from pg_stat_user_tables")
+    autovac_count = cursor.fetchall()[0][0]
+    print("Autovac count: ", autovac_count)
+    print("Delay adjustments: ", delay_adjustment_count)
+    print("Live tuple %: ", live_sum / count, "Dead tuple %:", dead_sum / count, "Free space %:", free_sum / count)
+
 def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inserter):
   # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
   # block on this until main thread wants all processes to run
@@ -1419,12 +1581,14 @@ def run_benchmark():
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
     request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf))
+    agent = Process(target=agent_thread, args=(done_flag,))
 
     # start up the insert execution process with this queue
     inserter.start()
     if FLAGS.delete_per_insert:
       deleter.start()
     request_gen.start()
+    agent.start()
 
   htap_thr = None
   if FLAGS.htap_transaction_seconds:
@@ -1477,8 +1641,12 @@ def run_benchmark():
 
         sys.stdout.flush()
         request_gen.terminate()
-        sys.stdout.flush()
 
+        # print('Wait for agent...')
+        sys.stdout.flush()
+        agent.join()
+
+        sys.stdout.flush()
         inserter.terminate()
 
         if FLAGS.delete_per_insert:
