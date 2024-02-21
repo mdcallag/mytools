@@ -128,6 +128,7 @@ DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
 DEFINE_integer('warmup', 0, 'TODO')
+DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
 DEFINE_boolean('delete_per_insert', False,
                'When True, do a delete for every insert')
@@ -274,7 +275,8 @@ def get_conn(autocommit_trx=True):
                            autocommit=autocommit_trx)
   else:
     # TODO user, passwd, etc
-    conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host)
+    conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host,
+                            user=FLAGS.db_user, password=FLAGS.db_password)
     conn.set_session(autocommit=autocommit_trx)
     return conn
 
@@ -841,8 +843,8 @@ def get_min_or_max_trxid(get_min):
 
   db_cursor.close()
   et = time.time()
-  if get_min:
-    print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
+  #if get_min and val is not None:
+  #  print("get_min_trxid = %d in %.3f seconds\n" % (val, et-st), flush=True)
   return val
 
 def HtapTrx(done_flag, barrier):
@@ -1068,16 +1070,7 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   db_conn.close()
   result_q.put((rthist_result(rthist, 'Query rt:'), extra))
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid):
-
-  # Smallest trxid which is used for deletes
-  min_trxid = -1
-  if FLAGS.delete_per_insert:
-    assert FLAGS.dbms != 'mongo'
-    min_trxid = get_min_or_max_trxid(True)
-    assert min_trxid >= 0
-    # print('min_trxid = %d\n' % min_trxid)
-
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1086,8 +1079,6 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
   inserted = 0
 
   sum_queries = 0
-
-  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
 
   rounds_per_second = 0
   if (FLAGS.inserts_per_second):
@@ -1107,11 +1098,21 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
 
     # deletes - TODO support for MongoDB
     if FLAGS.delete_per_insert:
+      # Smallest trxid which is used for deletes
+      min_trxid = -1
+      if FLAGS.delete_per_insert:
+          assert FLAGS.dbms != 'mongo'
+          min_trxid = get_min_or_max_trxid(True)
+          if min_trxid is None:
+              # Clamping min_trxid to 0.
+              min_trxid = 0
+          assert min_trxid >= 0
+       #   print('min_trxid = %d\n' % min_trxid)
+
       delete_sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
                     % (FLAGS.table_name, min_trxid, min_trxid + FLAGS.rows_per_commit))
       # print('%s\n' % delete_sql)
       delete_stmt_q.put(delete_sql)
-      min_trxid += FLAGS.rows_per_commit
       shared_min_trxid.value = min_trxid
 
     # enforce write rate limit if set
@@ -1216,7 +1217,7 @@ def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inse
   rthist = rthist_new()
 
   # print("statement_exec(inserter=%s): enter loop at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
-  while True:
+  while not done_flag.value:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
     if stmt == you_are_done:
@@ -1358,6 +1359,16 @@ def run_benchmark():
     conn = get_conn()
     conn.close()
 
+  rand_data_buf = base64.b64encode(os.urandom(1024 * 1024 * 4)).decode('ascii')
+  if FLAGS.initial_size > 0:
+      conn = get_conn()
+      cursor = conn.cursor()
+      print("Inserting initial tuples...")
+      for i in range(int(FLAGS.initial_size/FLAGS.rows_per_commit)):
+        rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
+        cursor.execute(rows)
+      print("Done")
+
   # Used to get all threads running at the same point in time
   barrier = Barrier(n_parties)
 
@@ -1407,7 +1418,7 @@ def run_benchmark():
     if FLAGS.delete_per_insert:
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid))
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf))
 
     # start up the insert execution process with this queue
     inserter.start()
@@ -1501,8 +1512,8 @@ def run_benchmark():
   max_q, sum_q, retry_q, retry_i, retry_d = sum_queries(shared_vars, inserted)
   print('Totals: %.1f secs, %.1f rows/sec, %s rows, %d %d %d insert-delete-query retry' % (
       test_end - test_start,
-      FLAGS.max_rows / (test_end - test_start),
-      FLAGS.max_rows, retry_i, retry_d, retry_q))
+      inserted / (test_end - test_start),
+      inserted, retry_i, retry_d, retry_q))
   print('Done')
 
 def main(argv):
