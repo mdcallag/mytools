@@ -49,6 +49,8 @@ dpg16=${dbms_pfx}/pg16
 dmy80=${dbms_pfx}/my80
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
+dma11=${dbms_pfx}/ma11
+dma10=${dbms_pfx}/ma10
 dmyfb56=${dbms_pfx}/fbmy56
 dmyfb80=${dbms_pfx}/fbmy80
 dmo40=${dbms_pfx}/mo40
@@ -152,6 +154,44 @@ function do_in56 {
   mkdir -p $rdir
   mv $dmy56/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmy56/etc/my.cnf $rdir
+}
+
+function do_ma11 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dma11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dma11/bin/mariadb /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dma11; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.ma11.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dma11/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dma11/etc/my.cnf $rdir
+}
+
+function do_ma10 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dma10; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dma10/bin/mariadb /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dma10; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.ma10.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dma10/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dma10/etc/my.cnf $rdir
 }
 
 function do_pg9 {
@@ -399,6 +439,10 @@ elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in56" ]]; then
   do_in56 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "ma11" ]]; then
+  do_ma11 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "ma10" ]]; then
+  do_ma10 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "mo40" ]]; then
   do_mo40 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "mo42" ]]; then
