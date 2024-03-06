@@ -1229,9 +1229,10 @@ def log_tuples(queue, cursor, query, schema):
             insert_stmt += ")"
             insert_stmts.append(insert_stmt)
 
-    final_insert_stmt = "insert into logging (reading_time, reading_name, reading_metadata, reading_value_str, reading_value_int, reading_value_float, reading_value_bool, reading_value_time) values %s" % ", ".join(insert_stmts)
+    final_insert_stmt = "insert into logging (reading_time, reading_metadata, reading_name, reading_value_str, reading_value_int, reading_value_float, reading_value_bool, reading_value_time) values %s" % ", ".join(insert_stmts)
     #print(final_insert_stmt)
     cursor.execute(final_insert_stmt)
+
     return tuples
 
 def agent_thread(done_flag):
@@ -1243,27 +1244,36 @@ def agent_thread(done_flag):
     ddl = "create table if not exists logging (reading_id bigserial primary key, reading_time timestamp without time zone, reading_metadata varchar(4000), reading_name varchar(1000) not null, reading_value_str varchar(4000), reading_value_int bigint, reading_value_float float, reading_value_bool bool, reading_value_time timestamp without time zone)"
     cursor.execute(ddl)
 
+    #pretend we just did an autovacuum
+    initial_time = time.time()
+    last_autovac_time = initial_time
+
     current_delay = FLAGS.initial_autovac_delay
     prev_delay = current_delay
     delay_adjustment_count = 0
+    vacuum_count = 0
 
-    cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
+    #cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
     if FLAGS.control_autovac:
-        cursor.execute("alter system set autovacuum_vacuum_scale_factor to 0")
-        cursor.execute("alter system set autovacuum_vacuum_insert_scale_factor to 0")
-        cursor.execute("alter system set autovacuum_vacuum_threshold to 0")
-        cursor.execute("alter system set autovacuum_analyze_threshold to 0")
-        cursor.execute("alter system set autovacuum_vacuum_cost_delay to 0")
-        cursor.execute("alter system set autovacuum_vacuum_cost_limit to 10000")
+        cursor.execute("alter table %s set ("
+                       "autovacuum_enabled = off,"
+                       "autovacuum_vacuum_scale_factor = 0,"
+                       "autovacuum_vacuum_insert_scale_factor = 0,"
+                       "autovacuum_vacuum_threshold = 0,"
+                       "autovacuum_vacuum_cost_delay = 0,"
+                       "autovacuum_vacuum_cost_limit = 10000"
+                       ")" % FLAGS.table_name)
     else:
-        cursor.execute("alter system set autovacuum_vacuum_scale_factor to default")
-        cursor.execute("alter system set autovacuum_vacuum_insert_scale_factor to default")
-        cursor.execute("alter system set autovacuum_vacuum_threshold to default")
-        cursor.execute("alter system set autovacuum_analyze_threshold to default")
-        cursor.execute("alter system set autovacuum_vacuum_cost_delay to default")
-        cursor.execute("alter system set autovacuum_vacuum_cost_limit to default")
+        cursor.execute("alter table %s reset ("
+                       "autovacuum_enabled,"
+                       "autovacuum_vacuum_scale_factor,"
+                       "autovacuum_vacuum_insert_scale_factor,"
+                       "autovacuum_vacuum_threshold,"
+                       "autovacuum_vacuum_cost_delay,"
+                       "autovacuum_vacuum_cost_limit"
+                       ")" % FLAGS.table_name)
 
-    cursor.execute("select from pg_reload_conf()")
+    #cursor.execute("select from pg_reload_conf()")
 
     range_min = math.log(1/(5*60.0))
     range_max = math.log(1.0)
@@ -1276,64 +1286,96 @@ def agent_thread(done_flag):
     free_sum = 0.0
 
     while not done_flag.value:
-        pgstattuples = log_tuples(event_queue, cursor,"select * from pgstattuple('purchases_index')",
-                                  ("table_len", "tuple_count", "tuple_len", "tuple_percent", "dead_tuple_count", "dead_tuple_len", "dead_tuple_percent", "free_space", "free_percent"))
+        now = time.time()
 
-        log_tuples(event_queue, cursor,"select * from pg_stat_user_tables where relname = 'purchases_index'",
-                   ("relid", "schemaname", "relname", "seq_scan", "seq_tup_read", "idx_scan", "idx_tup_fetch",
-                    "n_tup_ins", "n_tup_upd", "n_tup_del", "n_tup_hot_upd", "n_live_tup", "n_dead_tup", "n_mod_since_analyze",
-                    "n_ins_since_vacuum", "last_vacuum", "last_autovacuum", "last_analyze",  "last_autoanalyze", "vacuum_count",
-                    "autovacuum_count", "analyze_count", "autoanalyze_count"))
+        #pgstattuples = log_tuples(event_queue, cursor,"select * from pgstattuple('purchases_index')",
+        #                          ("table_len", "tuple_count", "tuple_len", "tuple_percent", "dead_tuple_count", "dead_tuple_len", "dead_tuple_percent", "free_space", "free_percent"))
 
-        log_tuples(event_queue, cursor, "select pg_visibility_map_summary('purchases_index')", ("pg_visibility_map_summary", ))
+        #log_tuples(event_queue, cursor,"select * from pg_stat_user_tables where relname = 'purchases_index'",
+        #           ("relid", "schemaname", "relname", "seq_scan", "seq_tup_read", "idx_scan", "idx_tup_fetch",
+        #            "n_tup_ins", "n_tup_upd", "n_tup_del", "n_tup_hot_upd", "n_live_tup", "n_dead_tup", "n_mod_since_analyze",
+        #            "n_ins_since_vacuum", "last_vacuum", "last_autovacuum", "last_analyze",  "last_autoanalyze", "vacuum_count",
+        #            "autovacuum_count", "analyze_count", "autoanalyze_count"))
 
-        log_tuples(event_queue, cursor, "select * from pg_sys_cpu_usage_info()",
-                   ("usermode_normal_process_percent", "usermode_niced_process_percent",
-                    "kernelmode_process_percent", "idle_mode_percent", "io_completion_percent",
-                    "servicing_irq_percent", "servicing_softirq_percent", "user_time_percent",
-                    "processor_time_percent", "privileged_time_percent", "interrupt_time_percent"))
+        #log_tuples(event_queue, cursor, "select pg_visibility_map_summary('purchases_index')", ("pg_visibility_map_summary", ))
 
-        log_tuples(event_queue, cursor, "select * from pg_sys_memory_info()",
-                   ("total_memory", "used_memory", "free_memory", "swap_total",
-                    "swap_used", "swap_free", "cache_total", "kernel_total", "kernel_paged", "kernel_non_paged",
-                    "total_page_file", "avail_page_file"))
+        #log_tuples(event_queue, cursor, "select * from pg_sys_cpu_usage_info()",
+        #           ("usermode_normal_process_percent", "usermode_niced_process_percent",
+        #            "kernelmode_process_percent", "idle_mode_percent", "io_completion_percent",
+        #            "servicing_irq_percent", "servicing_softirq_percent", "user_time_percent",
+        #            "processor_time_percent", "privileged_time_percent", "interrupt_time_percent"))
 
-        log_tuples(event_queue, cursor, "select * from pg_sys_load_avg_info()",
-                   ("load_avg_one_minute", "load_avg_five_minutes", "load_avg_ten_minutes", "load_avg_fifteen_minutes"))
+        #log_tuples(event_queue, cursor, "select * from pg_sys_memory_info()",
+        #           ("total_memory", "used_memory", "free_memory", "swap_total",
+        #            "swap_used", "swap_free", "cache_total", "kernel_total", "kernel_paged", "kernel_non_paged",
+        #            "total_page_file", "avail_page_file"))
 
-        log_tuples(event_queue, cursor, "select * from pg_sys_process_info()",
-                   ("total_processes", "running_processes", "sleeping_processes", "stopped_processes", "zombie_processes"))
+        #log_tuples(event_queue, cursor, "select * from pg_sys_load_avg_info()",
+        #           ("load_avg_one_minute", "load_avg_five_minutes", "load_avg_ten_minutes", "load_avg_fifteen_minutes"))
 
-        t = pgstattuples[0]
-        live_pct = t[3]
-        dead_pct = t[6]
-        free_pct = t[8]
+        #log_tuples(event_queue, cursor, "select * from pg_sys_process_info()",
+        #           ("total_processes", "running_processes", "sleeping_processes", "stopped_processes", "zombie_processes"))
+
+        #t = pgstattuples[0]
+        #live_pct = t[3]
+        #dead_pct = t[6]
+        #free_pct = t[8]
+
+        cursor.execute("select pg_total_relation_size('public.purchases_index')")
+        total_space = cursor.fetchall()[0][0]
+
+        cursor.execute("select pg_table_size('public.purchases_index')")
+        used_space = cursor.fetchall()[0][0]
+
+        cursor.execute("select n_live_tup, n_dead_tup from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
+        stats = cursor.fetchall()[0]
+        if stats[0]+stats[1] == 0:
+            live_raw_pct = 0.0
+        else:
+            live_raw_pct = stats[0]/(stats[0]+stats[1])
+
+        print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
+
+        used_pct = used_space/total_space
+        live_pct = 100*live_raw_pct*used_pct
+        dead_pct = 100*(1.0-live_raw_pct)*used_pct
+        free_pct = 100*(1.0-used_pct)
 
         count += 1
         live_sum += live_pct
         dead_sum += dead_pct
         free_sum += free_pct
-        #print("Live tuple % (avg): ", live_pct, live_sum / count, "Dead tuple % (avg):", dead_pct, dead_sum / count, "Free space % (avg):", free_pct, free_sum / count)
+        print("Live tuple %% (avg): %.2f, %.2f, Dead tuple %% (avg): %.2f, %.2f, Free space %% (avg): %.2f, %.2f"
+              % (live_pct, live_sum / count, dead_pct, dead_sum / count, free_pct, free_sum / count))
 
         pid_out = pid(live_pct)
         if FLAGS.enable_pid:
             current_delay = int(math.ceil(1.0/math.exp(pid_out)))
-        #print("PID output %f, current_delay %d" % (pid_out, current_delay))
+            print("PID output %f, current_delay %d" % (pid_out, current_delay))
+
         if prev_delay != current_delay:
             prev_delay = current_delay
             delay_adjustment_count += 1
             #print("alter system set autovacuum_naptime to %d" % current_delay)
-            if FLAGS.control_autovac:
-                cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
-                cursor.execute("select from pg_reload_conf()")
+            #if FLAGS.control_autovac:
+                #cursor.execute("alter system set autovacuum_naptime to %d" % current_delay)
+                #cursor.execute("select from pg_reload_conf()")
+
+        if FLAGS.control_autovac:
+            if int(now-last_autovac_time) > current_delay:
+                last_autovac_time = now
+                print("Vacuuming table...")
+                cursor.execute("vacuum %s" % FLAGS.table_name)
+                vacuum_count += 1
+
+        cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
+        internal_vac_count, internal_autovac_count = cursor.fetchall()[0]
+        print("===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" % (now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
 
         time.sleep(1)
 
-    cursor.execute("select autovacuum_count from pg_stat_user_tables")
-    autovac_count = cursor.fetchall()[0][0]
-    print("Autovac count: ", autovac_count)
     print("Delay adjustments: ", delay_adjustment_count)
-    print("Live tuple %: ", live_sum / count, "Dead tuple %:", dead_sum / count, "Free space %:", free_sum / count)
+    print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))
 
 def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inserter):
   # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
