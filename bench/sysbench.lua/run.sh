@@ -98,7 +98,7 @@ oldIFS="$IFS"
 IFS=","; read -ra dbA <<< "$dbAndCreds"
 IFS="$oldIFS"
 
-if [[ ${dbA[0]} == "mysql" ]]; then
+if [[ ${dbA[0]} == "mysql" || ${dbA[0]} == "mariadb" ]]; then
   if [[ ${#dbA[@]} -ne 6 ]]; then
     echo "For MySQL expect 6 args (mysql,user,password,host,db,engine) got ${#dbA[@]} args from $dbAndCreds"
     exit -1
@@ -161,6 +161,9 @@ iopid=$!
 if [[ ${dbA[0]} == "mysql" ]]; then
   while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfx &
   pspid=$!
+elif [[ ${dbA[0]} == "mariadb" ]]; then
+  while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  pspid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfx &
   pspid=$!
@@ -218,6 +221,9 @@ iopid=$!
 if [[ ${dbA[0]} == "mysql" ]]; then
   while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
+elif [[ ${dbA[0]} == "mariadb" ]]; then
+  while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
+  pspid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
@@ -242,7 +248,15 @@ while [ $x -eq 0 ]; do
     sleep $pause_secs
   fi
 
-  dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+  if [[ ${dbA[0]} == "mysql" ]]; then
+    dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+  elif [[ ${dbA[0]} == "mariadb" ]]; then
+    dbbpid=$( ps aux | grep mariadbd | grep -v mariadbd-safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+  else
+    echo TODO - support Postgres
+    exit 1
+  fi
+
   if [ -z $dbbpid ]; then echo Cannot get mysqld PID; continue; fi
 
   hw_secs=10
