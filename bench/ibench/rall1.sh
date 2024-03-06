@@ -168,7 +168,7 @@ function do_ma11 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dma11; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dma11/bin/mariadb /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dma11/bin/mariadb /data/m/my $dev 1 $dop mariadb no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dma11; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.ma11.c${cnf}${ps}
   mkdir -p $rdir
@@ -187,7 +187,7 @@ function do_ma10 {
   echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
   sfx=in.$rmemt.dop$dop.c$cnf
   cd $dma10; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
-  cd $dgit; bash iq.sh innodb "" $dma10/bin/mariadb /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dma10/bin/mariadb /data/m/my $dev 1 $dop mariadb no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
   cd $dma10; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.ma10.c${cnf}${ps}
   mkdir -p $rdir

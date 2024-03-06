@@ -25,6 +25,8 @@ if [[ $dbms == "mongo" ]] ; then
 echo Use mongo
 elif [[ $dbms == "mysql" ]] ; then 
 echo Use mysql
+elif [[ $dbms == "mariadb" ]] ; then 
+echo Use mariadb 
 elif [[ $dbms == "postgres" ]] ; then 
 echo Use postgres
 else
@@ -226,7 +228,7 @@ if [[ vac -ge 1 ]] ; then
     # Vaccum after load & index. Wait for vacuum to finish before starting read-write tests
     vac_pg $nr1 $ntabs
     mv o.* l.i2
-  elif [[ $dbms == "mysql" ]]; then
+  elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
     vac_my $nr1 $ntabs
     mv o.* l.i2
   fi

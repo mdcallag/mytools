@@ -60,11 +60,16 @@ if [[ $dbms == "mongo" ]]; then
   splid="-1"
   top -b -d 20 > o.top.$sfx &
   topid=$!
-elif [[ $dbms == "mysql" ]]; then
+elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   dbid=ib
   $client -uroot -ppw -A -h$host -e 'reset master'
-  while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
-  spid=$!
+  if [[ $dbms == "mysql" ]]; then
+    while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
+    spid=$!
+  else
+    while :; do ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
+    spid=$!
+  fi
   while :; do date; $client -uroot -ppw -A -h$host -e 'show processlist'; sleep 20; done > o.espl.$sfx &
   splid=$!
   top -b -d 20 > o.top.$sfx &
@@ -85,7 +90,7 @@ if [[ $setup == "yes" ]] ; then
     # echo "show databases" | $client $moauth 
     sleep 5
     $client $moauth ib --eval 'db.createCollection("foo")'
-  elif [[ $dbms == "mysql" ]]; then
+  elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
     $client -uroot -ppw -A -h$host -e 'drop database ib'
     sleep 5
     $client -uroot -ppw -A -h$host -e 'create database ib'
@@ -149,6 +154,9 @@ while :; do
   elif [[ $dbms == "mysql" ]]; then
     # mysql
     dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
+  elif [[ $dbms == "mariadb" ]]; then
+    # mysql
+    dbpid=$( ps aux  | grep -v mariadb-safe | grep mariadbd | grep -v grep | awk '{ print $2 }' )
   fi
 
   if [ -z $dbpid ]; then
@@ -249,7 +257,7 @@ for n in $( seq 1 $realdop ) ; do
 
   if [[ $dbms == "mongo" ]]; then
     db_args="--mongo_w=1 --db_user=root --db_password=pw"
-  elif [[ $dbms == "mysql" ]]; then
+  elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
     db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
   else
     #db_args="--db_user=root --db_password=pw --engine=pg --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
@@ -375,7 +383,7 @@ echo "db.stats()" | $client $moauth > o.dbstats.$sfx
 echo "db.oplog.rs.stats()" | $client $moauth local > o.oplog.$sfx
 echo "show dbs" | $client $moauth $dbid > o.dbs.$sfx
 
-elif [[ $dbms == "mysql" ]]; then
+elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
 $client -uroot -ppw -A -h$host -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine tokudb status\G' > o.est.$sfx
