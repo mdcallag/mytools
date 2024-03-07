@@ -60,6 +60,7 @@ if [[ $dbms == "mongo" ]]; then
   splid="-1"
   top -b -d 20 > o.top.$sfx &
   topid=$!
+  idbms="mongo"
 elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   dbid=ib
   $client -uroot -ppw -A -h$host -e 'reset master'
@@ -74,6 +75,7 @@ elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   splid=$!
   top -b -d 20 > o.top.$sfx &
   topid=$!
+  idbms="mysql"
 elif [[ $dbms == "postgres" ]]; then
   if [[ $client == *"oriole"* ]]; then uses_oriole=1; fi
   dbid=ib
@@ -82,6 +84,10 @@ elif [[ $dbms == "postgres" ]]; then
   spid=$!
   top -b -d 20 > o.top.$sfx &
   topid=$!
+  idbms="postgres"
+else
+  echo "dbms must be one of mongodb, mysql, mariadb, postgres but was $dbms"
+  exit -1
 fi
 
 if [[ $setup == "yes" ]] ; then
@@ -282,7 +288,7 @@ for n in $( seq 1 $realdop ) ; do
   fi
 
   spr=1
-  cmdline="$mypy iibench.py --dbms=$dbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --my_id=$n $upq $names"
+  cmdline="$mypy iibench.py --dbms=$idbms --db_name=ib --secs_per_report=$spr --db_host=$host ${db_args} --max_rows=${maxr} --table_name=${tn} $setstr --num_secondary_indexes=$ns --data_length_min=$dlmin --data_length_max=$dlmax --rows_per_commit=${rpc} --inserts_per_second=${ips} --query_threads=${nqt} --seed=$(( $start_secs + $n )) --dbopt=$dbopt --my_id=$n $upq $names"
 
   if [[ uses_oriole -eq 1 ]]; then
     echo $cmdline --engine_options="using orioledb" > o.ib.dop${dop}.${n} 

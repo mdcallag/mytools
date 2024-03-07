@@ -12,7 +12,7 @@ pgauth="$dbid"
 
 if [[ $dbms == "mongo" ]]; then
   echo "show dbs" | $client $moauth --host $host | grep $dbid | awk '{ print $2 }' | sed 's/GB//g' > $outname
-elif [[ $dbms == "mysql" ]]; then
+elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   # SHOW TABLE STATUS and IS.innodb_tablestats are not reliable
   # pageSize=$( $client $myauth -E -e 'show global variables like "innodb_page_size"' | grep "Value:" | awk '{ print $2 }' )
   # nPages=$( $client $myauth information_schema -E -e "select sum(clust_index_size + other_index_size) as npages from innodb_tablestats where name like \"${dbid}/pi%\"" | grep "npages:" | awk '{ print $2 }' )

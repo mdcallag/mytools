@@ -30,7 +30,7 @@ echo Use mariadb
 elif [[ $dbms == "postgres" ]] ; then 
 echo Use postgres
 else
-echo "dbms must be one of: mongo, mysql, postgres"
+echo "dbms must be one of: mongo, mysql, mariadb, postgres but was $dbms"
 exit -1
 fi
 
