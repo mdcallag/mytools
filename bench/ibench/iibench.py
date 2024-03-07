@@ -110,6 +110,9 @@ def ShowUsage():
 DEFINE_boolean('control_autovac', False, 'If we are taking control of the autovacuuming')
 DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
 DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
+DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
+DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
+DEFINE_boolean('enable_agent', False, 'Enables monitoring and autovac agent thread')
 
 DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
 DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
@@ -1288,6 +1291,7 @@ def agent_thread(done_flag):
     while not done_flag.value:
         now = time.time()
 
+        #if FLAGS.enable_logging:
         #pgstattuples = log_tuples(event_queue, cursor,"select * from pgstattuple('purchases_index')",
         #                          ("table_len", "tuple_count", "tuple_len", "tuple_percent", "dead_tuple_count", "dead_tuple_len", "dead_tuple_percent", "free_space", "free_percent"))
 
@@ -1335,6 +1339,7 @@ def agent_thread(done_flag):
             live_raw_pct = stats[0]/(stats[0]+stats[1])
 
         print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
+        sys.stdout.flush()
 
         used_pct = used_space/total_space
         live_pct = 100*live_raw_pct*used_pct
@@ -1345,13 +1350,16 @@ def agent_thread(done_flag):
         live_sum += live_pct
         dead_sum += dead_pct
         free_sum += free_pct
+
         print("Live tuple %% (avg): %.2f, %.2f, Dead tuple %% (avg): %.2f, %.2f, Free space %% (avg): %.2f, %.2f"
               % (live_pct, live_sum / count, dead_pct, dead_sum / count, free_pct, free_sum / count))
+        sys.stdout.flush()
 
         pid_out = pid(live_pct)
         if FLAGS.enable_pid:
             current_delay = int(math.ceil(1.0/math.exp(pid_out)))
             print("PID output %f, current_delay %d" % (pid_out, current_delay))
+            sys.stdout.flush()
 
         if prev_delay != current_delay:
             prev_delay = current_delay
@@ -1365,17 +1373,21 @@ def agent_thread(done_flag):
             if int(now-last_autovac_time) > current_delay:
                 last_autovac_time = now
                 print("Vacuuming table...")
+                sys.stdout.flush()
                 cursor.execute("vacuum %s" % FLAGS.table_name)
                 vacuum_count += 1
 
         cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
         internal_vac_count, internal_autovac_count = cursor.fetchall()[0]
+
         print("===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" % (now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
+        sys.stdout.flush()
 
         time.sleep(1)
 
     print("Delay adjustments: ", delay_adjustment_count)
     print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))
+    sys.stdout.flush()
 
 def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inserter):
   # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
@@ -1623,14 +1635,18 @@ def run_benchmark():
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
     request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf))
-    agent = Process(target=agent_thread, args=(done_flag,))
+
+    if FLAGS.enable_agent:
+        agent = Process(target=agent_thread, args=(done_flag,))
 
     # start up the insert execution process with this queue
     inserter.start()
     if FLAGS.delete_per_insert:
       deleter.start()
     request_gen.start()
-    agent.start()
+
+    if FLAGS.enable_agent:
+        agent.start()
 
   htap_thr = None
   if FLAGS.htap_transaction_seconds:
@@ -1684,9 +1700,10 @@ def run_benchmark():
         sys.stdout.flush()
         request_gen.terminate()
 
-        # print('Wait for agent...')
-        sys.stdout.flush()
-        agent.join()
+        if FLAGS.enable_agent:
+            # print('Wait for agent...')
+            sys.stdout.flush()
+            agent.join()
 
         sys.stdout.flush()
         inserter.terminate()
@@ -1726,22 +1743,24 @@ def run_benchmark():
       inserted, retry_i, retry_d, retry_q))
   print('Done')
 
-def main(argv):
-  if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
-      print('Not supported: delete_per_insert')
-      sys.exit(-1)
+def apply_options(argv):
+    ParseArgs(argv[1:])
 
-  if FLAGS.max_seconds and FLAGS.no_inserts:
-      print('Cannot set max_seconds when no_inserts is set')
-      sys.exit(-1)
+    if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
+        print('Not supported: delete_per_insert')
+        sys.exit(-1)
 
-  fixup_options()
+    if FLAGS.max_seconds and FLAGS.no_inserts:
+        print('Cannot set max_seconds when no_inserts is set')
+        sys.exit(-1)
 
-  print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
-  run_benchmark()
-  return 0
+    fixup_options()
+
+def run_main():
+    print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
+    run_benchmark()
+    return 0
 
 if __name__ == '__main__':
-  new_argv = ParseArgs(sys.argv[1:])
-  sys.exit(main([sys.argv[0]] + new_argv))
-  #cProfile.run('main([sys.argv[0]] + new_argv)', sort='tottime')
+    apply_options(sys.argv)
+    sys.exit(run_main())
