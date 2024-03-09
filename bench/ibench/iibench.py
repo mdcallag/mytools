@@ -47,13 +47,6 @@ import torch
 
 from learning.rl import RLModel, default_network_arch, softmax_policy
 
-#
-# flags module, on loan from gmt module by Chip Turner.
-#
-
-FLAGS = optparse.Values()
-parser = optparse.OptionParser()
-
 letters_and_digits = string.ascii_letters + string.digits
 
 def DEFINE_string(name, default, description, short_name=None):
@@ -90,6 +83,15 @@ def DEFINE_boolean(name, default, description, short_name=None):
   setattr(FLAGS, name, default)
 
 def ParseArgs(argv):
+  #
+  # flags module, on loan from gmt module by Chip Turner.
+  #
+  global FLAGS
+  global parser
+  FLAGS = optparse.Values()
+  parser = optparse.OptionParser()
+
+  defineParserOptions()
   usage = sys.modules["__main__"].__doc__
   parser.set_usage(usage)
   unused_flags, new_argv = parser.parse_args(args=argv, values=FLAGS)
@@ -104,98 +106,99 @@ def ParseArgs(argv):
     print('dbms must be one of: mysql, mongodb, postgres')
     sys.exit(-1)
 
-  return new_argv
-
 def ShowUsage():
   parser.print_help()
 
-#
-# options
-#
-DEFINE_boolean('control_autovac', False, 'If we are taking control of the autovacuuming')
-DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
-DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
-DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
-DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
-DEFINE_boolean('use_learned_model', False, "Use previously learned model")
-DEFINE_string('learned_model_file', '', "Specify file name for previously learned model")
-DEFINE_boolean('enable_agent', False, 'Enables monitoring and autovac agent thread')
+def defineParserOptions():
+    #
+    # options
+    #
+    DEFINE_boolean('control_autovac', False, 'If we are taking control of the autovacuuming')
+    DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
+    DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
+    DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
+    DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
+    DEFINE_boolean('use_learned_model', False, "Use previously learned model")
+    DEFINE_string('learned_model_file', '', "Specify file name for previously learned model")
+    DEFINE_boolean('enable_agent', False, 'Enables monitoring and autovac agent thread')
 
-DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
-DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
-DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
-DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
-DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
-DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
-DEFINE_integer('rows_per_query', 10,
-               'Number of rows per to fetch per query. Each query '
-               'thread does one query per insert.')
-DEFINE_integer('cashregisters', 1000, '# cash registers')
-DEFINE_integer('products', 10000, '# products')
-DEFINE_integer('customers', 100000, '# customers')
-DEFINE_integer('max_price', 500, 'Maximum value for price column')
-DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
-DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
-DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
-DEFINE_integer('query_threads', 0, 'Number of query threads')
-DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
-DEFINE_boolean('setup', False,
-               'Create table. Drop and recreate if it exists.')
-DEFINE_integer('warmup', 0, 'TODO')
-DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
-DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
-DEFINE_boolean('delete_per_insert', False,
-               'When True, do a delete for every insert')
-DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
-DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
-DEFINE_boolean('secondary_at_start', False, 'Create secondary index at start')
-DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
-DEFINE_integer('seed', 3221223452, 'RNG seed')
-# Can override other options, see get_conn
-DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
+    DEFINE_string('tag', '', 'Description/Tag of experiment')
 
-DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
+    DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
+    DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
+    DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
+    DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
+    DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
+    DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
+    DEFINE_integer('rows_per_query', 10,
+                   'Number of rows per to fetch per query. Each query '
+                   'thread does one query per insert.')
+    DEFINE_integer('cashregisters', 1000, '# cash registers')
+    DEFINE_integer('products', 10000, '# products')
+    DEFINE_integer('customers', 100000, '# customers')
+    DEFINE_integer('max_price', 500, 'Maximum value for price column')
+    DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
+    DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
+    DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
+    DEFINE_integer('query_threads', 0, 'Number of query threads')
+    DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
+    DEFINE_boolean('setup', False,
+                   'Create table. Drop and recreate if it exists.')
+    DEFINE_integer('warmup', 0, 'TODO')
+    DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
+    DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
+    DEFINE_boolean('delete_per_insert', False,
+                   'When True, do a delete for every insert')
+    DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
+    DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
+    DEFINE_boolean('secondary_at_start', False, 'Create secondary index at start')
+    DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
+    DEFINE_integer('seed', 3221223452, 'RNG seed')
+    # Can override other options, see get_conn
+    DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
-DEFINE_boolean('use_prepared_query', False,
-               'Use prepared statements for queries, only supported for Postgres today')
-DEFINE_boolean('use_prepared_insert', False,
-               'Use prepared statements for inserts, only supported for Postgres today')
+    DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
 
-DEFINE_integer('htap_transaction_seconds', 0,
-               'Number of seconds for which HTAP transactions are open. '
-               'There are not HTAP transactions when 0.')
+    DEFINE_boolean('use_prepared_query', False,
+                   'Use prepared statements for queries, only supported for Postgres today')
+    DEFINE_boolean('use_prepared_insert', False,
+                   'Use prepared statements for inserts, only supported for Postgres today')
 
-# MySQL & MongoDB flags
-DEFINE_string('db_host', 'localhost', 'Hostname for the test')
-DEFINE_string('db_name', 'test', 'Name of database for the test')
-DEFINE_string('table_name', 'purchases_index', 'Name of table to use')
+    DEFINE_integer('htap_transaction_seconds', 0,
+                   'Number of seconds for which HTAP transactions are open. '
+                   'There are not HTAP transactions when 0.')
 
-# MySQL flags
-DEFINE_string('engine', 'innodb', 'Storage engine for the table')
-DEFINE_string('engine_options', '', 'Options for create table')
-DEFINE_string('db_user', 'root', 'DB user for the test')
-DEFINE_string('db_password', '', 'DB password for the test')
-DEFINE_string('db_config_file', '', 'MySQL configuration file')
-DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
-DEFINE_integer('unique_checks', 1, 'Set unique_checks')
-DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
+    # MySQL & MongoDB flags
+    DEFINE_string('db_host', 'localhost', 'Hostname for the test')
+    DEFINE_string('db_name', 'test', 'Name of database for the test')
+    DEFINE_string('table_name', 'purchases_index', 'Name of table to use')
 
-# MySQL & Postgres flags
-DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
-DEFINE_integer('rows_per_partition', 0,
-              'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
+    # MySQL flags
+    DEFINE_string('engine', 'innodb', 'Storage engine for the table')
+    DEFINE_string('engine_options', '', 'Options for create table')
+    DEFINE_string('db_user', 'root', 'DB user for the test')
+    DEFINE_string('db_password', '', 'DB password for the test')
+    DEFINE_string('db_config_file', '', 'MySQL configuration file')
+    DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
+    DEFINE_integer('unique_checks', 1, 'Set unique_checks')
+    DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
-# MongoDB flags
-DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
-DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
-DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
-DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
-DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
-DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
-DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
-DEFINE_string('name_price', 'price', 'Name for price attribute')
-DEFINE_string('name_prod', 'product', 'Name for product attribute')
-DEFINE_string('name_data', 'data', 'Name for data attribute')
+    # MySQL & Postgres flags
+    DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
+    DEFINE_integer('rows_per_partition', 0,
+                  'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
+
+    # MongoDB flags
+    DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
+    DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
+    DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
+    DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
+    DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
+    DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
+    DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
+    DEFINE_string('name_price', 'price', 'Name for price attribute')
+    DEFINE_string('name_prod', 'product', 'Name for product attribute')
+    DEFINE_string('name_data', 'data', 'Name for data attribute')
 
 #
 # iibench
@@ -207,6 +210,7 @@ def rthist_new():
   obj = {}
   hist = [0,0,0,0,0,0,0,0,0,0]
   obj['hist'] = hist
+  obj['all_readings'] = []
   obj['max'] = 0
   return obj
 
@@ -216,6 +220,9 @@ def rthist_start(obj):
 def rthist_finish(obj, start):
   now = timeit.default_timer()
   elapsed = now - start
+
+  obj['all_readings'].append(elapsed)
+
   # Linear search assuming the first few buckets get the most responses
   # And when not, then the overhead of this isn't relevant
 
@@ -253,6 +260,13 @@ def rthist_result(obj, prefix):
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
         '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % ( prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
+
+  all_readings = obj['all_readings']
+  all_readings.sort(reverse=True)
+  with open(FLAGS.tag+'_data'+prefix.replace(' ', '_')+'.txt', 'w') as f:
+      for line in all_readings:
+          f.write(f"{line}\n")
+
   return res
 
 def fixup_options():
@@ -940,7 +954,7 @@ def HtapTrx(done_flag, barrier):
   db_conn.close()
   #print("HTAP done at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
 
-def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid):
+def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid, thread_id):
 
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1078,11 +1092,11 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   else:
     assert False
 
-  extra = 'Query thread: %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
+  extra = 'Query thread #'+str(thread_id)+': %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
   # print('%s\n' % extra)
 
   db_conn.close()
-  result_q.put((rthist_result(rthist, 'Query rt:'), extra))
+  result_q.put((rthist_result(rthist, 'Query thread #'+str(thread_id)+' rt:'), extra))
 
 def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
@@ -1399,8 +1413,9 @@ def agent_thread(done_flag):
             # Additional normalization.
             l1 = [(x/100.0)-0.5 for x in l1]
             l2 = [math.log2(x+0.0001) for x in l2]
-            state = torch.tensor([list(map(float, [*l1, *l2]))])
-            print("State: ", state)
+            state = list(map(float, [*l1, *l2]))
+            print("Generated state: ", [round(x, 1) for x in state])
+            state = torch.tensor([state])
 
             # Select action
             action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01, False))
@@ -1438,7 +1453,8 @@ def agent_thread(done_flag):
         cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
         internal_vac_count, internal_autovac_count = cursor.fetchall()[0]
 
-        print("===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" % (now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
+        print("%10s ===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" %
+              (FLAGS.tag, now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
         sys.stdout.flush()
 
         time.sleep(1)
@@ -1675,7 +1691,7 @@ def run_benchmark(parent_barrier):
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid, i)))
 
   if not FLAGS.no_inserts:
     insert_stmt_q = Queue(8)
