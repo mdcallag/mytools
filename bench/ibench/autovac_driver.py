@@ -65,50 +65,61 @@ class AutoVacEnv(BaseEnvironment):
         self.experiment = Process(target=run_main, args=())
 
         self.num_live_tuples_buffer = []
+        self.num_dead_tuples_buffer = []
         self.num_read_tuples_buffer = []
 
         self.live_pct_buffer = []
         self.num_read_deltapct_buffer = []
+        self.num_read_delta_buffer = []
 
     def update_stats(self):
-        self.cursor.execute("alter system set autovacuum_naptime to %d" % self.current_delay)
-        self.cursor.execute("alter system set autovacuum_vacuum_scale_factor to 0")
-        self.cursor.execute("alter system set autovacuum_vacuum_insert_scale_factor to 0")
-        self.cursor.execute("alter system set autovacuum_vacuum_threshold to 0")
-        self.cursor.execute("alter system set autovacuum_analyze_threshold to 0")
-        self.cursor.execute("alter system set autovacuum_vacuum_cost_delay to 0")
-        self.cursor.execute("alter system set autovacuum_vacuum_cost_limit to 10000")
-        self.cursor.execute("select from pg_reload_conf()")
+        self.cursor.execute("alter table %s set ("
+               "autovacuum_enabled = off,"
+               "autovacuum_vacuum_scale_factor = 0,"
+               "autovacuum_vacuum_insert_scale_factor = 0,"
+               "autovacuum_vacuum_threshold = 0,"
+               "autovacuum_vacuum_cost_delay = 0,"
+               "autovacuum_vacuum_cost_limit = 10000"
+               ")" % FLAGS.table_name)
 
-        self.cursor.execute("select * from pgstattuple('purchases_index')")
-        pgstattuples = self.cursor.fetchall()
-        #print(pgstattuples)
+        self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
+        total_space = self.cursor.fetchall()[0][0]
 
-        t = pgstattuples[0]
-        live_pct = t[3]
-        dead_pct = t[6]
-        free_pct = t[8]
+        self.cursor.execute("select pg_table_size('public.purchases_index')")
+        used_space = self.cursor.fetchall()[0][0]
 
-        self.cursor.execute("select * from pg_stat_user_tables where relname = 'purchases_index'")
-        pgstat_usertbl_tuples = self.cursor.fetchall()
-        seq_tup_read = pgstat_usertbl_tuples[0][4]
-        n_live_tuples = pgstat_usertbl_tuples[0][11]
+        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
+        stats = self.cursor.fetchall()[0]
 
-        if len(self.num_read_tuples_buffer) == 0:
-            delta_pct = 0.0
-        else:
-            delta_pct = (seq_tup_read - self.num_read_tuples_buffer[0]) / n_live_tuples
+        n_live_tup = stats[0]
+        n_dead_tup = stats[1]
+        seq_tup_read = stats[2]
+
+        live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
+        print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
+
+        used_pct = used_space/total_space
+        live_pct = 100*live_raw_pct*used_pct
+        dead_pct = 100*(1.0-live_raw_pct)*used_pct
+        free_pct = 100*(1.0-used_pct)
+
+        delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
+        delta_pct = delta / n_live_tup
 
         if len(self.num_live_tuples_buffer) >= 10:
             self.num_live_tuples_buffer.pop()
+            self.num_dead_tuples_buffer.pop()
             self.num_read_tuples_buffer.pop()
             self.live_pct_buffer.pop()
             self.num_read_deltapct_buffer.pop()
+            self.num_read_delta_buffer.pop()
 
-        self.num_live_tuples_buffer.append(n_live_tuples)
-        self.num_read_tuples_buffer.append(seq_tup_read)
-        self.live_pct_buffer.append(live_pct)
-        self.num_read_deltapct_buffer.append(delta_pct)
+        self.num_live_tuples_buffer.insert(0, n_live_tup)
+        self.num_dead_tuples_buffer.insert(0, n_dead_tup)
+        self.num_read_tuples_buffer.insert(0, seq_tup_read)
+        self.live_pct_buffer.insert(0, live_pct)
+        self.num_read_deltapct_buffer.insert(0, delta_pct)
+        self.num_read_delta_buffer.insert(0, delta)
 
     def generate_state(self):
         l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
@@ -118,11 +129,17 @@ class AutoVacEnv(BaseEnvironment):
         return result
 
     def generate_reward(self, did_vacuum):
-        #TODO: generate reward
+        last_live_tup = self.num_live_tuples_buffer[0]
+        last_dead_tup = self.num_dead_tuples_buffer[0]
+        last_read = self.num_read_delta_buffer[0]
+        print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
 
-        #Default reward is: -(latest dead tuples) / (latest active tuples + latest dead tuples) * (Δ tuples read) => - (latest dead tuples) * (Δ tuples read) / (latest active tuples + latest dead tuples)^2
-        #If action is starting vacuum have reward: -(latest active tuples + latest dead tuples) => -1
-        return 0.0
+        reward = - last_read * last_dead_tup / ((last_live_tup+last_dead_tup) ** 2)
+        if did_vacuum:
+            reward -= 1
+
+        print("Returning reward:", reward)
+        return reward
 
     def env_start(self):
         """
@@ -135,9 +152,7 @@ class AutoVacEnv(BaseEnvironment):
         self.experiment.start()
         time.sleep(1)
 
-        self.current_delay = 60
         self.last_autovac_time = time.time()
-        self.prev_delay = self.current_delay
         self.delay_adjustment_count = 0
         self.db_conn = get_conn()
         self.cursor = self.db_conn.cursor()
@@ -161,28 +176,21 @@ class AutoVacEnv(BaseEnvironment):
                 and boolean indicating if it's terminal.
         """
 
-        print("Raw action: %.2f" % action)
-
-        normalized_action = 1
-        if action > 10:
-            normalized_action += 5*60
-        elif action > -10:
-            normalized_action += 5*60*(1.0/(1.0+(math.exp(-action))))
-
-        print("Normalized: %.2f" % normalized_action)
+        print("Got action:", action)
         time.sleep(1)
 
         # effect system based on action
-        self.current_delay = normalized_action
-
-        now = time.time()
         did_vacuum = False
-        if int(now - self.last_autovac_time) > self.current_delay:
+        if action == 0:
+            # Not vacuuming
+            pass
+        elif action == 1:
+            # Vacuuming
             did_vacuum = True
-            self.last_autovac_time = now
-            print("Vacuuming table...")
-            sys.stdout.flush()
+            print("Vacuuming...")
             self.cursor.execute("vacuum %s" % FLAGS.table_name)
+        else:
+            assert("Invalid action")
 
         self.update_stats()
         current_state = self.generate_state()
@@ -197,7 +205,7 @@ def learn(resume_id):
     agent_configs = {
         'network_arch' : {'num_states':20,
                           'num_hidden_units' : 256,
-                          'num_actions': 1},
+                          'num_actions': 2},
 
         'batch_size': 8,
         'buffer_size': 50000,

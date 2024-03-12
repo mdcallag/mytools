@@ -183,8 +183,14 @@ class Agent(agent.BaseAgent):
         # compute action values states:(1, state_dim)
         q_values = self.model(state)
 
+        # compute the probs of each action (1, num_actions)
+        probs = softmax(q_values.data, self.tau)
+        probs = np.array(probs)
+        probs /= probs.sum()
+
         # select action
-        action = q_values.item()/self.tau
+        action = self.rand_generator.choice(self.num_actions, 1, p = probs.squeeze())
+
         return action
 
     def agent_start(self, state):
@@ -203,7 +209,7 @@ class Agent(agent.BaseAgent):
 
         action = self.policy(state)
         self.last_state = state
-        self.last_action = action
+        self.last_action = int(action)
 
         return self.last_action
 
