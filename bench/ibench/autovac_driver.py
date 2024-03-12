@@ -3,8 +3,8 @@ import sys
 import time
 from ctypes import c_int64
 
-from iibench import get_conn, apply_options, run_main, FLAGS
-from multiprocessing import Process
+from iibench import get_conn, apply_options, run_main, run_benchmark, FLAGS
+from multiprocessing import Process, Barrier
 
 from learning.environment import BaseEnvironment
 from learning.rl_glue import RLGlue
@@ -23,7 +23,7 @@ def run_with_params(apply_options_only, resume_id, id, initial_size, update_spee
     sys.stdout.flush()
 
     cmd = ["--setup", "--dbms=postgres", "--db_user=svilen", "--db_password=eddie", "--max_rows=100000000", "--secs_per_report=120",
-           "--query_threads=3", "--delete_per_insert", "--max_seconds=120",
+           "--query_threads=3", "--delete_per_insert", "--max_seconds=120", "--rows_per_commit=10000",
            "--initial_size=%d" % initial_size,
            "--inserts_per_second=%d" % update_speed,
            "--initial_autovac_delay=%d" % initial_delay
@@ -42,15 +42,15 @@ def run_with_params(apply_options_only, resume_id, id, initial_size, update_spee
 
     apply_options(cmd)
     if not apply_options_only:
-        if run_main(cmd) != 0:
+        if run_main() != 0:
             print("Error. Quitting driver.")
             sys.stdout.flush()
             sys.exit()
 
 def benchmark(resume_id):
     id = c_int64(0)
-    for initial_size in [100000, 1000000]:
-        for update_speed in [4000, 8000, 16000, 32000]:
+    for initial_size in [100000]:
+        for update_speed in [32000]:
             #run_with_params(False, resume_id, id, initial_size, update_speed, 60, False, False, False, True)
             run_with_params(False, resume_id, id, initial_size, update_speed, 60, True, True, False, True)
             #for initial_delay in [1, 5, 15, 60]:
@@ -62,7 +62,7 @@ class AutoVacEnv(BaseEnvironment):
         Setup for the environment called when the experiment first starts.
         """
         run_with_params(True,1, c_int64(0), 1000000, 16000, 60, True, False, True, False)
-        self.experiment = Process(target=run_main, args=())
+        self.experiment = None
 
         self.num_live_tuples_buffer = []
         self.num_dead_tuples_buffer = []
@@ -96,12 +96,14 @@ class AutoVacEnv(BaseEnvironment):
         seq_tup_read = stats[2]
 
         live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
-        print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
 
         used_pct = used_space/total_space
         live_pct = 100*live_raw_pct*used_pct
         dead_pct = 100*(1.0-live_raw_pct)*used_pct
         free_pct = 100*(1.0-used_pct)
+
+        print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
+              % (total_space, used_space, live_raw_pct, live_pct))
 
         delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
         delta_pct = delta / n_live_tup
@@ -125,7 +127,6 @@ class AutoVacEnv(BaseEnvironment):
         l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
         l2 = np.pad(self.num_read_deltapct_buffer, (0, 10-len(self.num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
         result = list(map(float, [*l1, *l2]))
-        print(result)
         return result
 
     def generate_reward(self, did_vacuum):
@@ -149,8 +150,14 @@ class AutoVacEnv(BaseEnvironment):
         Returns:
             The first state observation from the environment.
         """
+
+        barrier = Barrier(2)
+        self.experiment = Process(target=run_benchmark, args=(barrier,))
         self.experiment.start()
-        time.sleep(1)
+        barrier.wait()
+        print("Starting agent...")
+
+        self.time_started = time.time()
 
         self.last_autovac_time = time.time()
         self.delay_adjustment_count = 0
@@ -176,18 +183,18 @@ class AutoVacEnv(BaseEnvironment):
                 and boolean indicating if it's terminal.
         """
 
-        print("Got action:", action)
         time.sleep(1)
 
         # effect system based on action
         did_vacuum = False
         if action == 0:
             # Not vacuuming
+            print("Action 0: Not vacuuming.")
             pass
         elif action == 1:
             # Vacuuming
             did_vacuum = True
-            print("Vacuuming...")
+            print("Action 1: Vacuuming...")
             self.cursor.execute("vacuum %s" % FLAGS.table_name)
         else:
             assert("Invalid action")
@@ -196,6 +203,9 @@ class AutoVacEnv(BaseEnvironment):
         current_state = self.generate_state()
 
         is_terminal = not self.experiment.is_alive()
+        if is_terminal:
+            print("Terminating.")
+
         reward = self.generate_reward(did_vacuum)
         self.reward_obs_term = (reward, current_state, is_terminal)
         return self.reward_obs_term

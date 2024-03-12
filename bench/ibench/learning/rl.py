@@ -188,8 +188,11 @@ class Agent(agent.BaseAgent):
         probs = np.array(probs)
         probs /= probs.sum()
 
+        probs = probs.squeeze()
+        print("Action probabilities: ", probs)
+
         # select action
-        action = self.rand_generator.choice(self.num_actions, 1, p = probs.squeeze())
+        action = self.rand_generator.choice(self.num_actions, 1, p = probs)
 
         return action
 

@@ -1549,7 +1549,7 @@ def print_stats(shared_vars, inserted, prev_inserted, deleted, prev_deleted, pre
   sys.stdout.flush()
   return sum_q
 
-def run_benchmark():
+def run_benchmark(parent_barrier):
   random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
@@ -1662,6 +1662,9 @@ def run_benchmark():
 
   # After the insert and query processes lock/unlock this they can run
   barrier.wait()
+  if parent_barrier:
+      parent_barrier.wait()
+
   test_start = time.time()
 
   start_time = time.time()
@@ -1758,7 +1761,7 @@ def apply_options(argv):
 
 def run_main():
     print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
-    run_benchmark()
+    run_benchmark(None)
     return 0
 
 if __name__ == '__main__':
