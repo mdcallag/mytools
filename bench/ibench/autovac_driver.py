@@ -15,6 +15,11 @@ import torch
 
 from tqdm.auto import tqdm
 
+instance_password = None
+instance_url = None
+instance_user = None
+instance_dbname = None
+
 def run_with_params(apply_options_only, resume_id, id, initial_size, update_speed, initial_delay, control_autovac, enable_pid, enable_learning, enable_agent):
     id.value += 1
     if id.value < resume_id:
@@ -22,7 +27,10 @@ def run_with_params(apply_options_only, resume_id, id, initial_size, update_spee
     print ("Running experiment %d" % id.value)
     sys.stdout.flush()
 
-    cmd = ["--setup", "--dbms=postgres", "--db_user=svilen", "--db_password=eddie", "--max_rows=100000000", "--secs_per_report=120",
+    cmd = ["--setup", "--dbms=postgres",
+           "--db_user=%s" % instance_user, "--db_name=%s" % instance_dbname,
+           "--db_host=%s" % instance_url, "--db_password=%s" % instance_password,
+           "--max_rows=100000000", "--secs_per_report=120",
            "--query_threads=3", "--delete_per_insert", "--max_seconds=120", "--rows_per_commit=10000",
            "--initial_size=%d" % initial_size,
            "--inserts_per_second=%d" % update_speed,
@@ -194,6 +202,7 @@ class AutoVacEnv(BaseEnvironment):
         elif action == 1:
             # Vacuuming
             did_vacuum = True
+            self.delay_adjustment_count += 1
             #print("Action 1: Vacuuming...")
             self.cursor.execute("vacuum %s" % FLAGS.table_name)
         else:
@@ -205,6 +214,7 @@ class AutoVacEnv(BaseEnvironment):
         is_terminal = not self.experiment.is_alive()
         if is_terminal:
             print("Terminating.")
+            print("Delay adjustments: %d" % self.delay_adjustment_count)
 
         reward = self.generate_reward(did_vacuum)
         self.reward_obs_term = (reward, current_state, is_terminal)
@@ -277,6 +287,11 @@ def learn(resume_id):
             print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))
 
 if __name__ == '__main__':
+    instance_url = sys.argv[1]
+    instance_user = sys.argv[2]
+    instance_password = sys.argv[3]
+    instance_dbname = sys.argv[4]
+
     resume_id = 1
     print("Initial id: ", resume_id)
     sys.stdout.flush()
