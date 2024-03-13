@@ -1747,7 +1747,7 @@ def run_benchmark(parent_barrier):
   print('Done')
 
 def apply_options(argv):
-    ParseArgs(argv[1:])
+    ParseArgs(argv)
 
     if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
         print('Not supported: delete_per_insert')
@@ -1765,5 +1765,5 @@ def run_main():
     return 0
 
 if __name__ == '__main__':
-    apply_options(sys.argv)
+    apply_options(sys.argv[1:])
     sys.exit(run_main())

@@ -101,6 +101,7 @@ class AutoVacEnv(BaseEnvironment):
         n_live_tup = stats[0]
         n_dead_tup = stats[1]
         seq_tup_read = stats[2]
+        #print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
 
         live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
@@ -113,7 +114,7 @@ class AutoVacEnv(BaseEnvironment):
         #      % (total_space, used_space, live_raw_pct, live_pct))
 
         delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
-        delta_pct = delta / n_live_tup
+        delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
         if len(self.num_live_tuples_buffer) >= 10:
             self.num_live_tuples_buffer.pop()
@@ -142,9 +143,10 @@ class AutoVacEnv(BaseEnvironment):
         last_read = self.num_read_delta_buffer[0]
         #print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
 
-        reward = - last_read * last_dead_tup / ((last_live_tup+last_dead_tup) ** 2)
+        sum = last_live_tup+last_dead_tup
+        reward = 0.0 if sum == 0 else -last_read*last_dead_tup/(sum**2)
         if did_vacuum:
-            reward -= 1
+            reward -= 10
 
         #print("Returning reward:", reward)
         return reward
@@ -204,7 +206,6 @@ class AutoVacEnv(BaseEnvironment):
             did_vacuum = True
             self.delay_adjustment_count += 1
             #print("Action 1: Vacuuming...")
-            self.cursor.execute("vacuum %s" % FLAGS.table_name)
         else:
             assert("Invalid action")
 
@@ -216,7 +217,12 @@ class AutoVacEnv(BaseEnvironment):
             print("Terminating.")
             print("Delay adjustments: %d" % self.delay_adjustment_count)
 
+        # compute reward before doing the vacuum (will clear dead tuples)
         reward = self.generate_reward(did_vacuum)
+        if did_vacuum:
+            self.cursor.execute("vacuum %s" % FLAGS.table_name)
+            #print("..done")
+
         self.reward_obs_term = (reward, current_state, is_terminal)
         return self.reward_obs_term
 
