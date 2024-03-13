@@ -61,7 +61,6 @@ class AutoVacEnv(BaseEnvironment):
         """
         Setup for the environment called when the experiment first starts.
         """
-        run_with_params(True,1, c_int64(0), 1000000, 16000, 60, True, False, True, False)
         self.experiment = None
 
         self.num_live_tuples_buffer = []
@@ -102,8 +101,8 @@ class AutoVacEnv(BaseEnvironment):
         dead_pct = 100*(1.0-live_raw_pct)*used_pct
         free_pct = 100*(1.0-used_pct)
 
-        print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
-              % (total_space, used_space, live_raw_pct, live_pct))
+        #print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
+        #      % (total_space, used_space, live_raw_pct, live_pct))
 
         delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
         delta_pct = delta / n_live_tup
@@ -133,13 +132,13 @@ class AutoVacEnv(BaseEnvironment):
         last_live_tup = self.num_live_tuples_buffer[0]
         last_dead_tup = self.num_dead_tuples_buffer[0]
         last_read = self.num_read_delta_buffer[0]
-        print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
+        #print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
 
         reward = - last_read * last_dead_tup / ((last_live_tup+last_dead_tup) ** 2)
         if did_vacuum:
             reward -= 1
 
-        print("Returning reward:", reward)
+        #print("Returning reward:", reward)
         return reward
 
     def env_start(self):
@@ -151,6 +150,7 @@ class AutoVacEnv(BaseEnvironment):
             The first state observation from the environment.
         """
 
+        run_with_params(True, 1, c_int64(0), 100000, 32000, 5, True, False, True, False)
         barrier = Barrier(2)
         self.experiment = Process(target=run_benchmark, args=(barrier,))
         self.experiment.start()
@@ -189,12 +189,12 @@ class AutoVacEnv(BaseEnvironment):
         did_vacuum = False
         if action == 0:
             # Not vacuuming
-            print("Action 0: Not vacuuming.")
+            #print("Action 0: Not vacuuming.")
             pass
         elif action == 1:
             # Vacuuming
             did_vacuum = True
-            print("Action 1: Vacuuming...")
+            #print("Action 1: Vacuuming...")
             self.cursor.execute("vacuum %s" % FLAGS.table_name)
         else:
             assert("Invalid action")
@@ -230,7 +230,7 @@ def learn(resume_id):
     environment_configs = {}
     experiment_configs = {
         'num_runs': 1,
-        'num_episodes': 1000,
+        'num_episodes': 3,
         'timeout': 1000
     }
 
@@ -272,7 +272,7 @@ def learn(resume_id):
             # Save the model for testing
             if episode == start_episode + experiment_configs['num_episodes'] - 1:
                 current_model = rl_glue.agent.model
-                torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, 'new_results2/current_model_{}.pth'.format(episode+1))
+                torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, 'current_model_{}.pth'.format(episode+1))
 
             print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))
 

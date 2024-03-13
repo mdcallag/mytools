@@ -51,7 +51,7 @@ class Buffer:
         if len(self.buffer) == self.buffer_size:
             del self.buffer[0]
 
-        self.buffer.append((torch.tensor(state), torch.tensor(action), torch.tensor(terminal), torch.tensor(reward).float(), torch.tensor(next_state)))
+        self.buffer.append((state.clone().detach(), torch.tensor(action), torch.tensor(terminal), torch.tensor(reward).float(), next_state.clone().detach()))
 
     def sample(self):
         """
@@ -189,7 +189,7 @@ class Agent(agent.BaseAgent):
         probs /= probs.sum()
 
         probs = probs.squeeze()
-        print("Action probabilities: ", probs)
+        # print("Action probabilities: ", probs)
 
         # select action
         action = self.rand_generator.choice(self.num_actions, 1, p = probs)
@@ -288,8 +288,8 @@ class Agent(agent.BaseAgent):
                 train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
 
         ### Save the model at each episode
+        torch.save(self.model, 'current_model.pth')
 
-    #         torch.save(self.model, 'new_results/current_nodel.pth')
     def agent_message(self, message):
         """
         Return the given agent message.
