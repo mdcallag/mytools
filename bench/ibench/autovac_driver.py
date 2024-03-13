@@ -15,6 +15,9 @@ import torch
 
 from tqdm.auto import tqdm
 
+# command line arguments
+finetune = False
+max_episodes = None
 instance_password = None
 instance_url = None
 instance_user = None
@@ -246,7 +249,7 @@ def learn(resume_id):
     environment_configs = {}
     experiment_configs = {
         'num_runs': 1,
-        'num_episodes': 3,
+        'num_episodes': max_episodes,
         'timeout': 1000
     }
 
@@ -256,7 +259,6 @@ def learn(resume_id):
     ### Save sum of reward
     agent_sum_reward = np.zeros((experiment_configs['num_runs'], experiment_configs['num_episodes']))
 
-    finetune = False
     for run in tqdm(range(experiment_configs['num_runs'])):
         # Set the random seed for agent and environment
         agent_configs['seed'] = run
@@ -293,10 +295,11 @@ def learn(resume_id):
             print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))
 
 if __name__ == '__main__':
-    instance_url = sys.argv[1]
-    instance_user = sys.argv[2]
-    instance_password = sys.argv[3]
-    instance_dbname = sys.argv[4]
+    max_episodes = int(sys.argv[1])
+    instance_url = sys.argv[2]
+    instance_user = sys.argv[3]
+    instance_password = sys.argv[4]
+    instance_dbname = sys.argv[5]
 
     resume_id = 1
     print("Initial id: ", resume_id)
