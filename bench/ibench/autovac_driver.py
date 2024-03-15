@@ -8,7 +8,7 @@ from multiprocessing import Process, Barrier
 
 from learning.environment import BaseEnvironment
 from learning.rl_glue import RLGlue
-from learning.rl import Agent
+from learning.rl import Agent, default_network_arch
 
 import numpy as np
 import torch
@@ -83,15 +83,6 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_delta_buffer = []
 
     def update_stats(self):
-        self.cursor.execute("alter table %s set ("
-               "autovacuum_enabled = off,"
-               "autovacuum_vacuum_scale_factor = 0,"
-               "autovacuum_vacuum_insert_scale_factor = 0,"
-               "autovacuum_vacuum_threshold = 0,"
-               "autovacuum_vacuum_cost_delay = 0,"
-               "autovacuum_vacuum_cost_limit = 10000"
-               ")" % FLAGS.table_name)
-
         self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
         total_space = self.cursor.fetchall()[0][0]
 
@@ -174,8 +165,18 @@ class AutoVacEnv(BaseEnvironment):
 
         self.last_autovac_time = time.time()
         self.delay_adjustment_count = 0
+
         self.db_conn = get_conn()
         self.cursor = self.db_conn.cursor()
+        self.cursor.execute("alter table %s set ("
+                            "autovacuum_enabled = off,"
+                            "autovacuum_vacuum_scale_factor = 0,"
+                            "autovacuum_vacuum_insert_scale_factor = 0,"
+                            "autovacuum_vacuum_threshold = 0,"
+                            "autovacuum_vacuum_cost_delay = 0,"
+                            "autovacuum_vacuum_cost_limit = 10000"
+                            ")" % FLAGS.table_name)
+
 
         self.update_stats()
         initial_state = self.generate_state()
@@ -232,9 +233,7 @@ class AutoVacEnv(BaseEnvironment):
 
 def learn(resume_id):
     agent_configs = {
-        'network_arch' : {'num_states':20,
-                          'num_hidden_units' : 256,
-                          'num_actions': 2},
+        'network_arch' : default_network_arch,
 
         'batch_size': 8,
         'buffer_size': 50000,

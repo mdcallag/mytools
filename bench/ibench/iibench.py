@@ -40,7 +40,12 @@ import math
 import timeit
 import traceback
 import cProfile
+
+import numpy
 from simple_pid import PID
+import torch
+
+from learning.rl import RLModel, default_network_arch, softmax_policy
 
 #
 # flags module, on loan from gmt module by Chip Turner.
@@ -112,6 +117,8 @@ DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
 DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
 DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
 DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
+DEFINE_boolean('use_learned_model', False, "Use previously learned model")
+DEFINE_string('learned_model_file', '', "Specify file name for previously learned model")
 DEFINE_boolean('enable_agent', False, 'Enables monitoring and autovac agent thread')
 
 DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
@@ -1288,6 +1295,17 @@ def agent_thread(done_flag):
     dead_sum = 0.0
     free_sum = 0.0
 
+    # State for RL model
+    if FLAGS.use_learned_model:
+        print("Loading model state from file...")
+        model_state = torch.load(FLAGS.learned_model_file)['model_state_dict']
+        model = RLModel(default_network_arch)
+        model.load_state_dict(model_state)
+        rng = numpy.random.RandomState(0)
+        live_pct_buffer = []
+        num_read_deltapct_buffer = []
+        num_read_tuples_buffer = []
+
     while not done_flag.value:
         now = time.time()
 
@@ -1331,12 +1349,14 @@ def agent_thread(done_flag):
         cursor.execute("select pg_table_size('public.purchases_index')")
         used_space = cursor.fetchall()[0][0]
 
-        cursor.execute("select n_live_tup, n_dead_tup from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
+        cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
         stats = cursor.fetchall()[0]
-        if stats[0]+stats[1] == 0:
-            live_raw_pct = 0.0
-        else:
-            live_raw_pct = stats[0]/(stats[0]+stats[1])
+        n_live_tup = stats[0]
+        n_dead_tup = stats[1]
+        seq_tup_read = stats[2]
+        #print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
+
+        live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
         print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
         sys.stdout.flush()
@@ -1356,7 +1376,36 @@ def agent_thread(done_flag):
         sys.stdout.flush()
 
         pid_out = pid(live_pct)
-        if FLAGS.enable_pid:
+        if FLAGS.use_learned_model:
+            delta = 0.0 if len(num_read_tuples_buffer) == 0 else seq_tup_read - num_read_tuples_buffer[0]
+            delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
+
+            if len(live_pct_buffer) >= 10:
+                live_pct_buffer.pop()
+                num_read_deltapct_buffer.pop()
+                num_read_tuples_buffer.pop()
+
+            live_pct_buffer.insert(0, live_pct)
+            num_read_deltapct_buffer.insert(0, delta_pct)
+            num_read_tuples_buffer.insert(0, seq_tup_read)
+
+            l1 = numpy.pad(live_pct_buffer, (0, 10-len(live_pct_buffer)), 'constant', constant_values=(0, 0))
+            l2 = numpy.pad(num_read_deltapct_buffer, (0, 10-len(num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
+            state = torch.tensor([list(map(float, [*l1, *l2]))])
+            print("State: ", state)
+
+            # Select action
+            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01))
+            print("Action: ", action)
+            if action == 0:
+                # Do not vacuum
+                current_delay = 5*60
+            elif action == 1:
+                # Do vacuum
+                current_delay = 1
+            else:
+                assert("Invalid action")
+        elif FLAGS.enable_pid:
             current_delay = int(math.ceil(1.0/math.exp(pid_out)))
             print("PID output %f, current_delay %d" % (pid_out, current_delay))
             sys.stdout.flush()

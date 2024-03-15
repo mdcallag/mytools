@@ -12,6 +12,27 @@ import torch.nn.functional as F
 
 from learning import agent
 
+default_network_arch = {'num_states':20, 'num_hidden_units' : 256, 'num_actions': 2}
+
+def softmax_policy(model, state, rand_generator, num_actions, tau):
+    """
+       Select the action given a single state.
+    """
+
+    # compute action values states:(1, state_dim)
+    q_values = model(state)
+
+    # compute the probs of each action (1, num_actions)
+    probs = softmax(q_values.data, tau)
+    probs = np.array(probs)
+    probs /= probs.sum()
+
+    probs = probs.squeeze()
+    # print("Action probabilities: ", probs)
+
+    # select action
+    action = rand_generator.choice(num_actions, 1, p = probs)
+    return action
 
 class RLModel(nn.Module):
 
@@ -177,24 +198,7 @@ class Agent(agent.BaseAgent):
         self.episode_steps = 0
 
     def policy(self, state):
-        """
-        Select the action given a single state.
-        """
-        # compute action values states:(1, state_dim)
-        q_values = self.model(state)
-
-        # compute the probs of each action (1, num_actions)
-        probs = softmax(q_values.data, self.tau)
-        probs = np.array(probs)
-        probs /= probs.sum()
-
-        probs = probs.squeeze()
-        # print("Action probabilities: ", probs)
-
-        # select action
-        action = self.rand_generator.choice(self.num_actions, 1, p = probs)
-
-        return action
+        return softmax_policy(self.model, state, self.rand_generator, self.num_actions, self.tau)
 
     def agent_start(self, state):
         """
