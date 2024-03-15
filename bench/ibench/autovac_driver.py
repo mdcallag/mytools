@@ -129,6 +129,7 @@ class AutoVacEnv(BaseEnvironment):
         l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
         l2 = np.pad(self.num_read_deltapct_buffer, (0, 10-len(self.num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
         result = list(map(float, [*l1, *l2]))
+        #print("Generated state: ", result)
         return result
 
     def generate_reward(self, did_vacuum):
@@ -137,10 +138,12 @@ class AutoVacEnv(BaseEnvironment):
         last_read = self.num_read_delta_buffer[0]
         #print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
 
+        # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
+        # The reward is intended to be scale free.
         sum = last_live_tup+last_dead_tup
         reward = 0.0 if sum == 0 else -last_read*last_dead_tup/(sum**2)
         if did_vacuum:
-            reward -= 10
+            reward -= 1
 
         #print("Returning reward:", reward)
         return reward
@@ -228,6 +231,12 @@ class AutoVacEnv(BaseEnvironment):
             #print("..done")
 
         self.reward_obs_term = (reward, current_state, is_terminal)
+
+        #self.cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
+        #internal_vac_count, internal_autovac_count = self.cursor.fetchall()[0]
+        #print("===================> Time %.2f: Internal vac: %d, Internal autovac: %d"
+        #      % (time.time()-self.time_started, internal_vac_count, internal_autovac_count))
+
         return self.reward_obs_term
 
 
