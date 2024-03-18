@@ -141,9 +141,13 @@ class AutoVacEnv(BaseEnvironment):
         # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
         # The reward is intended to be scale free.
         sum = last_live_tup+last_dead_tup
-        reward = 0.0 if sum == 0 else -last_read*last_dead_tup/(sum**2)
-        if did_vacuum:
-            reward -= 1
+        if sum == 0:
+            reward = 0
+        else:
+            reward = last_read/sum
+            if did_vacuum:
+                # Assume vacuuming is approximately 10x more expensive than scanning the table once.
+                reward -= 10
 
         #print("Returning reward:", reward)
         return reward
