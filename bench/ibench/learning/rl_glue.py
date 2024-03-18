@@ -4,7 +4,10 @@
 """
 
 from __future__ import print_function
+import numpy as np
+import torch
 
+from tqdm.auto import tqdm
 
 class RLGlue:
     """RLGlue class
@@ -216,3 +219,42 @@ class RLGlue:
 
         """
         return self.num_episodes
+
+    def do_learn(self, environment_configs, experiment_configs, agent_configs, finetune = False):
+        ### Save sum of reward
+        agent_sum_reward = np.zeros((experiment_configs['num_runs'], experiment_configs['num_episodes']))
+
+        for run in tqdm(range(experiment_configs['num_runs'])):
+            # Set the random seed for agent and environment
+            agent_configs['seed'] = run
+            environment_configs['seed'] = run
+
+            # Initialize the rl_glue
+            self.rl_init(agent_configs, environment_configs)
+
+            # Finetuning
+            if finetune:
+                checkpoint = torch.load(PATH)
+                self.agent.model.load_state_dict(checkpoint['model_state_dict'])
+                start_episode = checkpoint['episode'] + 1
+                print('Finetuning...')
+            else:
+                start_episode = 0
+                print('Training...')
+
+            ### Loop over episodes
+            for episode in tqdm(range(start_episode, start_episode + experiment_configs['num_episodes'])):
+                # Run episode
+                self.rl_episode(experiment_configs['timeout'])
+
+                # Get reward
+                episode_reward = self.rl_agent_message('get_sum_reward')
+                # Save the reward in the array
+                agent_sum_reward[run, episode - start_episode] = episode_reward
+
+                # Save the model for testing
+                if episode == start_episode + experiment_configs['num_episodes'] - 1:
+                    current_model = self.agent.model
+                    torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, 'current_model_{}.pth'.format(episode+1))
+
+                print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))
