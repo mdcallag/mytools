@@ -83,11 +83,15 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_delta_buffer = []
 
     def update_stats(self):
-        self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
-        total_space = self.cursor.fetchall()[0][0]
+        try:
+            self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
+            total_space = self.cursor.fetchall()[0][0]
 
-        self.cursor.execute("select pg_table_size('public.purchases_index')")
-        used_space = self.cursor.fetchall()[0][0]
+            self.cursor.execute("select pg_table_size('public.purchases_index')")
+            used_space = self.cursor.fetchall()[0][0]
+        except psycopg2.errors.UndefinedTable:
+            print("Table does not exist. Skipping update...")
+            return
 
         self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
         stats = self.cursor.fetchall()[0]
