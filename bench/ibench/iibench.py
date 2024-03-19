@@ -1298,9 +1298,12 @@ def agent_thread(done_flag):
     # State for RL model
     if FLAGS.use_learned_model:
         print("Loading model state from file...")
-        model_state = torch.load(FLAGS.learned_model_file)['model_state_dict']
+        model_state = torch.load(FLAGS.learned_model_file)
         model = RLModel(default_network_arch)
-        model.load_state_dict(model_state)
+
+        model.load_state_dict(model_state['model_state_dict'])
+        #model.load_state_dict(model_state.state_dict())
+
         rng = numpy.random.RandomState(0)
         live_pct_buffer = []
         num_read_deltapct_buffer = []
@@ -1377,7 +1380,10 @@ def agent_thread(done_flag):
 
         pid_out = pid(live_pct)
         if FLAGS.use_learned_model:
+            # generate state
             delta = 0.0 if len(num_read_tuples_buffer) == 0 else seq_tup_read - num_read_tuples_buffer[0]
+            if delta < 0:
+                delta = 0
             delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
             if len(live_pct_buffer) >= 10:
@@ -1419,7 +1425,7 @@ def agent_thread(done_flag):
                 #cursor.execute("select from pg_reload_conf()")
 
         if FLAGS.control_autovac:
-            if int(now-last_autovac_time) > current_delay:
+            if int(now-last_autovac_time) >= current_delay:
                 last_autovac_time = now
                 print("Vacuuming table...")
                 sys.stdout.flush()
