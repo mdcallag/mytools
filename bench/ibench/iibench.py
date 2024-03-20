@@ -1378,7 +1378,6 @@ def agent_thread(done_flag):
               % (live_pct, live_sum / count, dead_pct, dead_sum / count, free_pct, free_sum / count))
         sys.stdout.flush()
 
-        pid_out = pid(live_pct)
         if FLAGS.use_learned_model:
             # generate state
             delta = 0.0 if len(num_read_tuples_buffer) == 0 else seq_tup_read - num_read_tuples_buffer[0]
@@ -1412,6 +1411,7 @@ def agent_thread(done_flag):
             else:
                 assert("Invalid action")
         elif FLAGS.enable_pid:
+            pid_out = pid(live_pct)
             current_delay = int(math.ceil(1.0/math.exp(pid_out)))
             print("PID output %f, current_delay %d" % (pid_out, current_delay))
             sys.stdout.flush()

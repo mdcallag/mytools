@@ -59,12 +59,15 @@ def benchmark(resume_id):
             #    run_with_params(False, resume_id, id, initial_size, update_speed, initial_delay, True, False, False, True)
 
 def run_with_default_settings(barrier, env_info):
-    run_with_params(True, 1, c_int64(0), env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'], 100000, 32000, 5, True, False, True, False)
+    run_with_params(True, 1, c_int64(0),
+                    env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
+                    env_info['initial_size'], env_info['update_speed'], env_info['initial_delay'],
+                    True, False, True, False)
     run_benchmark(barrier)
 
 def learn(resume_id):
     agent_configs = {
-        'network_arch' : default_network_arch,
+        'network_arch': default_network_arch,
 
         'batch_size': 8,
         'buffer_size': 50000,
@@ -79,6 +82,9 @@ def learn(resume_id):
     environment_configs = {
         'module_name': 'autovac_driver',
         'function_name': 'run_with_default_settings',
+        'initial_size': 100000,
+        'update_speed': 32000,
+        'initial_delay': 5,
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,

@@ -60,6 +60,7 @@ class Buffer:
         self.batch_size = batch_size
         self.rand_generator = np.random.RandomState(seed)
         self.buffer = []
+
     def append(self, state, action, terminal, reward, next_state):
         """
         Append the next experience.
@@ -84,8 +85,8 @@ class Buffer:
             A list of transition tuples (state, action, terminal, reward, next_state), list length: batch_size
         """
 
-        indexs = self.rand_generator.choice(len(self.buffer), size = self.batch_size)
-        transitions = [self.buffer[idx] for idx in indexs]
+        indexes = self.rand_generator.choice(len(self.buffer), size = self.batch_size)
+        transitions = [self.buffer[idx] for idx in indexes]
         return transitions
 
     def get_buffer(self):
@@ -123,7 +124,6 @@ def train_network(experiences, model, current_model, optimizer, criterion, disco
 
     #     print(next_states)
     q_next = current_model(Variable(torch.stack(next_states))).squeeze()
-    probs = softmax(q_next, tau)
 
     # calculate the maximum action value of next states
     #     expected_q_next = (1-torch.stack(terminals)) * (torch.sum(probs * q_next , axis = 1))
@@ -137,7 +137,7 @@ def train_network(experiences, model, current_model, optimizer, criterion, disco
     # calculate the outputs from the previous states (batch_size, num_actions)
     outputs = model(Variable(torch.stack(states).float())).squeeze()
 
-    actions = torch.stack(actions).view(-1,1)
+    actions = torch.stack(actions).view(-1, 1)
     outputs = torch.gather(outputs, 1, actions).squeeze()
 
     # the loss
@@ -189,7 +189,6 @@ class Agent(agent.BaseAgent):
         self.num_actions = agent_config['network_arch']['num_actions']
         # random number generator
         self.rand_generator = np.random.RandomState(agent_config['seed'])
-
 
         self.last_state = None
         self.last_action = None
