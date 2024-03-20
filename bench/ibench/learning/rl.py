@@ -10,15 +10,11 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-from learning import agent
+import agent
 
 default_network_arch = {'num_states':20, 'num_hidden_units' : 256, 'num_actions': 2}
 
-def softmax_policy(model, state, rand_generator, num_actions, tau):
-    """
-       Select the action given a single state.
-    """
-
+def action_probabilities(model, state, tau):
     # compute action values states:(1, state_dim)
     q_values = model(state)
 
@@ -29,6 +25,14 @@ def softmax_policy(model, state, rand_generator, num_actions, tau):
 
     probs = probs.squeeze()
     # print("Action probabilities: ", probs)
+    return probs
+
+def softmax_policy(model, state, rand_generator, num_actions, tau):
+    """
+       Select the action given a single state.
+    """
+
+    probs = action_probabilities(model, state, tau)
 
     # select action
     action = rand_generator.choice(num_actions, 1, p = probs)
@@ -124,6 +128,7 @@ def train_network(experiences, model, current_model, optimizer, criterion, disco
 
     #     print(next_states)
     q_next = current_model(Variable(torch.stack(next_states))).squeeze()
+    probs = softmax(q_next, tau)
 
     # calculate the maximum action value of next states
     #     expected_q_next = (1-torch.stack(terminals)) * (torch.sum(probs * q_next , axis = 1))
