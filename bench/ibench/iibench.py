@@ -1139,6 +1139,7 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
                     % (FLAGS.table_name, min_trxid, min_trxid + FLAGS.rows_per_commit))
       # print('%s\n' % delete_sql)
       delete_stmt_q.put(delete_sql)
+      min_trxid += FLAGS.rows_per_commit
       shared_min_trxid.value = min_trxid
 
     # enforce write rate limit if set
