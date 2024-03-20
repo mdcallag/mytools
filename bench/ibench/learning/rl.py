@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-import agent
+from learning.agent import BaseAgent
 
 default_network_arch = {'num_states':20, 'num_hidden_units' : 256, 'num_actions': 2}
 
@@ -152,7 +152,7 @@ def train_network(experiences, model, current_model, optimizer, criterion, disco
     # update
     optimizer.step()
 
-class Agent(agent.BaseAgent):
+class Agent(BaseAgent):
     def __init__(self):
         self.name = 'Autovac Agent'
 
