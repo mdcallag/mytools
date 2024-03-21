@@ -101,8 +101,8 @@ class AutoVacEnv(BaseEnvironment):
         else:
             reward = last_read/sum
             if did_vacuum:
-                # Assume vacuuming is approximately 10x more expensive than scanning the table once.
-                reward -= 10
+                # Assume vacuuming is approximately 100x more expensive than scanning the table once.
+                reward -= 100
 
         #print("Returning reward:", reward)
         return reward

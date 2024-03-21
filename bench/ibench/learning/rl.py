@@ -27,12 +27,16 @@ def action_probabilities(model, state, tau):
     # print("Action probabilities: ", probs)
     return probs
 
-def softmax_policy(model, state, rand_generator, num_actions, tau):
+def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
     """
        Select the action given a single state.
     """
 
     probs = action_probabilities(model, state, tau)
+    if is_learning:
+        # If in learning mode, make sure each action has a small chance (1%) of being randomly selected
+        probs = [x+0.01 for x in probs]
+        probs /= sum(probs)
 
     # select action
     action = rand_generator.choice(num_actions, 1, p = probs)
@@ -202,7 +206,7 @@ class Agent(BaseAgent):
         self.episode_steps = 0
 
     def policy(self, state):
-        return softmax_policy(self.model, state, self.rand_generator, self.num_actions, self.tau)
+        return softmax_policy(self.model, state, self.rand_generator, self.num_actions, self.tau, True)
 
     def agent_start(self, state):
         """

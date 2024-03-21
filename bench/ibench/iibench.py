@@ -1400,7 +1400,7 @@ def agent_thread(done_flag):
             print("State: ", state)
 
             # Select action
-            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01))
+            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01, False))
             print("Action: ", action)
             if action == 0:
                 # Do not vacuum
