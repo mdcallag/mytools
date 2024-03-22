@@ -63,7 +63,7 @@ def run_with_default_settings(barrier, env_info):
     experiment_id = env_info['experiment_id']
 
     # Vary update speed from 1000 to 128000
-    update_speed = math.ceil(1000.0*math.exp2(experiment_id % 8))
+    update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
     # Vary initial size from 0 to 1000000
     initial_size = (experiment_id // 8) % 3
     initial_size = 0 if initial_size == 0 else 100000 if initial_size == 1 else 1000000
