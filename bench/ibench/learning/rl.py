@@ -33,10 +33,10 @@ def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
     """
 
     probs = action_probabilities(model, state, tau)
-    if is_learning:
+    #if is_learning:
         # If in learning mode, make sure each action has a small chance (1%) of being randomly selected
-        probs = [x+0.01 for x in probs]
-        probs /= sum(probs)
+        #probs = [x+0.01 for x in probs]
+        #probs /= sum(probs)
 
     # select action
     action = rand_generator.choice(num_actions, 1, p = probs)
