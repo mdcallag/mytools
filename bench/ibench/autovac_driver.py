@@ -1,4 +1,5 @@
 import sys
+import math
 from ctypes import c_int64
 
 from iibench import apply_options, run_main, run_benchmark
@@ -59,9 +60,17 @@ def benchmark(resume_id):
             #    run_with_params(False, resume_id, id, initial_size, update_speed, initial_delay, True, False, False, True)
 
 def run_with_default_settings(barrier, env_info):
-    run_with_params(True, 1, c_int64(0),
+    experiment_id = env_info['experiment_id']
+
+    # Vary update speed from 1000 to 128000
+    update_speed = math.ceil(1000.0*math.exp2(experiment_id % 8))
+    # Vary initial size from 0 to 1000000
+    initial_size = (experiment_id // 8) % 3
+    initial_size = 0 if initial_size == 0 else 100000 if initial_size == 1 else 1000000
+
+    run_with_params(True, 1, c_int64(experiment_id),
                     env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
-                    env_info['initial_size'], env_info['update_speed'], env_info['initial_delay'],
+                    initial_size, update_speed, env_info['initial_delay'],
                     True, False, True, False)
     run_benchmark(barrier)
 
@@ -73,8 +82,8 @@ def learn(resume_id):
         'buffer_size': 50000,
         'gamma': 0.99,
         'learning_rate': 1e-4,
-        'tau':0.01 ,
-        'seed':0,
+        'tau': 0.01 ,
+        'seed': 0,
         'num_replay_updates': 5
 
     }
@@ -82,8 +91,6 @@ def learn(resume_id):
     environment_configs = {
         'module_name': 'autovac_driver',
         'function_name': 'run_with_default_settings',
-        'initial_size': 100000,
-        'update_speed': 32000,
         'initial_delay': 5,
         'db_name': instance_dbname,
         'db_host': instance_url,

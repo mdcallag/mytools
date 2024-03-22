@@ -1,4 +1,5 @@
 import time
+import math
 from multiprocessing import Barrier, Process
 
 import numpy as np
@@ -12,6 +13,7 @@ class AutoVacEnv(BaseEnvironment):
         Setup for the environment called when the experiment first starts.
         """
 
+        self.experiment_id = 0
         self.env_info = env_info
         self.module = __import__(env_info['module_name'])
         self.workload_fn = getattr(self.module, env_info['function_name'])
@@ -48,7 +50,7 @@ class AutoVacEnv(BaseEnvironment):
         n_live_tup = stats[0]
         n_dead_tup = stats[1]
         seq_tup_read = stats[2]
-        #print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
+        print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
 
         live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
@@ -57,8 +59,8 @@ class AutoVacEnv(BaseEnvironment):
         dead_pct = 100*(1.0-live_raw_pct)*used_pct
         free_pct = 100*(1.0-used_pct)
 
-        #print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
-        #      % (total_space, used_space, live_raw_pct, live_pct))
+        print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
+              % (total_space, used_space, live_raw_pct, live_pct))
 
         delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
         if delta < 0:
@@ -83,28 +85,36 @@ class AutoVacEnv(BaseEnvironment):
     def generate_state(self):
         l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
         l2 = np.pad(self.num_read_deltapct_buffer, (0, 10-len(self.num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
+
+        # Additional normalization.
+        l1 = [(x/100.0)-0.5 for x in l1]
+        l2 = [math.log2(x+0.0001) for x in l2]
+
         result = list(map(float, [*l1, *l2]))
-        #print("Generated state: ", result)
+        print("Generated state: ", [round(x, 1) for x in result])
         return result
 
     def generate_reward(self, did_vacuum):
         last_live_tup = self.num_live_tuples_buffer[0]
-        last_dead_tup = self.num_dead_tuples_buffer[0]
+        live_pct = self.live_pct_buffer[0]
         last_read = self.num_read_delta_buffer[0]
-        #print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
+        print("Last live tup: %d, Last live %%: %.2f, Last_read: %d"
+              % (last_live_tup, live_pct, last_read))
 
         # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
         # The reward is intended to be scale free.
-        sum = last_live_tup+last_dead_tup
-        if sum == 0:
-            reward = 0
-        else:
-            reward = last_read/sum
-            if did_vacuum:
-                # Assume vacuuming is approximately 100x more expensive than scanning the table once.
-                reward -= 100
+        reward = 0
+        if last_live_tup > 0:
+            reward = (last_read/last_live_tup)*live_pct/100.0
+            if live_pct < 75.0:
+                # Large penalty for dirty table
+                reward -= (75.0-live_pct)
 
-        #print("Returning reward:", reward)
+        if did_vacuum:
+            # Assume vacuuming is proportionally more expensive than scanning the table once.
+            reward -= 100
+
+        print("Returning reward:", reward)
         return reward
 
     def env_start(self):
@@ -115,6 +125,9 @@ class AutoVacEnv(BaseEnvironment):
         Returns:
             The first state observation from the environment.
         """
+
+        self.env_info['experiment_id'] = self.experiment_id
+        self.experiment_id += 1
 
         barrier = Barrier(2)
         self.workload_thread = Process(target=self.workload_fn, args=(barrier, self.env_info))
@@ -168,13 +181,13 @@ class AutoVacEnv(BaseEnvironment):
         did_vacuum = False
         if action == 0:
             # Not vacuuming
-            #print("Action 0: Not vacuuming.")
+            print("Action 0: Idling.")
             pass
         elif action == 1:
             # Vacuuming
             did_vacuum = True
             self.delay_adjustment_count += 1
-            #print("Action 1: Vacuuming...")
+            print("Action 1: Vacuuming...")
         else:
             assert("Invalid action")
 

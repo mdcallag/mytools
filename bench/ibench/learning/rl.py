@@ -22,9 +22,9 @@ def action_probabilities(model, state, tau):
     probs = softmax(q_values.data, tau)
     probs = np.array(probs)
     probs /= probs.sum()
-
     probs = probs.squeeze()
-    # print("Action probabilities: ", probs)
+
+    print("Action probabilities: ", probs)
     return probs
 
 def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
@@ -122,7 +122,6 @@ def softmax(action_values, tau = 1.0):
 
     return probs
 
-
 def train_network(experiences, model, current_model, optimizer, criterion, discount, tau):
     """
     Calculate the TD-error and update the network
@@ -186,7 +185,7 @@ class Agent(BaseAgent):
         # The optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(),
                                           lr = agent_config['learning_rate'],
-                                          betas = [0.99,0.999],
+                                          betas = [0.99, 0.999],
                                           eps = 1e-04)
         # The loss
         self.criterion = nn.MSELoss()

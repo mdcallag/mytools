@@ -1396,6 +1396,9 @@ def agent_thread(done_flag):
 
             l1 = numpy.pad(live_pct_buffer, (0, 10-len(live_pct_buffer)), 'constant', constant_values=(0, 0))
             l2 = numpy.pad(num_read_deltapct_buffer, (0, 10-len(num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
+            # Additional normalization.
+            l1 = [(x/100.0)-0.5 for x in l1]
+            l2 = [math.log2(x+0.0001) for x in l2]
             state = torch.tensor([list(map(float, [*l1, *l2]))])
             print("State: ", state)
 
