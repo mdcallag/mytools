@@ -7,6 +7,7 @@ from iibench import apply_options, run_main, run_benchmark
 from learning.autovac_rl import AutoVacEnv
 from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
+import psycopg2
 
 # command line arguments
 max_episodes = None
@@ -74,6 +75,42 @@ def run_with_default_settings(barrier, env_info):
                     True, False, True, False)
     run_benchmark(barrier)
 
+class PGStatAndVacuum:
+    def __init__(self, db_name, db_host, db_user, db_pwd, table_name):
+        self.table_name = table_name
+        self.conn = psycopg2.connect(dbname=db_name, host=db_host, user=db_user, password=db_pwd)
+        self.conn.set_session(autocommit=True)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("alter table %s set ("
+                            "autovacuum_enabled = off,"
+                            "autovacuum_vacuum_scale_factor = 0,"
+                            "autovacuum_vacuum_insert_scale_factor = 0,"
+                            "autovacuum_vacuum_threshold = 0,"
+                            "autovacuum_vacuum_cost_delay = 0,"
+                            "autovacuum_vacuum_cost_limit = 10000"
+                            ")" % self.table_name)
+
+    def getTotalAndUsedSpace(self):
+        try :
+            self.cursor.execute("select pg_total_relation_size('public.%s')" % self.table_name)
+            total_space = self.cursor.fetchall()[0][0]
+
+            self.cursor.execute("select pg_table_size('public.%s')" % self.table_name)
+            used_space = self.cursor.fetchall()[0][0]
+
+            return total_space, used_space
+        except psycopg2.errors.UndefinedTable:
+            print("Table does not exist.")
+            return 0, 0
+
+    def getTupleStats(self):
+        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % self.table_name)
+        return self.cursor.fetchall()[0]
+
+    def doVacuum(self):
+        self.cursor.execute("vacuum %s" % self.table_name)
+
+
 def learn(resume_id):
     agent_configs = {
         'network_arch': default_network_arch,
@@ -89,14 +126,13 @@ def learn(resume_id):
     }
 
     environment_configs = {
-        'module_name': 'autovac_driver',
-        'function_name': 'run_with_default_settings',
-        'initial_delay': 5,
+        'workload_fn': run_with_default_settings,
+        'stat_and_vac': PGStatAndVacuum(instance_dbname, instance_url, instance_user, instance_password, 'purchases_index'),
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
-        'table_name': 'purchases_index'
+        'initial_delay': 5,
     }
     experiment_configs = {
         'num_runs': 1,

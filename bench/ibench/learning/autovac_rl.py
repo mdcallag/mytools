@@ -3,7 +3,6 @@ import math
 from multiprocessing import Barrier, Process
 
 import numpy as np
-import psycopg2
 
 from learning.environment import BaseEnvironment
 
@@ -15,15 +14,10 @@ class AutoVacEnv(BaseEnvironment):
 
         self.experiment_id = 0
         self.env_info = env_info
-        self.module = __import__(env_info['module_name'])
-        self.workload_fn = getattr(self.module, env_info['function_name'])
+        self.workload_fn = env_info['workload_fn']
         self.workload_thread = None
 
-        self.db_name = env_info['db_name']
-        self.db_host = env_info['db_host']
-        self.db_user = env_info['db_user']
-        self.db_pwd = env_info['db_pwd']
-        self.table_name = env_info['table_name']
+        self.stat_and_vac = env_info['stat_and_vac']
 
         self.num_live_tuples_buffer = []
         self.num_dead_tuples_buffer = []
@@ -34,19 +28,9 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_delta_buffer = []
 
     def update_stats(self):
-        try:
-            self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
-            total_space = self.cursor.fetchall()[0][0]
+        total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
 
-            self.cursor.execute("select pg_table_size('public.purchases_index')")
-            used_space = self.cursor.fetchall()[0][0]
-        except psycopg2.errors.UndefinedTable:
-            print("Table does not exist. Skipping update...")
-            return
-
-        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % self.table_name)
-        stats = self.cursor.fetchall()[0]
-
+        stats = self.stat_and_vac.getTupleStats()
         n_live_tup = stats[0]
         n_dead_tup = stats[1]
         seq_tup_read = stats[2]
@@ -106,9 +90,9 @@ class AutoVacEnv(BaseEnvironment):
         reward = 0
         if last_live_tup > 0:
             reward = (last_read/last_live_tup)*live_pct/100.0
-            if live_pct < 75.0:
+            if live_pct < 50.0:
                 # Large penalty for dirty table
-                reward -= (75.0-live_pct)
+                reward -= 2*(50.0-live_pct)
 
         if did_vacuum:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
@@ -140,21 +124,6 @@ class AutoVacEnv(BaseEnvironment):
 
         self.last_autovac_time = time.time()
         self.delay_adjustment_count = 0
-
-        # Connect to Postgres
-        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        conn.set_session(autocommit=True)
-
-        self.cursor = conn.cursor()
-        self.cursor.execute("alter table %s set ("
-                            "autovacuum_enabled = off,"
-                            "autovacuum_vacuum_scale_factor = 0,"
-                            "autovacuum_vacuum_insert_scale_factor = 0,"
-                            "autovacuum_vacuum_threshold = 0,"
-                            "autovacuum_vacuum_cost_delay = 0,"
-                            "autovacuum_vacuum_cost_limit = 10000"
-                            ")" % self.table_name)
-
 
         self.update_stats()
         initial_state = self.generate_state()
@@ -202,7 +171,7 @@ class AutoVacEnv(BaseEnvironment):
         # compute reward before doing the vacuum (will clear dead tuples)
         reward = self.generate_reward(did_vacuum)
         if did_vacuum:
-            self.cursor.execute("vacuum %s" % self.table_name)
+            self.stat_and_vac.doVacuum()
             #print("..done")
 
         self.reward_obs_term = (reward, current_state, is_terminal)
