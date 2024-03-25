@@ -1,6 +1,5 @@
 import time
 import math
-from multiprocessing import Barrier, Process
 
 import numpy as np
 
@@ -14,9 +13,6 @@ class AutoVacEnv(BaseEnvironment):
 
         self.experiment_id = 0
         self.env_info = env_info
-        self.workload_fn = env_info['workload_fn']
-        self.workload_thread = None
-
         self.stat_and_vac = env_info['stat_and_vac']
 
         self.num_live_tuples_buffer = []
@@ -110,18 +106,8 @@ class AutoVacEnv(BaseEnvironment):
             The first state observation from the environment.
         """
 
-        self.env_info['experiment_id'] = self.experiment_id
-        self.experiment_id += 1
-
-        barrier = Barrier(2)
-        self.workload_thread = Process(target=self.workload_fn, args=(barrier, self.env_info))
-        self.workload_thread.start()
-        # We wait until the workload is initialized and ready to start
-        barrier.wait()
         print("Starting agent...")
-
-        self.stat_and_vac.startExp()
-
+        self.stat_and_vac.startExp(self.env_info)
         self.time_started = time.time()
 
         self.last_autovac_time = time.time()
@@ -130,7 +116,7 @@ class AutoVacEnv(BaseEnvironment):
         self.update_stats()
         initial_state = self.generate_state()
 
-        is_terminal = not self.workload_thread.is_alive()
+        is_terminal = self.stat_and_vac.hasFinished()
         reward = self.generate_reward(False)
         self.reward_obs_term = (reward, initial_state, is_terminal)
         return self.reward_obs_term[1]
@@ -165,7 +151,7 @@ class AutoVacEnv(BaseEnvironment):
         self.update_stats()
         current_state = self.generate_state()
 
-        is_terminal = not self.workload_thread.is_alive()
+        is_terminal = self.stat_and_vac.hasFinished()
         if is_terminal:
             print("Terminating.")
             stats = self.stat_and_vac.getTupleStats()

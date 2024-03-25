@@ -9,6 +9,8 @@ from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 import psycopg2
 
+from multiprocessing import Barrier, Process
+
 # command line arguments
 max_episodes = None
 instance_password = None
@@ -76,17 +78,25 @@ def run_with_default_settings(barrier, env_info):
     run_benchmark(barrier)
 
 class PGStatAndVacuum:
-    def __init__(self, db_name, db_host, db_user, db_pwd, table_name):
-        self.db_name = db_name
-        self.db_host = db_host
-        self.db_user = db_user
-        self.db_pwd = db_pwd
-        self.table_name = table_name
+    def startExp(self, env_info):
+        self.env_info = env_info
+        self.db_name = env_info['db_name']
+        self.db_host = env_info['db_host']
+        self.db_user = env_info['db_user']
+        self.db_pwd = env_info['db_pwd']
+        self.table_name = env_info['table_name']
 
-    def startExp(self):
+        barrier = Barrier(2)
+        self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
+        self.workload_thread.start()
+        # We wait until the workload is initialized and ready to start
+        barrier.wait()
+
         self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
         self.conn.set_session(autocommit=True)
         self.cursor = self.conn.cursor()
+
+        print("Disabling autovacuum...")
         self.cursor.execute("alter table %s set ("
                             "autovacuum_enabled = off,"
                             "autovacuum_vacuum_scale_factor = 0,"
@@ -95,7 +105,11 @@ class PGStatAndVacuum:
                             "autovacuum_vacuum_cost_delay = 0,"
                             "autovacuum_vacuum_cost_limit = 10000"
                             ")" % self.table_name)
-        print("Disabled autovacuum")
+
+        self.env_info['experiment_id'] += 1
+
+    def hasFinished(self):
+        return not self.workload_thread.is_alive()
 
     def getTotalAndUsedSpace(self):
         try :
@@ -133,14 +147,16 @@ def learn(resume_id):
     }
 
     environment_configs = {
-        'workload_fn': run_with_default_settings,
-        'stat_and_vac': PGStatAndVacuum(instance_dbname, instance_url, instance_user, instance_password, 'purchases_index'),
+        'experiment_id': 0,
+        'stat_and_vac': PGStatAndVacuum(),
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
+        'table_name': 'purchases_index',
         'initial_delay': 5,
     }
+
     experiment_configs = {
         'num_runs': 1,
         'num_episodes': max_episodes,
