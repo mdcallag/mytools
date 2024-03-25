@@ -77,8 +77,14 @@ def run_with_default_settings(barrier, env_info):
 
 class PGStatAndVacuum:
     def __init__(self, db_name, db_host, db_user, db_pwd, table_name):
+        self.db_name = db_name
+        self.db_host = db_host
+        self.db_user = db_user
+        self.db_pwd = db_pwd
         self.table_name = table_name
-        self.conn = psycopg2.connect(dbname=db_name, host=db_host, user=db_user, password=db_pwd)
+
+    def startExp(self):
+        self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
         self.conn.set_session(autocommit=True)
         self.cursor = self.conn.cursor()
         self.cursor.execute("alter table %s set ("
@@ -89,6 +95,7 @@ class PGStatAndVacuum:
                             "autovacuum_vacuum_cost_delay = 0,"
                             "autovacuum_vacuum_cost_limit = 10000"
                             ")" % self.table_name)
+        print("Disabled autovacuum")
 
     def getTotalAndUsedSpace(self):
         try :
@@ -104,7 +111,7 @@ class PGStatAndVacuum:
             return 0, 0
 
     def getTupleStats(self):
-        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read from pg_stat_user_tables where relname = '%s'" % self.table_name)
+        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read, vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
         return self.cursor.fetchall()[0]
 
     def doVacuum(self):

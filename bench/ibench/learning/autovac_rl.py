@@ -120,6 +120,8 @@ class AutoVacEnv(BaseEnvironment):
         barrier.wait()
         print("Starting agent...")
 
+        self.stat_and_vac.startExp()
+
         self.time_started = time.time()
 
         self.last_autovac_time = time.time()
@@ -166,19 +168,14 @@ class AutoVacEnv(BaseEnvironment):
         is_terminal = not self.workload_thread.is_alive()
         if is_terminal:
             print("Terminating.")
-            print("Delay adjustments: %d" % self.delay_adjustment_count)
+            stats = self.stat_and_vac.getTupleStats()
+            print("Delay adjustments: %d, Internal vac: %d, Internal autovac: %d"
+                  % (self.delay_adjustment_count, stats[3], stats[4]))
 
         # compute reward before doing the vacuum (will clear dead tuples)
         reward = self.generate_reward(did_vacuum)
         if did_vacuum:
             self.stat_and_vac.doVacuum()
-            #print("..done")
 
         self.reward_obs_term = (reward, current_state, is_terminal)
-
-        #self.cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
-        #internal_vac_count, internal_autovac_count = self.cursor.fetchall()[0]
-        #print("===================> Time %.2f: Internal vac: %d, Internal autovac: %d"
-        #      % (time.time()-self.time_started, internal_vac_count, internal_autovac_count))
-
         return self.reward_obs_term
