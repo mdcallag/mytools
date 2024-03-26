@@ -1,4 +1,3 @@
-import time
 import math
 
 import numpy as np
@@ -34,7 +33,7 @@ class AutoVacEnv(BaseEnvironment):
 
         live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
-        used_pct = used_space/total_space
+        used_pct = 0 if total_space == 0 else used_space/total_space
         live_pct = 100*live_raw_pct*used_pct
         dead_pct = 100*(1.0-live_raw_pct)*used_pct
         free_pct = 100*(1.0-used_pct)
@@ -108,15 +107,13 @@ class AutoVacEnv(BaseEnvironment):
 
         print("Starting agent...")
         self.stat_and_vac.startExp(self.env_info)
-        self.time_started = time.time()
 
-        self.last_autovac_time = time.time()
         self.delay_adjustment_count = 0
 
         self.update_stats()
         initial_state = self.generate_state()
 
-        is_terminal = self.stat_and_vac.hasFinished()
+        is_terminal = self.stat_and_vac.step()
         reward = self.generate_reward(False)
         self.reward_obs_term = (reward, initial_state, is_terminal)
         return self.reward_obs_term[1]
@@ -131,8 +128,6 @@ class AutoVacEnv(BaseEnvironment):
             (float, state, Boolean): a tuple of the reward, state observation,
                 and boolean indicating if it's terminal.
         """
-
-        time.sleep(1)
 
         # effect system based on action
         did_vacuum = False
@@ -151,7 +146,7 @@ class AutoVacEnv(BaseEnvironment):
         self.update_stats()
         current_state = self.generate_state()
 
-        is_terminal = self.stat_and_vac.hasFinished()
+        is_terminal = self.stat_and_vac.step()
         if is_terminal:
             print("Terminating.")
             stats = self.stat_and_vac.getTupleStats()

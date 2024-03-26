@@ -1,5 +1,6 @@
 import sys
 import math
+import time
 from ctypes import c_int64
 
 from iibench import apply_options, run_main, run_benchmark
@@ -18,7 +19,7 @@ instance_url = None
 instance_user = None
 instance_dbname = None
 
-def run_with_params(apply_options_only, resume_id, id, db_host, db_user, db_pwd, db_name, initial_size, update_speed, initial_delay, control_autovac, enable_pid, enable_learning, enable_agent):
+def run_with_params(apply_options_only, resume_id, id, db_host, db_user, db_pwd, db_name, initial_size, update_speed, initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, enable_agent):
     id.value += 1
     if id.value < resume_id:
         return
@@ -29,7 +30,7 @@ def run_with_params(apply_options_only, resume_id, id, db_host, db_user, db_pwd,
            "--db_user=%s" % db_user, "--db_name=%s" % db_name,
            "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
            "--max_rows=100000000", "--secs_per_report=120",
-           "--query_threads=3", "--delete_per_insert", "--max_seconds=120", "--rows_per_commit=5000",
+           "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=5000",
            "--initial_size=%d" % initial_size,
            "--inserts_per_second=%d" % update_speed,
            "--initial_autovac_delay=%d" % initial_delay
@@ -58,22 +59,26 @@ def benchmark(resume_id):
     for initial_size in [100000]:
         for update_speed in [32000]:
             #run_with_params(False, resume_id, id, initial_size, update_speed, 60, False, False, False, True)
-            run_with_params(False, resume_id, id, instance_url, instance_user, instance_password, instance_dbname, initial_size, update_speed, 60, True, True, False, True)
+            run_with_params(False, resume_id, id, instance_url, instance_user, instance_password, instance_dbname, initial_size, update_speed, 60, 120, True, True, False, True)
             #for initial_delay in [1, 5, 15, 60]:
             #    run_with_params(False, resume_id, id, initial_size, update_speed, initial_delay, True, False, False, True)
 
-def run_with_default_settings(barrier, env_info):
-    experiment_id = env_info['experiment_id']
-
+def getParamsFromExperimentId(experiment_id):
     # Vary update speed from 1000 to 128000
     update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
     # Vary initial size from 0 to 1000000
     initial_size = (experiment_id // 8) % 3
     initial_size = 0 if initial_size == 0 else 100000 if initial_size == 1 else 1000000
 
+    return initial_size, update_speed
+
+def run_with_default_settings(barrier, env_info):
+    experiment_id = env_info['experiment_id']
+    initial_size, update_speed = getParamsFromExperimentId(experiment_id)
+
     run_with_params(True, 1, c_int64(experiment_id),
                     env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
-                    initial_size, update_speed, env_info['initial_delay'],
+                    initial_size, update_speed, env_info['initial_delay'], env_info['max_seconds'],
                     True, False, True, False)
     run_benchmark(barrier)
 
@@ -108,8 +113,13 @@ class PGStatAndVacuum:
 
         self.env_info['experiment_id'] += 1
 
-    def hasFinished(self):
-        return not self.workload_thread.is_alive()
+    # Returns True if the run has finished
+    def step(self):
+        if not self.workload_thread.is_alive():
+            return True
+
+        time.sleep(1)
+        return False
 
     def getTotalAndUsedSpace(self):
         try :
@@ -131,6 +141,44 @@ class PGStatAndVacuum:
     def doVacuum(self):
         self.cursor.execute("vacuum %s" % self.table_name)
 
+class SimulatedVacuum:
+    def startExp(self, env_info):
+        self.env_info = env_info
+        self.initial_size, self.update_speed = getParamsFromExperimentId(self.env_info['experiment_id'])
+        self.env_info['experiment_id'] += 1
+
+        self.approx_bytes_per_tuple = 100
+        self.used_space = 0
+        self.total_space = 0
+
+        self.n_live_tup = self.initial_size
+        self.n_dead_tup = 0
+        self.seq_tup_read = 0
+        self.vacuum_count = 0
+
+        self.step_count = 0
+        self.max_steps = env_info['max_seconds']
+
+    def step(self):
+        self.n_dead_tup += self.update_speed
+        self.seq_tup_read += 15*3*self.n_live_tup
+
+        self.used_space = self.approx_bytes_per_tuple*(self.n_live_tup+self.n_dead_tup)
+        if self.used_space > self.total_space:
+            self.total_space = self.used_space
+
+        self.step_count += 1
+        return self.step_count >= self.max_steps
+
+    def getTotalAndUsedSpace(self):
+        return self.total_space, self.used_space
+
+    def getTupleStats(self):
+        return self.n_live_tup, self.n_dead_tup, self.seq_tup_read, self.vacuum_count, 0
+
+    def doVacuum(self):
+        self.n_dead_tup = 0
+        self.vacuum_count += 1
 
 def learn(resume_id):
     agent_configs = {
@@ -143,18 +191,20 @@ def learn(resume_id):
         'tau': 0.01 ,
         'seed': 0,
         'num_replay_updates': 5
-
     }
 
     environment_configs = {
-        'experiment_id': 0,
         'stat_and_vac': PGStatAndVacuum(),
+        #'stat_and_vac': SimulatedVacuum(),
+
+        'experiment_id': 0,
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
         'table_name': 'purchases_index',
         'initial_delay': 5,
+        'max_seconds': 120
     }
 
     experiment_configs = {
