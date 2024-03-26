@@ -66,9 +66,8 @@ def benchmark(resume_id):
 def getParamsFromExperimentId(experiment_id):
     # Vary update speed from 1000 to 128000
     update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
-    # Vary initial size from 0 to 1000000
-    initial_size = (experiment_id // 8) % 3
-    initial_size = 0 if initial_size == 0 else 100000 if initial_size == 1 else 1000000
+    # Vary initial size from 10^4 to 10^6
+    initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
 
     return initial_size, update_speed
 
@@ -146,6 +145,7 @@ class SimulatedVacuum:
         self.env_info = env_info
         self.initial_size, self.update_speed = getParamsFromExperimentId(self.env_info['experiment_id'])
         self.env_info['experiment_id'] += 1
+        #print("Params: ", self.initial_size, self.update_speed)
 
         self.approx_bytes_per_tuple = 100
         self.used_space = 0

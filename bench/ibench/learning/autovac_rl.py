@@ -93,7 +93,7 @@ class AutoVacEnv(BaseEnvironment):
             # Assume vacuuming is proportionally more expensive than scanning the table once.
             reward -= 100
 
-        print("Returning reward:", reward)
+        print("Returning reward: %.2f" % reward)
         return reward
 
     def env_start(self):

@@ -24,7 +24,7 @@ def action_probabilities(model, state, tau):
     probs /= probs.sum()
     probs = probs.squeeze()
 
-    print("Action probabilities: ", probs)
+    #print("Action probabilities: ", probs)
     return probs
 
 def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
@@ -256,13 +256,10 @@ class Agent(BaseAgent):
         if len(self.buffer.get_buffer()) >= self.batch_size:
             # copy the current network
             current_model = deepcopy(self.model)
-
             # replay steps:
             for i in range(self.num_replay):
-
                 # sample experiences from the buffer
                 experiences = self.buffer.sample()
-
                 # train the network
                 train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
 
