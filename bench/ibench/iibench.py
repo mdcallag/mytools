@@ -1098,7 +1098,7 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   db_conn.close()
   result_q.put((rthist_result(rthist, 'Query thread #'+str(thread_id)+' rt:'), extra))
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf):
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1119,6 +1119,8 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
   # print("statement_maker: loop start at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # generate rows to insert and delete statements
   for r in range(rounds):
+    if done_flag.value:
+      break
     rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
 
     insert_stmt_q.put(rows)
@@ -1508,7 +1510,7 @@ def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inse
   rthist = rthist_new()
 
   # print("statement_exec(inserter=%s): enter loop at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
-  while not done_flag.value:
+  while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
     if stmt == you_are_done:
@@ -1709,7 +1711,7 @@ def run_benchmark(parent_barrier):
     if FLAGS.delete_per_insert:
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf))
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf))
 
     if FLAGS.enable_agent:
         agent = Process(target=agent_thread, args=(done_flag,))

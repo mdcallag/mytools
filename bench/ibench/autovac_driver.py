@@ -22,14 +22,8 @@ instance_url = None
 instance_user = None
 instance_dbname = None
 
-def run_with_params(apply_options_only, resume_id, id, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
+def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
                     initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
-    id.value += 1
-    if id.value < resume_id:
-        return
-    print("Running experiment %d" % id.value)
-    sys.stdout.flush()
-
     cmd = ["--setup", "--dbms=postgres", "--tag=%s" % tag,
            "--db_user=%s" % db_user, "--db_name=%s" % db_name,
            "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
@@ -65,31 +59,37 @@ def run_with_params(apply_options_only, resume_id, id, tag, db_host, db_user, db
     os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
 
 def benchmark(resume_id):
-    id = c_int64(0)
+    id = 0
     for initial_size in tqdm([10000, 100000, 1000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
+            id += 1
+            if id < resume_id:
+                continue
+            print("Running experiment %d" % id)
+            sys.stdout.flush()
+
             # Control with RL model #1
-            run_with_params(False, resume_id, id, "model1", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "model1", instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             "/home/svilen-mihaylov/temp/model/real1/current_model_1000.pth", True)
 
             # Control with RL model #1
-            run_with_params(False, resume_id, id, "model2", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "model2", instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             "/home/svilen-mihaylov/temp/model/simulated/current_model_1000.pth", True)
 
             # Control with PID
-            run_with_params(False, resume_id, id, "pid", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "pid", instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, True, False,
                             "", True)
 
             # Control with default autovacuum
-            run_with_params(False, resume_id, id, "vanilla", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "vanilla", instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, False, False, False,
                             "", True)
 
             os.system("gnuplot gnuplot_script.txt")
-            os.system("mv graph.png graph_%d_%d.png" % (initial_size, update_speed))
+            os.system("mv graph.png graph_n%d_size%d_updates%d.png" % (id, initial_size, update_speed))
 
 def getParamsFromExperimentId(experiment_id):
     # Vary update speed from 1000 to 128000
@@ -248,14 +248,11 @@ def learn(resume_id):
 if __name__ == '__main__':
     cmd = sys.argv[1]
     max_episodes = int(sys.argv[2])
-    instance_url = sys.argv[3]
-    instance_user = sys.argv[4]
-    instance_password = sys.argv[5]
-    instance_dbname = sys.argv[6]
-
-    resume_id = 1
-    print("Initial id: ", resume_id)
-    sys.stdout.flush()
+    resume_id = int(sys.argv[3])
+    instance_url = sys.argv[4]
+    instance_user = sys.argv[5]
+    instance_password = sys.argv[6]
+    instance_dbname = sys.argv[7]
 
     if cmd == "benchmark":
         benchmark(resume_id)
