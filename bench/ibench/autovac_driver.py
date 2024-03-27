@@ -57,6 +57,7 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
 
     # Collect and sort query latencies into a single file
     os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
+    os.system("cp %s_latencies.txt %s_latencies.txt" % (tag, tag.split("_")[0]))
 
 def benchmark(resume_id):
     id = 0
@@ -68,28 +69,30 @@ def benchmark(resume_id):
             print("Running experiment %d" % id)
             sys.stdout.flush()
 
+            tag_suffix = "_n%d_size%d_updates%d" % (id, initial_size, update_speed)
+
             # Control with RL model #1
-            run_with_params(False, "model1", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "model1%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             "/home/svilen-mihaylov/temp/model/real1/current_model_1000.pth", True)
 
             # Control with RL model #1
-            run_with_params(False, "model2", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "model2%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             "/home/svilen-mihaylov/temp/model/simulated/current_model_1000.pth", True)
 
             # Control with PID
-            run_with_params(False, "pid", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "pid%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, True, False,
                             "", True)
 
             # Control with default autovacuum
-            run_with_params(False, "vanilla", instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, "vanilla%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, False, False, False,
                             "", True)
 
             os.system("gnuplot gnuplot_script.txt")
-            os.system("mv graph.png graph_n%d_size%d_updates%d.png" % (id, initial_size, update_speed))
+            os.system("mv graph.png graph%s.png" % tag_suffix)
 
 def getParamsFromExperimentId(experiment_id):
     # Vary update speed from 1000 to 128000
@@ -103,10 +106,10 @@ def run_with_default_settings(barrier, env_info):
     experiment_id = env_info['experiment_id']
     initial_size, update_speed = getParamsFromExperimentId(experiment_id)
 
-    run_with_params(True, 1, c_int64(experiment_id),
+    run_with_params(True, "rl_model",
                     env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
                     initial_size, update_speed, env_info['initial_delay'], env_info['max_seconds'],
-                    True, False, True, False)
+                    True, False, True, "", False)
     run_benchmark(barrier)
 
 class PGStatAndVacuum:

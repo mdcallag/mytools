@@ -1301,6 +1301,15 @@ def agent_thread(done_flag):
 
     #cursor.execute("select from pg_reload_conf()")
 
+    # Used to log to a file
+    class StatStruct():
+        def __init__(self, time, vacCount, autovacCount, livePct):
+            self.time = time
+            self.vacCount = vacCount
+            self.autoVacCount = autovacCount
+            self.livePct = livePct
+    statSeq = []
+
     range_min = math.log(1/(5*60.0))
     range_max = math.log(1.0)
     #print("Range: ", range_min, range_max)
@@ -1459,12 +1468,17 @@ def agent_thread(done_flag):
         print("%10s ===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" %
               (FLAGS.tag, now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
         sys.stdout.flush()
+        statSeq.append(StatStruct(now-initial_time, internal_vac_count, internal_autovac_count, live_pct))
 
         time.sleep(1)
 
     print("Delay adjustments: ", delay_adjustment_count)
     print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))
     sys.stdout.flush()
+
+    with open(FLAGS.tag+'_actions.txt', 'w') as f:
+        for entry in statSeq:
+            f.write("%.2f %d %d %.2f\n" % (entry.time, entry.vacCount, entry.autoVacCount, entry.livePct))
 
 def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inserter):
   # print("statement_exec(inserter=%s): pre-lock at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
