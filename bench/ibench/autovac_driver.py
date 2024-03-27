@@ -13,6 +13,8 @@ import psycopg2
 
 from multiprocessing import Barrier, Process
 
+from tqdm.auto import tqdm
+
 # command line arguments
 max_episodes = None
 instance_password = None
@@ -64,8 +66,8 @@ def run_with_params(apply_options_only, resume_id, id, tag, db_host, db_user, db
 
 def benchmark(resume_id):
     id = c_int64(0)
-    for initial_size in [100000]:
-        for update_speed in [32000]:
+    for initial_size in tqdm([10000, 100000, 1000000]):
+        for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
             # Control with RL model #1
             run_with_params(False, resume_id, id, "model1", instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,

@@ -1419,12 +1419,13 @@ def agent_thread(done_flag):
 
             # Select action
             action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01, False))
-            print("Action: ", action)
             if action == 0:
                 # Do not vacuum
+                print("Action 0: Idling.")
                 current_delay = 5*60
             elif action == 1:
                 # Do vacuum
+                print("Action 1: Vacuuming...")
                 current_delay = 1
             else:
                 assert("Invalid action")

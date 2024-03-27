@@ -24,7 +24,7 @@ def action_probabilities(model, state, tau):
     probs /= probs.sum()
     probs = probs.squeeze()
 
-    #print("Action probabilities: ", probs)
+    print("Action probabilities: ", probs)
     return probs
 
 def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
