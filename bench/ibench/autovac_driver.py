@@ -15,13 +15,6 @@ from multiprocessing import Barrier, Process
 
 from tqdm.auto import tqdm
 
-# command line arguments
-max_episodes = None
-instance_password = None
-instance_url = None
-instance_user = None
-instance_dbname = None
-
 def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
                     initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
     cmd = ["--setup", "--dbms=postgres", "--tag=%s" % tag,
@@ -74,12 +67,12 @@ def benchmark(resume_id):
             # Control with RL model #1
             run_with_params(False, "model1%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
-                            "/home/svilen-mihaylov/temp/model/real1/current_model_1000.pth", True)
+                            model1_filename, True)
 
             # Control with RL model #1
             run_with_params(False, "model2%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
-                            "/home/svilen-mihaylov/temp/model/simulated/current_model_1000.pth", True)
+                            model2_filename, True)
 
             # Control with PID
             run_with_params(False, "pid%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
@@ -250,12 +243,23 @@ def learn(resume_id):
 
 if __name__ == '__main__':
     cmd = sys.argv[1]
+
+    global max_episodes
     max_episodes = int(sys.argv[2])
+    global resume_id
     resume_id = int(sys.argv[3])
-    instance_url = sys.argv[4]
-    instance_user = sys.argv[5]
-    instance_password = sys.argv[6]
-    instance_dbname = sys.argv[7]
+    global model1_filename
+    model1_filename = sys.argv[4]
+    global model2_filename
+    model2_filename = sys.argv[5]
+    global instance_url
+    instance_url = sys.argv[6]
+    global instance_user
+    instance_user = sys.argv[7]
+    global instance_password
+    instance_password = sys.argv[8]
+    global instance_dbname
+    instance_dbname = sys.argv[9]
 
     if cmd == "benchmark":
         benchmark(resume_id)
