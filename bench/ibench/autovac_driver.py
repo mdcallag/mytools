@@ -21,7 +21,7 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
            "--db_user=%s" % db_user, "--db_name=%s" % db_name,
            "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
            "--max_rows=100000000", "--secs_per_report=120",
-           "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=5000",
+           "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=10000",
            "--initial_size=%d" % initial_size,
            "--inserts_per_second=%d" % update_speed,
            "--initial_autovac_delay=%d" % initial_delay
