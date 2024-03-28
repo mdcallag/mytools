@@ -255,6 +255,6 @@ class RLGlue:
                 # Save the model for testing
                 if episode == start_episode + experiment_configs['num_episodes'] - 1:
                     current_model = self.agent.model
-                    torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, 'current_model_{}.pth'.format(episode+1))
+                    torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, agent_configs['model_filename'])
 
                 print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))

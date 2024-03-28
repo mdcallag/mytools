@@ -190,6 +190,7 @@ class Agent(BaseAgent):
         # The loss
         self.criterion = nn.MSELoss()
 
+        self.model_filename = agent_config['model_filename']
         self.batch_size = agent_config['batch_size']
         self.discount = agent_config['gamma']
         self.tau = agent_config['tau']
@@ -296,7 +297,7 @@ class Agent(BaseAgent):
                 train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
 
         ### Save the model at each episode
-        torch.save(self.model, 'current_model.pth')
+        torch.save(self.model, "tmp_"+self.model_filename)
 
     def agent_message(self, message):
         """

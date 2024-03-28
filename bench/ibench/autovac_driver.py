@@ -222,7 +222,8 @@ def learn(resume_id):
         'learning_rate': 1e-4,
         'tau': 0.01 ,
         'seed': 0,
-        'num_replay_updates': 5
+        'num_replay_updates': 5,
+        'model_filename' : model1_filename
     }
 
     if model_type == "simulated":
