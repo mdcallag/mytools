@@ -32,7 +32,9 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
         cmd.append("--enable_pid")
     if enable_learning:
         cmd.append("--enable_learning")
-    if len(rl_model_filename) > 0:
+
+    used_learned_model = len(rl_model_filename) > 0
+    if used_learned_model:
         cmd.append("--use_learned_model")
         cmd.append("--learned_model_file=%s" % rl_model_filename)
     if enable_agent:
@@ -48,9 +50,9 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
             sys.stdout.flush()
             sys.exit()
 
-    # Collect and sort query latencies into a single file
-    os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
-    os.system("cp %s_latencies.txt %s_latencies.txt" % (tag, tag.split("_")[0]))
+    if not enable_learning:
+        # Collect and sort query latencies into a single file
+        os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
 
 def benchmark(resume_id):
     id = 0
@@ -63,29 +65,35 @@ def benchmark(resume_id):
             sys.stdout.flush()
 
             tag_suffix = "_n%d_size%d_updates%d" % (id, initial_size, update_speed)
+            tag1 = "tag_model1%s" % tag_suffix
+            tag2 = "tag_model2%s" % tag_suffix
+            tag3 = "tag_pid%s" % tag_suffix
+            tag4 = "tag_vanilla%s" % tag_suffix
 
             # Control with RL model #1
-            run_with_params(False, "model1%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, tag1, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             model1_filename, True)
 
             # Control with RL model #1
-            run_with_params(False, "model2%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, False, False,
                             model2_filename, True)
 
             # Control with PID
-            run_with_params(False, "pid%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, True, True, False,
                             "", True)
 
             # Control with default autovacuum
-            run_with_params(False, "vanilla%s" % tag_suffix, instance_url, instance_user, instance_password, instance_dbname,
+            run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
                             initial_size, update_speed, 5, 120, False, False, False,
                             "", True)
 
-            os.system("gnuplot gnuplot_script.txt")
-            os.system("mv graph.png graph%s.png" % tag_suffix)
+            gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
+                           % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))
+            print("Gnuplot command: ", gnuplot_cmd)
+            os.system(gnuplot_cmd)
 
 def getParamsFromExperimentId(experiment_id):
     # Vary update speed from 1000 to 128000
@@ -217,10 +225,15 @@ def learn(resume_id):
         'num_replay_updates': 5
     }
 
-    environment_configs = {
-        'stat_and_vac': PGStatAndVacuum(),
-        #'stat_and_vac': SimulatedVacuum(),
+    if model_type == "simulated":
+        instance = SimulatedVacuum()
+    elif model_type == "real":
+        instance = PGStatAndVacuum()
+    else:
+        assert("Invalid model type")
 
+    environment_configs = {
+        'stat_and_vac': instance,
         'experiment_id': 0,
         'db_name': instance_dbname,
         'db_host': instance_url,
@@ -248,18 +261,20 @@ if __name__ == '__main__':
     max_episodes = int(sys.argv[2])
     global resume_id
     resume_id = int(sys.argv[3])
+    global model_type
+    model_type = sys.argv[4]
     global model1_filename
-    model1_filename = sys.argv[4]
+    model1_filename = sys.argv[5]
     global model2_filename
-    model2_filename = sys.argv[5]
+    model2_filename = sys.argv[6]
     global instance_url
-    instance_url = sys.argv[6]
+    instance_url = sys.argv[7]
     global instance_user
-    instance_user = sys.argv[7]
+    instance_user = sys.argv[8]
     global instance_password
-    instance_password = sys.argv[8]
+    instance_password = sys.argv[9]
     global instance_dbname
-    instance_dbname = sys.argv[9]
+    instance_dbname = sys.argv[10]
 
     if cmd == "benchmark":
         benchmark(resume_id)

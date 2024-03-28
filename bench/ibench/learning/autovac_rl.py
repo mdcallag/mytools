@@ -134,12 +134,13 @@ class AutoVacEnv(BaseEnvironment):
         if action == 0:
             # Not vacuuming
             print("Action 0: Idling.")
-            pass
         elif action == 1:
             # Vacuuming
+            print("Action 1: Vacuuming...")
             did_vacuum = True
             self.delay_adjustment_count += 1
-            print("Action 1: Vacuuming...")
+            # Apply vacuum before collecting new state
+            self.stat_and_vac.doVacuum()
         else:
             assert("Invalid action")
 
@@ -155,8 +156,6 @@ class AutoVacEnv(BaseEnvironment):
 
         # compute reward before doing the vacuum (will clear dead tuples)
         reward = self.generate_reward(did_vacuum)
-        if did_vacuum:
-            self.stat_and_vac.doVacuum()
 
         self.reward_obs_term = (reward, current_state, is_terminal)
         return self.reward_obs_term
