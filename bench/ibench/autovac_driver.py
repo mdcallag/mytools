@@ -193,9 +193,13 @@ class SimulatedVacuum:
 
     def step(self):
         self.n_dead_tup += self.update_speed
-        self.seq_tup_read += 15*3*self.n_live_tup
 
-        self.used_space = self.approx_bytes_per_tuple*(self.n_live_tup+self.n_dead_tup)
+        sum = self.n_live_tup+self.n_dead_tup
+        if sum > 0:
+            # Weigh how many tuples we read per second by how many dead tuples we have.
+            self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/sum) ** 0.5)
+
+        self.used_space = self.approx_bytes_per_tuple*sum
         if self.used_space > self.total_space:
             self.total_space = self.used_space
 
