@@ -2,7 +2,6 @@ import os
 import sys
 import math
 import time
-from ctypes import c_int64
 
 from iibench import apply_options, run_main, run_benchmark
 
@@ -72,22 +71,22 @@ def benchmark(resume_id):
 
             # Control with RL model #1
             run_with_params(False, tag1, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, 120, True, False, False,
+                            initial_size, update_speed, 5, experiment_duration, True, False, False,
                             model1_filename, True)
 
             # Control with RL model #1
             run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, 120, True, False, False,
+                            initial_size, update_speed, 5, experiment_duration, True, False, False,
                             model2_filename, True)
 
             # Control with PID
             run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, 120, True, True, False,
+                            initial_size, update_speed, 5, experiment_duration, True, True, False,
                             "", True)
 
             # Control with default autovacuum
             run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, 120, False, False, False,
+                            initial_size, update_speed, 5, experiment_duration, False, False, False,
                             "", True)
 
             gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
@@ -246,7 +245,7 @@ def learn(resume_id):
         'db_pwd': instance_password,
         'table_name': 'purchases_index',
         'initial_delay': 5,
-        'max_seconds': 120
+        'max_seconds': experiment_duration
     }
 
     experiment_configs = {
@@ -266,20 +265,22 @@ if __name__ == '__main__':
     max_episodes = int(sys.argv[2])
     global resume_id
     resume_id = int(sys.argv[3])
+    global experiment_duration
+    experiment_duration = int(sys.argv[4])
     global model_type
-    model_type = sys.argv[4]
+    model_type = sys.argv[5]
     global model1_filename
-    model1_filename = sys.argv[5]
+    model1_filename = sys.argv[6]
     global model2_filename
-    model2_filename = sys.argv[6]
+    model2_filename = sys.argv[7]
     global instance_url
-    instance_url = sys.argv[7]
+    instance_url = sys.argv[8]
     global instance_user
-    instance_user = sys.argv[8]
+    instance_user = sys.argv[9]
     global instance_password
-    instance_password = sys.argv[9]
+    instance_password = sys.argv[10]
     global instance_dbname
-    instance_dbname = sys.argv[10]
+    instance_dbname = sys.argv[11]
 
     if cmd == "benchmark":
         benchmark(resume_id)
