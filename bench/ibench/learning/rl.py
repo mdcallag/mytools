@@ -23,8 +23,6 @@ def action_probabilities(model, state, tau):
     probs = np.array(probs)
     probs /= probs.sum()
     probs = probs.squeeze()
-
-    print("Action probabilities: ", probs)
     return probs
 
 def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
@@ -33,6 +31,8 @@ def softmax_policy(model, state, rand_generator, num_actions, tau, is_learning):
     """
 
     probs = action_probabilities(model, state, tau)
+    print("Action probabilities: ", probs)
+
     #if is_learning:
         # If in learning mode, make sure each action has a small chance (1%) of being randomly selected
         #probs = [x+0.01 for x in probs]
