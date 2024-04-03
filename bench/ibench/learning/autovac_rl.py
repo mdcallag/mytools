@@ -62,6 +62,7 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_delta_buffer.insert(0, delta)
 
     def generate_state(self):
+        # TODO: we should be padding with "neutral" values.
         l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
         l2 = np.pad(self.num_read_deltapct_buffer, (0, 10-len(self.num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
 
