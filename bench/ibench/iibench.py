@@ -130,7 +130,7 @@ DEFINE_boolean('setup', False,
 DEFINE_integer('warmup', 0, 'TODO')
 DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
 DEFINE_boolean('print_get_min', False, 'Print time for get_min query')
-DEFINE_integer('resync_get_min', 5000,
+DEFINE_integer('resync_get_min', 1000,
                'Query the min value of the transactionid column every resync_get_min '\
                'loop iterations in statement_maker. When 0 only query once at process '\
                'start with is the original behavior. Querying too often is bad for '\
@@ -346,14 +346,17 @@ def create_index_mysql():
 
     if FLAGS.engine.lower() == 'rocksdb':
       # Don't understand it yet by mysqld VSZ and RSS grow too much during create index for MyRocks
+      #ddls.append("alter table %s add index %s_marketsegment (productid, customerid, price) COMMENT 'cfname=xms' " % (
       ddls.append("alter table %s add index %s_marketsegment (productid, customerid, price) " % (
                   FLAGS.table_name, FLAGS.table_name))
 
       if FLAGS.num_secondary_indexes >= 2:
+        #ddls.append("alter table %s add index %s_registersegment (cashregisterid, customerid, price) COMMENT 'cfname=xrs' " % (
         ddls.append("alter table %s add index %s_registersegment (cashregisterid, customerid, price) " % (
                     FLAGS.table_name, FLAGS.table_name))
 
       if FLAGS.num_secondary_indexes >= 3:
+        #ddls.append("alter table %s add index %s_pdc (price, dateandtime, customerid) COMMENT 'cfname=xpdc' " % (
         ddls.append("alter table %s add index %s_pdc (price, dateandtime, customerid) " % (
                      FLAGS.table_name, FLAGS.table_name))
 
@@ -849,7 +852,16 @@ def get_min_or_max_trxid(get_min):
   else:
     assert False
 
-  db_cursor.close()
+  try:
+    db_cursor.close()
+  except Exception as e:
+    print('Cursor.close in get_min_or_max_trxid: %s' % e)
+
+  try:
+    db_conn.close()
+  except Exception as e:
+    print('Connection.close in get_min_or_max_trxid: %s' % e)
+
   et = time.time()
   return (val, et-st)
 
@@ -1076,7 +1088,7 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   db_conn.close()
   result_q.put((rthist_result(rthist, 'Query rt:'), extra))
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf):
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1106,6 +1118,8 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
   # print("statement_maker: loop start at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # generate rows to insert and delete statements
   for r in range(rounds):
+    if done_flag.value:
+      break
     rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
 
     insert_stmt_q.put(rows)
@@ -1135,8 +1149,18 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_tr
       assert min_trxid >= 0
       #print('min_trxid = %d\n' % min_trxid)
 
-      delete_sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
-                    % (FLAGS.table_name, min_trxid, min_trxid + FLAGS.rows_per_commit))
+      #delete_sql = ('delete from %s where(transactionid>=%d and transactionid<%d);'
+      #              % (FLAGS.table_name, min_trxid, min_trxid + FLAGS.rows_per_commit))
+
+      if FLAGS.dbms == 'mysql':
+        delete_sql = ('delete from %s where transactionid >= %d order by transactionid asc limit %d'
+                      % (FLAGS.table_name, min_trxid, FLAGS.rows_per_commit))
+      elif FLAGS.dbms == 'postgres':
+        delete_sql = ('delete from %s where transactionid in (select transactionid from %s where transactionid >= %d order by transactionid asc limit %d)'
+                      % (FLAGS.table_name, FLAGS.table_name, min_trxid, FLAGS.rows_per_commit))
+      else:
+        assert False
+
       # print('%s\n' % delete_sql)
       delete_stmt_q.put(delete_sql)
       min_trxid += FLAGS.rows_per_commit
@@ -1244,7 +1268,7 @@ def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inse
   rthist = rthist_new()
 
   # print("statement_exec(inserter=%s): enter loop at %s\n" % (is_inserter, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))), flush=True)
-  while not done_flag.value:
+  while True:
     stmt = stmt_q.get()  # get the statement we need to execute from the queue
 
     if stmt == you_are_done:
@@ -1287,6 +1311,7 @@ def statement_executor(stmt_q, shared_var, done_flag, barrier, result_q, is_inse
         if not is_inserter or not FLAGS.use_prepared_insert:
           #print(stmt)
           cursor.execute(stmt)
+          if not is_inserter and cursor.rowcount != FLAGS.rows_per_commit: print('delete: %s : %s' % (cursor.rowcount, stmt))
         else:
           #print(stmt)
           #print(insert_ps)
@@ -1445,7 +1470,7 @@ def run_benchmark():
     if FLAGS.delete_per_insert:
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf))
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf))
 
     # start up the insert execution process with this queue
     inserter.start()

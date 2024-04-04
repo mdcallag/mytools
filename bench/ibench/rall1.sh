@@ -93,9 +93,13 @@ function do_rx80 {
   sfx=rx.$rmemt.dop$dop.c$cnf
   cd $dmyfb80; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
   cd $dgit; bash iq.sh rocksdb "" $dmyfb80/bin/mysql /data/m/fbmy $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
-  cd $dmyfb80; bash down.sh; cd $dgit
   rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.rx80.c${cnf}${ps}
   mkdir -p $rdir
+  echo "cp /data/m/fbmy/data/.rocksdb/LOG* $rdir"
+  ls /data/m/fbmy/data/.rocksdb/LOG*
+  cp /data/m/fbmy/data/.rocksdb/LOG* $rdir
+  cp /data/m/fbmy/slow.log $rdir
+  cd $dmyfb80; bash down.sh; cd $dgit
   mv $dmyfb80/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmyfb80/etc/my.cnf $rdir
 }

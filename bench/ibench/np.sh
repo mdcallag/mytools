@@ -396,6 +396,7 @@ $client -uroot -ppw -A -h$host -e 'show engine tokudb status\G' > o.est.$sfx
 $client -uroot -ppw -A -h$host -e 'show global status' > o.gs.$sfx
 $client -uroot -ppw -A -h$host -e 'show global variables' > o.gv.$sfx
 $client -uroot -ppw -A -h$host -e 'show memory status\G' > o.mem.$sfx
+$client -uroot -ppw -A -h$host information_schema -e 'select * from rocksdb_perf_context' > o.rx.perfctx
 
 $client -uroot -ppw -A -h$host ib -e 'show table status\G' > o.ts.$sfx
 $client -uroot -ppw -A -h$host ib -e 'show create table pi1\G' > o.create.$sfx
@@ -426,11 +427,12 @@ cat o.ts.$sfx  | grep "Data_length"  | awk '{ s += $2 } END { printf "%.3f\n", s
 cat o.ts.$sfx  | grep "Index_length" | awk '{ s += $2 } END { printf "%.3f\n", s / (1024*1024*1024) }' >> o.ts.$sfx
 
 $client -uroot -ppw -A -h$host -e 'reset master'
+#$client -uroot -ppw -A -h$host ib -e "select count(*) from pi1" > o.my.pi1.count
 
 elif [[ $dbms == "postgres" ]]; then
 echo "TODO reset replication state"
 #echo Count for pi1
-#$client ib -c "select count(*) from pi1"
+#$client ib -c "select count(*) from pi1" > o.pg.pi1.count
 $client ib -c 'show all' > o.pg.conf
 $client ib -x -c 'select * from pg_stat_io' > o.pgs.io
 $client ib -x -c 'select * from pg_stat_bgwriter' > o.pgs.bg
