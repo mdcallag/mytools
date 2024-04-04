@@ -1,59 +1,19 @@
 import os
+import argparse
 import sys
-import math
-import time
-
-from iibench import apply_options, run_main, run_benchmark
 
 from learning.autovac_rl import AutoVacEnv
 from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
-import psycopg2
 
-from multiprocessing import Barrier, Process
+from workloads.iibench_driver import run_with_params
 
 from tqdm.auto import tqdm
 
-def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
-                    initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
-    cmd = ["--setup", "--dbms=postgres", "--tag=%s" % tag,
-           "--db_user=%s" % db_user, "--db_name=%s" % db_name,
-           "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
-           "--max_rows=100000000", "--secs_per_report=120",
-           "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=10000",
-           "--initial_size=%d" % initial_size,
-           "--inserts_per_second=%d" % update_speed,
-           "--initial_autovac_delay=%d" % initial_delay
-           ]
-    if control_autovac:
-        cmd.append("--control_autovac")
-    if enable_pid:
-        cmd.append("--enable_pid")
-    if enable_learning:
-        cmd.append("--enable_learning")
+from executors.simulated_vacuum import SimulatedVacuum
+from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
-    used_learned_model = len(rl_model_filename) > 0
-    if used_learned_model:
-        cmd.append("--use_learned_model")
-        cmd.append("--learned_model_file=%s" % rl_model_filename)
-    if enable_agent:
-        cmd.append("--enable_agent")
-
-    print("Running command: ", cmd)
-    sys.stdout.flush()
-
-    apply_options(cmd)
-    if not apply_options_only:
-        if run_main() != 0:
-            print("Error. Quitting driver.")
-            sys.stdout.flush()
-            sys.exit()
-
-    if not enable_learning:
-        # Collect and sort query latencies into a single file
-        os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
-
-def benchmark(resume_id):
+def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
     for initial_size in tqdm([10000, 100000, 1000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
@@ -94,178 +54,7 @@ def benchmark(resume_id):
             print("Gnuplot command: ", gnuplot_cmd)
             os.system(gnuplot_cmd)
 
-def getParamsFromExperimentId(experiment_id):
-    # Vary update speed from 1000 to 128000
-    update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
-    # Vary initial size from 10^4 to 10^6
-    initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
-
-    return initial_size, update_speed
-
-def run_with_default_settings(barrier, env_info):
-    experiment_id = env_info['experiment_id']
-    initial_size, update_speed = getParamsFromExperimentId(experiment_id)
-
-    run_with_params(True, "rl_model",
-                    env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
-                    initial_size, update_speed, env_info['initial_delay'], env_info['max_seconds'],
-                    True, False, True, "", False)
-    run_benchmark(barrier)
-
-class PGStatAndVacuum:
-    def startExp(self, env_info):
-        self.env_info = env_info
-        self.db_name = env_info['db_name']
-        self.db_host = env_info['db_host']
-        self.db_user = env_info['db_user']
-        self.db_pwd = env_info['db_pwd']
-        self.table_name = env_info['table_name']
-
-        self.is_replay = env_info['is_replay']
-        self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
-        self.replay_buffer_index = 0
-        self.replay_buffer = []
-        if self.is_replay:
-            with open(self.replay_filename, 'r') as f:
-                self.replay_buffer = f.readlines()
-            print("Read %d lines into replay buffer from file '%s'"
-                  % (len(self.replay_buffer), self.replay_filename))
-        else:
-            barrier = Barrier(2)
-            self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
-            self.workload_thread.start()
-            # We wait until the workload is initialized and ready to start
-            barrier.wait()
-
-            self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-            self.conn.set_session(autocommit=True)
-            self.cursor = self.conn.cursor()
-
-            print("Disabling autovacuum...")
-            self.cursor.execute("alter table %s set ("
-                                "autovacuum_enabled = off,"
-                                "autovacuum_vacuum_scale_factor = 0,"
-                                "autovacuum_vacuum_insert_scale_factor = 0,"
-                                "autovacuum_vacuum_threshold = 0,"
-                                "autovacuum_vacuum_cost_delay = 0,"
-                                "autovacuum_vacuum_cost_limit = 10000"
-                                ")" % self.table_name)
-
-        self.env_info['experiment_id'] += 1
-
-    def get_next_buffer_line(self):
-        assert(self.is_replay)
-        result = self.replay_buffer[self.replay_buffer_index]
-        self.replay_buffer_index += 1
-        return result
-
-    def is_replay_finished(self):
-        return self.replay_buffer_index >= len(self.replay_buffer)
-
-    def write_replay_buffer_line(self, line):
-        self.replay_buffer.append(line + "\n")
-
-    def save_replay_buffer(self):
-        with open(self.replay_filename, 'w') as f:
-            f.writelines(self.replay_buffer)
-
-    # Returns True if the run has finished
-    def step(self):
-        if self.is_replay:
-            return self.get_next_buffer_line().startswith("finished")
-
-        if not self.workload_thread.is_alive():
-            self.write_replay_buffer_line("finished")
-            self.save_replay_buffer()
-            return True
-
-        self.write_replay_buffer_line("step")
-        time.sleep(1)
-        return False
-
-    def getTotalAndUsedSpace(self):
-        if self.is_replay:
-            total_space, used_space = [int(s) for s in self.get_next_buffer_line().split(" ")]
-            return total_space, used_space
-
-        try:
-            self.cursor.execute("select pg_total_relation_size('public.%s')" % self.table_name)
-            total_space = self.cursor.fetchall()[0][0]
-
-            self.cursor.execute("select pg_table_size('public.%s')" % self.table_name)
-            used_space = self.cursor.fetchall()[0][0]
-
-            self.write_replay_buffer_line("%d %d" % (total_space, used_space))
-            return total_space, used_space
-        except psycopg2.errors.UndefinedTable:
-            print("Table does not exist.")
-            return 0, 0
-
-    def getTupleStats(self):
-        if self.is_replay:
-            # Remember last tuple stats to return in case we have finished replaying.
-            if not self.is_replay_finished():
-                result = [int(s) for s in self.get_next_buffer_line().split(" ")]
-                assert(len(result) == 5)
-                self.last_tuplestats = result
-
-            return self.last_tuplestats
-
-        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read, vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
-        result = self.cursor.fetchall()[0]
-        self.write_replay_buffer_line("%d %d %d %d %d"
-                                      % (result[0], result[1], result[2], result[3], result[4]))
-        return result
-
-    def doVacuum(self):
-        if not self.is_replay:
-            self.cursor.execute("vacuum %s" % self.table_name)
-
-class SimulatedVacuum:
-    def startExp(self, env_info):
-        self.env_info = env_info
-        self.initial_size, self.update_speed = getParamsFromExperimentId(self.env_info['experiment_id'])
-        self.env_info['experiment_id'] += 1
-        #print("Params: ", self.initial_size, self.update_speed)
-
-        self.approx_bytes_per_tuple = env_info["approx_bytes_per_tuple"]
-        self.used_space = 0
-        self.total_space = 0
-
-        self.n_live_tup = self.initial_size
-        self.n_dead_tup = 0
-        self.seq_tup_read = 0
-        self.vacuum_count = 0
-
-        self.step_count = 0
-        self.max_steps = env_info['max_seconds']
-
-    def step(self):
-        self.n_dead_tup += self.update_speed
-
-        sum = self.n_live_tup+self.n_dead_tup
-        if sum > 0:
-            # Weigh how many tuples we read per second by how many dead tuples we have.
-            self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/sum) ** 0.5)
-
-        self.used_space = self.approx_bytes_per_tuple*sum
-        if self.used_space > self.total_space:
-            self.total_space = self.used_space
-
-        self.step_count += 1
-        return self.step_count >= self.max_steps
-
-    def getTotalAndUsedSpace(self):
-        return self.total_space, self.used_space
-
-    def getTupleStats(self):
-        return self.n_live_tup, self.n_dead_tup, self.seq_tup_read, self.vacuum_count, 0
-
-    def doVacuum(self):
-        self.n_dead_tup = 0
-        self.vacuum_count += 1
-
-def learn(resume_id):
+def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
 
@@ -316,32 +105,37 @@ def learn(resume_id):
     rl_glue.do_learn(environment_configs, experiment_configs, agent_configs)
 
 if __name__ == '__main__':
-    cmd = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
+    parser.add_argument('--cmd', type=str, choices=['benchmark', 'learn'], help='Command to execute (benchmark or learn)')
+    parser.add_argument('--max-episodes', type=int, default=100, help='Maximum number of episodes for the experiment')
+    parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
+    parser.add_argument('--experiment-duration', type=int, default=120, help='Duration of the experiment in seconds')
+    parser.add_argument('--model-type', type=str, choices=['simulated', 'real'], help='Type of the model (simulated or real)')
+    parser.add_argument('--model1-filename', type=str, default='model1.pth', help='Filename for the first model')
+    parser.add_argument('--model2-filename', type=str, default='model2.pth', help='Filename for the second model')
+    parser.add_argument('--instance-url', type=str, help='URL of the database instance')
+    parser.add_argument('--instance-user', type=str, help='Database user')
+    parser.add_argument('--instance-password', type=str, help='Database password')
+    parser.add_argument('--instance-dbname', type=str, help='Database name')
 
-    global max_episodes
-    max_episodes = int(sys.argv[2])
-    global resume_id
-    resume_id = int(sys.argv[3])
-    global experiment_duration
-    experiment_duration = int(sys.argv[4])
-    global model_type
-    model_type = sys.argv[5]
-    global model1_filename
-    model1_filename = sys.argv[6]
-    global model2_filename
-    model2_filename = sys.argv[7]
-    global instance_url
-    instance_url = sys.argv[8]
-    global instance_user
-    instance_user = sys.argv[9]
-    global instance_password
-    instance_password = sys.argv[10]
-    global instance_dbname
-    instance_dbname = sys.argv[11]
+    args = parser.parse_args()
+    
+    cmd = args.cmd
+
+    max_episodes = args.max_episodes
+    resume_id = args.resume_id
+    experiment_duration = args.experiment_duration
+    model_type = args.model_type
+    model1_filename = args.model1_filename
+    model2_filename = args.model2_filename
+    instance_url = args.instance_url
+    instance_user = args.instance_user
+    instance_password = args.instance_password
+    instance_dbname = args.instance_dbname
 
     if cmd == "benchmark":
-        benchmark(resume_id)
+        benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
-        learn(resume_id)
+        learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:
         print("Invalid command")
