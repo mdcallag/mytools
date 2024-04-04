@@ -13,9 +13,9 @@ class PGStatAndVacuum(VacuumExperiment):
         self.db_pwd = env_info['db_pwd']
         self.table_name = env_info['table_name']
 
-        print("Environment info (for PGStatAndVacuum):")
-        for x in self.env_info:
-            print ('\t', x, ':', self.env_info[x])
+        #print("Environment info (for PGStatAndVacuum):")
+        #for x in self.env_info:
+        #    print ('\t', x, ':', self.env_info[x])
 
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']

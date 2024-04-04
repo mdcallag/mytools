@@ -71,9 +71,9 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
     is_replay = False
     if model_type == "simulated":
         instance = SimulatedVacuum()
-    elif model_type == "real" or model_type == "real_replay":
+    elif model_type == "real" or model_type == "real-replay":
         instance = PGStatAndVacuum()
-        if model_type == "real_replay":
+        if model_type == "real-replay":
             is_replay = True
     else:
         assert("Invalid model type")
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--max-episodes', type=int, default=100, help='Maximum number of episodes for the experiment')
     parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
     parser.add_argument('--experiment-duration', type=int, default=120, help='Duration of the experiment in seconds')
-    parser.add_argument('--model-type', type=str, choices=['simulated', 'real'], help='Type of the model (simulated or real)')
+    parser.add_argument('--model-type', type=str, choices=['simulated', 'real', 'real-replay'], help='Type of the model (simulated or real)')
     parser.add_argument('--model1-filename', type=str, default='model1.pth', help='Filename for the first model')
     parser.add_argument('--model2-filename', type=str, default='model2.pth', help='Filename for the second model')
     parser.add_argument('--instance-url', type=str, help='URL of the database instance')

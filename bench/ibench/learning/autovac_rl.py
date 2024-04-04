@@ -18,16 +18,14 @@ class AutoVacEnv(BaseEnvironment):
 
         # Readings we have obtained for the past several seconds.
         # To start the experiment, pad with some initial values.
-        zero_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_live_tuples_buffer = zero_buffer
-        self.num_dead_tuples_buffer = zero_buffer
-        self.num_read_tuples_buffer = zero_buffer
-        self.num_read_delta_buffer = zero_buffer
+        self.num_live_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_dead_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_read_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_read_delta_buffer = [0.0 for _ in range(self.state_history_length)]
 
         # Those two buffers are used to generate the environment state.
-        hundred_pct_buffer = [100.0 for _ in range(self.state_history_length)]
-        self.live_pct_buffer = hundred_pct_buffer
-        self.num_read_deltapct_buffer = hundred_pct_buffer
+        self.live_pct_buffer = [100.0 for _ in range(self.state_history_length)]
+        self.num_read_deltapct_buffer = [100.0 for _ in range(self.state_history_length)]
 
     def update_stats(self):
         total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
