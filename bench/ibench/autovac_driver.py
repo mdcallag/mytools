@@ -301,7 +301,8 @@ def learn(resume_id):
         'max_seconds': experiment_duration,
         'approx_bytes_per_tuple': 100,
         'is_replay': is_replay,
-        'replay_filename_mask': 'replay_n%d.txt'
+        'replay_filename_mask': 'replay_n%d.txt',
+        'state_history_length': 10
     }
 
     experiment_configs = {

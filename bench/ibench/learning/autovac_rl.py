@@ -14,13 +14,20 @@ class AutoVacEnv(BaseEnvironment):
         self.env_info = env_info
         self.stat_and_vac = env_info['stat_and_vac']
 
-        self.num_live_tuples_buffer = []
-        self.num_dead_tuples_buffer = []
-        self.num_read_tuples_buffer = []
+        self.state_history_length = env_info['state_history_length']
 
-        self.live_pct_buffer = []
-        self.num_read_deltapct_buffer = []
-        self.num_read_delta_buffer = []
+        # Readings we have obtained for the past several seconds.
+        # To start the experiment, pad with some initial values.
+        zero_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_live_tuples_buffer = zero_buffer
+        self.num_dead_tuples_buffer = zero_buffer
+        self.num_read_tuples_buffer = zero_buffer
+        self.num_read_delta_buffer = zero_buffer
+
+        # Those two buffers are used to generate the environment state.
+        hundred_pct_buffer = [100.0 for _ in range(self.state_history_length)]
+        self.live_pct_buffer = hundred_pct_buffer
+        self.num_read_deltapct_buffer = hundred_pct_buffer
 
     def update_stats(self):
         total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
@@ -46,29 +53,23 @@ class AutoVacEnv(BaseEnvironment):
             delta = 0
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-        if len(self.num_live_tuples_buffer) >= 10:
-            self.num_live_tuples_buffer.pop()
-            self.num_dead_tuples_buffer.pop()
-            self.num_read_tuples_buffer.pop()
-            self.live_pct_buffer.pop()
-            self.num_read_deltapct_buffer.pop()
-            self.num_read_delta_buffer.pop()
-
+        self.num_live_tuples_buffer.pop()
         self.num_live_tuples_buffer.insert(0, n_live_tup)
+        self.num_dead_tuples_buffer.pop()
         self.num_dead_tuples_buffer.insert(0, n_dead_tup)
+        self.num_read_tuples_buffer.pop()
         self.num_read_tuples_buffer.insert(0, seq_tup_read)
+        self.live_pct_buffer.pop()
         self.live_pct_buffer.insert(0, live_pct)
+        self.num_read_deltapct_buffer.pop()
         self.num_read_deltapct_buffer.insert(0, delta_pct)
+        self.num_read_delta_buffer.pop()
         self.num_read_delta_buffer.insert(0, delta)
 
     def generate_state(self):
-        # TODO: we should be padding with "neutral" values.
-        l1 = np.pad(self.live_pct_buffer, (0, 10-len(self.live_pct_buffer)), 'constant', constant_values=(0, 0))
-        l2 = np.pad(self.num_read_deltapct_buffer, (0, 10-len(self.num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
-
-        # Additional normalization.
-        l1 = [(x/100.0)-0.5 for x in l1]
-        l2 = [math.log2(x+0.0001) for x in l2]
+        # Normalize raw readings before constructing the environment state.
+        l1 = [(x/100.0)-0.5 for x in self.live_pct_buffer]
+        l2 = [math.log2(x+0.0001) for x in self.num_read_deltapct_buffer]
 
         result = list(map(float, [*l1, *l2]))
         print("Generated state: ", [round(x, 1) for x in result])
