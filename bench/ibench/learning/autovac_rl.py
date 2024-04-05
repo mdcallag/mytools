@@ -1,6 +1,5 @@
 import math
-
-import numpy as np
+import time
 
 from learning.environment import BaseEnvironment
 
@@ -109,11 +108,15 @@ class AutoVacEnv(BaseEnvironment):
         self.stat_and_vac.startExp(self.env_info)
 
         self.delay_adjustment_count = 0
+        self.initial_time = time.time()
 
         self.update_stats()
         initial_state = self.generate_state()
 
         is_terminal = self.stat_and_vac.step()
+        # TODO handle case where we terminate right on the setup.
+        assert(not is_terminal)
+
         reward = self.generate_reward(False)
         self.reward_obs_term = (reward, initial_state, is_terminal)
         return self.reward_obs_term[1]
@@ -151,8 +154,8 @@ class AutoVacEnv(BaseEnvironment):
         if is_terminal:
             print("Terminating.")
             stats = self.stat_and_vac.getTupleStats()
-            print("Delay adjustments: %d, Internal vac: %d, Internal autovac: %d"
-                  % (self.delay_adjustment_count, stats[3], stats[4]))
+            print("Time elapsed: %.2f, delay adjustments: %d, internal vac: %d, internal autovac: %d"
+                  % ((time.time()-self.initial_time), self.delay_adjustment_count, stats[3], stats[4]))
 
         # compute reward before doing the vacuum (will clear dead tuples)
         reward = self.generate_reward(did_vacuum)
