@@ -1325,9 +1325,12 @@ def agent_thread(done_flag):
         print("Loading model state from file...")
         model_state = torch.load(FLAGS.learned_model_file)
         model = RLModel(default_network_arch)
-
-        model.load_state_dict(model_state['model_state_dict'])
-        #model.load_state_dict(model_state.state_dict())
+        try:
+            # Try to load finalized model.
+            model.load_state_dict(model_state['model_state_dict'])
+        except:
+            # Try to load model checkpoint.
+            model.load_state_dict(model_state.state_dict())
 
         rng = numpy.random.RandomState(0)
         live_pct_buffer = []
@@ -1473,6 +1476,7 @@ def agent_thread(done_flag):
         time.sleep(1)
 
     print("Delay adjustments: ", delay_adjustment_count)
+    print("Time elapsed: %.2f" % (time.time()-initial_time))
     print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))
     sys.stdout.flush()
 
