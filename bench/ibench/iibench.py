@@ -1333,9 +1333,12 @@ def agent_thread(done_flag):
             model.load_state_dict(model_state.state_dict())
 
         rng = numpy.random.RandomState(0)
-        live_pct_buffer = []
-        num_read_deltapct_buffer = []
-        num_read_tuples_buffer = []
+
+        state_history_length = 10
+        num_read_tuples_buffer = [0.0 for _ in range(state_history_length)]
+        # Those two buffers are used to generate the environment state.
+        live_pct_buffer = [100.0 for _ in range(state_history_length)]
+        num_read_deltapct_buffer = [100.0 for _ in range(state_history_length)]
 
     while not done_flag.value:
         now = time.time()
@@ -1408,25 +1411,19 @@ def agent_thread(done_flag):
 
         if FLAGS.use_learned_model:
             # generate state
-            delta = 0.0 if len(num_read_tuples_buffer) == 0 else seq_tup_read - num_read_tuples_buffer[0]
-            if delta < 0:
-                delta = 0
+            delta = max(0, seq_tup_read - num_read_tuples_buffer[0])
             delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-            if len(live_pct_buffer) >= 10:
-                live_pct_buffer.pop()
-                num_read_deltapct_buffer.pop()
-                num_read_tuples_buffer.pop()
-
+            live_pct_buffer.pop()
             live_pct_buffer.insert(0, live_pct)
+            num_read_deltapct_buffer.pop()
             num_read_deltapct_buffer.insert(0, delta_pct)
+            num_read_tuples_buffer.pop()
             num_read_tuples_buffer.insert(0, seq_tup_read)
 
-            l1 = numpy.pad(live_pct_buffer, (0, 10-len(live_pct_buffer)), 'constant', constant_values=(0, 0))
-            l2 = numpy.pad(num_read_deltapct_buffer, (0, 10-len(num_read_deltapct_buffer)), 'constant', constant_values=(0, 0))
-            # Additional normalization.
-            l1 = [(x/100.0)-0.5 for x in l1]
-            l2 = [math.log2(x+0.0001) for x in l2]
+            # Normalize raw readings before constructing the environment state.
+            l1 = [(x/100.0)-0.5 for x in live_pct_buffer]
+            l2 = [math.log2(x+0.0001) for x in num_read_deltapct_buffer]
             state = list(map(float, [*l1, *l2]))
             print("Generated state: ", [round(x, 1) for x in state])
             state = torch.tensor([state])

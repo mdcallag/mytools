@@ -45,9 +45,7 @@ class AutoVacEnv(BaseEnvironment):
         print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
               % (total_space, used_space, live_raw_pct, live_pct))
 
-        delta = 0.0 if len(self.num_read_tuples_buffer) == 0 else seq_tup_read - self.num_read_tuples_buffer[0]
-        if delta < 0:
-            delta = 0
+        delta = max(0, seq_tup_read - self.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
         self.num_live_tuples_buffer.pop()
