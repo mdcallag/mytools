@@ -155,7 +155,7 @@ class AutoVacEnv(BaseEnvironment):
             print("Time elapsed: %.2f, delay adjustments: %d, internal vac: %d, internal autovac: %d"
                   % ((time.time()-self.initial_time), self.delay_adjustment_count, stats[3], stats[4]))
 
-        # compute reward before doing the vacuum (will clear dead tuples)
+        # Compute reward after applying the action.
         reward = self.generate_reward(did_vacuum)
 
         self.reward_obs_term = (reward, current_state, is_terminal)

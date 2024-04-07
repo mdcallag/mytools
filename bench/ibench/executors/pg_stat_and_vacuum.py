@@ -46,6 +46,7 @@ class PGStatAndVacuum(VacuumExperiment):
                                 "autovacuum_vacuum_cost_delay = 0,"
                                 "autovacuum_vacuum_cost_limit = 10000"
                                 ")" % self.table_name)
+            self.cursor.execute("select pg_stat_reset()")
 
         self.env_info['experiment_id'] += 1
 

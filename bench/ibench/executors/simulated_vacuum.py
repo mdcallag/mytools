@@ -35,10 +35,11 @@ class SimulatedVacuum(VacuumExperiment):
 
         if self.n_live_tup > 0:
             # Weigh how many tuples we read per second by how many dead tuples we have.
-            self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/(self.n_live_tup+self.n_dead_tup)) ** 0.5)
+            #self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/(self.n_live_tup+self.n_dead_tup)) ** 0.5)
+            self.seq_tup_read += 15*3*self.n_live_tup
 
         self.step_count += 1
-        return self.step_count >= self.max_steps
+        return self.step_count > self.max_steps
 
     def getTotalAndUsedSpace(self):
         return self.total_space, self.used_space
