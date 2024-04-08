@@ -15,17 +15,6 @@ class AutoVacEnv(BaseEnvironment):
 
         self.state_history_length = env_info['state_history_length']
 
-        # Readings we have obtained for the past several seconds.
-        # To start the experiment, pad with some initial values.
-        self.num_live_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_dead_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_read_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_read_delta_buffer = [0.0 for _ in range(self.state_history_length)]
-
-        # Those two buffers are used to generate the environment state.
-        self.live_pct_buffer = [100.0 for _ in range(self.state_history_length)]
-        self.num_read_deltapct_buffer = [100.0 for _ in range(self.state_history_length)]
-
     def update_stats(self):
         total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
 
@@ -35,15 +24,13 @@ class AutoVacEnv(BaseEnvironment):
         seq_tup_read = stats[2]
         print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
 
-        live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
+        live_raw_pct = 1.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
-        used_pct = 0 if total_space == 0 else used_space/total_space
-        live_pct = 100*live_raw_pct*used_pct
-        dead_pct = 100*(1.0-live_raw_pct)*used_pct
-        free_pct = 100*(1.0-used_pct)
+        used_pct = 1.0 if total_space == 0 else used_space/total_space
+        live_pct = live_raw_pct*used_pct
 
         print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
-              % (total_space, used_space, live_raw_pct, live_pct))
+              % (total_space, used_space, 100.0*live_raw_pct, 100.0*live_pct))
 
         delta = max(0, seq_tup_read - self.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
@@ -63,8 +50,8 @@ class AutoVacEnv(BaseEnvironment):
 
     def generate_state(self):
         # Normalize raw readings before constructing the environment state.
-        l1 = [(x/100.0)-0.5 for x in self.live_pct_buffer]
-        l2 = [math.log2(x+0.0001) for x in self.num_read_deltapct_buffer]
+        l1 = [x-0.5 for x in self.live_pct_buffer]
+        l2 = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
 
         result = list(map(float, [*l1, *l2]))
         print("Generated state: ", [round(x, 1) for x in result])
@@ -75,16 +62,19 @@ class AutoVacEnv(BaseEnvironment):
         live_pct = self.live_pct_buffer[0]
         last_read = self.num_read_delta_buffer[0]
         print("Last live tup: %d, Last live %%: %.2f, Last_read: %d"
-              % (last_live_tup, live_pct, last_read))
+              % (last_live_tup, 100.0*live_pct, last_read))
 
         # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
         # The reward is intended to be scale free.
         reward = 0
-        if last_live_tup > 0:
-            reward = (last_read/last_live_tup)*live_pct/100.0
-            if live_pct < 50.0:
+        if last_read == 0 or last_live_tup == 0:
+            # Initial reward
+            reward = 50
+        else:
+            reward = (last_read/last_live_tup)*live_pct
+            if live_pct < 0.5:
                 # Large penalty for dirty table
-                reward -= 2*(50.0-live_pct)
+                reward -= 200*(0.5-live_pct)
 
         if did_vacuum:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
@@ -103,6 +93,18 @@ class AutoVacEnv(BaseEnvironment):
         """
 
         print("Starting agent...")
+
+        # Readings we have obtained for the past several seconds.
+        # To start the experiment, pad with some initial values.
+        self.num_live_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_dead_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_read_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
+        self.num_read_delta_buffer = [0.0 for _ in range(self.state_history_length)]
+
+        # Those two buffers are used to generate the environment state.
+        self.live_pct_buffer = [1.0 for _ in range(self.state_history_length)]
+        self.num_read_deltapct_buffer = [0.0 for _ in range(self.state_history_length)]
+
         self.stat_and_vac.startExp(self.env_info)
 
         self.delay_adjustment_count = 0

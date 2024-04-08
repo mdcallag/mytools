@@ -1337,8 +1337,8 @@ def agent_thread(done_flag):
         state_history_length = 10
         num_read_tuples_buffer = [0.0 for _ in range(state_history_length)]
         # Those two buffers are used to generate the environment state.
-        live_pct_buffer = [100.0 for _ in range(state_history_length)]
-        num_read_deltapct_buffer = [100.0 for _ in range(state_history_length)]
+        live_pct_buffer = [1.0 for _ in range(state_history_length)]
+        num_read_deltapct_buffer = [0.0 for _ in range(state_history_length)]
 
     while not done_flag.value:
         now = time.time()
@@ -1390,15 +1390,15 @@ def agent_thread(done_flag):
         seq_tup_read = stats[2]
         #print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
 
-        live_raw_pct = 0.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
+        live_raw_pct = 1.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
-        print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, live_raw_pct))
+        print("Total: %d, Used: %d, Live raw pct: %.2f" % (total_space, used_space, 100.0*live_raw_pct))
         sys.stdout.flush()
 
         used_pct = used_space/total_space
-        live_pct = 100*live_raw_pct*used_pct
-        dead_pct = 100*(1.0-live_raw_pct)*used_pct
-        free_pct = 100*(1.0-used_pct)
+        live_pct = live_raw_pct*used_pct
+        dead_pct = (1.0-live_raw_pct)*used_pct
+        free_pct = 1.0-used_pct
 
         count += 1
         live_sum += live_pct
@@ -1406,7 +1406,7 @@ def agent_thread(done_flag):
         free_sum += free_pct
 
         print("Live tuple %% (avg): %.2f, %.2f, Dead tuple %% (avg): %.2f, %.2f, Free space %% (avg): %.2f, %.2f"
-              % (live_pct, live_sum / count, dead_pct, dead_sum / count, free_pct, free_sum / count))
+              % (100.0*live_pct, 100.0*live_sum/count, 100.0*dead_pct, 100.0*dead_sum/count, 100.0*free_pct, 100.0*free_sum/count))
         sys.stdout.flush()
 
         if FLAGS.use_learned_model:
@@ -1422,8 +1422,8 @@ def agent_thread(done_flag):
             num_read_tuples_buffer.insert(0, seq_tup_read)
 
             # Normalize raw readings before constructing the environment state.
-            l1 = [(x/100.0)-0.5 for x in live_pct_buffer]
-            l2 = [math.log2(x+0.0001) for x in num_read_deltapct_buffer]
+            l1 = [x-0.5 for x in live_pct_buffer]
+            l2 = [5.0 if x == 0 else math.log2(x) for x in num_read_deltapct_buffer]
             state = list(map(float, [*l1, *l2]))
             print("Generated state: ", [round(x, 1) for x in state])
             state = torch.tensor([state])
@@ -1474,7 +1474,8 @@ def agent_thread(done_flag):
 
     print("Delay adjustments: ", delay_adjustment_count)
     print("Time elapsed: %.2f" % (time.time()-initial_time))
-    print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))
+    print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f"
+          % (100.0*live_sum/count, 100.0*dead_sum/count, 100.0*free_sum/count))
     sys.stdout.flush()
 
     with open(FLAGS.tag+'_actions.txt', 'w') as f:
