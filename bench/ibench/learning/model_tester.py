@@ -22,13 +22,13 @@ def maximize(x):
 
     return abs(v1-v2)
 
-def test_hidden_layer(id, val, size, apply_rect_linear):
+def test_hidden_layer(model, id, val, size, apply_rect_linear):
     print("Input: %d/%d" % (id, size))
 
     input = [0.0 for i in range(size)]
     input[id] = val
 
-    x = model1.fc1(torch.tensor(input))
+    x = model.fc1(torch.tensor(input))
     if apply_rect_linear:
         x = F.relu(x)
 
@@ -40,13 +40,13 @@ def test_hidden_layer(id, val, size, apply_rect_linear):
 
     print("Hidden layer activation: ", [(i, round(e, 1)) for i, e in hidden])
 
-def test_hidden_layer_reversed(id, val, size):
+def test_hidden_layer_reversed(model, id, val, size):
     print("Input: %d/%d" % (id, size))
 
     input = [0.0 for i in range(size)]
     input[id] = val
 
-    w = model1.fc1.weight
+    w = model.fc1.weight
     #print(w.size(), file=sys.stderr)
     w = torch.transpose(w, 0, 1)
     #print(w.size(), file=sys.stderr)
@@ -60,21 +60,21 @@ def test_hidden_layer_reversed(id, val, size):
 
     print("Input layer activation: ", [(i, round(e, 1)) for i, e in input_activation])
 
-def test_output(id, val, size):
+def test_output(model, id, val, size):
     print("Hidden: %d/%d" % (id, size))
 
     input = [0.0 for i in range(size)]
     input[id] = val
 
-    output = model1.fc2(torch.tensor(input)).tolist()
+    output = model.fc2(torch.tensor(input)).tolist()
     print("Output layer activation: ", [round(e, 1) for e in output])
     if output[0] < output[1]:
         print("Vacuum preferred")
 
-def test_given_input(input):
+def test_given_input(model, input):
     print("\n\nSpecific input: ", input)
 
-    hidden_no_relu = model1.fc1(torch.tensor(input))
+    hidden_no_relu = model.fc1(torch.tensor(input))
 
     hidden_no_relu_display = []
     for index, e in enumerate(hidden_no_relu.tolist()):
@@ -93,38 +93,19 @@ def test_given_input(input):
     hidden_relu_display = sorted(hidden_relu_display, reverse=True, key = lambda sub: abs(sub[1]))
     print("Hidden with relu: ", [(i, round(e, 1)) for i, e in hidden_relu_display])
 
-    output = model1.fc2(hidden_relu)
+    output = model.fc2(hidden_relu)
     output = output.tolist()
     print("Output: ", [round(e, 1) for e in output])
     print("Selected action: ", "idling" if output[0] >= output[1] else "vacuum")
 
-def test():
-    for v in [1.0, -1.0, 0]:
-        for v1 in [True, False]:
-            print("\n\nTesting %d inputs %s........" % (v, "with rect linear" if v1 else "without rect linear"))
-            for i in range(20):
-                print("=========================================================")
-                test_hidden_layer(i, v, 20, v1)
-
-    for v in [1.0, -1.0]:
-        print("\n\nTesting %d hidden layer to input..." % v)
-        for i in range(256):
-            print("=========================================================")
-            test_hidden_layer_reversed(i, v, 256)
-
-    for v in [1.0, -1.0, 0]:
-        print("\n\nTesting %d hidden layer....." % v)
-        for i in range(256):
-            print("=========================================================")
-            test_output(i, v, 256)
-
+def test_given_inputs(model):
     for v in [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]:
         input = []
         for i in range(10):
             input.append(v)
         for i in range(10):
             input.append(4.0)
-        test_given_input(input)
+        test_given_input(model, input)
 
         #input = []
         #input.append(v)
@@ -134,6 +115,28 @@ def test():
         #for i in range(9):
         #    input.append(0)
         #test_given_input(input)
+
+def test(model):
+    for v in [1.0, -1.0, 0]:
+        for v1 in [True, False]:
+            print("\n\nTesting %d inputs %s........" % (v, "with rect linear" if v1 else "without rect linear"))
+            for i in range(20):
+                print("=========================================================")
+                test_hidden_layer(model, i, v, 20, v1)
+
+    for v in [1.0, -1.0]:
+        print("\n\nTesting %d hidden layer to input..." % v)
+        for i in range(256):
+            print("=========================================================")
+            test_hidden_layer_reversed(model, i, v, 256)
+
+    for v in [1.0, -1.0, 0]:
+        print("\n\nTesting %d hidden layer....." % v)
+        for i in range(256):
+            print("=========================================================")
+            test_output(model, i, v, 256)
+
+    test_given_inputs(model1)
 
 if __name__ == '__main__':
     global model1_state
@@ -153,7 +156,7 @@ if __name__ == '__main__':
     global rng
     rng = numpy.random.RandomState(0)
 
-    test()
+    test(model1)
 
     #varbound = numpy.array([[0.0, 100.0]]*20)
     #ga_model = ga(function = maximize, dimension = 20, variable_type='real', variable_boundaries = varbound)

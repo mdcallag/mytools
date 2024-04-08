@@ -9,6 +9,9 @@ import torch
 
 from tqdm.auto import tqdm
 
+from learning.model_tester import test_given_inputs
+
+
 class RLGlue:
     """RLGlue class
 
@@ -251,6 +254,10 @@ class RLGlue:
                 episode_reward = self.rl_agent_message('get_sum_reward')
                 # Save the reward in the array
                 agent_sum_reward[run, episode - start_episode] = episode_reward
+
+                if episode % 50 == 0:
+                    print("Testing model at episode %d:" % episode)
+                    test_given_inputs(self.agent.model)
 
                 # Save the model for testing
                 if episode == start_episode + experiment_configs['num_episodes'] - 1:
