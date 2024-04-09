@@ -50,7 +50,3 @@ class SimulatedVacuum(VacuumExperiment):
     def doVacuum(self):
         self.vacuum_count += 1
         self.n_dead_tup = 0
-        self.updateUsedSpace()
-
-        # Reclaim some unused space
-        self.total_space = 0.9*self.total_space + 0.1*self.used_space
