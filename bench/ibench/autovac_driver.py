@@ -13,13 +13,13 @@ from tqdm.auto import tqdm
 from executors.simulated_vacuum import SimulatedVacuum
 from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
-def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+def benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
 
     #initial_delay = 5
     initial_delay = 60
 
-    for initial_size in tqdm([10000, 100000, 1000000]):
+    for initial_size in tqdm([10000, 100000, 1000000, 10000000, 100000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
             id += 1
             if id < resume_id:
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     instance_dbname = args.instance_dbname
 
     if cmd == "benchmark":
-        benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
+        benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
         learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:

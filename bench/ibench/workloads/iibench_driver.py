@@ -12,6 +12,7 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
            "--max_rows=100000000", "--secs_per_report=5",
            "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=10000",
            "--initial_size=%d" % initial_size,
+           "--initial_deleted_fraction=50",
            "--inserts_per_second=%d" % update_speed,
            "--initial_autovac_delay=%d" % initial_delay
            ]

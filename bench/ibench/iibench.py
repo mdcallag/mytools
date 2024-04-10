@@ -146,6 +146,7 @@ def defineParserOptions():
                    'Create table. Drop and recreate if it exists.')
     DEFINE_integer('warmup', 0, 'TODO')
     DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
+    DEFINE_integer('initial_deleted_fraction', 0, 'Fraction of initial tuples (from 0 to 100%) to delete after inserting')
     DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
     DEFINE_boolean('delete_per_insert', False,
                    'When True, do a delete for every insert')
@@ -1676,6 +1677,11 @@ def run_benchmark(parent_barrier):
       for i in range(int(FLAGS.initial_size/FLAGS.rows_per_commit)):
         rows = generate_insert_rows(rand_data_buf, FLAGS.use_prepared_insert)
         cursor.execute(rows)
+
+      if FLAGS.initial_deleted_fraction > 0:
+        # Delete specified fraction of tuples
+        cursor.execute("delete from purchases_index where transactionid <= %d"
+                       % (int(FLAGS.initial_size*FLAGS.initial_deleted_fraction/100)))
       print("Done")
 
   # Used to get all threads running at the same point in time
