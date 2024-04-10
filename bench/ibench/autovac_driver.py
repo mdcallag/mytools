@@ -15,6 +15,10 @@ from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
 def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
+
+    #initial_delay = 5
+    initial_delay = 60
+
     for initial_size in tqdm([10000, 100000, 1000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
             id += 1
@@ -31,22 +35,22 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
 
             # Control with RL model #1
             run_with_params(False, tag1, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, True, False, False,
+                            initial_size, update_speed, initial_delay, experiment_duration, True, False, False,
                             model1_filename, True)
 
             # Control with RL model #1
             run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, True, False, False,
+                            initial_size, update_speed, initial_delay, experiment_duration, True, False, False,
                             model2_filename, True)
 
             # Control with PID
             run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, True, True, False,
+                            initial_size, update_speed, initial_delay, experiment_duration, True, True, False,
                             "", True)
 
             # Control with default autovacuum
             run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, False, False, False,
+                            initial_size, update_speed, initial_delay, experiment_duration, False, False, False,
                             "", True)
 
             gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"

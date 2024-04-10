@@ -78,7 +78,7 @@ class AutoVacEnv(BaseEnvironment):
 
         if did_vacuum:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
-            reward -= 100
+            reward -= 75
 
         print("Returning reward: %.2f" % reward)
         return reward
