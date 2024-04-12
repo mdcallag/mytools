@@ -4,17 +4,18 @@ import math
 
 from iibench import apply_options, run_main, run_benchmark
 
-def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
-                    initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
+def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, initial_deleted_fraction, update_speed,
+                    initial_delay, vacuum_buffer_usage_limit, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
     cmd = ["--setup", "--dbms=postgres", "--tag=%s" % tag,
            "--db_user=%s" % db_user, "--db_name=%s" % db_name,
            "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
            "--max_rows=100000000", "--secs_per_report=5",
            "--query_threads=3", "--delete_per_insert", "--max_seconds=%d" % max_seconds, "--rows_per_commit=10000",
            "--initial_size=%d" % initial_size,
-           "--initial_deleted_fraction=50",
+           "--initial_deleted_fraction=%d" % initial_deleted_fraction,
            "--inserts_per_second=%d" % update_speed,
-           "--initial_autovac_delay=%d" % initial_delay
+           "--initial_autovac_delay=%d" % initial_delay,
+           "--vacuum_buffer_usage_limit=%d" % vacuum_buffer_usage_limit
            ]
     if control_autovac:
         cmd.append("--control_autovac")
@@ -58,7 +59,8 @@ def run_with_default_settings(barrier, env_info):
 
     run_with_params(True, "rl_model",
                     env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
-                    initial_size, update_speed, env_info['initial_delay'], env_info['max_seconds'],
+                    initial_size, env_info['initial_deleted_fraction'], update_speed, env_info['initial_delay'],
+                    env_info['vacuum_buffer_usage_limit'], env_info['max_seconds'],
                     True, False, True, "", False)
     run_benchmark(barrier)
 

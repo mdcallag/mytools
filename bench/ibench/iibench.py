@@ -116,6 +116,7 @@ def defineParserOptions():
     DEFINE_boolean('control_autovac', False, 'If we are taking control of the autovacuuming')
     DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
     DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
+    DEFINE_integer('vacuum_buffer_usage_limit', 256, 'Sets the buffer pool size for VACUUM, ANALYZE, and autovacuum, in kilobytes')
     DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
     DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
     DEFINE_boolean('use_learned_model', False, "Use previously learned model")
@@ -1460,7 +1461,7 @@ def agent_thread(done_flag):
                 last_autovac_time = now
                 print("Vacuuming table...")
                 sys.stdout.flush()
-                cursor.execute("vacuum %s" % FLAGS.table_name)
+                cursor.execute("vacuum (buffer_usage_limit %d) %s" % (FLAGS.vacuum_buffer_usage_limit, FLAGS.table_name))
                 vacuum_count += 1
 
         cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)

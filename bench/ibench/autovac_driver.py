@@ -13,50 +13,46 @@ from tqdm.auto import tqdm
 from executors.simulated_vacuum import SimulatedVacuum
 from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
+def generate_params():
+    #for initial_size in tqdm([10000, 100000, 1000000, 10000000, 100000000]):
+    for initial_size in tqdm([1000000]):
+        #for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
+        for update_speed in tqdm([1000, 4000, 16000, 64000]):
+            for vacuum_buffer_usage_limit in tqdm([256, 1024, 4096, 16384, 65536]):
+                yield initial_size, update_speed, vacuum_buffer_usage_limit
+
 def benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
 
     #initial_delay = 5
     initial_delay = 60
+    initial_deleted_fraction = 0
 
-    for initial_size in tqdm([10000, 100000, 1000000, 10000000, 100000000]):
-        for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
-            id += 1
-            if id < resume_id:
-                continue
-            print("Running experiment %d" % id)
-            sys.stdout.flush()
+    for initial_size, update_speed, vacuum_buffer_usage_limit in generate_params():
+        id += 1
+        if id < resume_id:
+            continue
+        print("Running experiment %d" % id)
+        sys.stdout.flush()
 
-            tag_suffix = "_n%d_size%d_updates%d" % (id, initial_size, update_speed)
-            tag1 = "tag_model1%s" % tag_suffix
-            tag2 = "tag_model2%s" % tag_suffix
-            tag3 = "tag_pid%s" % tag_suffix
-            tag4 = "tag_vanilla%s" % tag_suffix
+        tag_suffix = "_n%d_size%d_updates%d_vbuffer%d" % (id, initial_size, update_speed, vacuum_buffer_usage_limit)
+        tags = []
+        for t in ["model1", "model2", "pid", "vanilla"]:
+            tag = "tag_%s%s" % (t, tag_suffix)
+            tags.append(tag)
 
-            # Control with RL model #1
-            run_with_params(False, tag1, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, initial_delay, experiment_duration, True, False, False,
-                            model1_filename, True)
+            control_autovac = t != "vanilla"
+            enable_pid = t == "pid"
+            model_filename = model1_filename if t == "model1" else model2_filename if t == "model2" else ""
 
-            # Control with RL model #1
-            run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, initial_delay, experiment_duration, True, False, False,
-                            model2_filename, True)
+            run_with_params(False, tag, instance_url, instance_user, instance_password, instance_dbname,
+                            initial_size, initial_deleted_fraction, update_speed, initial_delay, vacuum_buffer_usage_limit, experiment_duration, control_autovac, enable_pid, False,
+                            model_filename, True)
 
-            # Control with PID
-            run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, initial_delay, experiment_duration, True, True, False,
-                            "", True)
-
-            # Control with default autovacuum
-            run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, initial_delay, experiment_duration, False, False, False,
-                            "", True)
-
-            gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
-                           % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))
-            print("Gnuplot command: ", gnuplot_cmd)
-            os.system(gnuplot_cmd)
+        gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
+                       % (tag_suffix, tag_suffix, tags[0], tags[1], tags[2], tags[3]))
+        print("Gnuplot command: ", gnuplot_cmd)
+        os.system(gnuplot_cmd)
 
 def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
@@ -91,6 +87,8 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'db_pwd': instance_password,
         'table_name': 'purchases_index',
         'initial_delay': 5,
+        'initial_deleted_fraction': 0,
+        'vacuum_buffer_usage_limit': 256,
         'max_seconds': experiment_duration,
         'approx_bytes_per_tuple': 100,
         'is_replay': is_replay,
