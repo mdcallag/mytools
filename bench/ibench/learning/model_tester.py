@@ -107,14 +107,20 @@ def test_given_inputs(model):
             input.append(4.0)
         test_given_input(model, input)
 
-        #input = []
-        #input.append(v)
-        #for i in range(9):
-        #    input.append(0)
-        #input.append(4.0)
-        #for i in range(9):
-        #    input.append(0)
-        #test_given_input(input)
+    live_pct = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, -0.5, 0.3]
+    num_read = [5.8, 6.8, 6.9, 7.1, 7.0, 7.0, 6.9, 6.6, 5.0, 5.0]
+
+    states = []
+    for i in range(10):
+        states.append([*live_pct, *num_read])
+        live_pct.pop(0)
+        live_pct.append(0.5)
+        num_read.pop(0)
+        num_read.append(5.0)
+
+    states.reverse()
+    for state in states:
+        test_given_input(model, state)
 
 def test(model):
     for v in [1.0, -1.0, 0]:
