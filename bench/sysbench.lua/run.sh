@@ -331,9 +331,9 @@ if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
 for x in $( seq 0 $last_loop ); do
   echo forloop $x perf rep for $sfx 
   if [[ doperf2 -eq 1 ]]; then
-  $perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
-  $perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
-  $perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
+  #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
+  #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
+  #$perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
 
   outf="sb.perf.rec.g.$sfx.$x"
   $perf report --stdio -n -g folded -i $outf --no-children > sb.perf.rep.g.f1.c0.$sfx.$x
