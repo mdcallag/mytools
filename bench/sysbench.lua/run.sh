@@ -229,6 +229,10 @@ elif [[ ${dbA[0]} == "postgres" ]]; then
   pspid=$!
 fi
 
+doperf1=0
+doperf2=1
+doperf3=0
+
 perf=perf
 PERF_METRIC=${PERF_METRIC:-cycles}
 x=0
@@ -237,16 +241,13 @@ if [ $x -gt 0 ]; then
 fgp="$HOME/git/FlameGraph"
 if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
-while [ $x -eq 0 ]; do
+while :; do
   perf_secs=20
   pause_secs=10
   perf="perf"
 
-  if [ $x -eq 0 ]; then
-    sleep 60
-  else
-    sleep $pause_secs
-  fi
+  echo sleep at start
+  sleep 30
 
   if [[ ${dbA[0]} == "mysql" ]]; then
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
@@ -257,9 +258,11 @@ while [ $x -eq 0 ]; do
     exit 1
   fi
 
+  echo dbbpid is $dbbpid
   if [ -z $dbbpid ]; then echo Cannot get mysqld PID; continue; fi
 
   hw_secs=10
+  if [[ doperf1 -eq 1 ]]; then
   outf="sb.perf.hw.$sfx.$x"
   $perf stat -o $outf -p $dbbpid -- sleep $hw_secs ; sleep 2
   $perf stat -o $outf --append -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $hw_secs ; sleep 2
@@ -269,14 +272,19 @@ while [ $x -eq 0 ]; do
   $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
   $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
   $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
+  fi
 
+  if [[ doperf2 -eq 1 ]]; then
   outf="sb.perf.rec.g.$sfx.$x"
   echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
   $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+  fi
 
+  if [[ doperf3 -eq 1 ]]; then
   sleep $pause_secs
   outf="sb.perf.rec.f.$sfx.$x"
   $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+  fi
 
   echo $x > sb.perf.last.$sfx
   x=$(( $x + 1 ))
@@ -322,9 +330,10 @@ echo last_loop is $last_loop for $sfx
 if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
 for x in $( seq 0 $last_loop ); do
   echo forloop $x perf rep for $sfx 
-  #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
-  #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
-  #$perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
+  if [[ doperf2 -eq 1 ]]; then
+  $perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
+  $perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
+  $perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
 
   outf="sb.perf.rec.g.$sfx.$x"
   $perf report --stdio -n -g folded -i $outf --no-children > sb.perf.rep.g.f1.c0.$sfx.$x
@@ -335,11 +344,14 @@ for x in $( seq 0 $last_loop ); do
   cat sb.perf.rep.g.scr.$sfx.$x | $fgp/stackcollapse-perf.pl > sb.perf.g.fold.$sfx.$x
   $fgp/flamegraph.pl sb.perf.g.fold.$sfx.$x > sb.perf.g.$sfx.$x.svg
   gzip --fast sb.perf.rep.g.scr.$sfx.$x
+  fi
 
+  if [[ doperf3 -eq 1 ]]; then
   outf="sb.perf.rec.f.$sfx.$x"
   $perf report --stdio -i $outf > sb.perf.rep.f.$sfx.$x
   $perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
   gzip --fast $outf
+  fi
 done
 fi
 fi
@@ -580,6 +592,7 @@ echo "all" >> sb.sz.$sfx
 du -hs ${ddir}/* >> sb.sz.$sfx
 
 ls -asShR $ddir > sb.lsh.r.$sfx
+ls -asShR /home/mdcallag/mytx > sb.lsh.r.tx.$sfx
 
 ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
 x=0
