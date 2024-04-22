@@ -331,7 +331,7 @@ read last_loop < sb.perf.last.$sfx
 echo last_loop is $last_loop for $sfx
 
 if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
-for x in $( seq 0 $last_loop ); do
+for x in $( seq 1 $last_loop ); do
   echo forloop $x perf rep for $sfx 
   if [[ doperf2 -eq 1 ]]; then
   #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
