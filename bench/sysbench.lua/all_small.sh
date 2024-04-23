@@ -77,7 +77,7 @@ echo update-zipf
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-zipf      100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo write-only
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        write-only      $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        write-only      10000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo read-write range 10
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      10  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
