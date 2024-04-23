@@ -21,12 +21,17 @@ fi
 
 cm=1
 
-latest_versions=( 6.28.fb )
-six_versions=( 6.0.fb 6.1.fb 6.2.fb 6.3.fb 6.4.fb 6.5.fb 6.6.fb 6.7.fb 6.8.fb 6.9.fb 6.10.fb 6.11.fb 6.12.fb 6.13.fb 6.14.fb 6.15.fb 6.16.fb 6.17.fb 6.18.fb 6.19.fb 6.20.fb 6.21.fb 6.22.fb 6.23.fb 6.24.fb 6.25.fb 6.26.fb 6.27.fb 6.28.fb 6.29.fb )
-seven_versions=( 7.0.fb 7.1.fb 7.2.fb 7.3.fb 7.4.fb 7.5.fb 7.6.fb 7.7.fb 7.8.fb 7.9.fb 7.10.fb )
-eight_versions=( 8.0.fb 8.1.fb 8.2.fb 8.3.fb 8.4.fb 8.5.fb 8.6.fb 8.7.fb 8.8.fb 8.9.fb )
+latest_versions=( 6.28.gcc )
+six_versions=( 6.0.gcc 6.1.gcc 6.2.gcc 6.3.gcc 6.4.gcc 6.5.gcc 6.6.gcc 6.7.gcc 6.8.gcc 6.9.gcc 6.10.gcc 6.11.gcc 6.12.gcc 6.13.gcc 6.14.gcc 6.15.gcc 6.16.gcc 6.17.gcc 6.18.gcc 6.19.gcc 6.20.gcc 6.21.gcc 6.22.gcc 6.23.gcc 6.24.gcc 6.25.gcc 6.26.gcc 6.27.gcc 6.28.gcc 6.29.gcc )
+seven_versions=( 7.0.gcc 7.1.gcc 7.2.gcc 7.3.gcc 7.4.gcc 7.5.gcc 7.6.gcc 7.7.gcc 7.8.gcc 7.9.gcc 7.10.gcc )
+eight_versions=( 8.0.gcc 8.1.gcc 8.2.gcc 8.3.gcc 8.4.gcc 8.5.gcc 8.6.gcc 8.7.gcc 8.8.gcc 8.9.gcc 8.10.gcc 8.11.gcc )
+nine_versions=( 9.0.gcc 9.1.gcc )
 
-use_versions="${latest_versions[@]}"
+some_seven_versions=( 7.0.gcc 7.3.gcc 7.6.gcc 7.10.gcc )
+some_eight_versions=( 8.0.gcc 8.3.gcc 8.6.gcc 8.9.gcc 8.11.gcc )
+
+#use_versions="${some_seven_versions[@]} ${some_eight_versions[@]} ${nine_versions[@]}"
+use_versions="${eight_versions[@]}"
 
 if [ "$#" -eq 0 ] ; then
   versions="${use_versions[@]}"
@@ -37,10 +42,16 @@ else
 fi
 
 case $myhw in
+c8r32)
+  # Options for 8-core, 32g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=4 )
+  cache_mb=$(( 1024 * 20 ))
+  nsub=2
+  ;;
 c4r16)
   # Options for 4-core, 16g RAM
   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=3 )
-  cache_mb=$(( 1024 * 12 ))
+  cache_mb=$(( 1024 * 10 ))
   nsub=2
   ;;
 c4bc1g)
@@ -128,6 +139,8 @@ echo leveled using $odir at $( date )
 myargs=( "${args[@]}" )
 myargs+=( MIN_LEVEL_TO_COMPRESS=3 COMPACTION_STYLE=leveled )
 env "${myargs[@]}" bash benchmark_compare.sh /data/m/rx $odir ${versions[@]}
+
+exit
 
 # for universal
 
