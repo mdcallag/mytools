@@ -318,7 +318,7 @@ fi
 
 repint=""
 #repint="--report-interval=10"
-#--report-checkpoints=30,60,90,120,150,180"
+#repint="--report-checkpoints=30,60,90,120,150,180"
 
 if [[ $testType == "scan" ]]; then
   exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $sysbdir/share/sysbench/$lua run)
