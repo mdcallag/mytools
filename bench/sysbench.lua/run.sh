@@ -318,6 +318,9 @@ if [[ $prepstmt == 0 ]]; then
   useps="--db-ps-mode=disable"
 fi
 
+repint=""
+#repint="--report-interval=10"
+
 if [[ $testType == "scan" ]]; then
   exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $sysbdir/share/sysbench/$lua run)
 else
