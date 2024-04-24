@@ -193,8 +193,6 @@ echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" >> sb.p
 kill $pspid
 kill $vmpid
 kill $iopid
-kill $seid
-kill $splid
 bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
 
 fi
@@ -383,6 +381,8 @@ fi
 kill $pspid
 kill $vmpid
 kill $iopid
+kill $seid
+kill $splid
 qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 
 if [[ $testType == "scan" ]]; then
