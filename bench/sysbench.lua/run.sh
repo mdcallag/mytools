@@ -340,6 +340,12 @@ if [ $perfpid -ge 0 ]; then
   kill $perfpid
 fi
 
+kill $pspid
+kill $vmpid
+kill $iopid
+kill $seid
+kill $splid
+
 # Do this after sysbench is done because it can use a lot of CPU
 
 last_loop=""
@@ -378,11 +384,6 @@ done
 fi
 fi
 
-kill $pspid
-kill $vmpid
-kill $iopid
-kill $seid
-kill $splid
 qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 
 if [[ $testType == "scan" ]]; then
