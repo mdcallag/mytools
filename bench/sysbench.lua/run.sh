@@ -321,9 +321,9 @@ repint=""
 #repint="--report-checkpoints=30,60,90,120,150,180"
 
 if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $repint $sysbdir/share/sysbench/$lua run)
 else
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $sysbdir/share/sysbench/$lua run)
 fi
 
 if [[ $client == *"oriole"* ]]; then 
