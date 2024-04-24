@@ -159,13 +159,13 @@ iostat -y -kx $samp $nsamp >& sb.prepare.io.$sfx &
 iopid=$!
 
 if [[ ${dbA[0]} == "mysql" ]]; then
-  while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.prepare.ps.$sfx &
   pspid=$!
 elif [[ ${dbA[0]} == "mariadb" ]]; then
-  while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.prepare.ps.$sfx &
   pspid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
-  while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfx &
+  while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.prepare.ps.$sfx &
   pspid=$!
 fi
 
@@ -193,6 +193,8 @@ echo "Load seconds is $tot_secs for $ntabs tables, $mrps Mips, $rps ips" >> sb.p
 kill $pspid
 kill $vmpid
 kill $iopid
+kill $seid
+kill $splid
 bash an.sh sb.prepare.io.$sfx sb.prepare.vm.$sfx $dname $rps $realdop > sb.prepare.met.$sfx
 
 fi
@@ -221,9 +223,17 @@ iopid=$!
 if [[ ${dbA[0]} == "mysql" ]]; then
   while :; do date; ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
+  while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
+  splid=$!
+  while :; do date; $client "${clientArgs[@]}" -e 'show engine innodb status\G'; sleep 30; done > sb.sei.$sfx &
+  seid=$!
 elif [[ ${dbA[0]} == "mariadb" ]]; then
   while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
+  while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
+  splid=$!
+  while :; do date; $client "${clientArgs[@]}" -e 'show engine innodb status\G'; sleep 30; done > sb.sei.$sfx &
+  seid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
@@ -232,6 +242,7 @@ fi
 doperf1=0
 doperf2=1
 doperf3=0
+doperf4=0
 
 perf=perf
 PERF_METRIC=${PERF_METRIC:-cycles}
@@ -246,7 +257,7 @@ while :; do
   pause_secs=10
   perf="perf"
 
-  echo sleep at start
+  #echo sleep at start
   sleep 30
 
   if [[ ${dbA[0]} == "mysql" ]]; then
@@ -261,7 +272,7 @@ while :; do
     exit 1
   fi
 
-  echo dbbpid is $dbbpid
+  #echo dbbpid is $dbbpid
   if [ -z $dbbpid ]; then echo Cannot get mysqld PID; continue; fi
 
   hw_secs=10
@@ -287,6 +298,11 @@ while :; do
   sleep $pause_secs
   outf="sb.perf.rec.f.$sfx.$x"
   $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+  fi
+
+  if [[ doperf4 -eq 1 ]]; then
+    outf="sb.pmp.$sfx.$x"
+    bash pmpf.sh $dbbpid $outf
   fi
 
   echo $x > sb.perf.last.$sfx
@@ -332,7 +348,8 @@ echo last_loop is $last_loop for $sfx
 
 if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
 for x in $( seq 1 $last_loop ); do
-  echo forloop $x perf rep for $sfx 
+  #echo forloop $x perf rep for $sfx 
+
   if [[ doperf2 -eq 1 ]]; then
   #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
   #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
