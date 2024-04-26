@@ -43,7 +43,7 @@ class AutoVacEnv(BaseEnvironment):
         self.reward_components[name] += v
         return v
 
-    def generate_reward(self, did_vacuum, is_terminal):
+    def generate_reward(self, action, is_terminal):
         last_live_tup = self.state.num_live_tuples_buffer[0]
         live_pct = self.state.live_pct_buffer[0]
         dead_pct = self.state.dead_pct_buffer[0]
@@ -62,17 +62,16 @@ class AutoVacEnv(BaseEnvironment):
             reward += self.update_reward_component("bloat", -5*(1.0-live_pct)/(live_pct+0.01))
 
             # Penalize for dead tuples.
-            reward += self.update_reward_component("dead", -5*dead_pct/(1.01-dead_pct))
+            reward += self.update_reward_component("dead", -3*dead_pct/(1.01-dead_pct))
 
-        if did_vacuum:
+        if action == 1:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
-            reward += self.update_reward_component("vacuum", -20-200*dead_pct)
+            reward += self.update_reward_component("vacuum", -120-250*dead_pct)
 
         if is_terminal:
-            # Final penalties.
-            reward += self.update_reward_component("bloat", -100*(1.0-live_pct)/(live_pct+0.01))
-            reward += self.update_reward_component("dead", -100*dead_pct/(1.01-dead_pct))
-            reward += self.update_reward_component("vacuum", -100*self.delay_adjustment_count)
+            # Final penalties. Those scale with the duration of the experiment.
+            reward += self.update_reward_component("bloat", -0.5*self.step_count*(1.0-live_pct)/(live_pct+0.01))
+            reward += self.update_reward_component("dead", -0.3*self.step_count*dead_pct/(1.01-dead_pct))
 
         print("Returning reward: %.2f" % reward)
         return reward
@@ -95,12 +94,13 @@ class AutoVacEnv(BaseEnvironment):
         self.stat_and_vac.startExp(self.env_info)
 
         self.delay_adjustment_count = 0
+        self.step_count = 0
         self.initial_time = time.time()
 
         self.update_stats()
         initial_state = self.state.generate_state()
 
-        reward = self.generate_reward(False, False)
+        reward = self.generate_reward(0, False)
         self.reward_obs_term = (reward, initial_state, False)
         return self.reward_obs_term[1]
 
@@ -116,32 +116,32 @@ class AutoVacEnv(BaseEnvironment):
         """
 
         # effect system based on action
-        did_vacuum = False
         if action == 0:
             # Not vacuuming
             print("Action 0: Idling.")
         elif action == 1:
             # Vacuuming
             print("Action 1: Vacuuming...")
-            did_vacuum = True
             self.delay_adjustment_count += 1
-            # Apply vacuum before collecting new state
-            self.stat_and_vac.doVacuum()
         else:
             assert("Invalid action")
 
+        # Apply vacuum before collecting new state
+        self.stat_and_vac.applyAction(action)
+
+        self.step_count += 1
         self.update_stats()
         current_state = self.state.generate_state()
 
         is_terminal = self.stat_and_vac.step()
         # Compute reward after applying the action.
-        reward = self.generate_reward(did_vacuum, is_terminal)
+        reward = self.generate_reward(action, is_terminal)
 
         if is_terminal:
             print("Terminating.")
             stats = self.stat_and_vac.getTupleStats()
-            print("Time elapsed: %.2f, delay adjustments: %d, internal vac: %d, internal autovac: %d"
-                  % ((time.time()-self.initial_time), self.delay_adjustment_count, stats[3], stats[4]))
+            print("Time elapsed: %.2f, step count: %d, delay adjustments: %d, internal vac: %d, internal autovac: %d"
+                  % ((time.time()-self.initial_time), self.step_count, self.delay_adjustment_count, stats[3], stats[4]))
             print("Reward components:", self.reward_components)
 
         self.reward_obs_term = (reward, current_state, is_terminal)

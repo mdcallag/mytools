@@ -59,10 +59,11 @@ class SimulatedVacuum(VacuumExperiment):
     def getTupleStats(self):
         return self.n_live_tup, self.n_dead_tup, self.seq_tup_read, self.vacuum_count, 0
 
-    def doVacuum(self):
-        self.vacuum_count += 1
-        self.did_vacuum = True
-        self.n_dead_tup = 0
+    def applyAction(self, action):
+        if action == 1:
+            self.vacuum_count += 1
+            self.did_vacuum = True
+            self.n_dead_tup = 0
 
-        # Need to update used space before we query for stats.
-        self.updateUsedSpace()
+            # Need to update used space before we query for stats.
+            self.updateUsedSpace()

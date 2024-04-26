@@ -114,6 +114,8 @@ class PGStatAndVacuum(VacuumExperiment):
                                       % (result[0], result[1], result[2], result[3], result[4]))
         return result
 
-    def doVacuum(self):
-        if not self.is_replay:
+    def applyAction(self, action):
+        if self.is_replay:
+            return
+        if action == 1:
             self.cursor.execute("vacuum %s" % self.table_name)

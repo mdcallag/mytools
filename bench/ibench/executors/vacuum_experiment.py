@@ -41,7 +41,7 @@ class VacuumExperiment(ABC):
         """
 
     @abstractmethod
-    def doVacuum(self):
+    def applyAction(self, action):
         """
         Perform a vacuum operation on the database or table to clean up dead tuples and
         reclaim space. This method simulates the maintenance activity within the experiment.

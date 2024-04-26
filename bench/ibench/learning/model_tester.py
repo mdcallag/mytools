@@ -100,12 +100,11 @@ def test_given_input(model, input):
     return output
 
 def test_given_inputs(model, history_size):
-    l = [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
     print("------> Dead pct")
-    for v1 in l:
-        line = "Live pct %4.1f: " % v1
-        for v2 in l:
-            input = [*([v1] * history_size), *([v2] * history_size), *([5.0] * history_size)]
+    for v1 in range(11):
+        line = "Live pct %4.1f: " % (v1/10)
+        for v2 in range(11-v1):
+            input = [*([v1/10-0.5] * history_size), *([v2/10-0.5] * history_size), *([5.0] * history_size)]
             r = test_given_input(model, input)
             line += "%s:%5.0f/%5.0f " % ("I" if r[0] >= r[1] else "V", r[0], r[1])
 
