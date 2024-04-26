@@ -15,10 +15,11 @@ from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
 def generate_params():
     #for initial_size in tqdm([10000, 100000, 1000000, 10000000, 100000000]):
-    for initial_size in tqdm([1000000]):
-        #for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
-        for update_speed in tqdm([1000, 4000, 16000, 64000]):
-            for vacuum_buffer_usage_limit in tqdm([256, 1024, 4096, 16384, 65536]):
+    for initial_size in tqdm([10000, 100000, 1000000]):
+        for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000]):
+        #for update_speed in tqdm([1000, 4000, 16000, 64000]):
+            #for vacuum_buffer_usage_limit in tqdm([256, 1024, 4096, 16384, 65536]):
+            for vacuum_buffer_usage_limit in tqdm([256]):
                 yield initial_size, update_speed, vacuum_buffer_usage_limit
 
 def benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
@@ -62,7 +63,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'buffer_size': 50000,
         'gamma': 0.99,
         'learning_rate': 1e-4,
-        'tau': 0.01 ,
+        'tau': 0.1,
         'seed': 0,
         'num_replay_updates': 5,
         'model_filename' : model1_filename

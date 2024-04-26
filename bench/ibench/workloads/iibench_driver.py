@@ -46,11 +46,14 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
         os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
 
 def collectExperimentParams(env_info):
-    experiment_id = env_info['experiment_id']
-    # Vary update speed from 1000 to 128000
-    update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
+    v = env_info['experiment_id']
+
+    # Vary update speed from 500 to 32000
+    update_speed = math.ceil(500*math.pow(2, v % 7))
+    v //= 7
+
     # Vary initial size from 10^4 to 10^6
-    initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
+    initial_size = math.ceil(math.pow(10, 4 + (v % 3)))
 
     return initial_size, update_speed
 

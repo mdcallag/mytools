@@ -1338,8 +1338,9 @@ def agent_thread(done_flag):
 
         state_history_length = 10
         num_read_tuples_buffer = [0.0 for _ in range(state_history_length)]
-        # Those two buffers are used to generate the environment state.
+        # The following two buffers are used to generate the environment state.
         live_pct_buffer = [1.0 for _ in range(state_history_length)]
+        dead_pct_buffer = [0.0 for _ in range(state_history_length)]
         num_read_deltapct_buffer = [0.0 for _ in range(state_history_length)]
 
     while not done_flag.value:
@@ -1418,6 +1419,8 @@ def agent_thread(done_flag):
 
             live_pct_buffer.pop()
             live_pct_buffer.insert(0, live_pct)
+            dead_pct_buffer.pop()
+            dead_pct_buffer.insert(0, dead_pct)
             num_read_deltapct_buffer.pop()
             num_read_deltapct_buffer.insert(0, delta_pct)
             num_read_tuples_buffer.pop()
@@ -1425,13 +1428,14 @@ def agent_thread(done_flag):
 
             # Normalize raw readings before constructing the environment state.
             l1 = [x-0.5 for x in live_pct_buffer]
-            l2 = [5.0 if x == 0 else math.log2(x) for x in num_read_deltapct_buffer]
-            state = list(map(float, [*l1, *l2]))
+            l2 = [x-0.5 for x in dead_pct_buffer]
+            l3 = [5.0 if x == 0 else math.log2(x) for x in num_read_deltapct_buffer]
+            state = list(map(float, [*l1, *l2, *l3]))
             print("Generated state: ", [round(x, 1) for x in state])
             state = torch.tensor([state])
 
             # Select action
-            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.01, False))
+            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 1.0, False))
             if action == 0:
                 # Do not vacuum
                 print("Action 0: Idling.")

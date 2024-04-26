@@ -72,7 +72,7 @@ def test_output(model, id, val, size):
         print("Vacuum preferred")
 
 def test_given_input(model, input):
-    print("\n\nSpecific input: ", input)
+    #print("\n\nSpecific input: ", input)
 
     hidden_no_relu = model.fc1(torch.tensor(input))
 
@@ -81,7 +81,7 @@ def test_given_input(model, input):
         if abs(e) > 0.01:
             hidden_no_relu_display.append((index, e))
     hidden_no_relu_display = sorted(hidden_no_relu_display, reverse=True, key = lambda sub: abs(sub[1]))
-    print("Hidden no relu: ", [(i, round(e, 1)) for i, e in hidden_no_relu_display])
+    #print("Hidden no relu: ", [(i, round(e, 1)) for i, e in hidden_no_relu_display])
 
 
     hidden_relu = F.relu(hidden_no_relu)
@@ -91,36 +91,32 @@ def test_given_input(model, input):
         if abs(e) > 0.01:
             hidden_relu_display.append((index, e))
     hidden_relu_display = sorted(hidden_relu_display, reverse=True, key = lambda sub: abs(sub[1]))
-    print("Hidden with relu: ", [(i, round(e, 1)) for i, e in hidden_relu_display])
+    #print("Hidden with relu: ", [(i, round(e, 1)) for i, e in hidden_relu_display])
 
     output = model.fc2(hidden_relu)
     output = output.tolist()
-    print("Output: ", [round(e, 1) for e in output])
-    print("Selected action: ", "idling" if output[0] >= output[1] else "vacuum")
+    #print("Output: ", [round(e, 1) for e in output])
+    #print("Selected action: ", "idling" if output[0] >= output[1] else "vacuum")
+    return output
 
 def test_given_inputs(model):
-    for v in [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]:
-        input = []
-        for i in range(10):
-            input.append(v)
-        for i in range(10):
-            input.append(4.0)
-        test_given_input(model, input)
+    l = [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    print("------> Dead pct")
+    for v1 in l:
+        line = "Live pct %4.1f: " % v1
+        for v2 in l:
+            input = []
+            for i in range(10):
+                input.append(v1)
+            for i in range(10):
+                input.append(v2)
+            for i in range(10):
+                input.append(5.0)
 
-    live_pct = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, -0.5, 0.3]
-    num_read = [5.8, 6.8, 6.9, 7.1, 7.0, 7.0, 6.9, 6.6, 5.0, 5.0]
+            r = test_given_input(model, input)
+            line += "%s:%5.0f/%5.0f " % ("I" if r[0] >= r[1] else "V", r[0], r[1])
 
-    states = []
-    for i in range(10):
-        states.append([*live_pct, *num_read])
-        live_pct.pop(0)
-        live_pct.append(0.5)
-        num_read.pop(0)
-        num_read.append(5.0)
-
-    states.reverse()
-    for state in states:
-        test_given_input(model, state)
+        print(line)
 
 def test(model):
     for v in [1.0, -1.0, 0]:

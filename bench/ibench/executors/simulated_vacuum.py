@@ -1,3 +1,5 @@
+import math
+
 from workloads.iibench_driver import collectExperimentParams
 from executors.vacuum_experiment import VacuumExperiment
 
@@ -20,6 +22,7 @@ class SimulatedVacuum(VacuumExperiment):
         self.n_dead_tup = 0
         self.seq_tup_read = 0
         self.vacuum_count = 0
+        self.did_vacuum = False
 
         self.step_count = 0
         self.max_steps = env_info['max_seconds']
@@ -35,9 +38,18 @@ class SimulatedVacuum(VacuumExperiment):
 
         if self.n_live_tup > 0:
             # Weigh how many tuples we read per second by how many dead tuples we have.
-            self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/(self.n_live_tup+self.n_dead_tup)) ** 0.5)
+            #self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/(self.n_live_tup+self.n_dead_tup)) ** 0.5)
             #self.seq_tup_read += 15*3*self.n_live_tup
 
+            f1 = self.approx_bytes_per_tuple*self.n_live_tup/self.total_space
+            f2 = self.approx_bytes_per_tuple*self.n_dead_tup/self.total_space
+            v = 15*3*self.n_live_tup * math.sqrt(f1*(1.0-f2))
+            if self.did_vacuum:
+                # If we had vacuum on the previous step, reduce throughput.
+                v *= 0.5
+            self.seq_tup_read += v
+
+        self.did_vacuum = False
         self.step_count += 1
         return self.step_count > self.max_steps
 
@@ -49,4 +61,8 @@ class SimulatedVacuum(VacuumExperiment):
 
     def doVacuum(self):
         self.vacuum_count += 1
+        self.did_vacuum = True
         self.n_dead_tup = 0
+
+        # Need to update used space before we query for stats.
+        self.updateUsedSpace()

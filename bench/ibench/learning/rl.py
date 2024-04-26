@@ -12,7 +12,7 @@ import torch.nn.functional as F
 
 from learning.agent import BaseAgent
 
-default_network_arch = {'num_states':20, 'num_hidden_units' : 256, 'num_actions': 2}
+default_network_arch = {'num_states': 30, 'num_hidden_units': 64, 'num_actions': 2}
 
 def action_probabilities(model, state, tau):
     # compute action values states:(1, state_dim)
@@ -185,8 +185,8 @@ class Agent(BaseAgent):
         # The optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(),
                                           lr = agent_config['learning_rate'],
-                                          betas = [0.99, 0.999],
-                                          eps = 1e-04)
+                                          betas = [0.9, 0.999],
+                                          eps = 1e-08)
         # The loss
         self.criterion = nn.MSELoss()
 

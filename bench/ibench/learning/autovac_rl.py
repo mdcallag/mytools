@@ -22,15 +22,17 @@ class AutoVacEnv(BaseEnvironment):
         n_live_tup = stats[0]
         n_dead_tup = stats[1]
         seq_tup_read = stats[2]
-        print("Live tup: %d, Dead dup: %d, Seq reads: %d" % (n_live_tup, n_dead_tup, seq_tup_read))
+        print("Live tup: %d, Dead dup: %d, Seq reads: %d, Vacuum count: %d"
+              % (n_live_tup, n_dead_tup, seq_tup_read, self.delay_adjustment_count))
 
         live_raw_pct = 1.0 if n_live_tup+n_dead_tup == 0 else n_live_tup/(n_live_tup+n_dead_tup)
 
         used_pct = 1.0 if total_space == 0 else used_space/total_space
         live_pct = live_raw_pct*used_pct
+        dead_pct = (1.0-live_raw_pct)*used_pct
 
-        print("Total: %d, Used: %d, Live raw pct: %.2f, Live pct: %.2f"
-              % (total_space, used_space, 100.0*live_raw_pct, 100.0*live_pct))
+        print("Total: %d, Used: %d, Live pct: %.2f, Dead pct: %.2f"
+              % (total_space, used_space, 100.0*live_pct, 100.0*dead_pct))
 
         delta = max(0, seq_tup_read - self.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
@@ -43,6 +45,8 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_tuples_buffer.insert(0, seq_tup_read)
         self.live_pct_buffer.pop()
         self.live_pct_buffer.insert(0, live_pct)
+        self.dead_pct_buffer.pop()
+        self.dead_pct_buffer.insert(0, dead_pct)
         self.num_read_deltapct_buffer.pop()
         self.num_read_deltapct_buffer.insert(0, delta_pct)
         self.num_read_delta_buffer.pop()
@@ -51,34 +55,47 @@ class AutoVacEnv(BaseEnvironment):
     def generate_state(self):
         # Normalize raw readings before constructing the environment state.
         l1 = [x-0.5 for x in self.live_pct_buffer]
-        l2 = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
+        l2 = [x-0.5 for x in self.dead_pct_buffer]
+        l3 = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
 
-        result = list(map(float, [*l1, *l2]))
+        result = list(map(float, [*l1, *l2, *l3]))
         print("Generated state: ", [round(x, 1) for x in result])
         return result
 
-    def generate_reward(self, did_vacuum):
+    def update_reward_component(self, name, v):
+        self.reward_components[name] += v
+        return v
+
+    def generate_reward(self, did_vacuum, is_terminal):
         last_live_tup = self.num_live_tuples_buffer[0]
         live_pct = self.live_pct_buffer[0]
+        dead_pct = self.dead_pct_buffer[0]
         last_read = self.num_read_delta_buffer[0]
-        print("Last live tup: %d, Last live %%: %.2f, Last_read: %d"
-              % (last_live_tup, 100.0*live_pct, last_read))
+        print("Last live tup: %d, Last live %%: %.2f, Last dead %%: %.2f, Last_read: %d"
+              % (last_live_tup, 100.0*live_pct, 100.0*dead_pct, last_read))
 
         # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
         # The reward is intended to be scale free.
         reward = 0
-        if last_read == 0 or last_live_tup == 0:
-            # Initial reward
-            reward = 50
-        else:
-            reward = (last_read/last_live_tup)*live_pct
-            if live_pct < 0.5:
-                # Large penalty for dirty table
-                reward -= 200*(0.5-live_pct)
+        if last_read > 0 and last_live_tup > 0:
+            # Reward having high throughput
+            reward = self.update_reward_component("throughput", last_read/last_live_tup)
+
+            # Penalize table bloat, the worse the bloat the more we penalize.
+            reward += self.update_reward_component("bloat", -5*(1.0-live_pct)/(live_pct+0.01))
+
+            # Penalize for dead tuples.
+            reward += self.update_reward_component("dead", -5*dead_pct/(1.01-dead_pct))
 
         if did_vacuum:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
-            reward -= 75
+            reward += self.update_reward_component("vacuum", -20-200*dead_pct)
+
+        if is_terminal:
+            # Final penalties.
+            reward += self.update_reward_component("bloat", -100*(1.0-live_pct)/(live_pct+0.01))
+            reward += self.update_reward_component("dead", -100*dead_pct/(1.01-dead_pct))
+            reward += self.update_reward_component("vacuum", -100*self.delay_adjustment_count)
 
         print("Returning reward: %.2f" % reward)
         return reward
@@ -94,6 +111,9 @@ class AutoVacEnv(BaseEnvironment):
 
         print("Starting agent...")
 
+        # For debugging
+        self.reward_components = {"throughput": 0, "vacuum": 0, "bloat": 0, "dead": 0}
+
         # Readings we have obtained for the past several seconds.
         # To start the experiment, pad with some initial values.
         self.num_live_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
@@ -101,8 +121,9 @@ class AutoVacEnv(BaseEnvironment):
         self.num_read_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
         self.num_read_delta_buffer = [0.0 for _ in range(self.state_history_length)]
 
-        # Those two buffers are used to generate the environment state.
+        # The following buffers are used to generate the environment state.
         self.live_pct_buffer = [1.0 for _ in range(self.state_history_length)]
+        self.dead_pct_buffer = [0.0 for _ in range(self.state_history_length)]
         self.num_read_deltapct_buffer = [0.0 for _ in range(self.state_history_length)]
 
         self.stat_and_vac.startExp(self.env_info)
@@ -113,12 +134,8 @@ class AutoVacEnv(BaseEnvironment):
         self.update_stats()
         initial_state = self.generate_state()
 
-        is_terminal = self.stat_and_vac.step()
-        # TODO handle case where we terminate right on the setup.
-        assert(not is_terminal)
-
-        reward = self.generate_reward(False)
-        self.reward_obs_term = (reward, initial_state, is_terminal)
+        reward = self.generate_reward(False, False)
+        self.reward_obs_term = (reward, initial_state, False)
         return self.reward_obs_term[1]
 
     def env_step(self, action):
@@ -151,14 +168,15 @@ class AutoVacEnv(BaseEnvironment):
         current_state = self.generate_state()
 
         is_terminal = self.stat_and_vac.step()
+        # Compute reward after applying the action.
+        reward = self.generate_reward(did_vacuum, is_terminal)
+
         if is_terminal:
             print("Terminating.")
             stats = self.stat_and_vac.getTupleStats()
             print("Time elapsed: %.2f, delay adjustments: %d, internal vac: %d, internal autovac: %d"
                   % ((time.time()-self.initial_time), self.delay_adjustment_count, stats[3], stats[4]))
-
-        # Compute reward after applying the action.
-        reward = self.generate_reward(did_vacuum)
+            print("Reward components:", self.reward_components)
 
         self.reward_obs_term = (reward, current_state, is_terminal)
         return self.reward_obs_term
