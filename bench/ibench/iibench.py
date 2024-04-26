@@ -45,6 +45,7 @@ import numpy
 from simple_pid import PID
 import torch
 
+from learning.autovac_state import AutoVacState
 from learning.rl import RLModel, default_network_arch, softmax_policy
 
 letters_and_digits = string.ascii_letters + string.digits
@@ -1205,64 +1206,6 @@ def insert_ps_pg(cursor, table_name):
   params = '%s,' * ((6 * FLAGS.rows_per_commit) - 1) + '%s'
   return 'execute insert_ps (%s)' % (params)
 
-def log_tuples(queue, cursor, query, schema):
-    # TODO: db_id, exp_group, exp_name,
-    now = datetime.now()
-    stmts = []
-    insert_stmts = []
-
-    cursor.execute(query)
-    tuples = cursor.fetchall()
-
-    for tuple in tuples:
-        for field_name, v in zip(schema, tuple):
-            stmt = []
-            insert_stmt = "("
-
-            stmt.append(now)
-            insert_stmt += "'%s'" % now + ", "
-
-            stmt.append(query)
-            insert_stmt += "'%s'" % query.replace("'", "''") + ", "
-
-            stmt.append(field_name)
-            insert_stmt += "'%s'" % field_name + ", "
-
-            if v is None:
-                stmt.extend([None, None, None, None, None])
-                insert_stmt += "NULL, NULL, NULL, NULL, NULL"
-            elif type(v) is str:
-                stmt.extend([v, None, None, None, None])
-                insert_stmt += "'%s', NULL, NULL, NULL, NULL" % v
-            elif type(v) is int:
-                stmt.extend([None, v, None, None, None])
-                insert_stmt += "NULL, '%d', NULL, NULL, NULL" % v
-            elif type(v) is float:
-                stmt.extend([None, None, v, None, None])
-                insert_stmt += "NULL, NULL, '%.2f', NULL, NULL" % v
-            elif type(v) is bool:
-                stmt.extend([None, None, None, v, None])
-                insert_stmt += "NULL, NULL, NULL, %s, NULL" % v
-            elif type(v) is datetime:
-                stmt.extend([None, None, None, None, v])
-                insert_stmt += "NULL, NULL, NULL, NULL, '%s'" % v
-            else:
-                print("Unknown type for value: ", v)
-                print(type(v))
-                assert False
-
-            #print("Statement: ", stmt)
-            stmts.append(stmt)
-
-            insert_stmt += ")"
-            insert_stmts.append(insert_stmt)
-
-    final_insert_stmt = "insert into logging (reading_time, reading_metadata, reading_name, reading_value_str, reading_value_int, reading_value_float, reading_value_bool, reading_value_time) values %s" % ", ".join(insert_stmts)
-    #print(final_insert_stmt)
-    cursor.execute(final_insert_stmt)
-
-    return tuples
-
 def agent_thread(done_flag):
     db_conn = get_conn()
     cursor = db_conn.cursor()
@@ -1335,13 +1278,7 @@ def agent_thread(done_flag):
             model.load_state_dict(model_state.state_dict())
 
         rng = numpy.random.RandomState(0)
-
-        state_history_length = 10
-        num_read_tuples_buffer = [0.0 for _ in range(state_history_length)]
-        # The following two buffers are used to generate the environment state.
-        live_pct_buffer = [1.0 for _ in range(state_history_length)]
-        dead_pct_buffer = [0.0 for _ in range(state_history_length)]
-        num_read_deltapct_buffer = [0.0 for _ in range(state_history_length)]
+        autovac_state = AutoVacState(10)
 
     while not done_flag.value:
         now = time.time()
@@ -1414,25 +1351,11 @@ def agent_thread(done_flag):
 
         if FLAGS.use_learned_model:
             # generate state
-            delta = max(0, seq_tup_read - num_read_tuples_buffer[0])
+            delta = max(0, seq_tup_read - autovac_state.num_read_tuples_buffer[0])
             delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-            live_pct_buffer.pop()
-            live_pct_buffer.insert(0, live_pct)
-            dead_pct_buffer.pop()
-            dead_pct_buffer.insert(0, dead_pct)
-            num_read_deltapct_buffer.pop()
-            num_read_deltapct_buffer.insert(0, delta_pct)
-            num_read_tuples_buffer.pop()
-            num_read_tuples_buffer.insert(0, seq_tup_read)
-
-            # Normalize raw readings before constructing the environment state.
-            l1 = [x-0.5 for x in live_pct_buffer]
-            l2 = [x-0.5 for x in dead_pct_buffer]
-            l3 = [5.0 if x == 0 else math.log2(x) for x in num_read_deltapct_buffer]
-            state = list(map(float, [*l1, *l2, *l3]))
-            print("Generated state: ", [round(x, 1) for x in state])
-            state = torch.tensor([state])
+            autovac_state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
+            state = autovac_state.generate_state()
 
             # Select action
             action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 1.0, False))

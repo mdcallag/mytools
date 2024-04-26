@@ -62,7 +62,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'batch_size': 8,
         'buffer_size': 50000,
         'gamma': 0.99,
-        'learning_rate': 1e-4,
+        'learning_rate': 1e-3,
         'tau': 0.1,
         'seed': 0,
         'num_replay_updates': 5,

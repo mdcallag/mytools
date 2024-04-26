@@ -1,7 +1,7 @@
-import math
 import time
 
 from learning.environment import BaseEnvironment
+from learning.autovac_state import AutoVacState
 
 class AutoVacEnv(BaseEnvironment):
     def env_init(self, env_info={}):
@@ -13,7 +13,7 @@ class AutoVacEnv(BaseEnvironment):
         self.env_info = env_info
         self.stat_and_vac = env_info['stat_and_vac']
 
-        self.state_history_length = env_info['state_history_length']
+        self.state = AutoVacState(env_info['state_history_length'])
 
     def update_stats(self):
         total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
@@ -34,43 +34,20 @@ class AutoVacEnv(BaseEnvironment):
         print("Total: %d, Used: %d, Live pct: %.2f, Dead pct: %.2f"
               % (total_space, used_space, 100.0*live_pct, 100.0*dead_pct))
 
-        delta = max(0, seq_tup_read - self.num_read_tuples_buffer[0])
+        delta = max(0, seq_tup_read - self.state.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-        self.num_live_tuples_buffer.pop()
-        self.num_live_tuples_buffer.insert(0, n_live_tup)
-        self.num_dead_tuples_buffer.pop()
-        self.num_dead_tuples_buffer.insert(0, n_dead_tup)
-        self.num_read_tuples_buffer.pop()
-        self.num_read_tuples_buffer.insert(0, seq_tup_read)
-        self.live_pct_buffer.pop()
-        self.live_pct_buffer.insert(0, live_pct)
-        self.dead_pct_buffer.pop()
-        self.dead_pct_buffer.insert(0, dead_pct)
-        self.num_read_deltapct_buffer.pop()
-        self.num_read_deltapct_buffer.insert(0, delta_pct)
-        self.num_read_delta_buffer.pop()
-        self.num_read_delta_buffer.insert(0, delta)
-
-    def generate_state(self):
-        # Normalize raw readings before constructing the environment state.
-        l1 = [x-0.5 for x in self.live_pct_buffer]
-        l2 = [x-0.5 for x in self.dead_pct_buffer]
-        l3 = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
-
-        result = list(map(float, [*l1, *l2, *l3]))
-        print("Generated state: ", [round(x, 1) for x in result])
-        return result
+        self.state.update( n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
 
     def update_reward_component(self, name, v):
         self.reward_components[name] += v
         return v
 
     def generate_reward(self, did_vacuum, is_terminal):
-        last_live_tup = self.num_live_tuples_buffer[0]
-        live_pct = self.live_pct_buffer[0]
-        dead_pct = self.dead_pct_buffer[0]
-        last_read = self.num_read_delta_buffer[0]
+        last_live_tup = self.state.num_live_tuples_buffer[0]
+        live_pct = self.state.live_pct_buffer[0]
+        dead_pct = self.state.dead_pct_buffer[0]
+        last_read = self.state.num_read_delta_buffer[0]
         print("Last live tup: %d, Last live %%: %.2f, Last dead %%: %.2f, Last_read: %d"
               % (last_live_tup, 100.0*live_pct, 100.0*dead_pct, last_read))
 
@@ -114,25 +91,14 @@ class AutoVacEnv(BaseEnvironment):
         # For debugging
         self.reward_components = {"throughput": 0, "vacuum": 0, "bloat": 0, "dead": 0}
 
-        # Readings we have obtained for the past several seconds.
-        # To start the experiment, pad with some initial values.
-        self.num_live_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_dead_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_read_tuples_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_read_delta_buffer = [0.0 for _ in range(self.state_history_length)]
-
-        # The following buffers are used to generate the environment state.
-        self.live_pct_buffer = [1.0 for _ in range(self.state_history_length)]
-        self.dead_pct_buffer = [0.0 for _ in range(self.state_history_length)]
-        self.num_read_deltapct_buffer = [0.0 for _ in range(self.state_history_length)]
-
+        self.state.init_state()
         self.stat_and_vac.startExp(self.env_info)
 
         self.delay_adjustment_count = 0
         self.initial_time = time.time()
 
         self.update_stats()
-        initial_state = self.generate_state()
+        initial_state = self.state.generate_state()
 
         reward = self.generate_reward(False, False)
         self.reward_obs_term = (reward, initial_state, False)
@@ -165,7 +131,7 @@ class AutoVacEnv(BaseEnvironment):
             assert("Invalid action")
 
         self.update_stats()
-        current_state = self.generate_state()
+        current_state = self.state.generate_state()
 
         is_terminal = self.stat_and_vac.step()
         # Compute reward after applying the action.
