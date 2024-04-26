@@ -36,10 +36,17 @@ class AutoVacState:
 
     def generate_state(self):
         # Normalize raw readings before constructing the environment state.
-        l1 = [x-0.5 for x in self.live_pct_buffer]
-        l2 = [x-0.5 for x in self.dead_pct_buffer]
-        l3 = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
+        live_pct_norm = [x-0.5 for x in self.live_pct_buffer]
+        dead_pct_norm = [x-0.5 for x in self.dead_pct_buffer]
+        num_read_norm = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
 
-        result = list(map(float, [*l1, *l2, *l3]))
+        # Average historical readings and append to result vector.
+        result = []
+        for r1 in [live_pct_norm, dead_pct_norm, num_read_norm]:
+            r = list(map(float, r1))
+            for j in range(math.ceil(math.log(self.history_length, 4))+1):
+                v = int(math.pow(4, j))
+                result.append(sum(r[0:v])/v)
+
         print("Generated state: ", [round(x, 1) for x in result])
         return result

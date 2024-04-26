@@ -1278,7 +1278,7 @@ def agent_thread(done_flag):
             model.load_state_dict(model_state.state_dict())
 
         rng = numpy.random.RandomState(0)
-        autovac_state = AutoVacState(10)
+        autovac_state = AutoVacState(64)
 
     while not done_flag.value:
         now = time.time()

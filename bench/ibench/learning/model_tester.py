@@ -99,20 +99,13 @@ def test_given_input(model, input):
     #print("Selected action: ", "idling" if output[0] >= output[1] else "vacuum")
     return output
 
-def test_given_inputs(model):
+def test_given_inputs(model, history_size):
     l = [-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
     print("------> Dead pct")
     for v1 in l:
         line = "Live pct %4.1f: " % v1
         for v2 in l:
-            input = []
-            for i in range(10):
-                input.append(v1)
-            for i in range(10):
-                input.append(v2)
-            for i in range(10):
-                input.append(5.0)
-
+            input = [*([v1] * history_size), *([v2] * history_size), *([5.0] * history_size)]
             r = test_given_input(model, input)
             line += "%s:%5.0f/%5.0f " % ("I" if r[0] >= r[1] else "V", r[0], r[1])
 
@@ -138,7 +131,7 @@ def test(model):
             print("=========================================================")
             test_output(model, i, v, 256)
 
-    test_given_inputs(model1)
+    test_given_inputs(model1, 4)
 
 if __name__ == '__main__':
     global model1_state

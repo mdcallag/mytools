@@ -94,7 +94,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'approx_bytes_per_tuple': 100,
         'is_replay': is_replay,
         'replay_filename_mask': 'replay_n%d.txt',
-        'state_history_length': 10
+        'state_history_length': 64 # 4^3
     }
 
     experiment_configs = {

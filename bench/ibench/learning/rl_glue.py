@@ -257,7 +257,7 @@ class RLGlue:
 
                 if episode % 50 == 0:
                     print("Testing model at episode %d:" % episode)
-                    test_given_inputs(self.agent.model)
+                    test_given_inputs(self.agent.model, 4)
 
                 # Save the model for testing
                 if episode == start_episode + experiment_configs['num_episodes'] - 1:
