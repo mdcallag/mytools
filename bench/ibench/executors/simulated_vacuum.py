@@ -22,7 +22,7 @@ class SimulatedVacuum(VacuumExperiment):
         self.n_dead_tup = 0
         self.seq_tup_read = 0
         self.vacuum_count = 0
-        self.did_vacuum = False
+        self.last_action = 0
 
         self.step_count = 0
         self.max_steps = env_info['max_seconds']
@@ -43,10 +43,8 @@ class SimulatedVacuum(VacuumExperiment):
 
             f1 = self.approx_bytes_per_tuple*self.n_live_tup/self.total_space
             f2 = self.approx_bytes_per_tuple*self.n_dead_tup/self.total_space
-            v = 15*3*self.n_live_tup * math.sqrt(f1*(1.0-f2))
-            if self.did_vacuum:
-                # If we had vacuum on the previous step, reduce throughput.
-                v *= 0.5
+            # If we had vacuum on the previous step, reduce throughput.
+            v = (22.5 if self.last_action == 1 else 45.0)*self.n_live_tup * math.sqrt(f1*(1.0-f2))
             self.seq_tup_read += v
 
         self.did_vacuum = False
@@ -60,9 +58,9 @@ class SimulatedVacuum(VacuumExperiment):
         return self.n_live_tup, self.n_dead_tup, self.seq_tup_read, self.vacuum_count, 0
 
     def applyAction(self, action):
+        self.last_action = action
         if action == 1:
             self.vacuum_count += 1
-            self.did_vacuum = True
             self.n_dead_tup = 0
 
             # Need to update used space before we query for stats.
