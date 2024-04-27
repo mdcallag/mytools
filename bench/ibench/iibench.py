@@ -118,7 +118,6 @@ def defineParserOptions():
     DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
     DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
     DEFINE_integer('vacuum_buffer_usage_limit', 256, 'Sets the buffer pool size for VACUUM, ANALYZE, and autovacuum, in kilobytes')
-    DEFINE_boolean('enable_logging', False, 'Enable collection of stats to logging table')
     DEFINE_boolean('enable_learning', False, "Enable reinforcement learning for autovacuum")
     DEFINE_boolean('use_learned_model', False, "Use previously learned model")
     DEFINE_string('learned_model_file', '', "Specify file name for previously learned model")
@@ -1211,10 +1210,6 @@ def agent_thread(done_flag):
     cursor = db_conn.cursor()
     event_queue = Queue()
 
-    #create logging table
-    ddl = "create table if not exists logging (reading_id bigserial primary key, reading_time timestamp without time zone, reading_metadata varchar(4000), reading_name varchar(1000) not null, reading_value_str varchar(4000), reading_value_int bigint, reading_value_float float, reading_value_bool bool, reading_value_time timestamp without time zone)"
-    cursor.execute(ddl)
-
     #pretend we just did an autovacuum
     initial_time = time.time()
     last_autovac_time = initial_time
@@ -1283,40 +1278,6 @@ def agent_thread(done_flag):
     while not done_flag.value:
         now = time.time()
 
-        #if FLAGS.enable_logging:
-        #pgstattuples = log_tuples(event_queue, cursor,"select * from pgstattuple('purchases_index')",
-        #                          ("table_len", "tuple_count", "tuple_len", "tuple_percent", "dead_tuple_count", "dead_tuple_len", "dead_tuple_percent", "free_space", "free_percent"))
-
-        #log_tuples(event_queue, cursor,"select * from pg_stat_user_tables where relname = 'purchases_index'",
-        #           ("relid", "schemaname", "relname", "seq_scan", "seq_tup_read", "idx_scan", "idx_tup_fetch",
-        #            "n_tup_ins", "n_tup_upd", "n_tup_del", "n_tup_hot_upd", "n_live_tup", "n_dead_tup", "n_mod_since_analyze",
-        #            "n_ins_since_vacuum", "last_vacuum", "last_autovacuum", "last_analyze",  "last_autoanalyze", "vacuum_count",
-        #            "autovacuum_count", "analyze_count", "autoanalyze_count"))
-
-        #log_tuples(event_queue, cursor, "select pg_visibility_map_summary('purchases_index')", ("pg_visibility_map_summary", ))
-
-        #log_tuples(event_queue, cursor, "select * from pg_sys_cpu_usage_info()",
-        #           ("usermode_normal_process_percent", "usermode_niced_process_percent",
-        #            "kernelmode_process_percent", "idle_mode_percent", "io_completion_percent",
-        #            "servicing_irq_percent", "servicing_softirq_percent", "user_time_percent",
-        #            "processor_time_percent", "privileged_time_percent", "interrupt_time_percent"))
-
-        #log_tuples(event_queue, cursor, "select * from pg_sys_memory_info()",
-        #           ("total_memory", "used_memory", "free_memory", "swap_total",
-        #            "swap_used", "swap_free", "cache_total", "kernel_total", "kernel_paged", "kernel_non_paged",
-        #            "total_page_file", "avail_page_file"))
-
-        #log_tuples(event_queue, cursor, "select * from pg_sys_load_avg_info()",
-        #           ("load_avg_one_minute", "load_avg_five_minutes", "load_avg_ten_minutes", "load_avg_fifteen_minutes"))
-
-        #log_tuples(event_queue, cursor, "select * from pg_sys_process_info()",
-        #           ("total_processes", "running_processes", "sleeping_processes", "stopped_processes", "zombie_processes"))
-
-        #t = pgstattuples[0]
-        #live_pct = t[3]
-        #dead_pct = t[6]
-        #free_pct = t[8]
-
         cursor.execute("select pg_total_relation_size('public.purchases_index')")
         total_space = cursor.fetchall()[0][0]
 
@@ -1358,7 +1319,7 @@ def agent_thread(done_flag):
             state = autovac_state.generate_state()
 
             # Select action
-            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 1.0, False))
+            action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.1, False))
             if action == 0:
                 # Do not vacuum
                 print("Action 0: Idling.")
