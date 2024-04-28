@@ -103,11 +103,11 @@ def test_given_inputs(model, history_size):
     for p in [0.0, 0.5, 1.0]:
         print("Vac %.2f ------> Dead pct" % p)
         for v1 in range(11):
-            line = "Live%% %4.1f: " % (v1/10)
+            line = "L%3.1f " % (v1/10)
             for v2 in range(11-v1):
                 input = [*([v1/10] * history_size), *([v2/10] * history_size), *([p] * history_size)]
                 r = test_given_input(model, input)
-                line += "%s:%5.0f/%5.0f " % ("I" if r[0] >= r[1] else "V", r[0], r[1])
+                line += "%6.0f%s%6.0f " % (r[0], "i" if r[0] >= r[1] else "V", r[1])
             print(line)
 
 def test(model):

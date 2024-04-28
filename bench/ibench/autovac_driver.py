@@ -59,10 +59,10 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
     agent_configs = {
         'network_arch': default_network_arch,
 
-        'batch_size': 8,
-        'buffer_size': 50000,
+        'batch_size': 64,
+        'buffer_size': 400000,
         'gamma': 0.99,
-        'learning_rate': 0.001,
+        'learning_rate': 0.01,
         'tau': 0.1,
         'seed': 0,
         'num_replay_updates': 5,
