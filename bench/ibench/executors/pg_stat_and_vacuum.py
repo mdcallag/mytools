@@ -1,7 +1,5 @@
 import time
 import psycopg2
-import threading
-
 from workloads.iibench_driver import run_with_default_settings
 from multiprocessing import Barrier, Process
 from executors.vacuum_experiment import VacuumExperiment
@@ -19,9 +17,6 @@ class PGStatAndVacuum(VacuumExperiment):
         #for x in self.env_info:
         #    print ('\t', x, ':', self.env_info[x])
 
-        # Need to lock before accessing connection in methods below.
-        self.conn_lock = threading.Lock()
-
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
         self.replay_buffer_index = 0
@@ -38,6 +33,7 @@ class PGStatAndVacuum(VacuumExperiment):
             # We wait until the workload is initialized and ready to start
             barrier.wait()
 
+            # Connection for setting params and querying stats.
             self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
             self.conn.set_session(autocommit=True)
             self.cursor = self.conn.cursor()
@@ -98,11 +94,11 @@ class PGStatAndVacuum(VacuumExperiment):
             return total_space, used_space
 
         try:
-            with self.conn_lock:
-                self.cursor.execute("select pg_total_relation_size('public.%s')" % self.table_name)
-                total_space = self.cursor.fetchall()[0][0]
-                self.cursor.execute("select pg_table_size('public.%s')" % self.table_name)
-                used_space = self.cursor.fetchall()[0][0]
+            self.cursor.execute("select pg_total_relation_size('public.%s')" % self.table_name)
+            total_space = self.cursor.fetchall()[0][0]
+
+            self.cursor.execute("select pg_table_size('public.%s')" % self.table_name)
+            used_space = self.cursor.fetchall()[0][0]
 
             self.write_replay_buffer_line("%d %d" % (total_space, used_space))
             return total_space, used_space
@@ -120,18 +116,21 @@ class PGStatAndVacuum(VacuumExperiment):
 
             return self.last_tuplestats
 
-        with self.conn_lock:
-            self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read, vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
-            result = self.cursor.fetchall()[0]
-
+        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read, vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
+        result = self.cursor.fetchall()[0]
         self.write_replay_buffer_line("%d %d %d %d %d"
                                       % (result[0], result[1], result[2], result[3], result[4]))
         return result
 
     def doVacuum(self):
         time_begin = time.time()
-        with self.conn_lock:
-            self.cursor.execute("vacuum %s" % self.table_name)
+
+        # Connection for vacuuming.
+        conn_vac = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
+        conn_vac.set_session(autocommit=True)
+        cursor_vac = conn_vac.cursor()
+        cursor_vac.execute("vacuum %s" % self.table_name)
+
         print("Vacuuming took %.2fs" % (time.time()-time_begin))
 
     def applyAction(self, action):
