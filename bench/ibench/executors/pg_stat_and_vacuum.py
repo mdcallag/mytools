@@ -124,13 +124,7 @@ class PGStatAndVacuum(VacuumExperiment):
 
     def doVacuum(self):
         time_begin = time.time()
-
-        # Connection for vacuuming.
-        conn_vac = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        conn_vac.set_session(autocommit=True)
-        cursor_vac = conn_vac.cursor()
-        cursor_vac.execute("vacuum %s" % self.table_name)
-
+        self.cursor.execute("vacuum %s" % self.table_name)
         print("Vacuuming took %.2fs" % (time.time()-time_begin))
 
     def applyAction(self, action):
@@ -141,7 +135,8 @@ class PGStatAndVacuum(VacuumExperiment):
         self.write_replay_buffer_line("%d" % action)
         if action == 1:
             if self.vacuum_thread is None or not self.vacuum_thread.is_alive():
-                self.vacuum_thread = Process(target=self.doVacuum, args=())
-                self.vacuum_thread.start()
+                #self.vacuum_thread = Process(target=self.doVacuum, args=())
+                #self.vacuum_thread.start()
+                self.doVacuum()
             else:
                 print("Already vacuuming...")
