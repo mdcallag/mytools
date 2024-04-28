@@ -63,19 +63,19 @@ class AutoVacEnv(BaseEnvironment):
             reward = self.update_reward_component("throughput", last_read/last_live_tup)
 
             # Penalize table bloat, the worse the bloat the more we penalize.
-            reward += self.update_reward_component("bloat", -5.0*bloat_pct_penalty)
+            reward += self.update_reward_component("bloat", -10.0*bloat_pct_penalty)
 
             # Penalize for dead tuples.
-            reward += self.update_reward_component("dead", -3.0*dead_pct_penalty)
+            reward += self.update_reward_component("dead", -5.0*dead_pct_penalty)
 
         if action == 1:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
-            reward += self.update_reward_component("vacuum", -120-250*dead_pct)
+            reward += self.update_reward_component("vacuum", -250-500*dead_pct)
 
         if is_terminal:
             # Final penalties. Those scale with the duration of the experiment.
-            reward += self.update_reward_component("bloat", -0.5*self.step_count*bloat_pct_penalty)
-            reward += self.update_reward_component("dead", -0.3*self.step_count*dead_pct_penalty)
+            reward += self.update_reward_component("bloat", -1.0*self.step_count*bloat_pct_penalty)
+            reward += self.update_reward_component("dead", -0.5*self.step_count*dead_pct_penalty)
 
         print("Returning reward: %.2f" % reward)
         return reward

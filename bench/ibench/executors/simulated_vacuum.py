@@ -48,7 +48,7 @@ class SimulatedVacuum(VacuumExperiment):
             f1 = self.approx_bytes_per_tuple*self.n_live_tup/self.total_space
             f2 = self.approx_bytes_per_tuple*self.n_dead_tup/self.total_space
             # If we had vacuum on the previous step, reduce throughput.
-            v = (22.5 if self.last_action == 1 else 45.0)*self.n_live_tup * math.sqrt(f1*(1.0-f2))
+            v = (50 if self.last_action == 1 else 100.0)*self.n_live_tup * math.sqrt(f1*(1.0-f2))
             self.seq_tup_read += v
 
         self.did_vacuum = False
