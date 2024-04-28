@@ -1275,6 +1275,7 @@ def agent_thread(done_flag):
         rng = numpy.random.RandomState(0)
         autovac_state = AutoVacState(64)
 
+    last_action = 0
     while not done_flag.value:
         now = time.time()
 
@@ -1315,11 +1316,12 @@ def agent_thread(done_flag):
             delta = max(0, seq_tup_read - autovac_state.num_read_tuples_buffer[0])
             delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-            autovac_state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
+            autovac_state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta, last_action)
             state = autovac_state.generate_state()
 
             # Select action
             action = int(softmax_policy(model, state, rng, default_network_arch['num_actions'], 0.1, False))
+            last_action = action
             if action == 0:
                 # Do not vacuum
                 print("Action 0: Idling.")
@@ -1330,6 +1332,7 @@ def agent_thread(done_flag):
                 current_delay = 1
             else:
                 assert("Invalid action")
+
         elif FLAGS.enable_pid:
             pid_out = pid(live_pct)
             current_delay = int(math.ceil(1.0/math.exp(pid_out)))

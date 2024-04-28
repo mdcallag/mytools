@@ -15,7 +15,7 @@ class AutoVacEnv(BaseEnvironment):
 
         self.state = AutoVacState(env_info['state_history_length'])
 
-    def update_stats(self):
+    def update_stats(self, action):
         total_space, used_space = self.stat_and_vac.getTotalAndUsedSpace()
 
         stats = self.stat_and_vac.getTupleStats()
@@ -37,7 +37,7 @@ class AutoVacEnv(BaseEnvironment):
         delta = max(0, seq_tup_read - self.state.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-        self.state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
+        self.state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta, action)
 
     def update_reward_component(self, name, v):
         self.reward_components[name] += v
@@ -101,7 +101,7 @@ class AutoVacEnv(BaseEnvironment):
         self.step_count = 0
         self.initial_time = time.time()
 
-        self.update_stats()
+        self.update_stats(0)
         initial_state = self.state.generate_state()
 
         reward = self.generate_reward(0, False)
@@ -134,7 +134,7 @@ class AutoVacEnv(BaseEnvironment):
         self.stat_and_vac.applyAction(action)
 
         self.step_count += 1
-        self.update_stats()
+        self.update_stats(action)
         current_state = self.state.generate_state()
 
         is_terminal = self.stat_and_vac.step()

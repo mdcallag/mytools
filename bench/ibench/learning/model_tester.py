@@ -100,8 +100,8 @@ def test_given_input(model, input):
     return output
 
 def test_given_inputs(model, history_size):
-    for p in [30, 60, 90, 120]:
-        print("Perf %d ------> Dead pct" % p)
+    for p in [0.0, 0.5, 1.0]:
+        print("Vac %.2f ------> Dead pct" % p)
         for v1 in range(11):
             line = "Live%% %4.1f: " % (v1/10)
             for v2 in range(11-v1):
