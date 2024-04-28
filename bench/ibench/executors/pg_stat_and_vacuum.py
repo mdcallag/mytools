@@ -128,7 +128,10 @@ class PGStatAndVacuum(VacuumExperiment):
 
     def applyAction(self, action):
         if self.is_replay:
+            # TODO: consider returning replayed action.
             return
+
+        self.write_replay_buffer_line("%d" % action)
         if action == 1:
             if self.vacuum_thread is None or not self.vacuum_thread.is_alive():
                 self.vacuum_thread = Process(target=self.doVacuum, args=())
