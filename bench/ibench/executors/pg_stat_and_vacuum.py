@@ -1,7 +1,8 @@
 import time
 import psycopg2
+
 from workloads.iibench_driver import run_with_default_settings
-from multiprocessing import Barrier, Process
+from multiprocessing import Barrier, Process, Value
 from executors.vacuum_experiment import VacuumExperiment
 
 class PGStatAndVacuum(VacuumExperiment):
@@ -34,9 +35,7 @@ class PGStatAndVacuum(VacuumExperiment):
             barrier.wait()
 
             # Connection for setting params and querying stats.
-            self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-            self.conn.set_session(autocommit=True)
-            self.cursor = self.conn.cursor()
+            self.cursor = self.makeCursor()
 
             print("Disabling autovacuum...")
             self.cursor.execute("alter table %s set ("
@@ -49,14 +48,19 @@ class PGStatAndVacuum(VacuumExperiment):
                                 ")" % self.table_name)
             self.cursor.execute("select pg_stat_reset()")
 
+            self.needs_vacuum = Value('i', 0)
+            self.vacuum_thread = Process(target=self.doVacuum, args=(self.needs_vacuum, ))
+            self.vacuum_thread.start()
+
         self.env_info['experiment_id'] += 1
-        self.vacuum_thread = None
+
+    def makeCursor(self):
+        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
+        conn.set_session(autocommit=True)
+        return conn.cursor()
 
     def endExp(self):
-        if self.vacuum_thread is not None:
-            if self.vacuum_thread.is_alive():
-                print("Waiting to join vacuuming thread...")
-            self.vacuum_thread.join()
+        self.vacuum_thread.kill()
 
     def get_next_buffer_line(self):
         assert(self.is_replay)
@@ -122,10 +126,18 @@ class PGStatAndVacuum(VacuumExperiment):
                                       % (result[0], result[1], result[2], result[3], result[4]))
         return result
 
-    def doVacuum(self):
-        time_begin = time.time()
-        self.cursor.execute("vacuum %s" % self.table_name)
-        print("Vacuuming took %.2fs" % (time.time()-time_begin))
+    def doVacuum(self, needs_vacuum):
+        print("Vacuuming thread started")
+        cursor = self.makeCursor()
+
+        while True:
+            if needs_vacuum.value == 1:
+                needs_vacuum.value = 0
+                time_begin = time.time()
+                cursor.execute("vacuum %s" % self.table_name)
+                print("Vacuuming took %.1fs" % (time.time()-time_begin))
+            else:
+                time.sleep(0.1)
 
     def applyAction(self, action):
         if self.is_replay:
@@ -134,9 +146,7 @@ class PGStatAndVacuum(VacuumExperiment):
 
         self.write_replay_buffer_line("%d" % action)
         if action == 1:
-            if self.vacuum_thread is None or not self.vacuum_thread.is_alive():
-                #self.vacuum_thread = Process(target=self.doVacuum, args=())
-                #self.vacuum_thread.start()
-                self.doVacuum()
-            else:
+            if self.needs_vacuum.value == 1:
                 print("Already vacuuming...")
+            else:
+                self.needs_vacuum.value = 1
