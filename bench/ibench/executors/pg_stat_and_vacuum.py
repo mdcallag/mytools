@@ -1,4 +1,5 @@
 import time
+import sys
 import psycopg2
 
 from workloads.iibench_driver import run_with_default_settings
@@ -128,6 +129,7 @@ class PGStatAndVacuum(VacuumExperiment):
 
     def doVacuum(self, needs_vacuum):
         print("Vacuuming thread started")
+        sys.stdout.flush()
         cursor = self.makeCursor()
 
         while True:
@@ -136,6 +138,7 @@ class PGStatAndVacuum(VacuumExperiment):
                 time_begin = time.time()
                 cursor.execute("vacuum %s" % self.table_name)
                 print("Vacuuming took %.1fs" % (time.time()-time_begin))
+                sys.stdout.flush()
             else:
                 time.sleep(0.1)
 
