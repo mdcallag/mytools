@@ -13,6 +13,12 @@ class VacuumExperiment(ABC):
         """
 
     @abstractmethod
+    def endExp(self):
+        """
+        Called when the experiment is finished.
+        """
+
+    @abstractmethod
     def step(self):
         """
         Execute a single step or iteration of the experiment.

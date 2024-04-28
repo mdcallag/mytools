@@ -49,6 +49,13 @@ class PGStatAndVacuum(VacuumExperiment):
             self.cursor.execute("select pg_stat_reset()")
 
         self.env_info['experiment_id'] += 1
+        self.vacuum_thread = None
+
+    def endExp(self):
+        if self.vacuum_thread is not None:
+            if self.vacuum_thread.is_alive():
+                print("Waiting to join vacuuming thread...")
+            self.vacuum_thread.join()
 
     def get_next_buffer_line(self):
         assert(self.is_replay)
@@ -114,8 +121,17 @@ class PGStatAndVacuum(VacuumExperiment):
                                       % (result[0], result[1], result[2], result[3], result[4]))
         return result
 
+    def doVacuum(self):
+        time_begin = time.time()
+        self.cursor.execute("vacuum %s" % self.table_name)
+        print("Vacuuming took %.2fs" % (time.time()-time_begin))
+
     def applyAction(self, action):
         if self.is_replay:
             return
         if action == 1:
-            self.cursor.execute("vacuum %s" % self.table_name)
+            if self.vacuum_thread is None or not self.vacuum_thread.is_alive():
+                self.vacuum_thread = Process(target=self.doVacuum, args=())
+                self.vacuum_thread.start()
+            else:
+                print("Already vacuuming...")

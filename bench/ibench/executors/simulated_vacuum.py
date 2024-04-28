@@ -27,6 +27,10 @@ class SimulatedVacuum(VacuumExperiment):
         self.step_count = 0
         self.max_steps = env_info['max_seconds']
 
+    def endExp(self):
+        # Noop
+        pass
+
     def updateUsedSpace(self):
         self.used_space = self.approx_bytes_per_tuple*(self.n_live_tup+self.n_dead_tup)
         if self.used_space > self.total_space:

@@ -255,7 +255,7 @@ class RLGlue:
                 # Save the reward in the array
                 agent_sum_reward[run, episode - start_episode] = episode_reward
 
-                if episode % 50 == 0:
+                if episode % 100 == 0:
                     print("Testing model at episode %d:" % episode)
                     test_given_inputs(self.agent.model, 4)
 

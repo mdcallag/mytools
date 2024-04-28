@@ -37,7 +37,7 @@ class AutoVacEnv(BaseEnvironment):
         delta = max(0, seq_tup_read - self.state.num_read_tuples_buffer[0])
         delta_pct = 0.0 if n_live_tup == 0 else delta / n_live_tup
 
-        self.state.update( n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
+        self.state.update(n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta)
 
     def update_reward_component(self, name, v):
         self.reward_components[name] += v
@@ -147,6 +147,7 @@ class AutoVacEnv(BaseEnvironment):
             print("Time elapsed: %.2f, step count: %d, delay adjustments: %d, internal vac: %d, internal autovac: %d"
                   % ((time.time()-self.initial_time), self.step_count, self.delay_adjustment_count, stats[3], stats[4]))
             print("Reward components:", self.reward_components)
+            self.stat_and_vac.endExp()
 
         self.reward_obs_term = (reward, current_state, is_terminal)
         return self.reward_obs_term

@@ -3,6 +3,7 @@ import math
 class AutoVacState:
     def __init__(self, history_length):
         self.history_length = history_length
+        self.aggregation_sizes = [int(math.pow(4, i)) for i in range(math.ceil(math.log(self.history_length, 4))+1)]
         self.init_state()
 
     def init_state(self):
@@ -16,7 +17,7 @@ class AutoVacState:
         # The following buffers are used to generate the environment state.
         self.live_pct_buffer = [1.0 for _ in range(self.history_length)]
         self.dead_pct_buffer = [0.0 for _ in range(self.history_length)]
-        self.num_read_deltapct_buffer = [0.0 for _ in range(self.history_length)]
+        self.num_read_deltapct_buffer = [30.0 for _ in range(self.history_length)]
 
     def update(self, n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta):
         self.num_live_tuples_buffer.pop()
@@ -35,18 +36,7 @@ class AutoVacState:
         self.num_read_delta_buffer.insert(0, delta)
 
     def generate_state(self):
-        # Normalize raw readings before constructing the environment state.
-        live_pct_norm = [x-0.5 for x in self.live_pct_buffer]
-        dead_pct_norm = [x-0.5 for x in self.dead_pct_buffer]
-        num_read_norm = [5.0 if x == 0.0 else math.log2(x) for x in self.num_read_deltapct_buffer]
-
         # Average historical readings and append to result vector.
-        result = []
-        for r1 in [live_pct_norm, dead_pct_norm, num_read_norm]:
-            r = list(map(float, r1))
-            for j in range(math.ceil(math.log(self.history_length, 4))+1):
-                v = int(math.pow(4, j))
-                result.append(sum(r[0:v])/v)
-
+        result = [sum(r[0:v])/v for r in [self.live_pct_buffer, self.dead_pct_buffer, self.num_read_deltapct_buffer] for v in self.aggregation_sizes]
         print("Generated state: ", [round(x, 1) for x in result])
         return result
