@@ -33,9 +33,15 @@ class PGStatAndVacuum(VacuumExperiment):
             # We wait until the workload is initialized and ready to start
             barrier.wait()
 
+            # Connection for setting params and querying stats.
             self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
             self.conn.set_session(autocommit=True)
             self.cursor = self.conn.cursor()
+
+            # Connection for vacuuming.
+            self.conn_vac = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
+            self.conn_vac.set_session(autocommit=True)
+            self.cursor_vac = self.conn_vac.cursor()
 
             print("Disabling autovacuum...")
             self.cursor.execute("alter table %s set ("
@@ -123,7 +129,7 @@ class PGStatAndVacuum(VacuumExperiment):
 
     def doVacuum(self):
         time_begin = time.time()
-        self.cursor.execute("vacuum %s" % self.table_name)
+        self.cursor_vac.execute("vacuum %s" % self.table_name)
         print("Vacuuming took %.2fs" % (time.time()-time_begin))
 
     def applyAction(self, action):
