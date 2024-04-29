@@ -55,14 +55,14 @@ def benchmark(resume_id, experiment_duration, model1_filename, model2_filename, 
         print("Gnuplot command: ", gnuplot_cmd)
         os.system(gnuplot_cmd)
 
-def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+def learn(resume_id, experiment_duration, model_type, finetune, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
 
         'batch_size': 64,
         'buffer_size': 400000,
         'gamma': 0.99,
-        'learning_rate': 0.01,
+        'learning_rate': 0.001,
         'tau': 0.1,
         'seed': 0,
         'num_replay_updates': 5,
@@ -105,13 +105,14 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
 
     ### Instantiate the RLGlue class
     rl_glue = RLGlue(AutoVacEnv, Agent)
-    rl_glue.do_learn(environment_configs, experiment_configs, agent_configs)
+    rl_glue.do_learn(environment_configs, experiment_configs, agent_configs, finetune)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
     parser.add_argument('--cmd', type=str, choices=['benchmark', 'learn'], help='Command to execute (benchmark or learn)')
     parser.add_argument('--max-episodes', type=int, default=100, help='Maximum number of episodes for the experiment')
     parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
+    parser.add_argument("--finetune-model", type=bool, default=False, help='Finetune existing model')
     parser.add_argument('--experiment-duration', type=int, default=120, help='Duration of the experiment in seconds')
     parser.add_argument('--model-type', type=str, choices=['simulated', 'real', 'real-replay'], help='Type of the model (simulated or real)')
     parser.add_argument('--model1-filename', type=str, default='model1.pth', help='Filename for the first model')
@@ -139,6 +140,6 @@ if __name__ == '__main__':
     if cmd == "benchmark":
         benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
-        learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
+        learn(resume_id, experiment_duration, model_type, args.finetune_model, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:
         print("Invalid command")

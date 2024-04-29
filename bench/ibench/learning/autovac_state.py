@@ -1,4 +1,5 @@
 import math
+import random
 
 class AutoVacState:
     def __init__(self, history_length):
@@ -9,16 +10,16 @@ class AutoVacState:
     def init_state(self):
         # Readings we have obtained for the past several seconds.
         # To start the experiment, pad with some initial values.
-        self.num_live_tuples_buffer = [0.0 for _ in range(self.history_length)]
-        self.num_dead_tuples_buffer = [0.0 for _ in range(self.history_length)]
-        self.num_read_tuples_buffer = [0.0 for _ in range(self.history_length)]
-        self.num_read_delta_buffer = [0.0 for _ in range(self.history_length)]
+        self.num_live_tuples_buffer = [0.0] * self.history_length
+        self.num_dead_tuples_buffer = [0.0] * self.history_length
+        self.num_read_tuples_buffer = [0.0] * self.history_length
+        self.num_read_delta_buffer = [0.0] * self.history_length
 
         # The following buffers are used to generate the environment state.
-        self.live_pct_buffer = [1.0 for _ in range(self.history_length)]
-        self.dead_pct_buffer = [0.0 for _ in range(self.history_length)]
+        self.live_pct_buffer = [random.random()] * self.history_length
+        self.dead_pct_buffer = [random.random()] * self.history_length
         #self.num_read_deltapct_buffer = [30.0 for _ in range(self.history_length)]
-        self.vacuum_count_buffer = [0.0 for _ in range(self.history_length)]
+        self.vacuum_count_buffer = [random.random()] * self.history_length
 
     def update(self, n_live_tup, n_dead_tup, seq_tup_read, live_pct, dead_pct, delta_pct, delta, did_vacuum):
         self.num_live_tuples_buffer.pop()

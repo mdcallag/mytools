@@ -237,10 +237,21 @@ class RLGlue:
 
             # Finetuning
             if finetune:
-                checkpoint = torch.load(PATH)
-                self.agent.model.load_state_dict(checkpoint['model_state_dict'])
-                start_episode = checkpoint['episode'] + 1
                 print('Finetuning...')
+
+                try:
+                    # Try to load finalized model.
+                    checkpoint = torch.load(agent_configs['model_filename'])
+                    self.agent.model.load_state_dict(checkpoint['model_state_dict'])
+                    start_episode = checkpoint['episode'] + 1
+                    print("Loaded a finalized model at episode %d" % start_episode)
+                except:
+                    # Try to load model checkpoint.
+                    checkpoint = torch.load("tmp_"+agent_configs['model_filename'])
+                    self.agent.model.load_state_dict(checkpoint.state_dict())
+                    # We start from unknown episode
+                    start_episode = 0
+                    print("Loaded a checkpoint")
             else:
                 start_episode = 0
                 print('Training...')
