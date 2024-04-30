@@ -9,7 +9,6 @@ class AutoVacEnv(BaseEnvironment):
         Setup for the environment called when the experiment first starts.
         """
 
-        self.experiment_id = 0
         self.env_info = env_info
         self.stat_and_vac = env_info['stat_and_vac']
 

@@ -232,29 +232,32 @@ class RLGlue:
             agent_configs['seed'] = run
             environment_configs['seed'] = run
 
-            # Initialize the rl_glue
-            self.rl_init(agent_configs, environment_configs)
-
-            # Finetuning
             if finetune:
                 print('Finetuning...')
-
                 try:
                     # Try to load finalized model.
                     checkpoint = torch.load(agent_configs['model_filename'])
-                    self.agent.model.load_state_dict(checkpoint['model_state_dict'])
+                    state_dict = checkpoint['model_state_dict']
                     start_episode = checkpoint['episode'] + 1
                     print("Loaded a finalized model at episode %d" % start_episode)
                 except:
                     # Try to load model checkpoint.
                     checkpoint = torch.load("tmp_"+agent_configs['model_filename'])
-                    self.agent.model.load_state_dict(checkpoint.state_dict())
+                    state_dict = checkpoint.state_dict()
                     # We start from unknown episode
                     start_episode = 0
-                    print("Loaded a checkpoint")
+                    print("Loaded a checkpointed model")
             else:
                 start_episode = 0
                 print('Training...')
+
+            environment_configs['experiment_id'] = start_episode
+
+            # Initialize the rl_glue
+            self.rl_init(agent_configs, environment_configs)
+            if finetune:
+                self.agent.model.load_state_dict(state_dict)
+                print("Updated agent model")
 
             ### Loop over episodes
             for episode in tqdm(range(start_episode, start_episode + experiment_configs['num_episodes'])):
