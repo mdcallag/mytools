@@ -53,8 +53,6 @@ class PGStatAndVacuum(VacuumExperiment):
             self.vacuum_thread = Process(target=self.doVacuum, args=(self.needs_vacuum, ))
             self.vacuum_thread.start()
 
-        self.env_info['experiment_id'] += 1
-
     def makeCursor(self):
         conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
         conn.set_session(autocommit=True)

@@ -12,8 +12,6 @@ class SimulatedVacuum(VacuumExperiment):
         #for x in self.env_info:
         #    print ('\t', x, ':', self.env_info[x])
 
-        self.env_info['experiment_id'] += 1
-
         self.approx_bytes_per_tuple = env_info["approx_bytes_per_tuple"]
         self.used_space = 0
         self.total_space = 0

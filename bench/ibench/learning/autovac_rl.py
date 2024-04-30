@@ -95,6 +95,7 @@ class AutoVacEnv(BaseEnvironment):
 
         self.state.init_state()
         self.stat_and_vac.startExp(self.env_info)
+        self.env_info['experiment_id'] += 1
 
         self.delay_adjustment_count = 0
         self.step_count = 0
