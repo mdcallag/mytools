@@ -59,11 +59,10 @@ class AutoVacEnv(BaseEnvironment):
         # The reward is intended to be scale free.
         reward = 0
         if last_read > 0 and last_live_tup > 0:
-            self.perf_state.append(last_read)
-            perc90 = numpy.percentile(numpy.array(self.perf_state), 90)
+            perc90 = numpy.percentile(numpy.array(self.state.num_read_delta_buffer), 90)
 
             # Reward having high throughput based on 90th percentile observed so far.
-            reward = self.update_reward_component("throughput", last_read/perc90)
+            reward = self.update_reward_component("throughput", 1.0 if perc90 < 0.0001 else last_read/perc90)
             print("90th percentile: %d, throughput reward: %.2f" % (perc90, reward))
 
             # Penalize table bloat, the worse the bloat the more we penalize.
@@ -108,8 +107,6 @@ class AutoVacEnv(BaseEnvironment):
 
         self.update_stats(0)
         initial_state = self.state.generate_state()
-
-        self.perf_state = []
 
         reward = self.generate_reward(0, False)
         self.reward_obs_term = (reward, initial_state, False)
