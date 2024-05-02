@@ -233,20 +233,10 @@ class RLGlue:
             environment_configs['seed'] = run
 
             if finetune:
-                print('Finetuning...')
-                try:
-                    # Try to load finalized model.
-                    checkpoint = torch.load(agent_configs['model_filename'])
-                    state_dict = checkpoint['model_state_dict']
-                    start_episode = checkpoint['episode'] + 1
-                    print("Loaded a finalized model at episode %d" % start_episode)
-                except:
-                    # Try to load model checkpoint.
-                    checkpoint = torch.load("tmp_"+agent_configs['model_filename'])
-                    state_dict = checkpoint.state_dict()
-                    # We start from unknown episode
-                    start_episode = 0
-                    print("Loaded a checkpointed model")
+                checkpoint = torch.load(agent_configs['model_filename'])
+                state_dict = checkpoint['model'].state_dict()
+                start_episode = checkpoint['episode'] + 1
+                print('Finetuning from episode %d...' % start_episode)
             else:
                 start_episode = 0
                 print('Training...')
@@ -276,6 +266,6 @@ class RLGlue:
                 # Save the model for testing
                 if episode == start_episode + experiment_configs['num_episodes'] - 1:
                     current_model = self.agent.model
-                    torch.save({'episode':episode, 'model_state_dict':current_model.state_dict(), }, agent_configs['model_filename'])
+                    torch.save({'episode': episode, 'model': current_model}, agent_configs['model_filename'])
 
                 print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))

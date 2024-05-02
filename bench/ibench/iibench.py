@@ -1265,13 +1265,7 @@ def agent_thread(done_flag):
         print("Loading model state from file...")
         model_state = torch.load(FLAGS.learned_model_file)
         model = RLModel(default_network_arch)
-        try:
-            # Try to load finalized model.
-            model.load_state_dict(model_state['model_state_dict'])
-        except:
-            # Try to load model checkpoint.
-            model.load_state_dict(model_state.state_dict())
-
+        model.load_state_dict(model_state['model'].state_dict())
         rng = numpy.random.RandomState(0)
         autovac_state = AutoVacState(64)
 

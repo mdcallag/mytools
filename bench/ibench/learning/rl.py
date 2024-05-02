@@ -297,7 +297,7 @@ class Agent(BaseAgent):
                 train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
 
         ### Save the model at each episode
-        torch.save(self.model, "tmp_"+self.model_filename)
+        torch.save({'episode': self.episode_steps, 'model': self.model}, "tmp_"+self.model_filename)
 
     def agent_message(self, message):
         """

@@ -1,4 +1,5 @@
 import time
+import numpy
 
 from learning.environment import BaseEnvironment
 from learning.autovac_state import AutoVacState
@@ -58,23 +59,27 @@ class AutoVacEnv(BaseEnvironment):
         # The reward is intended to be scale free.
         reward = 0
         if last_read > 0 and last_live_tup > 0:
-            # Reward having high throughput
-            reward = self.update_reward_component("throughput", last_read/last_live_tup)
+            self.perf_state.append(last_read)
+            perc90 = numpy.percentile(numpy.array(self.perf_state), 90)
+
+            # Reward having high throughput based on 90th percentile observed so far.
+            reward = self.update_reward_component("throughput", last_read/perc90)
+            print("90th percentile: %d, throughput reward: %.2f" % (perc90, reward))
 
             # Penalize table bloat, the worse the bloat the more we penalize.
-            reward += self.update_reward_component("bloat", -10.0*bloat_pct_penalty)
+            reward += self.update_reward_component("bloat", -0.1*bloat_pct_penalty)
 
             # Penalize for dead tuples.
-            reward += self.update_reward_component("dead", -5.0*dead_pct_penalty)
+            reward += self.update_reward_component("dead", -0.05*dead_pct_penalty)
 
         if action == 1:
             # Assume vacuuming is proportionally more expensive than scanning the table once.
-            reward += self.update_reward_component("vacuum", -250-500*dead_pct)
+            reward += self.update_reward_component("vacuum", -2.5-5.0*dead_pct)
 
         if is_terminal:
             # Final penalties. Those scale with the duration of the experiment.
-            reward += self.update_reward_component("bloat", -1.0*self.step_count*bloat_pct_penalty)
-            reward += self.update_reward_component("dead", -0.5*self.step_count*dead_pct_penalty)
+            reward += self.update_reward_component("bloat", -0.01*self.step_count*bloat_pct_penalty)
+            reward += self.update_reward_component("dead", -0.005*self.step_count*dead_pct_penalty)
 
         print("Returning reward: %.2f" % reward)
         return reward
@@ -103,6 +108,8 @@ class AutoVacEnv(BaseEnvironment):
 
         self.update_stats(0)
         initial_state = self.state.generate_state()
+
+        self.perf_state = []
 
         reward = self.generate_reward(0, False)
         self.reward_obs_term = (reward, initial_state, False)
