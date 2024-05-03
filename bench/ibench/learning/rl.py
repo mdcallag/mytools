@@ -228,6 +228,22 @@ class Agent(BaseAgent):
 
         return self.last_action
 
+    def train(self, terminal, reward, state):
+        ### Append new experience to the buffer
+        self.buffer.append(self.last_state, self.last_action, terminal, reward, state)
+
+        ### Replay steps:
+        # replay only if the buffer size is large enough
+        if len(self.buffer.get_buffer()) >= self.batch_size:
+            # copy the current network
+            current_model = deepcopy(self.model)
+            # replay steps:
+            for i in range(self.num_replay):
+                # sample experiences from the buffer
+                experiences = self.buffer.sample()
+                # train the network
+                train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
+
     def agent_step(self, reward, state):
         """
         The agent takes one step.
@@ -246,23 +262,8 @@ class Agent(BaseAgent):
 
         ### Select action
         state = torch.tensor([state])
-
         action = self.policy(state)
-
-        ### Append new experience to the buffer
-        self.buffer.append(self.last_state, self.last_action, 0, reward, state)
-
-        ### Replay steps:
-        # replay only if the buffer size is large enough
-        if len(self.buffer.get_buffer()) >= self.batch_size:
-            # copy the current network
-            current_model = deepcopy(self.model)
-            # replay steps:
-            for i in range(self.num_replay):
-                # sample experiences from the buffer
-                experiences = self.buffer.sample()
-                # train the network
-                train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
+        self.train(0, reward, state)
 
         ### Update the last state and action
         self.last_state = state
@@ -281,20 +282,7 @@ class Agent(BaseAgent):
 
         ### Find the final state
         state = torch.zeros_like(self.last_state)
-        ### Append new experience to the buffer
-        self.buffer.append(self.last_state, self.last_action, 1, reward, state)
-
-        ### Replay steps:
-        # replay only if the buffer size is large enough
-        if len(self.buffer.get_buffer()) >= self.batch_size:
-            # copy the current network
-            current_model = deepcopy(self.model)
-            # replay steps:
-            for i in range(self.num_replay):
-                # sample experiences from the buffer
-                experiences = self.buffer.sample()
-                # train the network
-                train_network(experiences, self.model, current_model, self.optimizer, self.criterion, self.discount, self.tau)
+        self.train(1, reward, state)
 
         ### Save the model at each episode
         torch.save({'episode': self.episode_steps, 'model': self.model}, "tmp_"+self.model_filename)
@@ -310,20 +298,3 @@ class Agent(BaseAgent):
             return self.sum_rewards
         else:
             raise Exception('No given message of the agent!')
-
-def smooth(data, k):
-    """
-    Smooth the data with moving average.
-    """
-    num_episodes = data.shape[1]
-    num_runs = data.shape[0]
-
-    smoothed_data = np.zeros((num_runs, num_episodes))
-
-    for i in range(num_episodes):
-        if i < k:
-            smoothed_data[:, i] = np.mean(data[:, :i+1], axis = 1)
-        else:
-            smoothed_data[:, i] = np.mean(data[:, i-k:i+1], axis = 1)
-
-    return smoothed_data
