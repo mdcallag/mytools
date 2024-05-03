@@ -109,7 +109,8 @@ def learn(resume_id, experiment_duration, model_type, finetune, model1_filename,
 
     ### Instantiate the RLGlue class
     rl_glue = RLGlue(AutoVacEnv, Agent)
-    rl_glue.do_learn(environment_configs, experiment_configs, agent_configs)
+    rl_glue.run(environment_configs, experiment_configs, agent_configs)
+    rl_glue.rl_cleanup()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")

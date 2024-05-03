@@ -203,6 +203,10 @@ class Agent(BaseAgent):
         self.last_action = None
 
         self.sum_rewards = 0
+
+        # Episodes completed
+        self.episodes = 0
+        # Steps within an episode
         self.episode_steps = 0
 
         self.enable_training = agent_config['enable_training']
@@ -238,6 +242,20 @@ class Agent(BaseAgent):
         self.last_action = int(action)
 
         return self.last_action
+
+    def test_model(self):
+        print("Testing model at episode %d:" % self.episodes)
+
+        history_size = 4
+        for p in [0.0, 0.5, 1.0]:
+            print("Vac %.2f ------> Dead pct" % p)
+            for v1 in range(11):
+                line = "L%3.1f " % (v1/10)
+                for v2 in range(11-v1):
+                    input = [*([v1/10] * history_size), *([v2/10] * history_size), *([p] * history_size)]
+                    r = self.model.forward(torch.tensor(input))
+                    line += "%6.0f%s%6.0f " % (r[0], "i" if r[0] >= r[1] else "V", r[1])
+                print(line)
 
     def train(self, terminal, reward, state):
         ### Append new experience to the buffer
@@ -283,12 +301,16 @@ class Agent(BaseAgent):
 
         return self.last_action
 
+    def save_model(self, filename_prefix=""):
+        torch.save({'episode': self.episode_steps, 'model': self.model}, filename_prefix+self.model_filename)
+
     def agent_end(self, reward):
         """
         Called when the agent terminates.
         Args:
             reward: The reward the agent received for the termination.
         """
+        self.episodes += 1
         self.episode_steps += 1
         self.sum_rewards += reward
 
@@ -298,7 +320,13 @@ class Agent(BaseAgent):
             self.train(1, reward, state)
 
         ### Save the model at each episode
-        torch.save({'episode': self.episode_steps, 'model': self.model}, "tmp_"+self.model_filename)
+        self.save_model("tmp_")
+        if self.episodes % 50 == 0:
+            self.test_model()
+
+    def agent_cleanup(self):
+        print("Saving finalized model...")
+        self.save_model()
 
     def agent_message(self, message):
         """

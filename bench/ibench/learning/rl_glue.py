@@ -5,12 +5,8 @@
 
 from __future__ import print_function
 import numpy as np
-import torch
 
 from tqdm.auto import tqdm
-
-from learning.model_tester import test_given_inputs
-
 
 class RLGlue:
     """RLGlue class
@@ -223,7 +219,7 @@ class RLGlue:
         """
         return self.num_episodes
 
-    def do_learn(self, environment_configs, experiment_configs, agent_configs):
+    def run(self, environment_configs, experiment_configs, agent_configs):
         ### Save sum of reward
         agent_sum_reward = np.zeros((experiment_configs['num_runs'], experiment_configs['num_episodes']))
 
@@ -247,14 +243,5 @@ class RLGlue:
                 episode_reward = self.rl_agent_message('get_sum_reward')
                 # Save the reward in the array
                 agent_sum_reward[run, episode - start_episode] = episode_reward
-
-                if episode % 100 == 0:
-                    print("Testing model at episode %d:" % episode)
-                    test_given_inputs(self.agent.model, 4)
-
-                # Save the model for testing
-                if episode == start_episode + experiment_configs['num_episodes'] - 1:
-                    current_model = self.agent.model
-                    torch.save({'episode': episode, 'model': current_model}, agent_configs['model_filename'])
 
                 print('Run:{}, episode:{}, reward:{}'.format(run, episode, episode_reward))
