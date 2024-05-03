@@ -155,9 +155,9 @@ def train_network(experiences, model, current_model, optimizer, criterion, disco
     # update
     optimizer.step()
 
-class Agent(BaseAgent):
+class RLAgent(BaseAgent):
     def __init__(self):
-        self.name = 'Autovac Agent'
+        self.name = 'RL Agent'
 
     def agent_init(self, agent_config):
         """

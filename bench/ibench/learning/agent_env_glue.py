@@ -8,8 +8,8 @@ import numpy as np
 
 from tqdm.auto import tqdm
 
-class RLGlue:
-    """RLGlue class
+class AgentEnvGlue:
+    """AgentEnvGlue class
 
     args:
         env_name (string): the name of the module where the Environment class can be found
@@ -25,8 +25,8 @@ class RLGlue:
         self.num_steps = None
         self.num_episodes = None
 
-    def rl_init(self, agent_init_info={}, env_init_info={}):
-        """Initial method called when RLGlue experiment is created"""
+    def init(self, agent_init_info={}, env_init_info={}):
+        """Initial method called when experiment is created"""
         self.environment.env_init(env_init_info)
         self.agent.agent_init(agent_init_info)
 
@@ -34,8 +34,8 @@ class RLGlue:
         self.num_steps = 0
         self.num_episodes = 0
 
-    def rl_start(self, agent_start_info={}, env_start_info={}):
-        """Starts RLGlue experiment
+    def start(self, agent_start_info={}, env_start_info={}):
+        """Starts experiment
 
         Returns:
             tuple: (state, action)
@@ -51,7 +51,7 @@ class RLGlue:
 
         return observation
 
-    def rl_agent_start(self, observation):
+    def agent_start(self, observation):
         """Starts the agent.
 
         Args:
@@ -62,7 +62,7 @@ class RLGlue:
         """
         return self.agent.agent_start(observation)
 
-    def rl_agent_step(self, reward, observation):
+    def agent_step(self, reward, observation):
         """Step taken by the agent
 
         Args:
@@ -76,7 +76,7 @@ class RLGlue:
         """
         return self.agent.agent_step(reward, observation)
 
-    def rl_agent_end(self, reward):
+    def agent_end(self, reward):
         """Run when the agent terminates
 
         Args:
@@ -84,8 +84,8 @@ class RLGlue:
         """
         self.agent.agent_end(reward)
 
-    def rl_env_start(self):
-        """Starts RL-Glue environment.
+    def env_start(self):
+        """Starts environment.
 
         Returns:
             (float, state, Boolean): reward, state observation, boolean
@@ -98,7 +98,7 @@ class RLGlue:
 
         return this_observation
 
-    def rl_env_step(self, action):
+    def env_step(self, action):
         """Step taken by the environment based on action from agent
 
         Args:
@@ -120,8 +120,8 @@ class RLGlue:
 
         return ro
 
-    def rl_step(self):
-        """Step taken by RLGlue, takes environment step and either step or
+    def step(self):
+        """Step taken by experiment, takes environment step and either step or
             end by agent.
 
         Returns:
@@ -144,12 +144,12 @@ class RLGlue:
 
         return roat
 
-    def rl_cleanup(self):
+    def cleanup(self):
         """Cleanup done at end of experiment."""
         self.environment.env_cleanup()
         self.agent.agent_cleanup()
 
-    def rl_agent_message(self, message):
+    def agent_message(self, message):
         """Message passed to communicate with agent during experiment
 
         Args:
@@ -162,7 +162,7 @@ class RLGlue:
 
         return self.agent.agent_message(message)
 
-    def rl_env_message(self, message):
+    def env_message(self, message):
         """Message passed to communicate with environment during experiment
 
         Args:
@@ -174,8 +174,8 @@ class RLGlue:
         """
         return self.environment.env_message(message)
 
-    def rl_episode(self, max_steps_this_episode):
-        """Runs an RLGlue episode
+    def episode(self, max_steps_this_episode):
+        """Runs an episode
 
         Args:
             max_steps_this_episode (Int): the maximum steps for the experiment to run in an episode
@@ -185,16 +185,16 @@ class RLGlue:
         """
         is_terminal = False
 
-        self.rl_start()
+        self.start()
 
         while (not is_terminal) and ((max_steps_this_episode == 0) or
                                      (self.num_steps < max_steps_this_episode)):
-            rl_step_result = self.rl_step()
-            is_terminal = rl_step_result[3]
+            step_result = self.step()
+            is_terminal = step_result[3]
 
         return is_terminal
 
-    def rl_return(self):
+    def get_reward(self):
         """The total reward
 
         Returns:
@@ -202,7 +202,7 @@ class RLGlue:
         """
         return self.total_reward
 
-    def rl_num_steps(self):
+    def get_num_steps(self):
         """The total number of steps taken
 
         Returns:
@@ -210,7 +210,7 @@ class RLGlue:
         """
         return self.num_steps
 
-    def rl_num_episodes(self):
+    def get_num_episodes(self):
         """The number of episodes
 
         Returns
@@ -228,8 +228,7 @@ class RLGlue:
             agent_configs['seed'] = run
             environment_configs['seed'] = run
 
-            # Initialize the rl_glue
-            self.rl_init(agent_configs, environment_configs)
+            self.init(agent_configs, environment_configs)
             # If agent is finetuning, it will set a start episode
             start_episode = agent_configs['start_episode']
             environment_configs['experiment_id'] = start_episode
@@ -237,10 +236,10 @@ class RLGlue:
             ### Loop over episodes
             for episode in tqdm(range(start_episode, start_episode + experiment_configs['num_episodes'])):
                 # Run episode
-                self.rl_episode(experiment_configs['timeout'])
+                self.episode(experiment_configs['timeout'])
 
                 # Get reward
-                episode_reward = self.rl_agent_message('get_sum_reward')
+                episode_reward = self.agent_message('get_sum_reward')
                 # Save the reward in the array
                 agent_sum_reward[run, episode - start_episode] = episode_reward
 

@@ -3,8 +3,8 @@ import argparse
 import sys
 
 from learning.autovac_rl import AutoVacEnv
-from learning.rl_glue import RLGlue
-from learning.rl import Agent, default_network_arch
+from learning.agent_env_glue import AgentEnvGlue
+from learning.rl import RLAgent, default_network_arch
 
 from workloads.iibench_driver import run_with_params
 
@@ -108,9 +108,9 @@ def learn(resume_id, experiment_duration, model_type, finetune, model1_filename,
     }
 
     ### Instantiate the RLGlue class
-    rl_glue = RLGlue(AutoVacEnv, Agent)
+    rl_glue = AgentEnvGlue(AutoVacEnv, RLAgent)
     rl_glue.run(environment_configs, experiment_configs, agent_configs)
-    rl_glue.rl_cleanup()
+    rl_glue.cleanup()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
