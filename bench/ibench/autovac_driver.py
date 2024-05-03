@@ -55,7 +55,7 @@ def benchmark(resume_id, experiment_duration, model1_filename, model2_filename, 
         print("Gnuplot command: ", gnuplot_cmd)
         os.system(gnuplot_cmd)
 
-def learn(resume_id, experiment_duration, model_type, finetune, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+def learn(experiment_duration, model_type, finetune, model1_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
 
@@ -145,6 +145,6 @@ if __name__ == '__main__':
     if cmd == "benchmark":
         benchmark(resume_id, experiment_duration, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
-        learn(resume_id, experiment_duration, model_type, args.finetune_model, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
+        learn(experiment_duration, model_type, args.finetune_model, model1_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:
         print("Invalid command")
