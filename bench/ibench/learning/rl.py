@@ -205,6 +205,16 @@ class Agent(BaseAgent):
         self.sum_rewards = 0
         self.episode_steps = 0
 
+        if agent_config['finetune']:
+            checkpoint = torch.load(agent_config['model_filename'])
+            self.model.load_state_dict(checkpoint['model'].state_dict())
+
+            start_episode = checkpoint['episode'] + 1
+            agent_config['start_episode'] = start_episode
+            print('Finetuning from episode %d...' % start_episode)
+        else:
+            print("Training a new model...")
+
     def policy(self, state):
         return softmax_policy(self.model, state, self.rand_generator, self.num_actions, self.tau, True)
 

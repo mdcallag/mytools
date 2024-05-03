@@ -223,7 +223,7 @@ class RLGlue:
         """
         return self.num_episodes
 
-    def do_learn(self, environment_configs, experiment_configs, agent_configs, finetune = False):
+    def do_learn(self, environment_configs, experiment_configs, agent_configs):
         ### Save sum of reward
         agent_sum_reward = np.zeros((experiment_configs['num_runs'], experiment_configs['num_episodes']))
 
@@ -232,22 +232,11 @@ class RLGlue:
             agent_configs['seed'] = run
             environment_configs['seed'] = run
 
-            if finetune:
-                checkpoint = torch.load(agent_configs['model_filename'])
-                state_dict = checkpoint['model'].state_dict()
-                start_episode = checkpoint['episode'] + 1
-                print('Finetuning from episode %d...' % start_episode)
-            else:
-                start_episode = 0
-                print('Training...')
-
-            environment_configs['experiment_id'] = start_episode
-
             # Initialize the rl_glue
             self.rl_init(agent_configs, environment_configs)
-            if finetune:
-                self.agent.model.load_state_dict(state_dict)
-                print("Updated agent model")
+            # If agent is finetuning, it will set a start episode
+            start_episode = agent_configs['start_episode']
+            environment_configs['experiment_id'] = start_episode
 
             ### Loop over episodes
             for episode in tqdm(range(start_episode, start_episode + experiment_configs['num_episodes'])):

@@ -66,6 +66,9 @@ def learn(resume_id, experiment_duration, model_type, finetune, model1_filename,
         'tau': 0.1,
         'seed': 0,
         'num_replay_updates': 5,
+
+        'start_episode': 0,
+        'finetune': finetune,
         'model_filename' : model1_filename
     }
 
@@ -105,7 +108,7 @@ def learn(resume_id, experiment_duration, model_type, finetune, model1_filename,
 
     ### Instantiate the RLGlue class
     rl_glue = RLGlue(AutoVacEnv, Agent)
-    rl_glue.do_learn(environment_configs, experiment_configs, agent_configs, finetune)
+    rl_glue.do_learn(environment_configs, experiment_configs, agent_configs)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
