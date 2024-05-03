@@ -205,6 +205,7 @@ class Agent(BaseAgent):
         self.sum_rewards = 0
         self.episode_steps = 0
 
+        self.enable_training = agent_config['enable_training']
         if agent_config['finetune']:
             checkpoint = torch.load(agent_config['model_filename'])
             self.model.load_state_dict(checkpoint['model'].state_dict())
@@ -273,7 +274,8 @@ class Agent(BaseAgent):
         ### Select action
         state = torch.tensor([state])
         action = self.policy(state)
-        self.train(0, reward, state)
+        if self.enable_training:
+            self.train(0, reward, state)
 
         ### Update the last state and action
         self.last_state = state
@@ -292,7 +294,8 @@ class Agent(BaseAgent):
 
         ### Find the final state
         state = torch.zeros_like(self.last_state)
-        self.train(1, reward, state)
+        if self.enable_training:
+            self.train(1, reward, state)
 
         ### Save the model at each episode
         torch.save({'episode': self.episode_steps, 'model': self.model}, "tmp_"+self.model_filename)

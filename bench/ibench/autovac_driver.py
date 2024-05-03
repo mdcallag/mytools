@@ -67,6 +67,7 @@ def learn(resume_id, experiment_duration, model_type, finetune, model1_filename,
         'seed': 0,
         'num_replay_updates': 5,
 
+        'enable_training': True,
         'start_episode': 0,
         'finetune': finetune,
         'model_filename' : model1_filename
