@@ -4,7 +4,7 @@ import sys
 
 from learning.autovac_rl import AutoVacEnv
 from learning.agent_env_glue import AgentEnvGlue
-from learning.rl import RLAgent, default_network_arch
+from learning.rl_agent import RLAgent, default_network_arch
 
 from workloads.iibench_driver import run_with_params
 
@@ -70,7 +70,8 @@ def learn(experiment_duration, model_type, finetune, model1_filename, instance_u
         'enable_training': True,
         'start_episode': 0,
         'finetune': finetune,
-        'model_filename' : model1_filename
+        'model_filename' : model1_filename,
+        'default_action': 0
     }
 
     is_replay = False

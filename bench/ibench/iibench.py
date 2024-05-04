@@ -46,7 +46,7 @@ from simple_pid import PID
 import torch
 
 from learning.autovac_state import AutoVacState
-from learning.rl import RLModel, default_network_arch, softmax_policy
+from learning.rl_agent import RLModel, default_network_arch, softmax_policy
 
 letters_and_digits = string.ascii_letters + string.digits
 
