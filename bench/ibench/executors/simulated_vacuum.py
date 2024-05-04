@@ -25,6 +25,8 @@ class SimulatedVacuum(VacuumExperiment):
         self.step_count = 0
         self.max_steps = env_info['max_seconds']
 
+        self.updateUsedSpace()
+
     def endExp(self):
         # Noop
         pass
