@@ -132,7 +132,7 @@ class AutoVacEnv(BaseEnvironment):
             print("Action 1: Vacuuming...")
             self.delay_adjustment_count += 1
         else:
-            assert("Invalid action")
+            assert False, "Invalid action: %d" % action
 
         # Apply vacuum before collecting new state
         self.stat_and_vac.applyAction(action)

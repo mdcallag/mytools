@@ -19,10 +19,12 @@ class PGStatAndVacuum(VacuumExperiment):
         #for x in self.env_info:
         #    print ('\t', x, ':', self.env_info[x])
 
+        self.disable_autovac = env_info['disable_autovac']
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
         self.replay_buffer_index = 0
         self.replay_buffer = []
+
         if self.is_replay:
             with open(self.replay_filename, 'r') as f:
                 self.replay_buffer = f.readlines()
@@ -38,15 +40,26 @@ class PGStatAndVacuum(VacuumExperiment):
             # Connection for setting params and querying stats.
             self.cursor = self.makeCursor()
 
-            print("Disabling autovacuum...")
-            self.cursor.execute("alter table %s set ("
-                                "autovacuum_enabled = off,"
-                                "autovacuum_vacuum_scale_factor = 0,"
-                                "autovacuum_vacuum_insert_scale_factor = 0,"
-                                "autovacuum_vacuum_threshold = 0,"
-                                "autovacuum_vacuum_cost_delay = 0,"
-                                "autovacuum_vacuum_cost_limit = 10000"
-                                ")" % self.table_name)
+            if self.disable_autovac:
+                print("Disabling autovacuum...")
+                self.cursor.execute("alter table %s set ("
+                                    "autovacuum_enabled = off,"
+                                    "autovacuum_vacuum_scale_factor = 0,"
+                                    "autovacuum_vacuum_insert_scale_factor = 0,"
+                                    "autovacuum_vacuum_threshold = 0,"
+                                    "autovacuum_vacuum_cost_delay = 0,"
+                                    "autovacuum_vacuum_cost_limit = 10000"
+                                    ")" % self.table_name)
+            else:
+                print("Resetting autovacuum...")
+                self.cursor.execute("alter table %s reset ("
+                                    "autovacuum_enabled,"
+                                    "autovacuum_vacuum_scale_factor,"
+                                    "autovacuum_vacuum_insert_scale_factor,"
+                                    "autovacuum_vacuum_threshold,"
+                                    "autovacuum_vacuum_cost_delay,"
+                                    "autovacuum_vacuum_cost_limit"
+                                    ")" % self.table_name)
             self.cursor.execute("select pg_stat_reset()")
 
             self.needs_vacuum = Value('i', 0)
@@ -62,7 +75,7 @@ class PGStatAndVacuum(VacuumExperiment):
         self.vacuum_thread.kill()
 
     def get_next_buffer_line(self):
-        assert(self.is_replay)
+        assert self.is_replay
         result = self.replay_buffer[self.replay_buffer_index]
         self.replay_buffer_index += 1
         return result
@@ -114,7 +127,7 @@ class PGStatAndVacuum(VacuumExperiment):
             # Remember last tuple stats to return in case we have finished replaying.
             if not self.is_replay_finished():
                 result = [int(s) for s in self.get_next_buffer_line().split(" ")]
-                assert(len(result) == 5)
+                assert len(result) == 5
                 self.last_tuplestats = result
 
             return self.last_tuplestats
@@ -147,6 +160,7 @@ class PGStatAndVacuum(VacuumExperiment):
 
         self.write_replay_buffer_line("%d" % action)
         if action == 1:
+            assert self.disable_autovac
             if self.needs_vacuum.value == 1:
                 print("Already vacuuming...")
             else:

@@ -81,11 +81,12 @@ def learn(experiment_duration, model_type, finetune, model1_filename, instance_u
         if model_type == "real-replay":
             is_replay = True
     else:
-        assert("Invalid model type")
+        assert False, "Invalid model type: %s" % model_type
 
     environment_configs = {
         'stat_and_vac': instance,
         'experiment_id': 0,
+        'disable_autovac': True,
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,

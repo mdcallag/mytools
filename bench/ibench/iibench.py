@@ -1325,7 +1325,7 @@ def agent_thread(done_flag):
                 print("Action 1: Vacuuming...")
                 current_delay = 1
             else:
-                assert("Invalid action")
+                assert False, "Invalid action: %d" % action
 
         elif FLAGS.enable_pid:
             pid_out = pid(live_pct)
