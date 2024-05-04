@@ -1,6 +1,6 @@
 import math
 
-from learning.agent import BaseAgent
+from agent import BaseAgent
 from simple_pid import PID
 
 class PIDAgent(BaseAgent):

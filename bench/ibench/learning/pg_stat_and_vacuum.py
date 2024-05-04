@@ -2,9 +2,9 @@ import time
 import sys
 import psycopg2
 
-from workloads.iibench_driver import run_with_default_settings
+from iibench_driver import run_with_default_settings
 from multiprocessing import Barrier, Process, Value
-from executors.vacuum_experiment import VacuumExperiment
+from vacuum_experiment import VacuumExperiment
 
 class PGStatAndVacuum(VacuumExperiment):
     def startExp(self, env_info):
@@ -21,7 +21,8 @@ class PGStatAndVacuum(VacuumExperiment):
 
         self.disable_autovac = env_info['disable_autovac']
         self.is_replay = env_info['is_replay']
-        self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
+        self.replay_filemask = env_info['replay_filename_mask']
+        self.replay_filename = self.replay_filemask % env_info['experiment_id']
         self.replay_buffer_index = 0
         self.replay_buffer = []
 
@@ -97,7 +98,8 @@ class PGStatAndVacuum(VacuumExperiment):
 
         if not self.workload_thread.is_alive():
             self.write_replay_buffer_line("finished")
-            self.save_replay_buffer()
+            if self.replay_filemask:
+                self.save_replay_buffer()
             return True
 
         self.write_replay_buffer_line("step")

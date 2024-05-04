@@ -1,8 +1,8 @@
 import time
 import numpy
 
-from learning.environment import BaseEnvironment
-from learning.autovac_state import AutoVacState
+from environment import BaseEnvironment
+from autovac_state import AutoVacState
 
 class AutoVacEnv(BaseEnvironment):
     def env_init(self, env_info={}):

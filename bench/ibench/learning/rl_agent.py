@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-from learning.agent import BaseAgent
+from agent import BaseAgent
 
 default_network_arch = {'num_states': 3*4, 'num_hidden_units': 64, 'num_actions': 2}
 
@@ -178,23 +178,8 @@ class RLAgent(BaseAgent):
 
         # The model
         self.model = RLModel(agent_config['network_arch'])
-        # The replay buffer
-        self.buffer = Buffer(agent_config['batch_size'],
-                             agent_config['buffer_size'],
-                             agent_config['seed'])
-        # The optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(),
-                                          lr = agent_config['learning_rate'],
-                                          betas = [0.9, 0.999],
-                                          eps = 1e-08)
-        # The loss
-        self.criterion = nn.MSELoss()
 
         self.model_filename = agent_config['model_filename']
-        self.batch_size = agent_config['batch_size']
-        self.discount = agent_config['gamma']
-        self.tau = agent_config['tau']
-        self.num_replay = agent_config['num_replay_updates']
         self.num_actions = agent_config['network_arch']['num_actions']
         # random number generator
         self.rand_generator = np.random.RandomState(agent_config['seed'])
@@ -209,14 +194,39 @@ class RLAgent(BaseAgent):
         # Steps within an episode
         self.episode_steps = 0
 
+        self.tau = agent_config['tau']
+
         self.enable_training = agent_config['enable_training']
+        if self.enable_training:
+            print("Learning is enabled.")
+
+            # The replay buffer
+            self.buffer = Buffer(agent_config['batch_size'],
+                                 agent_config['buffer_size'],
+                                 agent_config['seed'])
+            # The optimizer
+            self.optimizer = torch.optim.Adam(self.model.parameters(),
+                                              lr = agent_config['learning_rate'],
+                                              betas = [0.9, 0.999],
+                                              eps = 1e-08)
+            # The loss
+            self.criterion = nn.MSELoss()
+
+            self.batch_size = agent_config['batch_size']
+            self.discount = agent_config['gamma']
+            self.num_replay = agent_config['num_replay_updates']
+        else:
+            print("Learning is disabled.")
+
         if agent_config['finetune']:
             checkpoint = torch.load(agent_config['model_filename'])
-            self.model.load_state_dict(checkpoint['model'].state_dict())
+            self.model.load_state_dict(checkpoint['model'])
+            print("Loaded model")
 
-            start_episode = checkpoint['episode'] + 1
-            agent_config['start_episode'] = start_episode
-            print('Finetuning from episode %d...' % start_episode)
+            if self.enable_training:
+                start_episode = checkpoint['episode']
+                agent_config['start_episode'] = start_episode
+                print('Finetuning from episode %d...' % start_episode)
         else:
             print("Training a new model...")
 
@@ -302,7 +312,7 @@ class RLAgent(BaseAgent):
         return self.last_action
 
     def save_model(self, filename_prefix=""):
-        torch.save({'episode': self.episode_steps, 'model': self.model}, filename_prefix+self.model_filename)
+        torch.save({'episode': self.episode_steps, 'model': self.model.state_dict()}, filename_prefix+self.model_filename)
 
     def agent_end(self, reward):
         """
@@ -316,17 +326,19 @@ class RLAgent(BaseAgent):
 
         ### Find the final state
         state = torch.zeros_like(self.last_state)
+
         if self.enable_training:
             self.train(1, reward, state)
 
-        ### Save the model at each episode
-        self.save_model("tmp_")
-        if self.episodes % 50 == 0:
-            self.test_model()
+            ### Save the model at each episode
+            self.save_model("tmp_")
+            if self.episodes % 50 == 0:
+                self.test_model()
 
     def agent_cleanup(self):
-        print("Saving finalized model...")
-        self.save_model()
+        if self.enable_training:
+            print("Saving finalized model...")
+            self.save_model()
 
     def agent_message(self, message):
         """

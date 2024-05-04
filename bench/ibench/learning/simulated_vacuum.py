@@ -1,7 +1,7 @@
 import math
 
-from workloads.iibench_driver import collectExperimentParams
-from executors.vacuum_experiment import VacuumExperiment
+from iibench_driver import collectExperimentParams
+from vacuum_experiment import VacuumExperiment
 
 class SimulatedVacuum(VacuumExperiment):
     def startExp(self, env_info):

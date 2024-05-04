@@ -1,5 +1,5 @@
 
-from learning.agent import BaseAgent
+from agent import BaseAgent
 
 class NoOpAgent(BaseAgent):
     def __init__(self):
