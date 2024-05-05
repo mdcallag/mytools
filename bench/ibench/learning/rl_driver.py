@@ -2,6 +2,7 @@ import argparse
 
 from autovac_rl import AutoVacEnv
 from agent_env_glue import AgentEnvGlue
+from workload import insert_benchmark
 from rl_agent import RLAgent, default_network_arch
 
 from simulated_vacuum import SimulatedVacuum
@@ -38,6 +39,7 @@ def drive():
 
     env_conf = {
         'stat_and_vac': instance,
+        'workload_fn': insert_benchmark,
         'experiment_id': 0,
         'strategy': 'model1',
         'disable_autovac': True,

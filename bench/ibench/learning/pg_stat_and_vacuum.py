@@ -2,7 +2,7 @@ import time
 import sys
 import psycopg2
 
-from iibench_driver import run_with_default_settings
+from utils import collectExperimentParams
 from multiprocessing import Barrier, Process, Value
 from vacuum_experiment import VacuumExperiment
 
@@ -32,11 +32,16 @@ class PGStatAndVacuum(VacuumExperiment):
             print("Read %d lines into replay buffer from file '%s'"
                   % (len(self.replay_buffer), self.replay_filename))
         else:
-            barrier = Barrier(2)
-            self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
+            self.exp_info = collectExperimentParams(env_info)
+            self.workload_fn = env_info['workload_fn']
+
+            # The workload will wait on the barrier when it is done initializing and ready to begin the benchmark
+            init_barrier = Barrier(2)
+
+            self.workload_thread = Process(target=self.workload_fn, args=(init_barrier, self.env_info, self.exp_info))
             self.workload_thread.start()
-            # We wait until the workload is initialized and ready to start
-            barrier.wait()
+            # We are ready to start.
+            init_barrier.wait()
 
             # Connection for setting params and querying stats.
             self.cursor = self.makeCursor()

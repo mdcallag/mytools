@@ -5,6 +5,7 @@ from agent_env_glue import AgentEnvGlue
 from rl_agent import RLAgent, default_network_arch
 from pid_agent import PIDAgent
 from noop_agent import NoOpAgent
+from workload import insert_benchmark
 
 from pg_stat_and_vacuum import PGStatAndVacuum
 
@@ -32,6 +33,7 @@ def benchmark():
 
     env_conf = {
         'stat_and_vac': PGStatAndVacuum(),
+        'workload_fn': insert_benchmark,
         'experiment_id': 0,
         'strategy': '',
         'disable_autovac': True,

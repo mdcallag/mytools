@@ -1,12 +1,15 @@
 import math
 
-from iibench_driver import collectExperimentParams
+from utils import collectExperimentParams
 from vacuum_experiment import VacuumExperiment
 
 class SimulatedVacuum(VacuumExperiment):
     def startExp(self, env_info):
         self.env_info = env_info
-        self.initial_size, self.update_speed = collectExperimentParams(self.env_info)
+
+        self.exp_info = collectExperimentParams(self.env_info)
+        self.initial_size = self.exp_info['initial_size']
+        self.update_speed = self.exp_info['update_speed']
 
         #print("Environment info (for SimulatedVacuum):")
         #for x in self.env_info:
