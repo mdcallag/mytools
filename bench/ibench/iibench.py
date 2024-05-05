@@ -137,6 +137,8 @@ DEFINE_integer('resync_get_min', 1000,
                'performance, but querying occasionally makes sure deletes are done '\
                'as expected despite gaps in the PK values that might occur with '\
                'InnoDB auto-increment or PG sequences')
+DEFINE_boolean('hist_keep_all', False,
+               'If we should keep all readings in histograms (not just fixed percentiles)')
 DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
 DEFINE_boolean('delete_per_insert', False,
                'When True, do a delete for every insert')
@@ -201,6 +203,8 @@ def rthist_new():
   obj = {}
   hist = [0,0,0,0,0,0,0,0,0,0]
   obj['hist'] = hist
+  if FLAGS.hist_keep_all:
+    obj['all'] = []
   obj['max'] = 0
   return obj
 
@@ -210,6 +214,10 @@ def rthist_start(obj):
 def rthist_finish(obj, start):
   now = timeit.default_timer()
   elapsed = now - start
+
+  if FLAGS.hist_keep_all:
+    obj['all'].append(elapsed)
+
   # Linear search assuming the first few buckets get the most responses
   # And when not, then the overhead of this isn't relevant
 
@@ -247,6 +255,14 @@ def rthist_result(obj, prefix):
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
         '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % ( prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
+
+  if FLAGS.hist_keep_all:
+    all_readings = obj['all']
+    all_readings.sort(reverse=True)
+    with open('all_readings_'+prefix.replace(' ', '_')+'.txt', 'w') as f:
+      for line in all_readings:
+        f.write(f"{line}\n")
+
   return res
 
 def fixup_options():
@@ -944,7 +960,7 @@ def HtapTrx(done_flag, barrier):
   db_conn.close()
   #print("HTAP done at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
 
-def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid):
+def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid, thread_id):
 
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1082,11 +1098,11 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   else:
     assert False
 
-  extra = 'Query thread: %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
+  extra = 'Query thread #'+str(thread_id)+': %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
   # print('%s\n' % extra)
 
   db_conn.close()
-  result_q.put((rthist_result(rthist, 'Query rt:'), extra))
+  result_q.put((rthist_result(rthist, 'Query thread #'+str(thread_id)+' rt:'), extra))
 
 def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
@@ -1453,7 +1469,7 @@ def run_benchmark():
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid, i)))
 
   if not FLAGS.no_inserts:
     insert_stmt_q = Queue(8)
