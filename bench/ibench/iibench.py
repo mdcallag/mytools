@@ -41,6 +41,13 @@ import timeit
 import traceback
 import cProfile
 
+#
+# flags module, on loan from gmt module by Chip Turner.
+#
+
+FLAGS = optparse.Values()
+parser = optparse.OptionParser()
+
 letters_and_digits = string.ascii_letters + string.digits
 
 def DEFINE_string(name, default, description, short_name=None):
@@ -77,15 +84,6 @@ def DEFINE_boolean(name, default, description, short_name=None):
   setattr(FLAGS, name, default)
 
 def ParseArgs(argv):
-  #
-  # flags module, on loan from gmt module by Chip Turner.
-  #
-  global FLAGS
-  global parser
-  FLAGS = optparse.Values()
-  parser = optparse.OptionParser()
-
-  defineParserOptions()
   usage = sys.modules["__main__"].__doc__
   parser.set_usage(usage)
   unused_flags, new_argv = parser.parse_args(args=argv, values=FLAGS)
@@ -100,90 +98,90 @@ def ParseArgs(argv):
     print('dbms must be one of: mysql, mongodb, postgres')
     sys.exit(-1)
 
+  return new_argv
+
 def ShowUsage():
   parser.print_help()
 
-def defineParserOptions():
-    #
-    # options
-    #
-    DEFINE_string('tag', '', 'Description/Tag of experiment')
+#
+# options
+#
 
-    DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
-    DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
-    DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
-    DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
-    DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
-    DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
-    DEFINE_integer('rows_per_query', 10,
-                   'Number of rows per to fetch per query. Each query '
-                   'thread does one query per insert.')
-    DEFINE_integer('cashregisters', 1000, '# cash registers')
-    DEFINE_integer('products', 10000, '# products')
-    DEFINE_integer('customers', 100000, '# customers')
-    DEFINE_integer('max_price', 500, 'Maximum value for price column')
-    DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
-    DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
-    DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
-    DEFINE_integer('query_threads', 0, 'Number of query threads')
-    DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
-    DEFINE_boolean('setup', False,
-                   'Create table. Drop and recreate if it exists.')
-    DEFINE_integer('warmup', 0, 'TODO')
-    DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
-    DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
-    DEFINE_boolean('delete_per_insert', False,
-                   'When True, do a delete for every insert')
-    DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
-    DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
-    DEFINE_boolean('secondary_at_start', False, 'Create secondary index at start')
-    DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
-    DEFINE_integer('seed', 3221223452, 'RNG seed')
-    # Can override other options, see get_conn
-    DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
+DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
+DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
+DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
+DEFINE_integer('data_random_pct', 50, 'Percentage of row that has random data')
+DEFINE_integer('rows_per_commit', 1000, '#rows per transaction')
+DEFINE_integer('secs_per_report', 10, 'Frequency at which progress is reported')
+DEFINE_integer('rows_per_query', 10,
+               'Number of rows per to fetch per query. Each query '
+               'thread does one query per insert.')
+DEFINE_integer('cashregisters', 1000, '# cash registers')
+DEFINE_integer('products', 10000, '# products')
+DEFINE_integer('customers', 100000, '# customers')
+DEFINE_integer('max_price', 500, 'Maximum value for price column')
+DEFINE_integer('max_rows', 10000, 'Number of rows to insert')
+DEFINE_boolean('no_inserts', False, 'When True don''t do inserts')
+DEFINE_integer('max_seconds', 0, 'Max number of seconds to run, when > 0')
+DEFINE_integer('query_threads', 0, 'Number of query threads')
+DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
+DEFINE_boolean('setup', False,
+               'Create table. Drop and recreate if it exists.')
+DEFINE_integer('warmup', 0, 'TODO')
+DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
+DEFINE_integer('max_table_rows', 10000000, 'Maximum number of rows in table')
+DEFINE_boolean('delete_per_insert', False,
+               'When True, do a delete for every insert')
+DEFINE_integer('num_secondary_indexes', 3, 'Number of secondary indexes (0 to 3)')
+DEFINE_boolean('secondary_at_end', False, 'Create secondary index at end')
+DEFINE_boolean('secondary_at_start', False, 'Create secondary index at start')
+DEFINE_integer('inserts_per_second', 0, 'Rate limit for inserts')
+DEFINE_integer('seed', 3221223452, 'RNG seed')
+# Can override other options, see get_conn
+DEFINE_string('dbopt', 'none', 'Per DBMS options, comma separated')
 
-    DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
+DEFINE_string('dbms', 'mysql', 'one of: mysql, mongodb, postgres')
 
-    DEFINE_boolean('use_prepared_query', False,
-                   'Use prepared statements for queries, only supported for Postgres today')
-    DEFINE_boolean('use_prepared_insert', False,
-                   'Use prepared statements for inserts, only supported for Postgres today')
+DEFINE_boolean('use_prepared_query', False,
+               'Use prepared statements for queries, only supported for Postgres today')
+DEFINE_boolean('use_prepared_insert', False,
+               'Use prepared statements for inserts, only supported for Postgres today')
 
-    DEFINE_integer('htap_transaction_seconds', 0,
-                   'Number of seconds for which HTAP transactions are open. '
-                   'There are not HTAP transactions when 0.')
+DEFINE_integer('htap_transaction_seconds', 0,
+               'Number of seconds for which HTAP transactions are open. '
+               'There are not HTAP transactions when 0.')
 
-    # MySQL & MongoDB flags
-    DEFINE_string('db_host', 'localhost', 'Hostname for the test')
-    DEFINE_string('db_name', 'test', 'Name of database for the test')
-    DEFINE_string('table_name', 'purchases_index', 'Name of table to use')
+# MySQL & MongoDB flags
+DEFINE_string('db_host', 'localhost', 'Hostname for the test')
+DEFINE_string('db_name', 'test', 'Name of database for the test')
+DEFINE_string('table_name', 'purchases_index', 'Name of table to use')
 
-    # MySQL flags
-    DEFINE_string('engine', 'innodb', 'Storage engine for the table')
-    DEFINE_string('engine_options', '', 'Options for create table')
-    DEFINE_string('db_user', 'root', 'DB user for the test')
-    DEFINE_string('db_password', '', 'DB password for the test')
-    DEFINE_string('db_config_file', '', 'MySQL configuration file')
-    DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
-    DEFINE_integer('unique_checks', 1, 'Set unique_checks')
-    DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
+# MySQL flags
+DEFINE_string('engine', 'innodb', 'Storage engine for the table')
+DEFINE_string('engine_options', '', 'Options for create table')
+DEFINE_string('db_user', 'root', 'DB user for the test')
+DEFINE_string('db_password', '', 'DB password for the test')
+DEFINE_string('db_config_file', '', 'MySQL configuration file')
+DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
+DEFINE_integer('unique_checks', 1, 'Set unique_checks')
+DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
-    # MySQL & Postgres flags
-    DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
-    DEFINE_integer('rows_per_partition', 0,
-                  'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
+# MySQL & Postgres flags
+DEFINE_integer('num_partitions', 0, 'Use range partitioning when not 0')
+DEFINE_integer('rows_per_partition', 0,
+              'Number of rows per partition. If 0 this is computed as max_rows/num_partitions')
 
-    # MongoDB flags
-    DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
-    DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
-    DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
-    DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
-    DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
-    DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
-    DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
-    DEFINE_string('name_price', 'price', 'Name for price attribute')
-    DEFINE_string('name_prod', 'product', 'Name for product attribute')
-    DEFINE_string('name_data', 'data', 'Name for data attribute')
+# MongoDB flags
+DEFINE_integer('mongo_w', 1, 'Value for MongoDB write concern: w')
+DEFINE_string('mongo_r', 'local', 'Value for MongoDB read concern when transactions are not used')
+DEFINE_boolean('mongo_j', False, 'Value for MongoDB write concern: j')
+DEFINE_boolean('mongo_trx', False, 'Use Mongo transactions when true')
+DEFINE_string('name_cash', 'cashregisterid', 'Name for cashregisterid attribute')
+DEFINE_string('name_cust', 'customerid', 'Name for customerid attribute')
+DEFINE_string('name_ts', 'dateandtime', 'Name for dateandtime attribute')
+DEFINE_string('name_price', 'price', 'Name for price attribute')
+DEFINE_string('name_prod', 'product', 'Name for product attribute')
+DEFINE_string('name_data', 'data', 'Name for data attribute')
 
 #
 # iibench
@@ -248,7 +246,7 @@ def rthist_result(obj, prefix):
 
   all_readings = obj['all_readings']
   all_readings.sort(reverse=True)
-  with open(FLAGS.tag+'_data'+prefix.replace(' ', '_')+'.txt', 'w') as f:
+  with open('all_readings_'+prefix.replace(' ', '_')+'.txt', 'w') as f:
       for line in all_readings:
           f.write(f"{line}\n")
 
@@ -1348,7 +1346,7 @@ def print_stats(shared_vars, inserted, prev_inserted, deleted, prev_deleted, pre
   sys.stdout.flush()
   return sum_q
 
-def run_benchmark(parent_barrier):
+def run_benchmark():
   random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
@@ -1455,9 +1453,6 @@ def run_benchmark(parent_barrier):
 
   # After the insert and query processes lock/unlock this they can run
   barrier.wait()
-  if parent_barrier:
-      parent_barrier.wait()
-
   test_start = time.time()
 
   start_time = time.time()
@@ -1534,24 +1529,22 @@ def run_benchmark(parent_barrier):
       inserted, retry_i, retry_d, retry_q))
   print('Done')
 
-def apply_options(argv):
-    ParseArgs(argv)
+def main(argv):
+  if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
+      print('Not supported: delete_per_insert')
+      sys.exit(-1)
 
-    if FLAGS.delete_per_insert and FLAGS.dbms == 'mongo':
-        print('Not supported: delete_per_insert')
-        sys.exit(-1)
+  if FLAGS.max_seconds and FLAGS.no_inserts:
+      print('Cannot set max_seconds when no_inserts is set')
+      sys.exit(-1)
 
-    if FLAGS.max_seconds and FLAGS.no_inserts:
-        print('Cannot set max_seconds when no_inserts is set')
-        sys.exit(-1)
+  fixup_options()
 
-    fixup_options()
-
-def run_main():
-    print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
-    run_benchmark(None)
-    return 0
+  print('i_sec\tt_sec\ti_ips\tt_ips\ti_dps\tt_dps\ti_qps\tt_qps\tmax_i\tmax_d\tmax_q\tt_ins\tt_del\tt_query\tretry_i\tretry_d\tretry_q')
+  run_benchmark()
+  return 0
 
 if __name__ == '__main__':
-    apply_options(sys.argv[1:])
-    sys.exit(run_main())
+  new_argv = ParseArgs(sys.argv[1:])
+  sys.exit(main([sys.argv[0]] + new_argv))
+  #cProfile.run('main([sys.argv[0]] + new_argv)', sort='tottime')
