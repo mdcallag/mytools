@@ -161,8 +161,10 @@ while :; do
     # mysql
     dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
   elif [[ $dbms == "mariadb" ]]; then
-    # mysql
-    dbpid=$( ps aux  | grep -v mariadb-safe | grep mariadbd | grep -v grep | awk '{ print $2 }' )
+    dbpid=$( ps aux | grep mariadbd | grep -v mariadbd-safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    if [ -z $dbbpid ]; then
+      dbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    fi
   fi
 
   if [ -z $dbpid ]; then
@@ -226,7 +228,7 @@ while :; do
     ts=$( date +'%b%d.%H%M%S' )
     sfx="$x.$ts"
     outf="o.pmp.$sfx"
-    bash pmpf.sh $dbbpid $outf
+    bash pmpf.sh $dbpid $outf
   fi
 
   x=$(( $x + 1 ))
