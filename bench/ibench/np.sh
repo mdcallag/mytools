@@ -221,6 +221,14 @@ while :; do
   $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbpid -- sleep $perf_secs ; sleep 2
   fi
 
+  doit=0
+  if [[ doit -eq 1 ]]; then
+    ts=$( date +'%b%d.%H%M%S' )
+    sfx="$x.$ts"
+    outf="o.pmp.$sfx"
+    bash pmpf.sh $dbbpid $outf
+  fi
+
   x=$(( $x + 1 ))
 done &
 # This sets a global value
