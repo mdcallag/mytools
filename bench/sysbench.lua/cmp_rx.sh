@@ -44,4 +44,5 @@ for dcnf in fbmy5635.ay9c fbmy8028.ay9c ; do
   cp /data/m/fbmy/data/*.err x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf
   cp $dbdir/o.down x.$dcnf.pk${usepk}
+  sleep 600
 done

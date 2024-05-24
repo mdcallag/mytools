@@ -43,5 +43,6 @@ for dcnf in pg151.x7 ; do
   mkdir x.$dcnf.pk${usepk}; mv sb.* x.$dcnf.pk${usepk}; cp $dbdir/conf.diff $dbdir/o.ini* $dbdir/logfile x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
   cp $dbdir/o.down x.$dcnf.pk${usepk}
+  sleep 600
 done
 

@@ -44,5 +44,6 @@ for dcnf in my8032.y9 my5740.y8 my5651.y8 ; do
   cp /data/m/my/data/*.err x.$dcnf.pk${usepk}
   dbms_down $dbdir $cnf 
   cp $dbdir/o.down x.$dcnf.pk${usepk}
+  sleep 600
 done
 
