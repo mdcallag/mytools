@@ -619,7 +619,7 @@ du -hs ${ddir}/* >> sb.sz.$sfx
 ls -asShR $ddir > sb.lsh.r.$sfx
 ls -asShR /home/mdcallag/mytx > sb.lsh.r.tx.$sfx
 
-ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global )
+ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global /data/m/my /data/m/pg /data/m/rx )
 x=0
 for xd in ${ddirs[@]}; do
   if [ -d $xd ]; then
