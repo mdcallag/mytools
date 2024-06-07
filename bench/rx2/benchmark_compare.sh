@@ -37,7 +37,7 @@ bytes_per_sync=${BYTES_PER_SYNC:-$(( 1 * M ))}
 # CACHE_SIZE_MB doesn't need a default
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
 # These are more likely to be used when testing universal compaction
-partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS=-0}
+partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS:-0}
 pin_top_level_index_and_filter=${PIN_TOP_LEVEL_INDEX_AND_FILTER:-0}
 metadata_block_size=${METADATA_BLOCK_SIZE:-16384}
 

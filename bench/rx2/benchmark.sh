@@ -177,7 +177,7 @@ compression_size_percent=${COMPRESSION_SIZE_PERCENT:-"-1"}
 bottommost_compression=${BOTTOMMOST_COMPRESSION:-disable}
 
 # These are more likely to be used when testing universal compaction
-partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS=-0}
+partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS:-0}
 pin_top_level_index_and_filter=${PIN_TOP_LEVEL_INDEX_AND_FILTER:-0}
 metadata_block_size=${METADATA_BLOCK_SIZE:-16384}
 
