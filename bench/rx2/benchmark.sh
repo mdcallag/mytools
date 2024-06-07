@@ -56,7 +56,7 @@ function display_usage() {
   echo -e "\tCACHE_NUMSHARDBITS\t\t\tNumber of shards for the block cache is 2 ** cache_numshardbits (default: 6)"
   echo -e "\tCOMPRESSION_MAX_DICT_BYTES"
   echo -e "\tCOMPRESSION_TYPE\t\tDefault compression(default: zstd)"
-  echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: none)"
+  echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: disable)"
   echo -e "\tMIN_LEVEL_TO_COMPRESS\t\tValue for min_level_to_compress for Leveled"
   echo -e "\tCOMPRESSION_SIZE_PERCENT\tValue for compression_size_percent for Universal"
   echo -e "\tDURATION\t\t\tNumber of seconds for which the test runs"
@@ -85,6 +85,10 @@ function display_usage() {
   echo -e "\tUNIVERSAL_SIZE_RATIO\t\tValue of size_ratio option for universal"
   echo -e "\tUNIVERSAL_MAX_SIZE_AMP\t\tmax_size_amplification_percent for universal"
   echo -e "\tUNIVERSAL_ALLOW_TRIVIAL_MOVE\tSet allow_trivial_move to true for universal, default is false"
+  echo -e "\nEnvironment variables (mostly) for universal compaction:"
+  echo -e "\tPARTITION_INDEX_AND_FILTERS\tUse two-level indexes for index and filter blocks"
+  echo -e "\tPIN_TOP_LEVEL_INDEX_AND_FILTER\tWhen two-level indexes are used, pin the top level"
+  echo -e "\tMETADATA_BLOCK_SIZE\t\tSize of 2nd level blocks when two-level indexes are used"
   echo -e "\nOptions for integrated BlobDB"
   echo -e "\tMIN_BLOB_SIZE\tValue for min_blob_size"
   echo -e "\tBLOB_FILE_SIZE\tValue for blob_file_size"
@@ -170,6 +174,12 @@ compression_max_dict_bytes=${COMPRESSION_MAX_DICT_BYTES:-0}
 compression_type=${COMPRESSION_TYPE:-zstd}
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
 compression_size_percent=${COMPRESSION_SIZE_PERCENT:-"-1"}
+bottommost_compression=${BOTTOMMOST_COMPRESSION:-disable}
+
+# These are more likely to be used when testing universal compaction
+partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS=-0}
+pin_top_level_index_and_filter=${PIN_TOP_LEVEL_INDEX_AND_FILTER:-0}
+metadata_block_size=${METADATA_BLOCK_SIZE:-16384}
 
 duration=${DURATION:-0}
 writes=${WRITES:-0}
@@ -256,6 +266,9 @@ multiread_batched,\
 cache_low_pri_pool_ratio,\
 prepopulate_block_cache"
 
+# TODO mdcallag: support this once db_bench supports it
+#  --bottommost_compression_type=$bottommost_compression \
+
 const_params_base="
   --undefok=$undef_params \
   --db=$DB_DIR \
@@ -272,6 +285,9 @@ const_params_base="
   --compression_type=$compression_type \
   --bytes_per_sync=$bytes_per_sync \
   $cache_meta_flags \
+  --partition_index_and_filters=$partition_index_and_filters \
+  --pin_top_level_index_and_filter=$pin_top_level_index_and_filter \
+  --metadata_block_size=$metadata_block_size \
   $o_direct_flags \
   --benchmark_write_rate_limit=$(( 1024 * 1024 * $mb_written_per_sec )) \
   \
@@ -332,7 +348,7 @@ univ_const_params="
   --compaction_style=1 \
   --num_levels=40 \
   --universal_compression_size_percent=$compression_size_percent \
-  --pin_l0_filter_and_index_blocks_in_cache=1 \
+  --pin_l0_filter_and_index_blocks_in_cache=0 \
   --universal_min_merge_width=$univ_min_merge_width \
   --universal_max_merge_width=$univ_max_merge_width \
   --universal_size_ratio=$univ_size_ratio \
@@ -980,8 +996,12 @@ function run_lsm {
 
   if [ $job = flush_mt_l0 ]; then
     benchmarks=levelstats,flush,waitforcompaction,compact0,waitforcompaction,memstats,levelstats
+  elif [ $job = flush_mt_wait ]; then
+    benchmarks=levelstats,flush,waitforcompaction,memstats,levelstats
+  elif [ $job = flush_mt_nowait ]; then
+    benchmarks=levelstats,flush,memstats,levelstats
   elif [ $job = waitforcompaction ]; then
-    benchmarks=levelstats,waitforcompaction,memstats,levelstats
+    benchmarks=levelstats,flush,memstats,levelstats,waitforcompaction,memstats,levelstats
   else
     echo Job unknown: $job
     exit $EXIT_NOT_COMPACTION_TEST
@@ -1228,6 +1248,10 @@ for job in ${jobs[@]}; do
   start=$(now)
   if [ $job = bulkload ]; then
     run_bulkload
+  elif [ $job = flush_mt_wait ]; then
+    run_lsm flush_mt_wait
+  elif [ $job = flush_mt_nowait ]; then
+    run_lsm flush_mt_nowait
   elif [ $job = flush_mt_l0 ]; then
     run_lsm flush_mt_l0
   elif [ $job = waitforcompaction ]; then
@@ -1242,7 +1266,7 @@ for job in ${jobs[@]}; do
     # This uses a different name for overwrite results so it can be run twice in one benchmark run.
     run_change overwritesome overwrite overwrite
   elif [ $job = overwriteandwait ]; then
-    run_change overwriteandwait overwrite overwrite,waitforcompaction
+    run_change overwriteandwait overwrite overwrite,flush,levelstats,waitforcompaction
   elif [ $job = updaterandom ]; then
     run_change updaterandom updaterandom updaterandom
   elif [ $job = mergerandom ]; then

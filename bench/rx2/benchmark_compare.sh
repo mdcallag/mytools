@@ -24,6 +24,7 @@ ci_tests_only=${CI_TESTS_ONLY:-"false"}
 
 # RocksDB configuration
 compression_type=${COMPRESSION_TYPE:-lz4}
+bottommost_compression=${BOTTOMMOST_COMPRESSION:-disable}
 subcompactions=${SUBCOMPACTIONS:-1}
 write_buffer_size_mb=${WRITE_BUFFER_SIZE_MB:-32}
 target_file_size_base_mb=${TARGET_FILE_SIZE_BASE_MB:-32}
@@ -35,6 +36,10 @@ cache_index_and_filter_blocks=${CACHE_INDEX_AND_FILTER_BLOCKS:-0}
 bytes_per_sync=${BYTES_PER_SYNC:-$(( 1 * M ))}
 # CACHE_SIZE_MB doesn't need a default
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
+# These are more likely to be used when testing universal compaction
+partition_index_and_filters=${PARTITION_INDEX_AND_FILTERS=-0}
+pin_top_level_index_and_filter=${PIN_TOP_LEVEL_INDEX_AND_FILTER:-0}
+metadata_block_size=${METADATA_BLOCK_SIZE:-16384}
 
 compaction_style=${COMPACTION_STYLE:-leveled}
 if [ "$compaction_style" = "leveled" ]; then
@@ -80,6 +85,7 @@ base_args+=( VALUE_SIZE="$value_size" )
 
 base_args+=( SUBCOMPACTIONS="$subcompactions" )
 base_args+=( COMPRESSION_TYPE="$compression_type" )
+base_args+=( BOTTOMMOST_COMPRESSION="$bottommost_compression" )
 base_args+=( WRITE_BUFFER_SIZE_MB="$write_buffer_size_mb" )
 base_args+=( TARGET_FILE_SIZE_BASE_MB="$target_file_size_base_mb" )
 base_args+=( MAX_BYTES_FOR_LEVEL_BASE_MB="$max_bytes_for_level_base_mb" )
@@ -88,6 +94,9 @@ base_args+=( STATS_INTERVAL_SECONDS="$stats_interval_seconds" )
 base_args+=( CACHE_INDEX_AND_FILTER_BLOCKS="$cache_index_and_filter_blocks" )
 base_args+=( COMPACTION_STYLE="$compaction_style" )
 base_args+=( BYTES_PER_SYNC="$bytes_per_sync" )
+base_args+=( PARTITION_INDEX_AND_FILTERS="$partition_index_and_filters" )
+base_args+=( PIN_TOP_LEVEL_INDEX_AND_FILTER="$pin_top_level_index_and_filter" )
+base_args+=( METADATA_BLOCK_SIZE="$metadata_block_size" )
 
 if [ -n "$USE_O_DIRECT" ]; then
   base_args+=( USE_O_DIRECT=1 )
@@ -150,6 +159,7 @@ function usage {
   echo -e "\tMB_WRITE_PER_SEC\t\trate limit for writer that runs concurrent with queries for some tests"
   echo -e "\tNUM_THREADS\t\t\tnumber of user threads"
   echo -e "\tCOMPRESSION_TYPE\t\tcompression type (zstd, lz4, none, etc)"
+  echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: disable), how to compress the max sorted run when not set to disable"
   echo -e "\tMIN_LEVEL_TO_COMPRESS\t\tmin_level_to_compress for leveled"
   echo -e "\tWRITE_BUFFER_SIZE_MB\t\tsize of write buffer in MB"
   echo -e "\tTARGET_FILE_SIZE_BASE_MB\tvalue for target_file_size_base in MB"
@@ -177,6 +187,11 @@ function usage {
   echo -e "\t\tUNIVERSAL_MAX_SIZE_AMP\t\t\tmax_size_amplification_percent for universal"
   echo -e "\t\tUNIVERSAL_ALLOW_TRIVIAL_MOVE\t\tSet allow_trivial_move to true for universal, default is false"
   echo -e "\t\tUNIVERSAL_COMPRESSION_SIZE_PERCENT\tpercentage of LSM tree that should be compressed"
+  echo ""
+  echo -e "\tOptions (mostly) for universal compaction:"
+  echo -e "\t\tPARTITION_INDEX_AND_FILTERS\t\tUse two-level indexes for index and filter blocks"
+  echo -e "\t\tPIN_TOP_LEVEL_INDEX_AND_FILTER\t\tWhen two-level indexes are used, pin the top level"
+  echo -e "\t\tMETADATA_BLOCK_SIZE\t\t\tSize of 2nd level blocks when two-level indexes are used"
   echo ""
   echo -e "\tOptions for integrated BlobDB:"
   echo -e "\t\tMIN_BLOB_SIZE\t\t\t\tvalue for min_blob_size"
@@ -252,6 +267,19 @@ for v in "$@" ; do
   echo ln -s db_bench."$v" db_bench
   ln -s db_bench."$v" db_bench
 
+  nver=$( ./db_bench --version | awk '{ print NF }' )
+  if [[ nver -eq 3 ]]; then
+    ver=$( ./db_bench --version | awk '{ print $3 }' )
+    ver_major=$( echo $ver | tr '.' ' ' | awk '{ print $1 }' )
+    ver_minor=$( echo $ver | tr '.' ' ' | awk '{ print $2 }' )
+    ver_patch=$( echo $ver | tr '.' ' ' | awk '{ print $3 }' )
+  else
+    ver_major=0
+    ver_minor=0
+    ver_patch=0
+  fi
+  echo RocksDB version is $ver_major $ver_minor $ver_patch
+
   find "$dbdir" -type f -exec rm \{\} \;
 
   # Load in key order
@@ -287,8 +315,16 @@ for v in "$@" ; do
     # For universal don't compact L0 as can have too many sorted runs
     # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
     # While this is disabled the test that follows will have more variance from compaction debt.
-    # env -i "${args_nolim[@]}"                    bash ./benchmark.sh waitforcompaction
-    echo TODO enable when waitforcompaction hang is fixed
+    if [[ $ver_major -gt 8 || ( $ver_major -eq 8 && $ver_minor -eq 6 ) ]] ; then
+      echo "After overwritesome: with universal do flush_mt_wait"
+      env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_wait
+    else
+      echo "After overwritesome: with universal do flush_mt_nowait"
+      env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_nowait
+      # Sleep to let the flush finish
+      sleep 10
+    fi
+
   else
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
@@ -304,12 +340,21 @@ for v in "$@" ; do
 
   # This creates much compaction debt which will be a problem for tests added after it.
   # Also, the compaction stats measured at test end can underestimate write-amp depending
-  # on how much compaction debt is allowed.
-  if [ "$compaction_style" == "leveled" ] && ./db_bench --benchmarks=waitforcompaction ; then
-    # Use waitforcompaction is supported to get more accurate write-amp measurement
+  # on how much compaction debt is allowed, so results from overwriteandwait are more accurate.
+  if [[ $ver_major -gt 8 || ( $ver_major -eq 8 && $ver_minor -ge 6 ) ]] ; then
+    # With https://github.com/facebook/rocksdb/pull/11436 fixed in 8.4.0 and db_bench updated to
+    # use it in 8.6 this should always be safe to use this which depends on waitforcompaction
+    echo "writeonly is overwriteandwait because recent version"
     env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+
+  elif [ "$compaction_style" == "leveled" ] && ./db_bench --benchmarks=waitforcompaction ; then
+    # For older versions it is OK for leveled to use the hacky solution in db_bench
+    echo "writeonly is overwriteandwait because older version but leveled"
+    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+
   else
-    # waitforcompaction hangs with universal, see https://github.com/facebook/rocksdb/issues/9275
+    # avoid the bugs, including https://github.com/facebook/rocksdb/issues/9275
+    echo "writeonly is overwrite because previous checks"
     env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
   fi
 
