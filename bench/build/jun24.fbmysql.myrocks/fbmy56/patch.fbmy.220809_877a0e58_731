@@ -1,0 +1,142 @@
+diff --git a/cmake/ssl.cmake b/cmake/ssl.cmake
+index d7ed5245c61..86c38684dfb 100644
+--- a/cmake/ssl.cmake
++++ b/cmake/ssl.cmake
+@@ -42,6 +42,62 @@ MACRO (CHANGE_SSL_SETTINGS string)
+   SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC} FORCE)
+ ENDMACRO()
+ 
++# Fetch OpenSSL version number.
++# OpenSSL < 3:
++# #define OPENSSL_VERSION_NUMBER 0x1000103fL
++# Encoded as MNNFFPPS: major minor fix patch status
++#
++# OpenSSL 3:
++# #define OPENSSL_VERSION_NUMBER
++#   ( (OPENSSL_VERSION_MAJOR<<28)
++#     |(OPENSSL_VERSION_MINOR<<20)
++#     |(OPENSSL_VERSION_PATCH<<4)
++#     |_OPENSSL_VERSION_PRE_RELEASE )
++MACRO(FIND_OPENSSL_VERSION)
++  FOREACH(version_part
++      OPENSSL_VERSION_MAJOR
++      OPENSSL_VERSION_MINOR
++      OPENSSL_VERSION_PATCH
++      )
++    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" ${version_part}
++      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
++    STRING(REGEX REPLACE
++      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
++      ${version_part} "${${version_part}}")
++  ENDFOREACH()
++  IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
++    # OpenSSL 3
++    SET(OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}")
++    MESSAGE(STATUS "VERSION_MAJOR is 3 so set FIX_VERSION to ${OPENSSL_FIX_VERSION}")
++  ELSE()
++    # Verify version number. Version information looks like:
++    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
++    # Encoded as MNNFFPPS: major minor fix patch status
++    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
++      OPENSSL_VERSION_NUMBER
++      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
++      )
++    STRING(REGEX REPLACE
++      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
++      OPENSSL_VERSION_MAJOR "${OPENSSL_VERSION_NUMBER}"
++      )
++    STRING(REGEX REPLACE
++      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
++      OPENSSL_VERSION_MINOR "${OPENSSL_VERSION_NUMBER}"
++      )
++    STRING(REGEX REPLACE
++      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
++      OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
++      )
++  ENDIF()
++  SET(OPENSSL_MAJOR_VERSION ${OPENSSL_VERSION_MAJOR})
++  SET(OPENSSL_MINOR_VERSION ${OPENSSL_VERSION_MINOR})
++  SET(OPENSSL_VERSION "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}.${OPENSSL_FIX_VERSION}")
++  SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "")
++  MESSAGE(STATUS "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_VERSION}")
++
++ENDMACRO(FIND_OPENSSL_VERSION)
++
+ # MYSQL_CHECK_SSL
+ #
+ # Provides the following configure options:
+@@ -103,39 +159,17 @@ MACRO (MYSQL_CHECK_SSL)
+       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+     ENDIF()
+ 
+-    # Verify version number. Version information looks like:
+-    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+-    # Encoded as MNNFFPPS: major minor fix patch status
+-    if(EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/base.h")
+-      SET(SSL_VERSION_FILE "${OPENSSL_INCLUDE_DIR}/openssl/base.h")
+-    else()
+-      SET(SSL_VERSION_FILE "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
+-    endif()
+-
+-    FILE(STRINGS "${SSL_VERSION_FILE}"
+-      OPENSSL_VERSION_NUMBER
+-      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+-    )
+-    STRING(REGEX REPLACE
+-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+-      OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+-    )
+-    STRING(REGEX REPLACE
+-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]*).*$" "\\1"
+-      OPENSSL_VERSION_NUMBER "${OPENSSL_VERSION_NUMBER}"
+-    )
+-    IF(OPENSSL_VERSION_NUMBER VERSION_GREATER 0x10100000L)
+-      SET(SSL_COMPAT "-DOPENSSL_API_COMPAT=0x10100000L")
++    IF(OPENSSL_INCLUDE_DIR)
++      FIND_OPENSSL_VERSION()
+     ENDIF()
+ 
+-
+     IF(OPENSSL_INCLUDE_DIR AND
+        OPENSSL_LIBRARY   AND
+-       CRYPTO_LIBRARY      AND
+-       OPENSSL_MAJOR_VERSION STREQUAL "1"
++       CRYPTO_LIBRARY 
+       )
+       SET(OPENSSL_FOUND TRUE)
+     ELSE()
++	    MESSAGE(STATUS "OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR}, OPENSSL_LIBRARY ${OPENSSL_LIBRARY}, CRYPTO_LIBRARY ${CRYPTO_LIBRARY}, OPENSSL_MAJOR_VERSION ${OPENSSL_MAJOR_VERSION}, VERSION ${OPENSSL_VERSION_NUMBER}, SSL_VERSION_FILE ${SSL_VERSION_FILE}")
+       SET(OPENSSL_FOUND FALSE)
+     ENDIF()
+ 
+@@ -185,6 +219,7 @@ MACRO (MYSQL_CHECK_SSL)
+       UNSET(CRYPTO_LIBRARY)
+       UNSET(CRYPTO_LIBRARY CACHE)
+ 
++      MESSAGE(STATUS "OPENSSL_FOUND is ${OPENSSL_FOUND} and HAVE_SHA is ${HAVE_SHA512_DIGEST_LENGTH}")
+       MESSAGE(SEND_ERROR
+         "Cannot find appropriate system libraries for SSL. "
+         "Make sure you've specified a supported SSL version. "
+diff --git a/storage/rocksdb/get_rocksdb_files.sh b/storage/rocksdb/get_rocksdb_files.sh
+index c9d3aa14b36..4e7076c9d45 100755
+--- a/storage/rocksdb/get_rocksdb_files.sh
++++ b/storage/rocksdb/get_rocksdb_files.sh
+@@ -4,7 +4,7 @@ MKFILE=`mktemp`
+ # include rocksdb make file relative to the path of this script
+ echo "include rocksdb/src.mk
+ all:
+-	@echo \$(LIB_SOURCES)" > $MKFILE
++	@echo \"\$(LIB_SOURCES)\"" > $MKFILE
+ for f in `make --makefile $MKFILE`
+ do
+   echo ../../rocksdb/$f
+@@ -22,7 +22,8 @@ git_tag=$(git symbolic-ref -q --short HEAD || \
+ git_mod=$(git diff-index HEAD --quiet 2>/dev/null; echo $?)
+ git_date=$(git log -1 --date=format:"%Y-%m-%d %T" --format="%ad" 2>/dev/null)
+ popd>/dev/null
+-if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++#if [ ! -f $bv ] || [ -z $git_sha ] || [ ! `grep -q $git_sha $bv` ]
++if [ ! -f $bv ] || [ -z $git_sha ] || ! grep -q $git_sha $bv
+ then
+ sed -e s/@GIT_SHA@/$git_sha/ -e s:@GIT_TAG@:"$git_tag":  \
+     -e s/@GIT_MOD@/"$git_mod"/ -e s/@BUILD_DATE@/"$build_date"/  \
