@@ -223,14 +223,14 @@ if [[ ${dbA[0]} == "mysql" ]]; then
   pspid=$!
   while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
   splid=$!
-  while :; do date; $client "${clientArgs[@]}" -e 'show engine innodb status\G'; sleep 30; done > sb.sei.$sfx &
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > sb.sei.$sfx &
   seid=$!
 elif [[ ${dbA[0]} == "mariadb" ]]; then
   while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
   while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
   splid=$!
-  while :; do date; $client "${clientArgs[@]}" -e 'show engine innodb status\G'; sleep 30; done > sb.sei.$sfx &
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > sb.sei.$sfx &
   seid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
