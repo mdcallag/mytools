@@ -38,6 +38,9 @@ if [ ! -f ${file_prefix}.2 ]; then
   sync; sleep $pause_secs
 fi
 
+echo List kernel
+uname -a
+
 echo List mount options for filesystems 
 mount -v 
 echo
