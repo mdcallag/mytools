@@ -518,9 +518,9 @@ if [[ $postwrite -eq 1 ]]; then
     echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > sb.o.pgvac
     echo nr is :: $total_nr :: and ntabs is :: $ntabs :: >> sb.o.pgvac
 
-    major_version=$( PGPASSWORD="pw" $client "${clientArgs[@]}" ib -x -c 'show server_version' | grep server_version | awk '{ print $3 }' | tr '.' ' ' | awk '{ print $1 }' )
+    major_version=$( PGPASSWORD="pw" $client "${clientArgs[@]}" ib -x -c 'show server_version_num' | grep server_version_num | awk '{ print $3 }' )
     vac_args="(verbose, analyze)"
-    if [[ $major_version -ge 12 ]]; then
+    if [[ $major_version -ge 120000 ]]; then
       vac_args="(verbose, analyze, index_cleanup ON)"
     fi
     echo "vac_args is $vac_args" >> sb.o.pgvac
