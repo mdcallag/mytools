@@ -56,7 +56,7 @@ function vac_pg {
 
   major_version=$( PGPASSWORD="pw" $client "${pga[@]}" ib -x -c 'show server_version_num' | grep server_version_num | awk '{ print $3 }' )
   vac_args="(verbose, analyze)"
-  if [[ ! $major_version -ge 120000 ]]; then
+  if [[ $major_version -ge 120000 ]]; then
     vac_args="(verbose, analyze, index_cleanup ON)"
   fi
   echo "vac_args is $vac_args" >> o.pgvac
