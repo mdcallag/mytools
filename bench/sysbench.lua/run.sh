@@ -266,11 +266,12 @@ while :; do
       dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     fi
   else
-    echo TODO - support Postgres
-    exit 1
+    fn="sb.pgid.0"
+    dbbpid=$( cat $fn | awk '{ print $2 }' )
+    echo Using Postgres backend PID :: $dbbpid :: from $fn
   fi
 
-  #echo dbbpid is $dbbpid
+  echo dbbpid is :: $dbbpid ::
   if [ -z $dbbpid ]; then echo Cannot get mysqld PID; continue; fi
 
   hw_secs=10
@@ -316,14 +317,19 @@ if [[ $prepstmt == 0 ]]; then
   useps="--db-ps-mode=disable"
 fi
 
+pgid=""
+if [[ ${dbA[0]} == "postgres" ]]; then
+pgid="--pgsql_conn_id=true "
+fi
+
 repint=""
 #repint="--report-interval=10"
 #repint="--report-checkpoints=30,60,90,120,150,180"
 
 if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $repint $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
 else
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
 fi
 
 if [[ $client == *"oriole"* ]]; then 
