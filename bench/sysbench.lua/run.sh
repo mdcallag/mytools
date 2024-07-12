@@ -251,7 +251,7 @@ fgp="$HOME/git/FlameGraph"
 if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
-  perf_secs=20
+  perf_secs=10
   pause_secs=10
   perf="perf"
 
@@ -371,13 +371,17 @@ for x in $( seq 1 $last_loop ); do
 
   outf="sb.perf.rec.g.$sfx.$x"
   $perf report --stdio -n -g folded -i $outf --no-children > sb.perf.rep.g.f1.c0.$sfx.$x
+  gzip --fast sb.perf.rep.g.f1.c0.$sfx.$x
   $perf report --stdio -n -g folded -i $outf --children > sb.perf.rep.g.f1.c1.$sfx.$x
+  gzip --fast sb.perf.rep.g.f1.c1.$sfx.$x
   $perf script -i $outf > sb.perf.rep.g.scr.$sfx.$x
-  gzip --fast $outf
+  # gzip --fast $outf
+  rm $outf
 
   cat sb.perf.rep.g.scr.$sfx.$x | $fgp/stackcollapse-perf.pl > sb.perf.g.fold.$sfx.$x
   $fgp/flamegraph.pl sb.perf.g.fold.$sfx.$x > sb.perf.g.$sfx.$x.svg
-  gzip --fast sb.perf.rep.g.scr.$sfx.$x
+  #gzip --fast sb.perf.rep.g.scr.$sfx.$x
+  rm sb.perf.rep.g.scr.$sfx.$x
   fi
 
   if [[ doperf3 -eq 1 ]]; then
@@ -387,6 +391,12 @@ for x in $( seq 1 $last_loop ); do
   gzip --fast $outf
   fi
 done
+
+if [[ doperf2 -eq 1 ]]; then
+  cat sb.perf.g.fold.$sfx.* | $fgp/flamegraph.pl > sb.perf.g.$sfx.all.svg
+  rm sb.perf.g.fold.$sfx.*
+fi
+
 fi
 fi
 
