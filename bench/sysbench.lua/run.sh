@@ -395,6 +395,7 @@ done
 if [[ doperf2 -eq 1 ]]; then
   cat sb.perf.g.fold.$sfx.* | $fgp/flamegraph.pl > sb.perf.g.$sfx.all.svg
   rm sb.perf.g.fold.$sfx.*
+  rm -f sb.perf.rec.g.$sfx.*
 fi
 
 fi
