@@ -129,11 +129,7 @@ fgp="$HOME/git/FlameGraph"
 #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
-  if [ $nqt -ge 1 ]; then
-    pause_secs=30
-  else
-    pause_secs=20
-  fi
+  pause_secs=40
   perf="perf"
 
   sleep $pause_secs
@@ -176,7 +172,7 @@ while :; do
 
   doit=0
   if [[ doit -eq 1 ]]; then
-  perf_secs=10
+  perf_secs=20
   ts=$( date +'%b%d.%H%M%S' )
   sfx="$x.$ts"
   outf="o.perf.rec.g.$sfx"
@@ -188,10 +184,13 @@ while :; do
   $perf report --stdio -n -g folded -i $outf --no-children > o.perf.rep.g.f1.c0.$sfx
   $perf report --stdio -n -g folded -i $outf --children > o.perf.rep.g.f1.c1.$sfx
   $perf script -i $outf > o.perf.rep.g.scr.$sfx
-  gzip --fast $outf
+  #gzip --fast $outf
+  rm $outf
   cat o.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > o.perf.g.fold.$sfx
+  gzip --fast o.perf.g.fold.$sfx
   $fgp/flamegraph.pl o.perf.g.fold.$sfx > o.perf.g.$sfx.svg
-  gzip --fast o.perf.rep.g.scr.$sfx
+  #gzip --fast o.perf.rep.g.scr.$sfx
+  rm o.perf.rep.g.scr.$sfx
   fi
 
   doit=0
@@ -209,7 +208,7 @@ while :; do
 
   doit=0
   if  [[ doit -eq 1 ]]; then
-  perf_secs=5
+  perf_secs=10
   ts=$( date +'%b%d.%H%M%S' )
   sfx="$x.$ts"
   outf="o.perfstat.$sfx"
@@ -325,6 +324,9 @@ for n in $( seq 1 $realdop ) ; do
 done
 
 if [ $perfpid -ne 0 ]; then kill $perfpid ; fi
+
+rm o.perf.rec.g.*
+rm o.perf.rep.g.scr.*
 
 stop_secs=$( date +%s )
 tot_secs=$(( $stop_secs - $start_secs ))
