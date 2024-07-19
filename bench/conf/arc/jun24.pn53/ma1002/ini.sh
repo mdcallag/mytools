@@ -52,9 +52,29 @@ done
 echo connected
 
 bin/${admin} -u root password 'pw'
-hn="$( hostname )"
+hn=$( hostname )
 bin/${admin} -u root -ppw -h $hn password 'pw'
 
+echo create
+bin/${client} -uroot -ppw -h $hn -e "create user root@'%' identified by 'pw'"
+
+echo grant
+bin/${client} -uroot -ppw -h $hn -e "grant all on *.* to root@'%' with grant option"
+
+echo drop1
+bin/${client} -uroot -ppw -e "drop user ''@\"${hn}\""
+echo drop2
+bin/${client} -uroot -ppw -e "drop user ''@localhost"
+echo drop3a
+bin/${client} -uroot -ppw -e "drop user root@localhost"
+echo drop3b
+bin/${client} -uroot -ppw -e "drop user root@\"127.0.0.1\""
+echo drop3c
+bin/${client} -uroot -ppw -e "drop user root@\"::1\""
+echo query user
+bin/${client} -uroot -ppw -e 'select User, Host from mysql.user'
+
+echo cleanup and query
 bin/${client} -uroot -ppw -A -e 'drop database test'
 bin/${client} -uroot -ppw -A -e 'create database test'
 bin/${client} -uroot -ppw -A -e 'show databases'
