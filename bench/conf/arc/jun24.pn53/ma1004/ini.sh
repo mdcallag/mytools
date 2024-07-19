@@ -45,8 +45,8 @@ while ! bin/mariadb -umdcallag -e 'select User, Host from mysql.user' ; do
 done
 echo connected
 
-hn="$( hostname )"
-bin/mariadb -umdcallag -e "drop user ''@\"${hn}\""
+hn=$( hostname )
+bin/mariadb -umdcallag -e "drop user ''@$\"{hn}\""
 bin/mariadb -umdcallag -e "drop user ''@localhost"
 bin/mariadb -umdcallag -e "drop user root@localhost"
 bin/mariadb -umdcallag -e "create user root@'%' identified by 'pw'"
