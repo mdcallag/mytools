@@ -53,13 +53,17 @@ echo connected
 
 bin/${admin} -u root password 'pw'
 hn=$( hostname )
-bin/${admin} -u root -ppw -h $hn password 'pw'
+#echo bin/${admin} -u root -ppw -h $hn password 'pw'
+#bin/${admin} -u root -ppw -h $hn password 'pw'
 
 echo create
-bin/${client} -uroot -ppw -h $hn -e "create user root@'%' identified by 'pw'"
+bin/${client} -uroot -ppw -e "create user root@'%' identified by 'pw'"
 
 echo grant
-bin/${client} -uroot -ppw -h $hn -e "grant all on *.* to root@'%' with grant option"
+bin/${client} -uroot -ppw -e "grant all on *.* to root@'%' with grant option"
+
+echo query user
+bin/${client} -uroot -ppw -e 'select User, Host from mysql.user'
 
 echo drop1
 bin/${client} -uroot -ppw -e "drop user ''@\"${hn}\""
@@ -79,4 +83,3 @@ bin/${client} -uroot -ppw -A -e 'drop database test'
 bin/${client} -uroot -ppw -A -e 'create database test'
 bin/${client} -uroot -ppw -A -e 'show databases'
 bin/${client} -uroot -ppw -A -e 'show engines'
-
