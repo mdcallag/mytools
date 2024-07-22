@@ -30,6 +30,13 @@ function event()
    local tid = (sysbench.tid % sysbench.opt.threads) + 1
    local table_name = "sbtest" .. tid
 
-   con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+   for i = 1,10,1
+   do
+     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+   end
    check_reconnect()
 end
