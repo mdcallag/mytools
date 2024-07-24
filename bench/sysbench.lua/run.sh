@@ -327,7 +327,7 @@ repint=""
 #repint="--report-checkpoints=30,60,90,120,150,180"
 
 if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=1 --warmup-time=0 --time=0 $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
+  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=$ntabs --warmup-time=0 --time=0 $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
 else
   exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
 fi
@@ -404,9 +404,9 @@ fi
 qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 
 if [[ $testType == "scan" ]]; then
-  # For scan use rows per second rather than queries per second
+  # For scan use Mrows per second rather than queries per second
   nsecs=$( cat sb.o.$sfx.dop${nt} | grep "time elapsed:" | awk '{ print $3 }' | sed 's/s$//' )
-  qps=$( echo $nr $ntabs $nsecs | awk '{ printf "%.3f\t", ($1 * $2) / $3 }' )
+  qps=$( echo $nr $ntabs $nsecs | awk '{ printf "%.3f\t", ($1 * $2) / $3 / 1000000.0 }' )
 fi
 
 bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $qps $realdop > sb.met.$sfxn
