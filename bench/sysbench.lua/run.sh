@@ -404,9 +404,9 @@ fi
 qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 
 if [[ $testType == "scan" ]]; then
-  # For scan use Mrows per second rather than queries per second
+  # For scan use Krows per second rather than queries per second
   nsecs=$( cat sb.o.$sfx.dop${nt} | grep "time elapsed:" | awk '{ print $3 }' | sed 's/s$//' )
-  qps=$( echo $nr $ntabs $nsecs | awk '{ printf "%.3f\t", ($1 * $2) / $3 / 1000000.0 }' )
+  qps=$( echo $nr $ntabs $nsecs | awk '{ printf "%.0f\t", ($1 * $2) / $3 / 1000.0 }' )
 fi
 
 bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $qps $realdop > sb.met.$sfxn
