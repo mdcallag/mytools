@@ -75,7 +75,11 @@ for f in $( ls -rt $bdir/sb.prepare.met.* ); do
   work $f "$@"
 done
 
-for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm ); do
+for f in $( ls -rt $bdir/${pfx}.*dop${dop} | grep -v point-query.warm | grep -v scan ); do
+  work $f "$@"
+done
+
+for f in $( ls -rt $bdir/${pfx}.*scan*  ); do
   work $f "$@"
 done
 
