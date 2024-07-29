@@ -1,0 +1,65 @@
+nr1=$1
+nr2=$2
+nrt=$3
+dop=$4
+nsecs=$5
+mbd=$6
+rdir=$7
+dev=$8
+only1t=$9
+npart=${10}
+delete_per_insert=${11}
+
+if [[ $npart -gt 0 ]]; then
+  ps=part${npart}
+else
+  ps=""
+fi
+
+shift 11
+
+for dc in ma10old.z11a_c8r32 ; do
+for ver in \
+ma100244_rel \
+ma100339_rel \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma10old; ln -s $mbd/$ver $mbd/ma10old
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in ma10.z11a_c8r32 ; do
+for ver in \
+ma100434_rel_withdbg \
+ma100525_rel_withdbg \
+ma100618_rel_withdbg \
+ma101108_rel_withdbg \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma10; ln -s $mbd/$ver $mbd/ma10
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in \
+ma11.z11b_c8r32 \
+; do
+for ver in \
+ma110402_rel_withdbg \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma11; ln -s $mbd/$ver $mbd/ma11
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma11.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
