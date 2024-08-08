@@ -1,0 +1,945 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="470" onload="init(evt)" viewBox="0 0 1200 470" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="470.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="453" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="453" > </text>
+<g id="frames">
+<g >
+<title>update_process_times (31,000,000 samples, 0.01%)</title><rect x="626.7" y="37" width="0.1" height="15.0" fill="rgb(242,202,21)" rx="2" ry="2" />
+<text  x="629.70" y="47.5" ></text>
+</g>
+<g >
+<title>rec_get_offsets_func (538,000,000 samples, 0.15%)</title><rect x="321.1" y="165" width="1.8" height="15.0" fill="rgb(243,25,0)" rx="2" ry="2" />
+<text  x="324.09" y="175.5" ></text>
+</g>
+<g >
+<title>row_search_mvcc (239,964,000,000 samples, 66.74%)</title><rect x="322.9" y="165" width="787.5" height="15.0" fill="rgb(234,227,24)" rx="2" ry="2" />
+<text  x="325.87" y="175.5" >row_search_mvcc</text>
+</g>
+<g >
+<title>memo_slot_release (1,557,500,000 samples, 0.43%)</title><rect x="681.4" y="117" width="5.1" height="15.0" fill="rgb(208,215,29)" rx="2" ry="2" />
+<text  x="684.39" y="127.5" ></text>
+</g>
+<g >
+<title>lock_clust_rec_cons_read_sees (6,296,500,000 samples, 1.75%)</title><rect x="654.8" y="149" width="20.6" height="15.0" fill="rgb(246,123,29)" rx="2" ry="2" />
+<text  x="657.76" y="159.5" ></text>
+</g>
+<g >
+<title>btr_pcur_store_position (2,824,500,000 samples, 0.79%)</title><rect x="640.7" y="149" width="9.2" height="15.0" fill="rgb(215,222,4)" rx="2" ry="2" />
+<text  x="643.66" y="159.5" ></text>
+</g>
+<g >
+<title>Arg_comparator::compare_int_signed (199,000,000 samples, 0.06%)</title><rect x="64.5" y="197" width="0.6" height="15.0" fill="rgb(252,27,33)" rx="2" ry="2" />
+<text  x="67.47" y="207.5" ></text>
+</g>
+<g >
+<title>row_sel_store_mysql_rec (86,861,000,000 samples, 24.16%)</title><rect x="767.3" y="149" width="285.1" height="15.0" fill="rgb(253,164,32)" rx="2" ry="2" />
+<text  x="770.32" y="159.5" >row_sel_store_mysql_rec</text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (33,000,000 samples, 0.01%)</title><rect x="994.2" y="85" width="0.1" height="15.0" fill="rgb(216,76,28)" rx="2" ry="2" />
+<text  x="997.19" y="95.5" ></text>
+</g>
+<g >
+<title>mtr_t::commit (120,500,000 samples, 0.03%)</title><rect x="312.8" y="165" width="0.4" height="15.0" fill="rgb(232,26,9)" rx="2" ry="2" />
+<text  x="315.82" y="175.5" ></text>
+</g>
+<g >
+<title>Item_func_lt::val_int (3,175,000,000 samples, 0.88%)</title><rect x="35.0" y="213" width="10.5" height="15.0" fill="rgb(220,217,11)" rx="2" ry="2" />
+<text  x="38.05" y="223.5" ></text>
+</g>
+<g >
+<title>syscall (41,500,000 samples, 0.01%)</title><rect x="10.1" y="373" width="0.1" height="15.0" fill="rgb(225,28,39)" rx="2" ry="2" />
+<text  x="13.08" y="383.5" ></text>
+</g>
+<g >
+<title>skip_concurrency_ticket (4,068,000,000 samples, 1.13%)</title><rect x="1158.1" y="181" width="13.3" height="15.0" fill="rgb(216,82,37)" rx="2" ry="2" />
+<text  x="1161.08" y="191.5" ></text>
+</g>
+<g >
+<title>buf_page_get_gen (954,000,000 samples, 0.27%)</title><rect x="634.6" y="133" width="3.1" height="15.0" fill="rgb(209,139,11)" rx="2" ry="2" />
+<text  x="637.61" y="143.5" ></text>
+</g>
+<g >
+<title>buf::Block_hint::buffer_unfix_block_if_needed (512,000,000 samples, 0.14%)</title><rect x="1097.3" y="133" width="1.7" height="15.0" fill="rgb(232,119,53)" rx="2" ry="2" />
+<text  x="1100.30" y="143.5" ></text>
+</g>
+<g >
+<title>btr_pcur_restore_position_func (13,344,500,000 samples, 3.71%)</title><rect x="1053.5" y="133" width="43.7" height="15.0" fill="rgb(212,210,1)" rx="2" ry="2" />
+<text  x="1056.45" y="143.5" >btr_..</text>
+</g>
+<g >
+<title>que_thr_move_to_run_state_for_mysql (596,000,000 samples, 0.17%)</title><rect x="317.4" y="165" width="2.0" height="15.0" fill="rgb(253,126,49)" rx="2" ry="2" />
+<text  x="320.42" y="175.5" ></text>
+</g>
+<g >
+<title>thd_killed (1,659,500,000 samples, 0.46%)</title><rect x="1099.0" y="149" width="5.4" height="15.0" fill="rgb(233,153,16)" rx="2" ry="2" />
+<text  x="1101.99" y="159.5" ></text>
+</g>
+<g >
+<title>row_sel_enqueue_cache_row_for_mysql (644,000,000 samples, 0.18%)</title><rect x="1110.4" y="165" width="2.1" height="15.0" fill="rgb(243,94,50)" rx="2" ry="2" />
+<text  x="1113.43" y="175.5" ></text>
+</g>
+<g >
+<title>handle_query (359,439,500,000 samples, 99.97%)</title><rect x="10.3" y="261" width="1179.7" height="15.0" fill="rgb(217,98,3)" rx="2" ry="2" />
+<text  x="13.28" y="271.5" >handle_query</text>
+</g>
+<g >
+<title>evaluate_join_record (68,500,000 samples, 0.02%)</title><rect x="10.3" y="229" width="0.2" height="15.0" fill="rgb(220,8,31)" rx="2" ry="2" />
+<text  x="13.28" y="239.5" ></text>
+</g>
+<g >
+<title>Field_string::val_str (37,500,000 samples, 0.01%)</title><rect x="108.2" y="165" width="0.1" height="15.0" fill="rgb(228,109,43)" rx="2" ry="2" />
+<text  x="111.18" y="175.5" ></text>
+</g>
+<g >
+<title>buf_page_optimistic_get (5,375,000,000 samples, 1.49%)</title><rect x="1057.6" y="101" width="17.6" height="15.0" fill="rgb(238,10,53)" rx="2" ry="2" />
+<text  x="1060.57" y="111.5" ></text>
+</g>
+<g >
+<title>rr_sequential (300,869,500,000 samples, 83.68%)</title><rect x="185.7" y="213" width="987.4" height="15.0" fill="rgb(223,161,9)" rx="2" ry="2" />
+<text  x="188.68" y="223.5" >rr_sequential</text>
+</g>
+<g >
+<title>pfs_start_rwlock_rdwait_v1 (171,000,000 samples, 0.05%)</title><rect x="1095.9" y="117" width="0.5" height="15.0" fill="rgb(221,172,0)" rx="2" ry="2" />
+<text  x="1098.86" y="127.5" ></text>
+</g>
+<g >
+<title>row_sel_store_mysql_field_func (1,700,000,000 samples, 0.47%)</title><rect x="761.7" y="149" width="5.6" height="15.0" fill="rgb(249,104,43)" rx="2" ry="2" />
+<text  x="764.74" y="159.5" ></text>
+</g>
+<g >
+<title>JOIN::exec (359,438,000,000 samples, 99.97%)</title><rect x="10.3" y="245" width="1179.7" height="15.0" fill="rgb(231,117,33)" rx="2" ry="2" />
+<text  x="13.28" y="255.5" >JOIN::exec</text>
+</g>
+<g >
+<title>btr_cur_optimistic_latch_leaves (5,677,500,000 samples, 1.58%)</title><rect x="1056.6" y="117" width="18.6" height="15.0" fill="rgb(224,143,11)" rx="2" ry="2" />
+<text  x="1059.57" y="127.5" ></text>
+</g>
+<g >
+<title>btr_pcur_store_position (362,000,000 samples, 0.10%)</title><rect x="309.7" y="165" width="1.2" height="15.0" fill="rgb(228,149,14)" rx="2" ry="2" />
+<text  x="312.74" y="175.5" ></text>
+</g>
+<g >
+<title>que_thr_stop_for_mysql_no_error (521,500,000 samples, 0.15%)</title><rect x="319.4" y="165" width="1.7" height="15.0" fill="rgb(229,199,31)" rx="2" ry="2" />
+<text  x="322.38" y="175.5" ></text>
+</g>
+<g >
+<title>btr_pcur_move_to_next_page (4,047,500,000 samples, 1.13%)</title><rect x="626.9" y="149" width="13.3" height="15.0" fill="rgb(206,154,3)" rx="2" ry="2" />
+<text  x="629.89" y="159.5" ></text>
+</g>
+<g >
+<title>pfs_unlock_rwlock_v1 (150,000,000 samples, 0.04%)</title><rect x="1096.8" y="117" width="0.4" height="15.0" fill="rgb(247,144,33)" rx="2" ry="2" />
+<text  x="1099.76" y="127.5" ></text>
+</g>
+<g >
+<title>btr_pcur_restore_position_func (148,500,000 samples, 0.04%)</title><rect x="640.2" y="149" width="0.5" height="15.0" fill="rgb(217,40,23)" rx="2" ry="2" />
+<text  x="643.17" y="159.5" ></text>
+</g>
+<g >
+<title>all (359,535,500,000 samples, 100%)</title><rect x="10.0" y="421" width="1180.0" height="15.0" fill="rgb(252,105,42)" rx="2" ry="2" />
+<text  x="13.00" y="431.5" ></text>
+</g>
+<g >
+<title>ha_innobase::general_fetch (281,970,000,000 samples, 78.43%)</title><rect x="217.6" y="181" width="925.4" height="15.0" fill="rgb(241,209,39)" rx="2" ry="2" />
+<text  x="220.61" y="191.5" >ha_innobase::general_fetch</text>
+</g>
+<g >
+<title>mtr_t::memo_release (182,000,000 samples, 0.05%)</title><rect x="639.2" y="133" width="0.6" height="15.0" fill="rgb(218,127,0)" rx="2" ry="2" />
+<text  x="642.23" y="143.5" ></text>
+</g>
+<g >
+<title>thd_has_active_attachable_trx (2,108,500,000 samples, 0.59%)</title><rect x="1131.0" y="165" width="6.9" height="15.0" fill="rgb(217,81,51)" rx="2" ry="2" />
+<text  x="1134.00" y="175.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (94,000,000 samples, 0.03%)</title><rect x="626.6" y="149" width="0.3" height="15.0" fill="rgb(243,8,30)" rx="2" ry="2" />
+<text  x="629.58" y="159.5" ></text>
+</g>
+<g >
+<title>mysql_execute_command (359,441,000,000 samples, 99.97%)</title><rect x="10.3" y="293" width="1179.7" height="15.0" fill="rgb(233,36,41)" rx="2" ry="2" />
+<text  x="13.28" y="303.5" >mysql_execute_command</text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (84,500,000 samples, 0.02%)</title><rect x="626.6" y="133" width="0.3" height="15.0" fill="rgb(247,131,39)" rx="2" ry="2" />
+<text  x="629.61" y="143.5" ></text>
+</g>
+<g >
+<title>Item_func_length::val_int (9,265,000,000 samples, 2.58%)</title><rect x="129.2" y="165" width="30.5" height="15.0" fill="rgb(228,199,24)" rx="2" ry="2" />
+<text  x="132.25" y="175.5" >It..</text>
+</g>
+<g >
+<title>row_sel_field_store_in_mysql_format_func (17,696,000,000 samples, 4.92%)</title><rect x="994.3" y="117" width="58.1" height="15.0" fill="rgb(214,12,31)" rx="2" ry="2" />
+<text  x="997.32" y="127.5" >row_se..</text>
+</g>
+<g >
+<title>rec_copy_prefix_to_buf (48,500,000 samples, 0.01%)</title><rect x="687.8" y="149" width="0.1" height="15.0" fill="rgb(207,185,47)" rx="2" ry="2" />
+<text  x="690.77" y="159.5" ></text>
+</g>
+<g >
+<title>execute_sqlcom_select (359,440,500,000 samples, 99.97%)</title><rect x="10.3" y="277" width="1179.7" height="15.0" fill="rgb(223,89,49)" rx="2" ry="2" />
+<text  x="13.28" y="287.5" >execute_sqlcom_select</text>
+</g>
+<g >
+<title>rec_get_offsets_func (16,393,000,000 samples, 4.56%)</title><rect x="687.9" y="149" width="53.8" height="15.0" fill="rgb(205,32,18)" rx="2" ry="2" />
+<text  x="690.93" y="159.5" >rec_g..</text>
+</g>
+<g >
+<title>x64_sys_call (33,000,000 samples, 0.01%)</title><rect x="10.1" y="325" width="0.1" height="15.0" fill="rgb(246,81,27)" rx="2" ry="2" />
+<text  x="13.11" y="335.5" ></text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (6,024,000,000 samples, 1.68%)</title><rect x="289.9" y="165" width="19.8" height="15.0" fill="rgb(208,20,1)" rx="2" ry="2" />
+<text  x="292.93" y="175.5" ></text>
+</g>
+<g >
+<title>ha_innobase::rnd_next (579,500,000 samples, 0.16%)</title><rect x="1143.0" y="181" width="1.9" height="15.0" fill="rgb(248,157,6)" rx="2" ry="2" />
+<text  x="1146.04" y="191.5" ></text>
+</g>
+<g >
+<title>Item_field::val_str (6,379,500,000 samples, 1.77%)</title><rect x="108.3" y="165" width="20.9" height="15.0" fill="rgb(211,209,54)" rx="2" ry="2" />
+<text  x="111.31" y="175.5" ></text>
+</g>
+<g >
+<title>trx_is_interrupted (1,185,500,000 samples, 0.33%)</title><rect x="1138.8" y="165" width="3.9" height="15.0" fill="rgb(226,90,54)" rx="2" ry="2" />
+<text  x="1141.77" y="175.5" ></text>
+</g>
+<g >
+<title>thd_get_thread_id (520,000,000 samples, 0.14%)</title><rect x="1171.4" y="181" width="1.7" height="15.0" fill="rgb(253,103,48)" rx="2" ry="2" />
+<text  x="1174.43" y="191.5" ></text>
+</g>
+<g >
+<title>lock_clust_rec_cons_read_sees (455,500,000 samples, 0.13%)</title><rect x="310.9" y="165" width="1.5" height="15.0" fill="rgb(216,159,6)" rx="2" ry="2" />
+<text  x="313.93" y="175.5" ></text>
+</g>
+<g >
+<title>mtr_t::Command::release_all (2,594,000,000 samples, 0.72%)</title><rect x="678.0" y="133" width="8.5" height="15.0" fill="rgb(218,147,41)" rx="2" ry="2" />
+<text  x="680.99" y="143.5" ></text>
+</g>
+<g >
+<title>sel_restore_position_for_mysql (121,000,000 samples, 0.03%)</title><rect x="1113.3" y="165" width="0.4" height="15.0" fill="rgb(223,172,38)" rx="2" ry="2" />
+<text  x="1116.31" y="175.5" ></text>
+</g>
+<g >
+<title>PolicyMutex&lt;TTASEventMutex&lt;BlockMutexPolicy&gt; &gt;::exit (66,000,000 samples, 0.02%)</title><rect x="1057.3" y="101" width="0.2" height="15.0" fill="rgb(205,55,2)" rx="2" ry="2" />
+<text  x="1060.32" y="111.5" ></text>
+</g>
+<g >
+<title>dispatch_command (359,449,500,000 samples, 99.98%)</title><rect x="10.3" y="325" width="1179.7" height="15.0" fill="rgb(224,215,3)" rx="2" ry="2" />
+<text  x="13.26" y="335.5" >dispatch_command</text>
+</g>
+<g >
+<title>do_syscall_64 (39,000,000 samples, 0.01%)</title><rect x="10.1" y="341" width="0.1" height="15.0" fill="rgb(205,162,16)" rx="2" ry="2" />
+<text  x="13.09" y="351.5" ></text>
+</g>
+<g >
+<title>buf::Block_hint::store (779,500,000 samples, 0.22%)</title><rect x="649.9" y="149" width="2.6" height="15.0" fill="rgb(238,185,15)" rx="2" ry="2" />
+<text  x="652.93" y="159.5" ></text>
+</g>
+<g >
+<title>__x64_sys_io_getevents (31,500,000 samples, 0.01%)</title><rect x="10.1" y="309" width="0.1" height="15.0" fill="rgb(213,75,43)" rx="2" ry="2" />
+<text  x="13.11" y="319.5" ></text>
+</g>
+<g >
+<title>MVCC::is_view_active (693,500,000 samples, 0.19%)</title><rect x="264.9" y="165" width="2.3" height="15.0" fill="rgb(219,181,54)" rx="2" ry="2" />
+<text  x="267.91" y="175.5" ></text>
+</g>
+<g >
+<title>buf::Block_hint::buffer_fix_block_if_still_valid (5,694,500,000 samples, 1.58%)</title><rect x="1075.2" y="117" width="18.7" height="15.0" fill="rgb(243,116,9)" rx="2" ry="2" />
+<text  x="1078.21" y="127.5" ></text>
+</g>
+<g >
+<title>ha_innobase::rnd_next (1,440,500,000 samples, 0.40%)</title><rect x="193.0" y="197" width="4.7" height="15.0" fill="rgb(230,33,11)" rx="2" ry="2" />
+<text  x="196.01" y="207.5" ></text>
+</g>
+<g >
+<title>Item_func_lt::val_int (35,205,500,000 samples, 9.79%)</title><rect x="65.1" y="197" width="115.6" height="15.0" fill="rgb(232,16,17)" rx="2" ry="2" />
+<text  x="68.13" y="207.5" >Item_func_lt::..</text>
+</g>
+<g >
+<title>mtr_t::Command::release_all (187,500,000 samples, 0.05%)</title><rect x="675.4" y="149" width="0.6" height="15.0" fill="rgb(218,61,26)" rx="2" ry="2" />
+<text  x="678.43" y="159.5" ></text>
+</g>
+<g >
+<title>mtr_t::commit (3,513,500,000 samples, 0.98%)</title><rect x="676.2" y="149" width="11.6" height="15.0" fill="rgb(232,182,51)" rx="2" ry="2" />
+<text  x="679.23" y="159.5" ></text>
+</g>
+<g >
+<title>PolicyMutex&lt;TTASEventMutex&lt;BlockMutexPolicy&gt; &gt;::enter (1,080,000,000 samples, 0.30%)</title><rect x="1067.0" y="85" width="3.6" height="15.0" fill="rgb(214,225,29)" rx="2" ry="2" />
+<text  x="1070.03" y="95.5" ></text>
+</g>
+<g >
+<title>mtr_t::Command::release_resources (56,000,000 samples, 0.02%)</title><rect x="676.0" y="149" width="0.2" height="15.0" fill="rgb(214,178,5)" rx="2" ry="2" />
+<text  x="679.04" y="159.5" ></text>
+</g>
+<g >
+<title>row_sel_store_mysql_field_func (48,251,000,000 samples, 13.42%)</title><rect x="894.0" y="133" width="158.4" height="15.0" fill="rgb(207,9,44)" rx="2" ry="2" />
+<text  x="897.04" y="143.5" >row_sel_store_mysql_..</text>
+</g>
+<g >
+<title>memcpy@plt (120,000,000 samples, 0.03%)</title><rect x="312.4" y="165" width="0.4" height="15.0" fill="rgb(213,66,23)" rx="2" ry="2" />
+<text  x="315.42" y="175.5" ></text>
+</g>
+<g >
+<title>Item_func_length::val_int (3,211,500,000 samples, 0.89%)</title><rect x="159.7" y="181" width="10.5" height="15.0" fill="rgb(212,45,41)" rx="2" ry="2" />
+<text  x="162.69" y="191.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (39,000,000 samples, 0.01%)</title><rect x="10.1" y="357" width="0.1" height="15.0" fill="rgb(208,214,46)" rx="2" ry="2" />
+<text  x="13.09" y="367.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (41,000,000 samples, 0.01%)</title><rect x="994.2" y="117" width="0.1" height="15.0" fill="rgb(213,201,2)" rx="2" ry="2" />
+<text  x="997.18" y="127.5" ></text>
+</g>
+<g >
+<title>sel_restore_position_for_mysql (14,193,500,000 samples, 3.95%)</title><rect x="1052.4" y="149" width="46.6" height="15.0" fill="rgb(211,136,20)" rx="2" ry="2" />
+<text  x="1055.40" y="159.5" >sel_..</text>
+</g>
+<g >
+<title>__memmove_avx_unaligned (4,127,500,000 samples, 1.15%)</title><rect x="861.3" y="133" width="13.6" height="15.0" fill="rgb(241,133,44)" rx="2" ry="2" />
+<text  x="864.32" y="143.5" ></text>
+</g>
+<g >
+<title>buf_page_optimistic_get (44,000,000 samples, 0.01%)</title><rect x="1093.9" y="117" width="0.1" height="15.0" fill="rgb(221,74,47)" rx="2" ry="2" />
+<text  x="1096.90" y="127.5" ></text>
+</g>
+<g >
+<title>rr_sequential (1,454,000,000 samples, 0.40%)</title><rect x="10.5" y="229" width="4.8" height="15.0" fill="rgb(248,171,46)" rx="2" ry="2" />
+<text  x="13.51" y="239.5" ></text>
+</g>
+<g >
+<title>btr_cur_optimistic_latch_leaves (106,500,000 samples, 0.03%)</title><rect x="1053.1" y="133" width="0.4" height="15.0" fill="rgb(222,139,39)" rx="2" ry="2" />
+<text  x="1056.10" y="143.5" ></text>
+</g>
+<g >
+<title>mysql_parse (359,442,500,000 samples, 99.97%)</title><rect x="10.3" y="309" width="1179.7" height="15.0" fill="rgb(225,178,47)" rx="2" ry="2" />
+<text  x="13.28" y="319.5" >mysql_parse</text>
+</g>
+<g >
+<title>do_command (359,454,000,000 samples, 99.98%)</title><rect x="10.2" y="341" width="1179.8" height="15.0" fill="rgb(208,159,25)" rx="2" ry="2" />
+<text  x="13.25" y="351.5" >do_command</text>
+</g>
+<g >
+<title>hrtimer_interrupt (65,000,000 samples, 0.02%)</title><rect x="626.6" y="101" width="0.2" height="15.0" fill="rgb(253,201,23)" rx="2" ry="2" />
+<text  x="629.62" y="111.5" ></text>
+</g>
+<g >
+<title>sub_select (357,915,000,000 samples, 99.55%)</title><rect x="15.3" y="229" width="1174.7" height="15.0" fill="rgb(240,193,45)" rx="2" ry="2" />
+<text  x="18.28" y="239.5" >sub_select</text>
+</g>
+<g >
+<title>ha_innobase::unlock_row (60,500,000 samples, 0.02%)</title><rect x="185.0" y="213" width="0.2" height="15.0" fill="rgb(234,5,25)" rx="2" ry="2" />
+<text  x="188.00" y="223.5" ></text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (5,054,500,000 samples, 1.41%)</title><rect x="874.9" y="133" width="16.6" height="15.0" fill="rgb(222,160,40)" rx="2" ry="2" />
+<text  x="877.87" y="143.5" ></text>
+</g>
+<g >
+<title>mysqld (359,535,500,000 samples, 100.00%)</title><rect x="10.0" y="405" width="1180.0" height="15.0" fill="rgb(246,31,46)" rx="2" ry="2" />
+<text  x="13.00" y="415.5" >mysqld</text>
+</g>
+<g >
+<title>__memmove_avx_unaligned (6,929,500,000 samples, 1.93%)</title><rect x="267.2" y="165" width="22.7" height="15.0" fill="rgb(222,56,40)" rx="2" ry="2" />
+<text  x="270.19" y="175.5" >_..</text>
+</g>
+<g >
+<title>handler::ha_rnd_next (145,000,000 samples, 0.04%)</title><rect x="185.2" y="213" width="0.5" height="15.0" fill="rgb(238,78,23)" rx="2" ry="2" />
+<text  x="188.20" y="223.5" ></text>
+</g>
+<g >
+<title>memo_slot_release (167,000,000 samples, 0.05%)</title><rect x="639.3" y="117" width="0.5" height="15.0" fill="rgb(238,69,3)" rx="2" ry="2" />
+<text  x="642.28" y="127.5" ></text>
+</g>
+<g >
+<title>my_lengthsp_8bit (1,737,000,000 samples, 0.48%)</title><rect x="154.0" y="149" width="5.7" height="15.0" fill="rgb(234,199,13)" rx="2" ry="2" />
+<text  x="156.95" y="159.5" ></text>
+</g>
+<g >
+<title>Field_string::val_str (4,647,000,000 samples, 1.29%)</title><rect x="138.7" y="149" width="15.2" height="15.0" fill="rgb(215,190,43)" rx="2" ry="2" />
+<text  x="141.69" y="159.5" ></text>
+</g>
+<g >
+<title>mtr_t::Command::release_resources (383,500,000 samples, 0.11%)</title><rect x="686.5" y="133" width="1.3" height="15.0" fill="rgb(206,55,36)" rx="2" ry="2" />
+<text  x="689.50" y="143.5" ></text>
+</g>
+<g >
+<title>ha_innobase::unlock_row (1,317,000,000 samples, 0.37%)</title><rect x="180.7" y="197" width="4.3" height="15.0" fill="rgb(235,13,22)" rx="2" ry="2" />
+<text  x="183.68" y="207.5" ></text>
+</g>
+<g >
+<title>row_sel_enqueue_cache_row_for_mysql (4,522,000,000 samples, 1.26%)</title><rect x="746.9" y="149" width="14.8" height="15.0" fill="rgb(212,166,0)" rx="2" ry="2" />
+<text  x="749.90" y="159.5" ></text>
+</g>
+<g >
+<title>handler::ha_rnd_next (297,194,500,000 samples, 82.66%)</title><rect x="197.7" y="197" width="975.4" height="15.0" fill="rgb(242,42,31)" rx="2" ry="2" />
+<text  x="200.74" y="207.5" >handler::ha_rnd_next</text>
+</g>
+<g >
+<title>skip_concurrency_ticket (5,269,000,000 samples, 1.47%)</title><rect x="1113.7" y="165" width="17.3" height="15.0" fill="rgb(225,161,21)" rx="2" ry="2" />
+<text  x="1116.71" y="175.5" ></text>
+</g>
+<g >
+<title>Item_int::val_int (3,181,000,000 samples, 0.88%)</title><rect x="170.2" y="181" width="10.5" height="15.0" fill="rgb(218,187,4)" rx="2" ry="2" />
+<text  x="173.23" y="191.5" ></text>
+</g>
+<g >
+<title>thd_is_operating_gtid_table_implicitly (256,500,000 samples, 0.07%)</title><rect x="1137.9" y="165" width="0.9" height="15.0" fill="rgb(207,62,27)" rx="2" ry="2" />
+<text  x="1140.92" y="175.5" ></text>
+</g>
+<g >
+<title>Arg_comparator::compare_int_signed (28,151,500,000 samples, 7.83%)</title><rect x="67.3" y="181" width="92.4" height="15.0" fill="rgb(209,67,34)" rx="2" ry="2" />
+<text  x="70.30" y="191.5" >Arg_compara..</text>
+</g>
+<g >
+<title>__memmove_avx_unaligned_erms (223,000,000 samples, 0.06%)</title><rect x="644.7" y="133" width="0.7" height="15.0" fill="rgb(247,140,8)" rx="2" ry="2" />
+<text  x="647.67" y="143.5" ></text>
+</g>
+<g >
+<title>memcpy@plt (66,000,000 samples, 0.02%)</title><rect x="891.5" y="133" width="0.2" height="15.0" fill="rgb(230,59,42)" rx="2" ry="2" />
+<text  x="894.53" y="143.5" ></text>
+</g>
+<g >
+<title>handler::ha_statistic_increment (3,735,500,000 samples, 1.04%)</title><rect x="1144.9" y="181" width="12.3" height="15.0" fill="rgb(220,172,11)" rx="2" ry="2" />
+<text  x="1147.94" y="191.5" ></text>
+</g>
+<g >
+<title>buf_page_make_young_if_needed (158,000,000 samples, 0.04%)</title><rect x="1073.9" y="85" width="0.6" height="15.0" fill="rgb(234,178,5)" rx="2" ry="2" />
+<text  x="1076.95" y="95.5" ></text>
+</g>
+<g >
+<title>mtr_t::start (1,283,000,000 samples, 0.36%)</title><rect x="313.2" y="165" width="4.2" height="15.0" fill="rgb(254,126,35)" rx="2" ry="2" />
+<text  x="316.21" y="175.5" ></text>
+</g>
+<g >
+<title>PolicyMutex&lt;TTASEventMutex&lt;BlockMutexPolicy&gt; &gt;::exit (1,024,000,000 samples, 0.28%)</title><rect x="1070.6" y="85" width="3.3" height="15.0" fill="rgb(208,51,31)" rx="2" ry="2" />
+<text  x="1073.57" y="95.5" ></text>
+</g>
+<g >
+<title>row_search_mvcc (267,500,000 samples, 0.07%)</title><rect x="1157.2" y="181" width="0.9" height="15.0" fill="rgb(237,73,45)" rx="2" ry="2" />
+<text  x="1160.20" y="191.5" ></text>
+</g>
+<g >
+<title>trx_start_if_not_started_low (116,000,000 samples, 0.03%)</title><rect x="1142.7" y="165" width="0.3" height="15.0" fill="rgb(208,159,40)" rx="2" ry="2" />
+<text  x="1145.66" y="175.5" ></text>
+</g>
+<g >
+<title>row_sel_field_store_in_mysql_format_func (698,500,000 samples, 0.19%)</title><rect x="891.7" y="133" width="2.3" height="15.0" fill="rgb(222,98,24)" rx="2" ry="2" />
+<text  x="894.74" y="143.5" ></text>
+</g>
+<g >
+<title>trx_is_interrupted (1,827,500,000 samples, 0.51%)</title><rect x="1104.4" y="149" width="6.0" height="15.0" fill="rgb(205,178,30)" rx="2" ry="2" />
+<text  x="1107.43" y="159.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (32,000,000 samples, 0.01%)</title><rect x="626.7" y="53" width="0.1" height="15.0" fill="rgb(245,219,53)" rx="2" ry="2" />
+<text  x="629.69" y="63.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (31,500,000 samples, 0.01%)</title><rect x="994.2" y="69" width="0.1" height="15.0" fill="rgb(209,21,41)" rx="2" ry="2" />
+<text  x="997.19" y="79.5" ></text>
+</g>
+<g >
+<title>[unknown] (66,500,000 samples, 0.02%)</title><rect x="10.0" y="389" width="0.2" height="15.0" fill="rgb(220,142,7)" rx="2" ry="2" />
+<text  x="13.00" y="399.5" ></text>
+</g>
+<g >
+<title>mtr_t::memo_push (226,500,000 samples, 0.06%)</title><rect x="1074.5" y="85" width="0.7" height="15.0" fill="rgb(207,54,48)" rx="2" ry="2" />
+<text  x="1077.46" y="95.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (51,000,000 samples, 0.01%)</title><rect x="626.6" y="85" width="0.2" height="15.0" fill="rgb(228,150,43)" rx="2" ry="2" />
+<text  x="629.63" y="95.5" ></text>
+</g>
+<g >
+<title>pfs_spawn_thread (359,456,000,000 samples, 99.98%)</title><rect x="10.2" y="373" width="1179.8" height="15.0" fill="rgb(228,164,9)" rx="2" ry="2" />
+<text  x="13.24" y="383.5" >pfs_spawn_thread</text>
+</g>
+<g >
+<title>pfs_start_rwlock_wait_v1 (72,000,000 samples, 0.02%)</title><rect x="639.9" y="133" width="0.2" height="15.0" fill="rgb(240,208,15)" rx="2" ry="2" />
+<text  x="642.87" y="143.5" ></text>
+</g>
+<g >
+<title>rec_copy_prefix_to_buf (1,364,500,000 samples, 0.38%)</title><rect x="645.5" y="133" width="4.4" height="15.0" fill="rgb(228,25,23)" rx="2" ry="2" />
+<text  x="648.45" y="143.5" ></text>
+</g>
+<g >
+<title>buf_pointer_is_block_field_instance (554,000,000 samples, 0.15%)</title><rect x="1094.0" y="117" width="1.9" height="15.0" fill="rgb(226,224,5)" rx="2" ry="2" />
+<text  x="1097.04" y="127.5" ></text>
+</g>
+<g >
+<title>start_thread (359,469,000,000 samples, 99.98%)</title><rect x="10.2" y="389" width="1179.8" height="15.0" fill="rgb(230,44,51)" rx="2" ry="2" />
+<text  x="13.22" y="399.5" >start_thread</text>
+</g>
+<g >
+<title>dict_index_copy_rec_order_prefix (680,000,000 samples, 0.19%)</title><rect x="652.5" y="149" width="2.3" height="15.0" fill="rgb(228,139,34)" rx="2" ry="2" />
+<text  x="655.53" y="159.5" ></text>
+</g>
+<g >
+<title>buf_page_hash_get_low (427,000,000 samples, 0.12%)</title><rect x="637.7" y="133" width="1.4" height="15.0" fill="rgb(208,25,19)" rx="2" ry="2" />
+<text  x="640.74" y="143.5" ></text>
+</g>
+<g >
+<title>handle_connection (359,456,000,000 samples, 99.98%)</title><rect x="10.2" y="357" width="1179.8" height="15.0" fill="rgb(246,11,4)" rx="2" ry="2" />
+<text  x="13.24" y="367.5" >handle_connection</text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (38,500,000 samples, 0.01%)</title><rect x="994.2" y="101" width="0.1" height="15.0" fill="rgb(250,32,34)" rx="2" ry="2" />
+<text  x="997.19" y="111.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (68,000,000 samples, 0.02%)</title><rect x="626.6" y="117" width="0.2" height="15.0" fill="rgb(231,219,33)" rx="2" ry="2" />
+<text  x="629.61" y="127.5" ></text>
+</g>
+<g >
+<title>tick_sched_timer (48,000,000 samples, 0.01%)</title><rect x="626.6" y="69" width="0.2" height="15.0" fill="rgb(240,16,1)" rx="2" ry="2" />
+<text  x="629.64" y="79.5" ></text>
+</g>
+<g >
+<title>row_sel_store_mysql_rec (233,500,000 samples, 0.06%)</title><rect x="1112.5" y="165" width="0.8" height="15.0" fill="rgb(227,223,0)" rx="2" ry="2" />
+<text  x="1115.55" y="175.5" ></text>
+</g>
+<g >
+<title>row_search_idx_cond_check (1,574,000,000 samples, 0.44%)</title><rect x="741.7" y="149" width="5.2" height="15.0" fill="rgb(225,47,50)" rx="2" ry="2" />
+<text  x="744.74" y="159.5" ></text>
+</g>
+<g >
+<title>pfs_start_rwlock_wait_v1 (102,000,000 samples, 0.03%)</title><rect x="1096.4" y="117" width="0.4" height="15.0" fill="rgb(227,89,23)" rx="2" ry="2" />
+<text  x="1099.42" y="127.5" ></text>
+</g>
+<g >
+<title>rr_unlock_row (5,127,000,000 samples, 1.43%)</title><rect x="1173.1" y="213" width="16.9" height="15.0" fill="rgb(239,43,47)" rx="2" ry="2" />
+<text  x="1176.14" y="223.5" ></text>
+</g>
+<g >
+<title>evaluate_join_record (42,501,000,000 samples, 11.82%)</title><rect x="45.5" y="213" width="139.5" height="15.0" fill="rgb(249,156,30)" rx="2" ry="2" />
+<text  x="48.51" y="223.5" >evaluate_join_rec..</text>
+</g>
+</g>
+</svg>
