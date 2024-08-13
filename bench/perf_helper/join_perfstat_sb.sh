@@ -1,5 +1,5 @@
 
-#bash ~/join_perfstat.sh mysome x.my5651_rel_o2nofp.z11a_c8r32.pk1 x.my5710_rel_o2nofp.z11a_c8r32.pk1 x.my5744_rel_o2nofp.z11a_c8r32.pk1 x.my8011_rel_o2nofp.z11a_c8r32.pk1 x.my8037_rel_o2nofp.z11a_c8r32.pk1
+#for v in 0 1; do bash ~/join_perfstat_sb.sh mysome $v x.my5651_rel_o2nofp.z11a_c8r32.pk1 x.my5710_rel_o2nofp.z11a_c8r32.pk1 x.my5744_rel_o2nofp.z11a_c8r32.pk1 x.my8011_rel_o2nofp.z11a_c8r32.pk1 x.my8028_rel_o2nofp.z11a_c8r32.pk1 x.my8037_rel_o2nofp.z11a_c8r32.pk1 ; done
 
 prefix=$1
 v=$2
