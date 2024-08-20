@@ -1,0 +1,40 @@
+Only in mysql-5.7.2-m12: build.rel_withdbg
+Only in mysql-5.7.2-m12: cmk.57.rel
+Only in mysql-5.7.2-m12: cmk.57.rel_o2nofp
+Only in mysql-5.7.2-m12: e.mk.rel_o2nofp
+Only in mysql-5.7.2-m12: o.mk.rel_o2nofp
+diff -u --recursive x/mysql-5.7.2-m12/storage/innobase/row/row0log.cc mysql-5.7.2-m12/storage/innobase/row/row0log.cc
+--- x/mysql-5.7.2-m12/storage/innobase/row/row0log.cc	2013-09-11 12:10:40.000000000 +0000
++++ mysql-5.7.2-m12/storage/innobase/row/row0log.cc	2024-08-20 19:45:19.942978420 +0000
+@@ -2353,7 +2353,7 @@
+ 		posix_fadvise(index->online_log->fd,
+ 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
+ #endif /* POSIX_FADV_DONTNEED */
+-#ifdef FALLOC_FL_PUNCH_HOLE
++#if 0 // FALLOC_FL_PUNCH_HOLE
+ 		/* Try to deallocate the space for the file on disk.
+ 		This should work on ext4 on Linux 2.6.39 and later,
+ 		and be ignored when the operation is unsupported. */
+@@ -3144,7 +3144,7 @@
+ 		posix_fadvise(index->online_log->fd,
+ 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
+ #endif /* POSIX_FADV_DONTNEED */
+-#ifdef FALLOC_FL_PUNCH_HOLE
++#if 0 // FALLOC_FL_PUNCH_HOLE
+ 		/* Try to deallocate the space for the file on disk.
+ 		This should work on ext4 on Linux 2.6.39 and later,
+ 		and be ignored when the operation is unsupported. */
+diff -u --recursive x/mysql-5.7.2-m12/storage/innobase/srv/srv0mon.cc mysql-5.7.2-m12/storage/innobase/srv/srv0mon.cc
+--- x/mysql-5.7.2-m12/storage/innobase/srv/srv0mon.cc	2013-09-11 12:10:40.000000000 +0000
++++ mysql-5.7.2-m12/storage/innobase/srv/srv0mon.cc	2024-08-20 19:52:02.898190468 +0000
+@@ -42,8 +42,8 @@
+ /* Macro to standardize the counter names for counters in the
+ "monitor_buf_page" module as they have very structured defines */
+ #define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
+-	{"buffer_page_"op"_"name, "buffer_page_io",		\
+-	 "Number of "description" Pages "op,			\
++	{"buffer_page_" op "_" name, "buffer_page_io",		\
++	 "Number of " description " Pages " op,			\
+ 	 MONITOR_GROUP_MODULE, MONITOR_DEFAULT_START,		\
+ 	 MONITOR_##code##_##op_code}
+ 
