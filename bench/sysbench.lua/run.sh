@@ -237,10 +237,10 @@ elif [[ ${dbA[0]} == "postgres" ]]; then
   pspid=$!
 fi
 
-doperf1=0
-doperf2=1
-doperf3=0
-doperf4=0
+doperf1=0 ; perf_loop_sleep=30
+doperf2=1 ; perf_loop_sleep=50
+doperf3=0 ; perf_loop_sleep=50
+doperf4=0 ; perf_loop_sleep=30
 
 perf=perf
 PERF_METRIC=${PERF_METRIC:-cycles}
@@ -251,12 +251,10 @@ fgp="$HOME/git/FlameGraph"
 if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 echo PERF_METRIC is $PERF_METRIC
 while :; do
-  perf_secs=10
-  pause_secs=10
   perf="perf"
 
   #echo sleep at start
-  sleep 30
+  sleep $perf_loop_sleep
 
   if [[ ${dbA[0]} == "mysql" ]]; then
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
@@ -288,15 +286,16 @@ while :; do
   fi
 
   if [[ doperf2 -eq 1 ]]; then
+  perf_get_secs=10
   outf="sb.perf.rec.g.$sfx.$x"
-  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
-  $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
+  $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf3 -eq 1 ]]; then
-  sleep $pause_secs
+  perf_get_secs=10
   outf="sb.perf.rec.f.$sfx.$x"
-  $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
+  $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf4 -eq 1 ]]; then
