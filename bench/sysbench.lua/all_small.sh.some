@@ -87,7 +87,7 @@ bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write     
 echo read-write range 100 and do postwrite
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1    $prepstmt $@
 
-doit2=0
+doit2=1
 if [[ doit2 -eq 1 ]]; then
 for range in 10 100 10000 ; do
 echo read-only range $range
@@ -117,15 +117,15 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-
 echo points-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-si 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
-echo range-covered-pk
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
 echo range-notcovered-pk
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-pk  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo range-covered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 fi
+
+echo range-notcovered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo range-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
