@@ -275,27 +275,31 @@ while :; do
   hw_secs=10
   if [[ doperf1 -eq 1 ]]; then
   outf="sb.perf.hw.$sfx.$x"
-  $perf stat -o $outf -p $dbbpid -- sleep $hw_secs ; sleep 2
-  $perf stat -o $outf --append -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $hw_secs ; sleep 2
-  $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
-  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
-  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
-  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions,branches,branch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e cache-references,cache-misses,stalled-cycles-backend,stalled-cycles-frontend -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads,L1-icache-loads-misses,L1-icache-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
   $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
   $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
+
+  # dTLB-prefetch-misses
+  # $perf stat -o $outf --append -e mem-stores,mem-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
   fi
 
   if [[ doperf2 -eq 1 ]]; then
   perf_get_secs=10
   outf="sb.perf.rec.g.$sfx.$x"
-  echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
-  $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
+  #$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
+  echo "$perf record -e $PERF_METRIC -F 2001 -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
+  $perf record -e $PERF_METRIC -F 2001 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf3 -eq 1 ]]; then
   perf_get_secs=10
   outf="sb.perf.rec.f.$sfx.$x"
-  $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_get_secs
+  #$perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_get_secs
+  $perf record -F 2001 -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf4 -eq 1 ]]; then
@@ -363,6 +367,12 @@ if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
 for x in $( seq 1 $last_loop ); do
   #echo forloop $x perf rep for $sfx 
 
+  if [[ doperf1 -eq 1 ]]; then
+    # post-processing for "perf stat"
+    inf="sb.perf.hw.$sfx.$x"
+    bash grep_perfstat.sh $inf > ${inf}.raw ; sort -k 1,1 ${inf}.raw > ${inf}.sorted
+  fi
+
   if [[ doperf2 -eq 1 ]]; then
   #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
   #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
@@ -384,17 +394,29 @@ for x in $( seq 1 $last_loop ); do
   fi
 
   if [[ doperf3 -eq 1 ]]; then
-  outf="sb.perf.rec.f.$sfx.$x"
-  $perf report --stdio -i $outf > sb.perf.rep.f.$sfx.$x
-  $perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
-  gzip --fast $outf
+    outf="sb.perf.rec.f.$sfx.$x"
+    $perf report --stdio -i $outf > sb.perf.rep.f.$sfx.$x
+    #$perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
+    #gzip --fast $outf
+    rm $outf
   fi
+
 done
 
 if [[ doperf2 -eq 1 ]]; then
   cat sb.perf.g.fold.$sfx.* | $fgp/flamegraph.pl > sb.perf.g.$sfx.all.svg
   rm sb.perf.g.fold.$sfx.*
   rm -f sb.perf.rec.g.$sfx.*
+fi
+
+if [[ doperf4 -eq 1 ]]; then
+  # post-processing for PMP
+  outf="sb.pmp.$sfx.$x"
+  cat sb.pmp.$sfx.*.flat \
+    | awk 'BEGIN { s = ""; }  /^Thread/ { print s; s = ""; } /^#/ { x=index($2, "0x"); if (x == 1) { n=$4 } else { n=$2 }; if (s != "" ) { s = s "," n} else { s = n } } END { print s }' -  \
+    | sort \
+    | uniq -c \
+    | sort -r -n -k 1,1 > sb.pmp.$sfx.all.hier
 fi
 
 fi
