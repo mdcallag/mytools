@@ -144,3 +144,50 @@ for ver in pg170_def ; do
   sleep 600
 done
 done
+
+for dc in ma10old.z11a_c8r32 ; do
+for ver in \
+ma100244_rel_withdbg \
+ma100339_rel_withdbg \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma10old; ln -s $mbd/$ver $mbd/ma10old
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in ma10.z11a_c8r32 ; do
+for ver in \
+ma100434_rel_withdbg \
+ma100526_rel_withdbg \
+ma100619_rel_withdbg \
+ma101109_rel_withdbg \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma10; ln -s $mbd/$ver $mbd/ma10
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
+
+for dc in \
+ma11.z11b_c8r32 \
+; do
+for ver in \
+ma110403_rel_withdbg \
+ma110502_rel_withdbg \
+ma110601_rel_withdbg \
+; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/ma11; ln -s $mbd/$ver $mbd/ma11
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.ma11.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 600
+done
+done
