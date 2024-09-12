@@ -1,4 +1,12 @@
+ntabs=$1
+nrows=$2
+rsecs=$3
+wsecs=$4
+dbdev=$5
+usepk=$6
+nthreads=$7
 
+# Usually - rsecs=330 wsecs=630
 
 for pm in \
  cache-references \
@@ -14,7 +22,7 @@ for pm in \
  iTLB-loads \
  instructions \
 ; do
-  PERF_METRIC="${pm}" bash r.sh 1 30000000 600 600 nvme0n1 1 1 1 
-  mkdir aug24."${pm}"
-  mv x.* aug24."${pm}"
+  PERF_METRIC="${pm}" bash r.sh $ntabs $nrows $rsecs $wsecs $dbdev $usepk 1 $nthreads
+  mkdir res.rperf."${pm}"
+  mv x.* res.rperf."${pm}"
 done
