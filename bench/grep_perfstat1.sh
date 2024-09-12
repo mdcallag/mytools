@@ -1,5 +1,5 @@
 
-x=0; for d in $( ls -rt | grep ^x\. | grep -v qps ); do echo $d; cd $d ; for f in sb.perf.last.*; do ln=$( cat $f ); ln2=$ln; if [[ ln2 -gt x ]]; then ln2=$(( ln2 - x )); fi ; f2=$( echo $f | sed 's/last/hw/' ); f3="${f2}.${ln2}"; echo $f $x $ln $ln2 $f3; bash ~/grep_perfstat1.sh $f3 > raw${x}.$f ; sort -k 1,1 raw${x}.$f > sorted${x}.$f; done; cd .. ; done
+#x=0; for d in $( ls -rt | grep ^x\. | grep -v qps ); do echo $d; cd $d ; for f in sb.perf.last.*; do ln=$( cat $f ); ln2=$ln; if [[ ln2 -gt x ]]; then ln2=$(( ln2 - x )); fi ; f2=$( echo $f | sed 's/last/hw/' ); f3="${f2}.${ln2}"; echo $f $x $ln $ln2 $f3; bash ~/grep_perfstat1.sh $f3 > raw${x}.$f ; sort -k 1,1 raw${x}.$f > sorted${x}.$f; done; cd .. ; done
 
 ifile=$1
 
