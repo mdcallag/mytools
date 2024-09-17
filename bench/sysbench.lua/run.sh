@@ -237,19 +237,30 @@ elif [[ ${dbA[0]} == "postgres" ]]; then
   pspid=$!
 fi
 
+perf=perf
+
+PERF_METRIC=${PERF_METRIC:-cycles}
+if [[ $PERF_METRIC != "cycles" ]]; then
+  counter=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $3 }' )
+  F_or_c=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $2}' )
+  perf_event_list=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $1 }' )
+  perf_event_str="-e $perf_event_list $F_or_c $counter"
+else
+  perf_event_list="cycles"
+  perf_event_str="-e cycles -F 999"
+fi
+
 doperf1=0 ; perf_loop_sleep=30
 doperf2=1 ; perf_loop_sleep=50
 doperf3=0 ; perf_loop_sleep=50
 doperf4=0 ; perf_loop_sleep=30
 
-perf=perf
-PERF_METRIC=${PERF_METRIC:-cycles}
 x=0
 perfpid="-1"
 if [ $x -gt 0 ]; then
 fgp="$HOME/git/FlameGraph"
 if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
-echo PERF_METRIC is $PERF_METRIC
+echo PERF_METRIC is $PERF_METRIC used as $perf_event_str
 while :; do
   perf="perf"
 
@@ -291,15 +302,15 @@ while :; do
   perf_get_secs=10
   outf="sb.perf.rec.g.$sfx.$x"
   #$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
-  echo "$perf record -e $PERF_METRIC -F 2001 -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
-  $perf record -e $PERF_METRIC -F 2001 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
+  echo "$perf record $perf_event_str -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
+  $perf record $perf_event_str -g -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf3 -eq 1 ]]; then
   perf_get_secs=10
   outf="sb.perf.rec.f.$sfx.$x"
   #$perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_get_secs
-  $perf record -F 2001 -p $dbbpid -o $outf -- sleep $perf_get_secs
+  $perf record $perf_event_str -p $dbbpid -o $outf -- sleep $perf_get_secs
   fi
 
   if [[ doperf4 -eq 1 ]]; then
@@ -374,39 +385,46 @@ for x in $( seq 1 $last_loop ); do
   fi
 
   if [[ doperf2 -eq 1 ]]; then
-  #$perf report --stdio --no-children -i $outf > sb.perf.rep.g.f0.c0.$sfx.$x
-  #$perf report --stdio --children    -i $outf > sb.perf.rep.g.f0.c1.$sfx.$x
-  #$perf report --stdio -n -g folded -i $outf > sb.perf.rep.g.f1.cother.$sfx.$x
+    perf_record_outf="sb.perf.rec.g.$sfx.$x"
 
-  outf="sb.perf.rec.g.$sfx.$x"
-  $perf report --stdio -n -g folded -i $outf --no-children > sb.perf.rep.g.f1.c0.$sfx.$x
-  gzip --fast sb.perf.rep.g.f1.c0.$sfx.$x
-  $perf report --stdio -n -g folded -i $outf --children > sb.perf.rep.g.f1.c1.$sfx.$x
-  gzip --fast sb.perf.rep.g.f1.c1.$sfx.$x
-  $perf script -i $outf > sb.perf.rep.g.scr.$sfx.$x
-  # gzip --fast $outf
-  rm $outf
+    $perf report --stdio -g graph -i ${perf_record_outf} > sb.perf.rep.g.graph.$sfx.$x
+    gzip --fast sb.perf.rep.g.graph.$sfx.$x
 
-  cat sb.perf.rep.g.scr.$sfx.$x | $fgp/stackcollapse-perf.pl > sb.perf.g.fold.$sfx.$x
-  $fgp/flamegraph.pl sb.perf.g.fold.$sfx.$x > sb.perf.g.$sfx.$x.svg
-  #gzip --fast sb.perf.rep.g.scr.$sfx.$x
-  rm sb.perf.rep.g.scr.$sfx.$x
+    $perf report --stdio -g flat -i ${perf_record_outf} > sb.perf.rep.g.flat.$sfx.$x
+    gzip --fast sb.perf.rep.g.flat.$sfx.$x
+
+    #$perf script -i ${perf_record_outf} > sb.perf.rep.g.scr.$sfx.$x
+    $perf script -i ${perf_record_outf} --per-event-dump
+    # gzip --fast ${perf_record_outf}
+    rm ${perf_record_outf}
+
+    parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+
+    for event in $( echo $parsed_events ) ; do
+      echo SVG for $event
+      cat  ${perf_record_outf}.${event}.dump | $fgp/stackcollapse-perf.pl > sb.perf.g.fold.${event}.$sfx.$x
+      $fgp/flamegraph.pl sb.perf.g.fold.${event}.$sfx.$x > sb.perf.g.${event}.$sfx.$x.svg
+      gzip --fast sb.perf.g.${event}.$sfx.$x.svg
+      rm ${perf_record_outf}.${event}.dump
+    done
+
   fi
 
   if [[ doperf3 -eq 1 ]]; then
     outf="sb.perf.rec.f.$sfx.$x"
     $perf report --stdio -i $outf > sb.perf.rep.f.$sfx.$x
-    #$perf script -i $outf | gzip --fast > sb.perf.rep.f.scr.$sfx.$x.gz
-    #gzip --fast $outf
     rm $outf
   fi
 
 done
 
 if [[ doperf2 -eq 1 ]]; then
-  cat sb.perf.g.fold.$sfx.* | $fgp/flamegraph.pl > sb.perf.g.$sfx.all.svg
-  rm sb.perf.g.fold.$sfx.*
-  rm -f sb.perf.rec.g.$sfx.*
+  parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+  for event in $( echo $parsed_events ) ; do
+    cat sb.perf.g.fold.${event}.$sfx.* | $fgp/flamegraph.pl > sb.perf.g.${event}.$sfx.all.svg
+    rm sb.perf.g.fold.${event}.$sfx.*
+    rm -f sb.perf.rec.g.$sfx.*
+  done
 fi
 
 if [[ doperf4 -eq 1 ]]; then
