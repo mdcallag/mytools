@@ -64,6 +64,9 @@ fi
 echo range-notcovered-si.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
+doit2=1
+if [[ doit2 -eq 1 ]]; then
+
 echo update-inlist
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-inlist   100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
@@ -87,8 +90,6 @@ bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write     
 echo read-write range 100 and do postwrite
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1    $prepstmt $@
 
-doit2=1
-if [[ doit2 -eq 1 ]]; then
 for range in 10 100 10000 ; do
 echo read-only range $range
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only       $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
