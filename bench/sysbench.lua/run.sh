@@ -244,7 +244,7 @@ if [[ $PERF_METRIC != "cycles" ]]; then
   counter=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $3 }' )
   F_or_c=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $2}' )
   perf_event_list=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $1 }' )
-  perf_event_str="-e $perf_event_list $F_or_c $counter"
+  perf_event_str="-e $perf_event_list -${F_or_c} $counter"
 else
   perf_event_list="cycles"
   perf_event_str="-e cycles -F 999"
