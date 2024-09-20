@@ -28,7 +28,11 @@ sleep 5
 
 sleep 5
 
-bin/mysqld --initialize-insecure  >& o.init; cat o.init
+# bin/mysqld --initialize-insecure  >& o.init; cat o.init
+# bin/mysql_install_db --initialize-insecure  >& o.init; cat o.init
+# bin/mysql_install_db --insecure --defaults-file=etc/my.cnf  >& o.init; cat o.init
+bin/mysql_install_db --insecure --datadir=/data/m/my/data --basedir=/home/mdcallag/d/my575_rel --defaults-file=etc/my.cnf >& o.init; cat o.init
+
 # bin/mysqld --initialize --initialize-insecure --defaults-file=etc/my.cnf >& o.init; cat o.init
 
 sleep 2
