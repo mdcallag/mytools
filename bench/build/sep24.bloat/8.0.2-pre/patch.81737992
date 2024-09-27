@@ -1,0 +1,44 @@
+diff --git a/sql/dd/impl/cache/storage_adapter.cc b/sql/dd/impl/cache/storage_adapter.cc
+index 95940db1925..8e8aa177404 100644
+--- a/sql/dd/impl/cache/storage_adapter.cc
++++ b/sql/dd/impl/cache/storage_adapter.cc
+@@ -604,5 +604,15 @@ template bool Storage_adapter::get<Index_stat::name_key_type, Index_stat>
+ template bool Storage_adapter::store(THD *, Index_stat*);
+ template bool Storage_adapter::drop(THD *, const Index_stat*);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ } // namespace cache
+ } // namespace dd
+diff --git a/sql/rpl_transaction_write_set_ctx.h b/sql/rpl_transaction_write_set_ctx.h
+index 9a905869279..f21824ec15e 100644
+--- a/sql/rpl_transaction_write_set_ctx.h
++++ b/sql/rpl_transaction_write_set_ctx.h
+@@ -19,6 +19,7 @@
+ #include <vector>
+ #include <map>
+ #include <list>
++#include <string>
+ 
+ #include "my_inttypes.h"
+ 
+diff --git a/storage/innobase/include/os0thread-create.h b/storage/innobase/include/os0thread-create.h
+index 963c7d735c1..ca2c62147d5 100644
+--- a/storage/innobase/include/os0thread-create.h
++++ b/storage/innobase/include/os0thread-create.h
+@@ -31,6 +31,7 @@ Created 2016-May-17 Sunny Bains
+ 
+ #include <my_thread.h>
+ #include <atomic>
++#include <functional>
+ 
+ /** Maximum number of threads inside InnoDB */
+ extern ulint	srv_max_n_threads;

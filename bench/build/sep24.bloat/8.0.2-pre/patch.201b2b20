@@ -1,0 +1,44 @@
+diff --git a/sql/dd/impl/cache/storage_adapter.cc b/sql/dd/impl/cache/storage_adapter.cc
+index 95940db1925..8e8aa177404 100644
+--- a/sql/dd/impl/cache/storage_adapter.cc
++++ b/sql/dd/impl/cache/storage_adapter.cc
+@@ -604,5 +604,15 @@ template bool Storage_adapter::get<Index_stat::name_key_type, Index_stat>
+ template bool Storage_adapter::store(THD *, Index_stat*);
+ template bool Storage_adapter::drop(THD *, const Index_stat*);
+ 
++#ifndef IN_DOXYGEN
++template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
++template void Storage_adapter::core_drop<Table>(THD *, const Table *);
++template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
++
++template void Storage_adapter::core_store<Schema>(THD *, Schema *);
++template void Storage_adapter::core_store<Table>(THD *, Table *);
++template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
++#endif
++
+ } // namespace cache
+ } // namespace dd
+diff --git a/sql/rpl_transaction_write_set_ctx.h b/sql/rpl_transaction_write_set_ctx.h
+index 9a905869279..f21824ec15e 100644
+--- a/sql/rpl_transaction_write_set_ctx.h
++++ b/sql/rpl_transaction_write_set_ctx.h
+@@ -19,6 +19,7 @@
+ #include <vector>
+ #include <map>
+ #include <list>
++#include <string>
+ 
+ #include "my_inttypes.h"
+ 
+diff --git a/storage/innobase/include/os0file.h b/storage/innobase/include/os0file.h
+index 205d33ff43a..88c952ce652 100644
+--- a/storage/innobase/include/os0file.h
++++ b/storage/innobase/include/os0file.h
+@@ -49,6 +49,7 @@ Created 10/21/1995 Heikki Tuuri
+ #endif /* !_WIN32 */
+ 
+ #include <stack>
++#include <functional>
+ 
+ /** File node of a tablespace or the log data space */
+ struct fil_node_t;
