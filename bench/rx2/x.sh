@@ -127,6 +127,18 @@ c30r240bc150)
   cache_mb=$(( 1024 * 150 ))
   nsub=4
   ;;
+c32r128)
+  # Options for 32-core, 128g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
+  cache_mb=$(( 1024 * 90 ))
+  nsub=4
+  ;;
+c48r128)
+  # Options for 32-core, 128g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=12 )
+  cache_mb=$(( 1024 * 90 ))
+  nsub=4
+  ;;
 *)
   echo "HW config ( $myhw ) not supported"
   exit -1
