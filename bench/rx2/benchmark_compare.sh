@@ -361,6 +361,9 @@ for v in "$@" ; do
   cp "$dbdir"/LOG* "$my_odir"
   gzip -9 "$my_odir"/LOG*
 
+  rm -rf $dbdir; mkdir $dbdir
+  sleep 1200
+
 done
 
 # Generate a file that groups lines from the same test for all versions
