@@ -1,0 +1,21 @@
+
+BF=" -g1 -fno-omit-frame-pointer -march=native -mtune=native "
+CF=" $BF "
+CXXF=" $BF "
+
+CC=/usr/bin/clang CXX=/usr/bin/clang++ \
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DWITH_SSL=/home/mdcallag/d/openssl-111 \
+  -DWITH_ZLIB=bundled \
+  -DMYSQL_MAINTAINER_MODE=0 \
+  -DENABLED_LOCAL_INFILE=1 \
+  -DCMAKE_INSTALL_PREFIX=$1 \
+  -DWITH_BOOST=$PWD/../boost \
+  -DWITH_NUMA=ON \
+  -DWITH_RAPID=OFF \
+  -DCMAKE_CXX_FLAGS="$CXXF" -DCMAKE_C_FLAGS="$CF" \
+  -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+  -DWITH_LTO=ON \
+  -DWITH_ROUTER=OFF -DWITH_MYSQLX=OFF -DWITH_UNIT_TESTS=OFF
+

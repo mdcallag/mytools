@@ -1,0 +1,143 @@
+--- orig/cmake/ssl.cmake	2022-11-30 03:00:41.555839319 +0000
++++ hack/cmake/ssl.cmake	2022-06-08 08:37:43.000000000 +0000
+@@ -54,62 +54,6 @@
+ 
+ STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
+ 
+-# Fetch OpenSSL version number.
+-# OpenSSL < 3:
+-# #define OPENSSL_VERSION_NUMBER 0x1000103fL
+-# Encoded as MNNFFPPS: major minor fix patch status
+-#
+-# OpenSSL 3:
+-# #define OPENSSL_VERSION_NUMBER
+-#   ( (OPENSSL_VERSION_MAJOR<<28)
+-#     |(OPENSSL_VERSION_MINOR<<20)
+-#     |(OPENSSL_VERSION_PATCH<<4)
+-#     |_OPENSSL_VERSION_PRE_RELEASE )
+-MACRO(FIND_OPENSSL_VERSION)
+-  FOREACH(version_part
+-      OPENSSL_VERSION_MAJOR
+-      OPENSSL_VERSION_MINOR
+-      OPENSSL_VERSION_PATCH
+-      )
+-    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" ${version_part}
+-      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+-    STRING(REGEX REPLACE
+-      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+-      ${version_part} "${${version_part}}")
+-  ENDFOREACH()
+-  IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+-    # OpenSSL 3
+-    SET(OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}")
+-    MESSAGE(STATUS "VERSION_MAJOR is 3 so set FIX_VERSION to ${OPENSSL_FIX_VERSION}")
+-  ELSE()
+-    # Verify version number. Version information looks like:
+-    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+-    # Encoded as MNNFFPPS: major minor fix patch status
+-    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+-      OPENSSL_VERSION_NUMBER
+-      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+-      )
+-    STRING(REGEX REPLACE
+-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+-      OPENSSL_VERSION_MAJOR "${OPENSSL_VERSION_NUMBER}"
+-      )
+-    STRING(REGEX REPLACE
+-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+-      OPENSSL_VERSION_MINOR "${OPENSSL_VERSION_NUMBER}"
+-      )
+-    STRING(REGEX REPLACE
+-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+-      OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+-      )
+-  ENDIF()
+-  SET(OPENSSL_MAJOR_VERSION ${OPENSSL_VERSION_MAJOR})
+-  SET(OPENSSL_MINOR_VERSION ${OPENSSL_VERSION_MINOR})
+-  SET(OPENSSL_VERSION "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}.${OPENSSL_FIX_VERSION}")
+-  SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "")
+-  MESSAGE(STATUS "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_VERSION}")
+-
+-ENDMACRO(FIND_OPENSSL_VERSION)
+-
+ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
+   MESSAGE(STATUS "\n${string}"
+     "\nMake sure you have specified a supported SSL version. "
+@@ -217,13 +161,11 @@
+     FIND_PATH(OPENSSL_ROOT_DIR
+       NAMES include/openssl/ssl.h
+     )
+-    MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
+ 
+     FIND_PATH(OPENSSL_INCLUDE_DIR
+       NAMES openssl/ssl.h
+       HINTS ${OPENSSL_ROOT_DIR}/include
+     )
+-    MESSAGE(STATUS "OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR}")
+ 
+     IF (WIN32)
+       FIND_FILE(OPENSSL_APPLINK_C
+@@ -244,18 +186,38 @@
+     FIND_LIBRARY(OPENSSL_LIBRARY
+                  NAMES ssl libssl ssleay32 ssleay32MD
+                  HINTS ${OPENSSL_ROOT_DIR}/lib)
+-    MESSAGE(STATUS "OPENSSL_LIBRARY ${OPENSSL_LIBRARY}")
+     FIND_LIBRARY(CRYPTO_LIBRARY
+                  NAMES crypto libcrypto libeay32
+                  HINTS ${OPENSSL_ROOT_DIR}/lib)
+-    MESSAGE(STATUS "CRYPTO_LIBRARY ${CRYPTO_LIBRARY}")
+     IF (WITH_SSL_PATH)
+       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+     ENDIF()
+ 
+     IF(OPENSSL_INCLUDE_DIR)
+-      FIND_OPENSSL_VERSION()
++      # Verify version number. Version information looks like:
++      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
++      # Encoded as MNNFFPPS: major minor fix patch status
++      FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
++        OPENSSL_VERSION_NUMBER
++        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
++        )
++      STRING(REGEX REPLACE
++        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
++        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
++        )
++      STRING(REGEX REPLACE
++        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
++        OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
++        )
++      STRING(REGEX REPLACE
++        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
++        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
++        )
+     ENDIF()
++    SET(OPENSSL_VERSION
++      "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}"
++      )
++    SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "")
+ 
+     IF("${OPENSSL_VERSION}" VERSION_GREATER "1.1.0")
+        ADD_DEFINITIONS(-DHAVE_TLSv13)
+@@ -266,20 +228,11 @@
+     ENDIF()
+     IF(OPENSSL_INCLUDE_DIR AND
+        OPENSSL_LIBRARY   AND
+-       CRYPTO_LIBRARY
++       CRYPTO_LIBRARY      AND
++       OPENSSL_MAJOR_VERSION STREQUAL "1"
+       )
+       SET(OPENSSL_FOUND TRUE)
+     ELSE()
+-      IF(OPENSSL_INCLUDE_DIR)
+-        MESSAGE(STATUS "INCLUDE_DIR set")
+-      ENDIF()
+-      IF(OPENSSL_LIBRARY)
+-        MESSAGE(STATUS "LIB1 set")
+-      ENDIF()
+-      IF(CRYPTO_LIBRARY)
+-        MESSAGE(STATUS "LIB2 set")
+-      ENDIF()
+-      MESSAGE(STATUS "VERSION ${OPENSSL_MAJOR_VERSION}")
+       SET(OPENSSL_FOUND FALSE)
+     ENDIF()
