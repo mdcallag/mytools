@@ -1,0 +1,34 @@
+[mysqld]
+sql_mode=no_engine_substitution,no_unsigned_subtraction
+default_tmp_storage_engine=MyISAM
+tmpdir=/data/m/fbmy/data
+query_cache_size=0
+query_cache_type=0
+# slow_query_log_file=/data/m/fbmy/slow.log
+long_query_time=5
+# skip_log_bin
+log_bin=/data/m/fbmy/binlogs/bl
+max_binlog_size=128M
+server_id=77
+datadir=/data/m/fbmy/data
+
+rocksdb
+default-storage-engine=rocksdb
+skip-innodb
+default-tmp-storage-engine=MyISAM
+binlog_format=ROW
+binlog_checksum=crc32
+collation-server=latin1_bin
+rocksdb_wal_dir=/data/m/fbmy/txlogs
+transaction-isolation=READ-COMMITTED
+eq_range_index_dive_limit=10
+
+sync_binlog=0
+rocksdb_flush_log_at_trx_commit=2
+
+# x1
+rocksdb_block_cache_size=10G
+
+[mysqld_safe]
+malloc-lib=/usr/lib/x86_64-linux-gnu/libjemalloc.so
+
