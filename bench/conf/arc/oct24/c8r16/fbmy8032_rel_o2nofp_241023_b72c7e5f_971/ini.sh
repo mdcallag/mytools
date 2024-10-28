@@ -10,6 +10,10 @@ mkdir /data/m/fbmy/binlogs
 mkdir /data/m/fbmy/txlogs
 mkdir /data/m/fbmy/data
 
+mkdir /data/m/my/binlogs
+mkdir /data/m/my/txlogs
+mkdir /data/m/my/data
+
 rm -rf var; mkdir var
 
 csfx=def
