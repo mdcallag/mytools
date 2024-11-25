@@ -293,10 +293,10 @@ for v in "$@" ; do
   # compaction debt leftover from fillseq a chance at being removed. Not using waitforcompaction
   # here because it isn't supported on older db_bench versions.
   env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
-  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
 
   # Skipped for CI - a single essentail readrandom is enough to set up for other tests
   if [ "$ci_tests_only" != "true" ]; then
+    env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
     env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
     env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
   else
