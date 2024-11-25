@@ -266,6 +266,7 @@ blob_cache_size,blob_cache_numshardbits,\
 prepopulate_blob_cache,\
 multiread_batched,\
 cache_low_pri_pool_ratio,\
+cache_type,\
 prepopulate_block_cache"
 
 # TODO mdcallag: support this once db_bench supports it
