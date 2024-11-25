@@ -275,7 +275,9 @@ for v in "$@" ; do
 
   if [[ use_best_cache == "true" ]]; then
     if [[ $ver_major -lt 7 || ( $ver_major -eq 7 && $ver_minor -le 6 ) ]] ; then
-      args_common+=( CACHE_TYPE="lru_cache" )
+      # Don't set it because the default is lru_cache and the --cache_type flag isn't
+      # supported until RocksDB 7.4
+      pass
     elif [[ $ver_major -lt 8 || ( $ver_major -eq 8 && $ver_minor -le 5 ) ]] ; then
       args_common+=( CACHE_TYPE="hyper_clock_cache" )
     else
