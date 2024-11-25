@@ -21,6 +21,7 @@ key_size=${KEY_SIZE:-20}
 value_size=${VALUE_SIZE:-400}
 mb_write_per_sec=${MB_WRITE_PER_SEC:-2}
 ci_tests_only=${CI_TESTS_ONLY:-"true"}
+use_best_cache=${USE_BEST_CACHE:-"false"}
 
 # RocksDB configuration
 compression_type=${COMPRESSION_TYPE:-lz4}
@@ -172,6 +173,7 @@ function usage {
   echo -e "\tSUBCOMPACTIONS\t\t\tvalue for subcompactions"
   echo -e "\tCOMPACTION_STYLE\t\tCompaction style to use, one of: leveled, universal, blob"
   echo -e "\tCI_TESTS_ONLY\t\tRun a subset of tests tailored to a CI regression job, one of: true, false"
+  echo -e "\tUSE_BEST_CACHE\t\tUse the best available block cache implementation (lru, hyper, etc): one of true, false"
   echo ""
   echo -e "\tOptions specific to leveled compaction:"
   echo -e "\t\tLEVEL0_FILE_NUM_COMPACTION_TRIGGER\tvalue for level0_file_num_compaction_trigger"
@@ -253,15 +255,6 @@ for v in "$@" ; do
     args_common+=( MIN_LEVEL_TO_COMPRESS="$min_level_to_compress" )
   fi
 
-  args_load=("${args_common[@]}")
-
-  args_nolim=("${args_common[@]}")
-
-  args_lim=("${args_nolim[@]}")
-  args_lim+=( MB_WRITE_PER_SEC="$mb_write_per_sec" )
-
-  dump_env
-
   echo Run benchmark for "$v" at "$( date )" with results at "$my_odir"
   rm -f db_bench
   echo ln -s db_bench."$v" db_bench
@@ -279,6 +272,22 @@ for v in "$@" ; do
     ver_patch=0
   fi
   echo RocksDB version is $ver_major $ver_minor $ver_patch
+
+  if [[ use_best_cache == "true" ]]; then
+    if [[ $ver_major -lt 7 || ( $ver_major -eq 7 && $ver_minor -le 6 ) ]] ; then
+      args_common+=( CACHE_TYPE="lru_cache" )
+    elif [[ $ver_major -lt 8 || ( $ver_major -eq 8 && $ver_minor -le 5 ) ]] ; then
+      args_common+=( CACHE_TYPE="hyper_clock_cache" )
+    else
+      args_common+=( CACHE_TYPE="auto_hyper_clock_cache" )
+    fi
+  fi
+
+  args_load=("${args_common[@]}")
+  args_nolim=("${args_common[@]}")
+  args_lim=("${args_nolim[@]}")
+  args_lim+=( MB_WRITE_PER_SEC="$mb_write_per_sec" )
+  dump_env
 
   find "$dbdir" -type f -exec rm \{\} \;
 

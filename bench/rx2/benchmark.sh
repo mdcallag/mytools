@@ -54,6 +54,7 @@ function display_usage() {
   echo -e "\tNUM_NEXTS_PER_SEEK\t\t(default: 10)"
   echo -e "\tCACHE_SIZE\t\t\tSize of the block cache (default: 16GB)"
   echo -e "\tCACHE_NUMSHARDBITS\t\t\tNumber of shards for the block cache is 2 ** cache_numshardbits (default: 6)"
+  echo -e "\tCACHE_TYPE\t\t\tBlock cache implementation (lru_cache, hyper_clock_cache, auto_hyper_clockl_cache)"
   echo -e "\tCOMPRESSION_MAX_DICT_BYTES"
   echo -e "\tCOMPRESSION_TYPE\t\tDefault compression(default: zstd)"
   echo -e "\tBOTTOMMOST_COMPRESSION\t\t(default: disable)"
@@ -170,6 +171,7 @@ mb_written_per_sec=${MB_WRITE_PER_SEC:-0}
 num_nexts_per_seek=${NUM_NEXTS_PER_SEEK:-10}
 cache_size=${CACHE_SIZE:-$(( 16 * $G ))}
 cache_numshardbits=${CACHE_NUMSHARDBITS:-6}
+cache_type=${CACHE_TYPE:-"lru_cache"}
 compression_max_dict_bytes=${COMPRESSION_MAX_DICT_BYTES:-0}
 compression_type=${COMPRESSION_TYPE:-zstd}
 min_level_to_compress=${MIN_LEVEL_TO_COMPRESS:-"-1"}
@@ -280,6 +282,7 @@ const_params_base="
   --block_size=$block_size \
   --cache_size=$cache_size \
   --cache_numshardbits=$cache_numshardbits \
+  --cache_type=$cache_type \
   --compression_max_dict_bytes=$compression_max_dict_bytes \
   --compression_ratio=0.5 \
   --compression_type=$compression_type \
