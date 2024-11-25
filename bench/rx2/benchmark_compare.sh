@@ -273,7 +273,7 @@ for v in "$@" ; do
   fi
   echo RocksDB version is $ver_major $ver_minor $ver_patch
 
-  if [[ use_best_cache == "true" ]]; then
+  if [[ use_best_cache -eq "true" ]]; then
     if [[ $ver_major -lt 7 || ( $ver_major -eq 7 && $ver_minor -le 6 ) ]] ; then
       # Don't set it because the default is lru_cache and the --cache_type flag isn't
       # supported until RocksDB 7.4
