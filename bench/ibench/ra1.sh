@@ -26,7 +26,7 @@ for ver in fbmy5635 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.rx56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 fi
@@ -39,7 +39,7 @@ for ver in fbmy8028 fbmy8020 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.rx80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 fi
@@ -51,7 +51,7 @@ for ver in my8031 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.in80.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -62,7 +62,7 @@ for ver in my5735 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.in57.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -73,7 +73,7 @@ for ver in my5649 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.in56.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -86,7 +86,7 @@ for ver in pg1211 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg12.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -97,7 +97,7 @@ for ver in pg137 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg13.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -108,7 +108,7 @@ for ver in pg143 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg14.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -119,7 +119,7 @@ for ver in pg15b1 ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg15.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -130,7 +130,7 @@ for ver in pg163_def ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg16.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -141,7 +141,7 @@ for ver in pg170_def ; do
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.pg17.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -155,7 +155,7 @@ ma100339_rel_withdbg \
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -171,7 +171,7 @@ ma101109_rel_withdbg \
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.ma10.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
 
@@ -188,6 +188,6 @@ ma110601_rel_withdbg \
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
   mv $rdir/${dop}u.1t${only1t}/${nrt}.ma11.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
   echo Done $ver $dc
-  sleep 600
+  sleep 1200
 done
 done
