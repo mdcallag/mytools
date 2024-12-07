@@ -58,8 +58,6 @@ if [[ $dbms == "mongo" ]]; then
   while :; do ps aux | grep mongod | grep "\-\-config" | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
   splid="-1"
-  top -b -d 20 > o.top.$sfx &
-  topid=$!
   idbms="mongo"
 elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   dbid=ib
@@ -73,8 +71,8 @@ elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   fi
   while :; do date; $client -uroot -ppw -A -h$host -e 'show processlist'; sleep 20; done > o.espl.$sfx &
   splid=$!
-  top -b -d 20 > o.top.$sfx &
-  topid=$!
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > o.ses.$sfx &
+  seid=$!
   idbms="mysql"
 elif [[ $dbms == "postgres" ]]; then
   if [[ $client == *"oriole"* ]]; then uses_oriole=1; fi
@@ -82,8 +80,6 @@ elif [[ $dbms == "postgres" ]]; then
   echo "TODO: reset Postgres replication"
   while :; do ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
-  top -b -d 20 > o.top.$sfx &
-  topid=$!
   idbms="postgres"
 else
   echo "dbms must be one of mongodb, mysql, mariadb, postgres but was $dbms"
@@ -119,20 +115,37 @@ vpid=$!
 iostat -y -kx 5 >& o.io.$sfx &
 ipid=$!
 COLUMNS=400 LINES=50 top -b -d 60 -c -w >& o.top.$sfx &
-tpid=$!
+topid=$!
+
+perf=perf
 
 PERF_METRIC=${PERF_METRIC:-cycles}
-x=0
-perfpid=0
+if [[ $PERF_METRIC != "cycles" ]]; then
+  counter=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $3 }' )
+  F_or_c=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $2}' )
+  perf_event_list=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $1 }' )
+  perf_event_str="-e $perf_event_list -${F_or_c} $counter"
+else
+  perf_event_list="cycles"
+  perf_event_str="-e cycles -F 999"
+fi
+
+doperf1=0 ; perf_loop_sleep=30
+doperf2=0 ; perf_loop_sleep=50
+doperf3=0 ; perf_loop_sleep=50
+doperf4=1 ; perf_loop_sleep=30
+
+echo Before perf loops
+
+x=1
+perfpid="-1"
 if [ $x -gt 0 ]; then
 fgp="$HOME/git/FlameGraph"
-#if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
-echo PERF_METRIC is $PERF_METRIC
+if [[ x -eq 1 && doperf2 -eq 1 && ! -d $fgp ]]; then echo FlameGraph not found; exit 1; fi
+echo PERF_METRIC is $PERF_METRIC used as $perf_event_str
 while :; do
-  pause_secs=40
-  perf="perf"
 
-  sleep $pause_secs
+  sleep $perf_loop_sleep
 
   if [[ $dbms == "postgres" ]]; then
     # postgres: mdcallag ib 127.0.0.1(56000) CREATE INDEX
@@ -158,7 +171,7 @@ while :; do
     dbpid=$( ps aux  | grep -v mysqld_safe | grep mysqld | grep -v grep | awk '{ print $2 }' )
   elif [[ $dbms == "mariadb" ]]; then
     dbpid=$( ps aux | grep mariadbd | grep -v mariadbd-safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
-    if [ -z $dbbpid ]; then
+    if [ -z $dbpid ]; then
       dbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     fi
   fi
@@ -170,71 +183,50 @@ while :; do
     echo Using PID $dbpid for perf
   fi
 
-  doit=0
-  if [[ doit -eq 1 ]]; then
-  perf_secs=20
-  ts=$( date +'%b%d.%H%M%S' )
-  sfx="$x.$ts"
-  outf="o.perf.rec.g.$sfx"
-  #echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs"
-  #$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_secs
-  echo "$perf record -e $PERF_METRIC -g -p $dbpid -o $outf -- sleep $perf_secs"
-  $perf record -e $PERF_METRIC -g -p $dbpid -o $outf -- sleep $perf_secs
+  hw_secs=10
+  if [[ doperf1 -eq 1 ]]; then
+  outf="o.perf.hw.$sfx.$x"
+  $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions,branches,branch-misses -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e cache-references,cache-misses,stalled-cycles-backend,stalled-cycles-frontend -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads,L1-icache-loads-misses,L1-icache-loads -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbpid -- sleep $hw_secs ; sleep 2
+  $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbpid -- sleep $hw_secs ; sleep 2
 
-  $perf report --stdio -n -g folded -i $outf --no-children > o.perf.rep.g.f1.c0.$sfx
-  $perf report --stdio -n -g folded -i $outf --children > o.perf.rep.g.f1.c1.$sfx
-  $perf script -i $outf > o.perf.rep.g.scr.$sfx
-  #gzip --fast $outf
-  rm $outf
-  cat o.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > o.perf.g.fold.$sfx
-  gzip --fast o.perf.g.fold.$sfx
-  $fgp/flamegraph.pl o.perf.g.fold.$sfx > o.perf.g.$sfx.svg
-  #gzip --fast o.perf.rep.g.scr.$sfx
-  rm o.perf.rep.g.scr.$sfx
+  # dTLB-prefetch-misses
+  # $perf stat -o $outf --append -e mem-stores,mem-loads -p $dbpid -- sleep $hw_secs ; sleep 2
   fi
 
-  doit=0
-  if  [[ doit -eq 1 ]]; then
-  perf_secs=10
-  ts=$( date +'%b%d.%H%M%S' )
-  sfx="$x.$ts"
-  outf="o.perf.rec.f.$sfx"
-  #echo "$perf record -e $PERF_METRIC -c 500000 -p $dbpid -o $outf -- sleep $perf_secs"
-  #$perf record -e $PERF_METRIC -c 500000 -p $dbpid -o $outf -- sleep $perf_secs
-  echo "$perf record -e $PERF_METRIC -p $dbpid -o $outf -- sleep $perf_secs"
-  $perf record -e $PERF_METRIC -p $dbpid -o $outf -- sleep $perf_secs
-  $perf report --stdio -i $outf > o.perf.rep.f.$sfx
+  if [[ doperf2 -eq 1 ]]; then
+  perf_get_secs=10
+  outf="o.perf.rec.g.$sfx.$x"
+  #$perf record -e $PERF_METRIC -c 500000 -g -p $dbpid -o $outf -- sleep $perf_get_secs
+  echo "$perf record $perf_event_str -g -p $dbpid -o $outf -- sleep $perf_get_secs"
+  $perf record $perf_event_str -g -p $dbpid -o $outf -- sleep $perf_get_secs
   fi
 
-  doit=0
-  if  [[ doit -eq 1 ]]; then
-  perf_secs=10
-  ts=$( date +'%b%d.%H%M%S' )
-  sfx="$x.$ts"
-  outf="o.perfstat.$sfx"
 
-  $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbpid -- sleep $perf_secs ; sleep 2
-  $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbpid -- sleep $perf_secs ; sleep 2
+  if [[ doperf3 -eq 1 ]]; then
+  perf_get_secs=10
+  outf="o.perf.rec.f.$sfx.$x"
+  #$perf record -c 500000 -p $dbpid -o $outf -- sleep $perf_get_secs
+  $perf record $perf_event_str -p $dbpid -o $outf -- sleep $perf_get_secs
   fi
 
-  doit=0
-  if [[ doit -eq 1 ]]; then
-    ts=$( date +'%b%d.%H%M%S' )
-    sfx="$x.$ts"
-    outf="o.pmp.$sfx"
+  if [[ doperf4 -eq 1 ]]; then
+    outf="o.pmp.$sfx.$x"
     bash pmpf.sh $dbpid $outf
   fi
 
+  echo $x > o.perf.last.$sfx
   x=$(( $x + 1 ))
 done &
 # This sets a global value
 perfpid=$!
 fi
+
+echo After perf loops
 
 start_secs=$( date +%s )
 
@@ -249,6 +241,8 @@ fi
 maxr=$(( $nr / $realdop ))
 
 for n in $( seq 1 $realdop ) ; do
+
+  echo Fork loops $n of $realdop
 
   if [[ $setup == "yes" ]]; then
     setstr="--setup"
@@ -323,10 +317,7 @@ for n in $( seq 1 $realdop ) ; do
   wait ${pids[${n}]} 
 done
 
-if [ $perfpid -ne 0 ]; then kill $perfpid ; fi
-
-rm o.perf.rec.g.*
-rm o.perf.rep.g.scr.*
+if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
 
 stop_secs=$( date +%s )
 tot_secs=$(( $stop_secs - $start_secs ))
@@ -379,11 +370,88 @@ done
 # kill $mpid >& /dev/null
 kill $vpid >& /dev/null
 kill $ipid >& /dev/null
-kill $tpid >& /dev/null
 kill $spid >& /dev/null
 kill $splid >& /dev/null
+kill $seid >& /dev/null
 kill $topid >& /dev/null
 gzip -9 o.top.$sfx 
+
+#rm o.perf.rec.g.*
+#rm o.perf.rep.g.scr.*
+
+# Do this after the benchmark is done because it can use a lot of CPU
+
+last_loop=""
+if [ -f o.perf.last.$sfx ]; then
+
+read last_loop < o.perf.last.$sfx
+echo last_loop is $last_loop for $sfx
+
+if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
+for x in $( seq 1 $last_loop ); do
+  #echo forloop $x perf rep for $sfx
+
+  if [[ doperf1 -eq 1 ]]; then
+    # post-processing for "perf stat"
+    inf="o.perf.hw.$sfx.$x"
+    bash grep_perfstat.sh $inf > ${inf}.raw ; sort -k 1,1 ${inf}.raw > ${inf}.sorted
+  fi
+
+  if [[ doperf2 -eq 1 ]]; then
+    perf_record_outf="o.perf.rec.g.$sfx.$x"
+
+    $perf report --stdio -g graph -i ${perf_record_outf} > o.perf.rep.g.graph.$sfx.$x
+    gzip --fast o.perf.rep.g.graph.$sfx.$x
+
+    $perf report --stdio -g flat -i ${perf_record_outf} > o.perf.rep.g.flat.$sfx.$x
+    gzip --fast o.perf.rep.g.flat.$sfx.$x
+
+    #$perf script -i ${perf_record_outf} > o.perf.rep.g.scr.$sfx.$x
+    $perf script -i ${perf_record_outf} --per-event-dump
+    # gzip --fast ${perf_record_outf}
+    rm ${perf_record_outf}
+
+    parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+
+    for event in $( echo $parsed_events ) ; do
+      echo SVG for $event
+      cat  ${perf_record_outf}.${event}.dump | $fgp/stackcollapse-perf.pl > o.perf.g.fold.${event}.$sfx.$x
+      $fgp/flamegraph.pl o.perf.g.fold.${event}.$sfx.$x > o.perf.g.${event}.$sfx.$x.svg
+      gzip --fast o.perf.g.${event}.$sfx.$x.svg
+      rm ${perf_record_outf}.${event}.dump
+    done
+
+  fi
+
+  if [[ doperf3 -eq 1 ]]; then
+    outf="o.perf.rec.f.$sfx.$x"
+    $perf report --stdio -i $outf > o.perf.rep.f.$sfx.$x
+    rm $outf
+  fi
+
+done
+
+if [[ doperf2 -eq 1 ]]; then
+  parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+  for event in $( echo $parsed_events ) ; do
+    cat o.perf.g.fold.${event}.$sfx.* | $fgp/flamegraph.pl > o.perf.g.${event}.$sfx.all.svg
+    rm o.perf.g.fold.${event}.$sfx.*
+    rm -f o.perf.rec.g.$sfx.*
+  done
+fi
+
+if [[ doperf4 -eq 1 ]]; then
+  # post-processing for PMP
+  cat o.pmp.$sfx.*.flat \
+    | awk 'BEGIN { s = ""; }  /^Thread/ { print s; s = ""; } /^#/ { x=index($2, "0x"); if (x == 1) { n=$4 } else { n=$2 }; if (s != "" ) { s = s "," n} else { s = n } } END { print s }' -  \
+    | sort \
+    | uniq -c \
+    | sort -r -n -k 1,1 > o.pmp.$sfx.all.hier
+fi
+
+fi
+fi
+
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
