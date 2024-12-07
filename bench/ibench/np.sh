@@ -130,14 +130,14 @@ else
   perf_event_str="-e cycles -F 999"
 fi
 
-doperf1=0 ; perf_loop_sleep=30
+doperf1=1 ; perf_loop_sleep=30
 doperf2=0 ; perf_loop_sleep=50
 doperf3=0 ; perf_loop_sleep=50
-doperf4=1 ; perf_loop_sleep=30
+doperf4=0 ; perf_loop_sleep=30
 
 echo Before perf loops
 
-x=1
+x=0
 perfpid="-1"
 if [ $x -gt 0 ]; then
 fgp="$HOME/git/FlameGraph"
