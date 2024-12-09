@@ -1,12 +1,9 @@
-r=$1
-bd=$2
-e=$3
-usepk=$4
+t1=$1
+t2=$2
+tag=$3
 
-cd $bd; sleep 10; bash ini.sh >& o.ini; sleep 10; cd /data/users/mcallaghan/sysbench.lua
-bash all.sh 8 $r 180 300 180 $e 1 0 $bd/bin/mysql none /data/mysql/sysbench10 $bd/data md2 $usepk
-mkdir x.8.pk${usepk}; mv sb.* x.8.pk${usepk}
+bash r.sh 1 30000000 $t1 $t2 $( df -h | awk '{ if ( $6 == "/data" ) { print $1 } }' | tr '/' ' ' | awk '{ print $2 }' ) 1 1 1
+mkdir $tag.dop1 ; mv x.* $tag.dop1
 
-cd $bd; sleep 90; bash ini.sh >& o.ini; sleep 10; cd /data/users/mcallaghan/sysbench.lua
-bash all.sh 1 $(( $r * 8 )) 180 300 180 $e 1 0 $bd/bin/mysql none  /data/mysql/sysbench10 $bd/data md2 $usepk
-mkdir x.1.pk${usepk}; mv sb.* x.1.pk${usepk}
+bash r.sh 1 30000000 $t1 $t2 $( df -h | awk '{ if ( $6 == "/data" ) { print $1 } }' | tr '/' ' ' | awk '{ print $2 }' ) 1 1 6
+mkdir $tag.dop6 ; mv x.* $tag.dop6
