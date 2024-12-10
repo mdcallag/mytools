@@ -1,0 +1,20 @@
+diff --git a/sql/handler.cc b/sql/handler.cc
+index 37ba3bb1050..7926f66cc37 100644
+--- a/sql/handler.cc
++++ b/sql/handler.cc
+@@ -2866,12 +2866,15 @@ static bool yield_condition(TABLE *table) {
+ 
+ void handler::ha_statistic_increment(
+     ulonglong System_status_var::*offset) const {
++  if (table && table->in_use) (table->in_use->status_var.*offset)++;
++/*
+   if (table && table->in_use) {
+     (table->in_use->status_var.*offset)++;
+     table->in_use->check_limit_rows_examined();
+     table->in_use->update_sql_stats_periodic();
+     table->in_use->check_yield([t = table] { return yield_condition(t); });
+   }
++*/
+ }
+ 
+ THD *handler::ha_thd() const {

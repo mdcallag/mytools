@@ -1,0 +1,23 @@
+diff --git a/sql/sql_db.cc b/sql/sql_db.cc
+index f4e5b4ee3e1..e9b8273f2fb 100644
+--- a/sql/sql_db.cc
++++ b/sql/sql_db.cc
+@@ -230,9 +230,6 @@ end:
+ bool is_thd_db_read_only_by_name(THD *thd, const char *db) {
+   DBUG_ENTER("is_thd_db_read_only_by_name");
+   bool super = thd->m_main_security_ctx.check_access(SUPER_ACL);
+-  bool binlog_admin =
+-      thd->m_main_security_ctx.has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN"))
+-          .first;
+   enum enum_db_read_only flag = DB_READ_ONLY_NULL;
+
+   // Check cached info in THD first.
+@@ -254,7 +251,8 @@ bool is_thd_db_read_only_by_name(THD *thd, const char *db) {
+   assert(flag >= DB_READ_ONLY_NO && flag <= DB_READ_ONLY_SUPER);
+
+   if (flag == DB_READ_ONLY_SUPER ||
+-      (flag == DB_READ_ONLY_YES && !super && !binlog_admin)) {
++      (flag == DB_READ_ONLY_YES && !super &&
++      !thd->m_main_security_ctx.has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)) {
+     DBUG_RETURN(true);
+   }

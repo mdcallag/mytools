@@ -1,0 +1,18 @@
+diff --git a/storage/innobase/row/row0mysql.cc b/storage/innobase/row/row0mysql.cc
+index 027bb5aec28..a29e64956d4 100644
+--- a/storage/innobase/row/row0mysql.cc
++++ b/storage/innobase/row/row0mysql.cc
+@@ -4806,13 +4806,6 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
+       return true;
+     }
+   }
+-  /** Skip concurrency ticket if a thread is already holding
+-  ACL CACHE lock in MDL_EXCLUSIVE mode.
+-  */
+-  if (thd != nullptr && assert_acl_cache_write_lock(thd)) {
+-    srv_concurrency_ticket_skip_count++;
+-    return true;
+-  }
+   return false;
+ }
+ 
