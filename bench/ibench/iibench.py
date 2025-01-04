@@ -31,6 +31,7 @@ import os
 import base64
 import string
 from multiprocessing import Queue, Process, Pipe, Value, Lock, Barrier
+import multiprocessing
 import optparse
 from datetime import datetime
 import time
@@ -1386,6 +1387,10 @@ def print_stats(shared_vars, inserted, prev_inserted, deleted, prev_deleted, pre
   return sum_q
 
 def run_benchmark():
+  # Use 'fork' start method because we need to pass local variables to child
+  # processes (e.g., connection parameters).  This is important for macOS,
+  # where the default start method is 'spawn' since python 3.8.
+  multiprocessing.set_start_method('fork')
   random.seed(FLAGS.seed)
   rounds = int(math.ceil(float(FLAGS.max_rows) / FLAGS.rows_per_commit))
 
