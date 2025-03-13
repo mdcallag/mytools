@@ -10,6 +10,6 @@ prep=$7
 
 shift 7
 
-bash cmp_rx.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d ~/sysb /data/m/fbmy/data/.rocksdb $dev $usepk $prep $@
-bash cmp_in.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d ~/sysb /data/m/my/data $dev $usepk $prep $@
-bash cmp_pg.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d ~/sysb /data/m/pg/base $dev $usepk $prep $@
+bash cmp_rx.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/fbmy/data/.rocksdb $dev $usepk $prep $@
+bash cmp_in.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/my/data $dev $usepk $prep $@
+bash cmp_pg.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/pg/base $dev $usepk $prep $@
