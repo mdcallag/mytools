@@ -452,6 +452,7 @@ fi
 fi
 fi
 
+ps aux > o.end.ps.$sfx
 
 if [[ $dbms == "mongo" ]]; then
 echo "db.serverStatus()" | $client $moauth > o.es.$sfx
@@ -470,6 +471,7 @@ echo "db.oplog.rs.stats()" | $client $moauth local > o.oplog.$sfx
 echo "show dbs" | $client $moauth $dbid > o.dbs.$sfx
 
 elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
+$client -uroot -ppw -A -h$host test < frag.sql >& o.frag.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine tokudb status\G' > o.est.$sfx
