@@ -137,6 +137,7 @@ if [[ $usepk -eq 0 ]]; then
 fi
 
 sfx="${testType}.range${range}.pk${usepk}"
+lua_path="$sysbdir/?.lua"
 
 # --- Setup ---
 
@@ -170,13 +171,13 @@ elif [[ ${dbA[0]} == "postgres" ]]; then
 fi
 
 start_secs=$( date +'%s' )
-exA=(--db-driver=$driver $setupArgs $engineArg --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/share/sysbench/$lua $prepareArgs prepare)
+exA=(--db-driver=$driver $setupArgs $engineArg --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/$lua $prepareArgs prepare)
 if [[ $client == *"oriole"* ]]; then 
-  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx
-  $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx 2>&1
+  echo LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx
+  LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx 2>&1
 else
-  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
-  $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
+  echo LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
+  LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
 fi
 status=$?
 if [[ $status != 0 ]]; then
@@ -203,12 +204,7 @@ rm -f sb.r.trx.$sfx sb.r.qps.$sfx sb.r.rtavg.$sfx sb.r.rtmax.$sfx sb.r.rt95.$sfx
 
 for nt in "$@"; do
 
-if [[ $testType == "scan" && $nt -gt $ntabs ]]; then
-  echo Skip because scan is limited to $ntabs threads
-  continue
-else
-  echo Run for $nt threads at $( date )
-fi
+echo Run for $nt threads at $( date )
 
 sfxn="$sfx.dop${nt}"
 killall vmstat >& /dev/null
@@ -236,6 +232,9 @@ elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
 fi
+
+COLUMNS=400 LINES=50 top -b -d 60 -c -w >& sb.top.$sfxn &
+topid=$!
 
 perf=perf
 
@@ -340,20 +339,16 @@ repint=""
 #repint="--report-interval=10"
 #repint="--report-checkpoints=30,60,90,120,150,180"
 
-if [[ $testType == "scan" ]]; then
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=$ntabs --warmup-time=0 --time=0 $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
-else
-  exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $pgid $sysbdir/share/sysbench/$lua run)
-fi
+exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $pgid $sysbdir/$lua run)
 
 if [[ $client == *"oriole"* ]]; then 
-  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb"  > sb.o.$sfxn
+  echo LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb"  > sb.o.$sfxn
   echo "$realdop CPUs" >> sb.o.$sfxn
-  /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb" >> sb.o.$sfxn 2>&1
+  LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb" >> sb.o.$sfxn 2>&1
 else
-  echo $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
+  echo LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
   echo "$realdop CPUs" >> sb.o.$sfxn
-  /usr/bin/time -o sb.time.$sfxn $sysbdir/bin/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
+  LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
 fi
 
 if [ $perfpid -ge 0 ]; then
@@ -365,6 +360,7 @@ kill $vmpid
 kill $iopid
 kill $seid
 kill $splid
+kill $topid
 
 # Do this after sysbench is done because it can use a lot of CPU
 
@@ -440,17 +436,21 @@ fi
 fi
 fi
 
-qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
-
 if [[ $testType == "scan" ]]; then
-  # For scan use Krows per second rather than queries per second
-  nsecs=$( cat sb.o.$sfx.dop${nt} | grep "time elapsed:" | awk '{ print $3 }' | sed 's/s$//' )
-  qps=$( echo $nr $ntabs $nsecs | awk '{ printf "%.0f\t", ($1 * $2) / $3 / 1000.0 }' )
+  scans_per_sec=$( cat sb.o.$sfx.dop${nt} | grep queries: | awk '{ print $3 }' | tr '(' ' ' | awk '{ print $1 }' )
+  Krps=$( echo $nr $scans_per_sec | awk '{ printf "%.0f", (($1 * $2)/1000.0) }' )
+  qps=$Krps
+  #echo Krps $Krps and scans_per_sec $scans_per_sec and qps $qps
+else
+  qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 fi
 
 bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $qps $realdop > sb.met.$sfxn
 
+ps aux > sb.end.ps.$sfx
+
 if [[ $driver == "mysql" ]]; then
+  $client "${clientArgs[@]}" -e "show memory status\G" >& sb.mem.$sfx
   $client "${clientArgs[@]}" -e "show engine $engine status\G" >& sb.es.$sfx
   $client "${clientArgs[@]}" -e "show indexes from sbtest1\G" >& sb.is.$sfx
   $client "${clientArgs[@]}" -e "show global variables" >& sb.gv.$sfx
@@ -638,13 +638,9 @@ echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
 if [[ $testType == "scan" ]]; then
-  # For scan print millions of rows per second scanned rather than QPS
-  if [[ $nt -gt $ntabs ]]; then
-    printf "0\t"
-  else
-    nsecs=$( cat sb.o.$sfx.dop${nt} | grep "time elapsed:" | awk '{ print $3 }' | sed 's/s$//' )
-    echo $nr $ntabs $nsecs | awk '{ printf "%.3f\t", ($1 * $2) / 1000000.0 / $3 }'
-  fi
+  scans_per_sec=$( cat sb.o.$sfx.dop${nt} | grep queries: | awk '{ print $3 }' | tr '(' ' ' | awk '{ print $1 }' )
+  Krps=$( echo $nr $scans_per_sec | awk '{ printf "%.0f", (($1 * $2)/1000.0) }' )
+  echo $Krps | awk '{ printf "%.0f\t", $1 }'
 else
   grep queries: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%.0f\t", $1 }' 
 fi
@@ -673,7 +669,6 @@ echo "all" >> sb.sz.$sfx
 du -hs ${ddir}/* >> sb.sz.$sfx
 
 ls -asShR $ddir > sb.lsh.r.$sfx
-ls -asShR /home/mdcallag/mytx > sb.lsh.r.tx.$sfx
 
 ddirs=( $ddir $ddir/data $ddir/data/.rocksdb $ddir/base $ddir/global /data/m/my /data/m/pg /data/m/fbmy )
 x=0

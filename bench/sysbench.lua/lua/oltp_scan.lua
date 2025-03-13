@@ -20,6 +20,7 @@
 -- ----------------------------------------------------------------------
 
 require("oltp_common")
+require("os")
 
 function prepare_statements()
    -- We do not use prepared statements here, but oltp_common.sh expects this
@@ -27,16 +28,14 @@ function prepare_statements()
 end
 
 function event()
-   local tid = (sysbench.tid % sysbench.opt.threads) + 1
-   local table_name = "sbtest" .. tid
+   local table_num = (sysbench.tid % sysbench.opt.tables) + 1
+   local table_name = "sbtest" .. table_num
+   -- local start_secs = os.time()
+   -- local stop_secs = start_secs
 
-   for i = 1,10,1
-   do
-     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
-     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
-     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
-     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
-     con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
-   end
+   -- while ((stop_secs - start_secs) < sysbench.opt.run_seconds) do
    check_reconnect()
+   con:query(string.format("SELECT * from %s WHERE LENGTH(c) < 0", table_name))
+   -- stop_secs = os.time()      
+   -- end
 end
