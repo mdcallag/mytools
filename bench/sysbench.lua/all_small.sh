@@ -121,9 +121,6 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovere
 echo range-covered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
-echo range-notcovered-pk
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
 echo range-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
