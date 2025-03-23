@@ -28,6 +28,18 @@ testArgs=(--rand-type=uniform)
 
 if [[ $testType == "read-only" || $testType == "read-only.pre" ]]; then
   lua="oltp_read_only.lua"
+elif [[ $testType == "read-only-simple" ]]; then
+  testArgs=( --rand-type=uniform --simple-ranges=1 --sum-ranges=0 --order-ranges=0 --distinct-ranges=0 )
+  lua="oltp_read_only.lua"
+elif [[ $testType == "read-only-sum" ]]; then
+  testArgs=( --rand-type=uniform --simple-ranges=0 --sum-ranges=1 --order-ranges=0 --distinct-ranges=0 )
+  lua="oltp_read_only.lua"
+elif [[ $testType == "read-only-order" ]]; then
+  testArgs=( --rand-type=uniform --simple-ranges=0 --sum-ranges=0 --order-ranges=1 --distinct-ranges=0 )
+  lua="oltp_read_only.lua"
+elif [[ $testType == "read-only-distinct" ]]; then
+  testArgs=( --rand-type=uniform --simple-ranges=0 --sum-ranges=0 --order-ranges=0 --distinct-ranges=1 )
+  lua="oltp_read_only.lua"
 elif [[ $testType == "read-only-count" ]]; then
   lua="oltp_read_only_count.lua"
   testArgs=(--rand-type=uniform --skip-trx)
@@ -64,7 +76,7 @@ elif [[ $testType == "hot-points" ]]; then
 elif [[ $testType == "points-covered-pk" || $testType == "points-covered-pk.pre" ]]; then
   lua="oltp_points_covered.lua"
   testArgs=(--rand-type=uniform --random-points=$range --skip-trx)
-elif [[ $testType == "points-covered-si" || $testType == "points-covered-si.pre" ]]; then
+elif [[ $testType == "points-covered-si" || $testType == "points-covered-si.pre" || $testType == "points-covered-si.warm" ]]; then
   lua="oltp_points_covered.lua"
   testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false)
 elif [[ $testType == "points-notcovered-pk" || $testType == "points-notcovered-pk.pre" ]]; then

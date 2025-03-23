@@ -22,7 +22,7 @@
 require("oltp_common")
 
 function prepare_statements()
-   prepare_for_each_table("deletes")
+   prepare_deletes()
 end
 
 function event()

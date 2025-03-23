@@ -25,6 +25,10 @@ require("os")
 function prepare_statements()
    -- We do not use prepared statements here, but oltp_common.sh expects this
    -- function to be defined
+
+   if sysbench.opt.explain_plans then
+      explain_table("explain SELECT * from sbtest%d WHERE LENGTH(c) < 0", "for scan")
+   end
 end
 
 function event()

@@ -38,6 +38,10 @@ sysbench.cmdline.commands.prepare = {
 function prepare_statements()
    -- We do not use prepared statements here, but oltp_common.sh expects this
    -- function to be defined
+
+   if sysbench.opt.explain_plans then
+      explain_table("explain INSERT INTO sbtest%u (id, k, c, pad) VALUES (77, 13, 'foobar', 'foobar')", "for inserts")
+   end
 end
 
 function event()

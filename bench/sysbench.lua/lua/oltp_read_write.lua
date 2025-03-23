@@ -38,7 +38,8 @@ function prepare_statements()
 
    prepare_index_updates()
    prepare_non_index_updates()
-   prepare_delete_inserts()
+   prepare_deletes()
+   prepare_inserts()
 end
 
 function event()

@@ -30,22 +30,28 @@ function thread_init()
 
    local points = string.rep("?, ", sysbench.opt.random_points - 1) .. "?"
 
+   local sql_prefix = ""
+
    for t = 1, sysbench.opt.tables do
       if sysbench.opt.on_id then
          if sysbench.opt.covered then
             stmt[t] = con:prepare(string.format([[
                SELECT id FROM sbtest%d WHERE id IN (%s) ]], t, points))
+            sql_prefix = "explain SELECT id FROM sbtest%d WHERE id IN "
 	 else
             stmt[t] = con:prepare(string.format([[
                SELECT id, c FROM sbtest%d WHERE id IN (%s) ]], t, points))
+            sql_prefix = "explain SELECT id, c FROM sbtest%d WHERE id IN "
          end
       else
          if sysbench.opt.covered then
             stmt[t] = con:prepare(string.format([[
                SELECT k FROM sbtest%d WHERE k IN (%s) ]], t, points))
+	    sql_prefix = "explain SELECT k FROM sbtest%d WHERE k IN "
 	 else
             stmt[t] = con:prepare(string.format([[
                SELECT k, c FROM sbtest%d WHERE k IN (%s) ]], t, points))
+	    sql_prefix = "explain SELECT k, c FROM sbtest%d WHERE k IN "
          end
       end
 
@@ -54,6 +60,16 @@ function thread_init()
       end
 
       stmt[t]:bind_param(unpack(params[t]))
+   end
+
+   if sysbench.opt.explain_plans then
+      local inlist = "( " .. get_id()
+      for x = 2, sysbench.opt.random_points do
+         inlist = inlist .. ", " .. get_id()
+      end
+      inlist = inlist .. ")"
+
+      explain_table(sql_prefix .. inlist, "for points-covered")
    end
 
    log_id_if_pgsql()

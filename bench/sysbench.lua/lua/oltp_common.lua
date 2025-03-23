@@ -31,6 +31,8 @@ end
 
 -- Command line options
 sysbench.cmdline.options = {
+   explain_plans =
+     {"Explain query plans", true},
    table_size =
       {"Number of rows per table", 10000},
    range_size =
@@ -319,9 +321,6 @@ local stmt_defs = {
    index_updates = {
       "UPDATE sbtest%u SET k=k+1 WHERE id=?",
       t.INT},
-   index_updates_rl = {
-      "UPDATE sbtest%u SET k=k+1 WHERE id>=? LIMIT ?",
-      t.INT, t.INT},
    non_index_updates = {
       "UPDATE sbtest%u SET c=? WHERE id=?",
       {t.CHAR, 120}, t.INT},
@@ -373,45 +372,78 @@ function prepare_for_each_table(key)
    end
 end
 
+local explain_table_id
+local explain_ranges
+local explain_me
+
 function prepare_point_selects()
    prepare_for_each_table("point_selects")
+   if sysbench.opt.explain_plans then
+      explain_table_id("explain SELECT c FROM sbtest%u WHERE id=%u", "for point_selects")
+   end
 end
 
 function prepare_simple_ranges()
    prepare_for_each_table("simple_ranges")
+   if sysbench.opt.explain_plans then
+      explain_ranges("simple_ranges", "explain SELECT c FROM sbtest%u WHERE id BETWEEN %u AND %u")
+   end
 end
-
+      
 function prepare_sum_ranges()
    prepare_for_each_table("sum_ranges")
+   if sysbench.opt.explain_plans then
+      explain_ranges("sum_ranges", "explain SELECT SUM(k) FROM sbtest%u WHERE id BETWEEN %u AND %u")
+   end
 end
 
 function prepare_order_ranges()
    prepare_for_each_table("order_ranges")
+   if sysbench.opt.explain_plans then
+      explain_ranges("order_ranges", "explain SELECT c FROM sbtest%u WHERE id BETWEEN %u AND %u ORDER BY c")
+   end
 end
 
 function prepare_distinct_ranges()
    prepare_for_each_table("distinct_ranges")
+   if sysbench.opt.explain_plans then
+      explain_ranges("distinct_ranges", "explain SELECT DISTINCT c FROM sbtest%u WHERE id BETWEEN %u AND %u ORDER BY c")
+   end
 end
 
 function prepare_count_ranges()
    prepare_for_each_table("count_ranges")
+   if sysbench.opt.explain_plans then
+      explain_ranges("count_ranges", "explain SELECT count(c) FROM sbtest%u WHERE id BETWEEN %u AND %u")
+   end
 end
 
 function prepare_index_updates()
    prepare_for_each_table("index_updates")
-end
-
-function prepare_index_updates_rl()
-   prepare_for_each_table("index_updates_rl")
+   if sysbench.opt.explain_plans then
+      explain_table_id("explain UPDATE sbtest%u SET k=k+1 WHERE id=%u", "for index_updates")
+   end
 end
 
 function prepare_non_index_updates()
    prepare_for_each_table("non_index_updates")
+   if sysbench.opt.explain_plans then
+      explain_table_id("explain UPDATE sbtest%u SET c='foobar' WHERE id=%u", "for non_index_updates")
+   end
 end
 
-function prepare_delete_inserts()
+function prepare_deletes()
    prepare_for_each_table("deletes")
+   if sysbench.opt.explain_plans then
+      explain_table_id("explain DELETE FROM sbtest%u WHERE id=%u", "for deletes")
+   end
+end
+
+function prepare_inserts()
    prepare_for_each_table("inserts")
+   if sysbench.opt.explain_plans then
+      explain_table_id("explain INSERT INTO sbtest%u (id, k, c, pad) VALUES (%u, 13, 'foobar', 'foobar')", "for inserts")
+   end
 end
 
 function log_id_if_pgsql()
@@ -479,7 +511,7 @@ local function get_table_num()
    return sysbench.rand.uniform(1, sysbench.opt.tables)
 end
 
-local function get_id()
+function get_id()
    return sysbench.rand.default(1, sysbench.opt.table_size)
 end
 
@@ -489,6 +521,67 @@ end
 
 function commit()
    stmt.commit:execute()
+end
+
+function explain_me(sql_post)
+   msg = ""
+   rs = con:query(sql_post)
+   for i = 1, rs.nrows do
+      row = rs:fetch_row()
+      nfields = 0
+      for i, v in pairs(row) do
+         nfields = nfields + 1
+      end
+      for x = 1, nfields do
+	 local v = "null"
+	 if row[x] ~= nil then
+            v = row[x]
+         end 
+         msg = msg .. "\t" .. v
+      end
+      msg = msg .. "\n"
+   end
+   -- msg = msg .. "\n"
+   return msg
+end
+
+function explain_table(sql_pre, source)
+   local t
+
+   print("explain: " .. source .. " :: " .. sql_pre)
+   local msg = source
+   for t = 1, sysbench.opt.tables do
+      local sql_post = string.format(sql_pre, t)
+      msg = msg .. "\ntable " .. t .. " : " .. sql_post .. "\n"
+      msg = msg .. explain_me(sql_post)
+   end
+   print(msg)
+end
+
+function explain_table_id(sql_pre, source)
+   local t
+
+   print("explain: " .. source .. " :: " .. sql_pre)
+   local msg = source
+   for t = 1, sysbench.opt.tables do
+      local sql_post = string.format(sql_pre, t, get_id())
+      msg = msg .. "\ntable " .. t .. " : " .. sql_post .. "\n"
+      msg = msg .. explain_me(sql_post)
+   end
+   print(msg)
+end
+
+function explain_ranges(source, sql_pre)
+   local t
+
+   local msg = "for: " .. source
+   for t = 1, sysbench.opt.tables do
+      local id = get_id()
+      local sql_post = string.format(sql_pre, t, id, id + sysbench.opt.range_size - 1)
+      msg = msg .. "\ntable " .. t .. " : " .. sql_post .. "\n"
+      msg = msg .. explain_me(sql_post)
+   end
+   print(msg)
 end
 
 function execute_point_selects()

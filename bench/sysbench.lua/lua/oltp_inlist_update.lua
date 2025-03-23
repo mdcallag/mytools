@@ -51,6 +51,16 @@ function thread_init()
       stmt[t]:bind_param(unpack(params[t]))
    end
 
+   if sysbench.opt.explain_plans then
+      local inlist = "( " .. get_id()
+      for x = 2, sysbench.opt.random_points do
+	 inlist = inlist .. ", " .. get_id()
+      end
+      inlist = inlist .. ")"
+
+      explain_table("explain UPDATE sbtest%d set c=7 WHERE id IN " .. inlist, "for update-inlist")
+   end
+
    log_id_if_pgsql()
 end
 

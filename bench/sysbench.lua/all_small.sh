@@ -85,9 +85,21 @@ echo read-write range 100 and do postwrite
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1    $prepstmt $@
 
 for range in 10 100 10000 ; do
+#for range in 10 100 1000 2000 4000 8000 16000 32000 ; do
 echo read-only range $range
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only       $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+#bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-simple       $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+#bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-sum          $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+#bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-order        $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+#bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-distinct     $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+#bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-count        $range $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 done
+
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-simple       1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-sum          1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-order        1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-distinct     1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-count        1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo point-query
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query     100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
@@ -105,6 +117,10 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-
 
 echo points-notcovered-pk
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-pk 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+# With MyRocks the secondary index data blocks are likely to get evicted because they aren't read until now, so the test is done twice, first to warm the cache
+echo points-covered-si.warm
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si.warm 100 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 echo points-covered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si    100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
