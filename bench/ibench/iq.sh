@@ -140,6 +140,34 @@ function vac_my {
     $client "${mya[@]}" -e 'show global variables' >> o.myvac.show.1 2>&1
 
   elif [[ $e == "rocksdb" ]]; then
+
+    $client "${mya[@]}" -e "show engine rocksdb status\G" >& o.myvac.es0
+    loop=0
+    while :; do
+      loop=$(( loop + 1 ))
+      echo "Wait for RocksDB compaction to stop at $( date )" | tee -a o.myvac
+
+      $client "${mya[@]}" -e "show engine rocksdb status\G" >& o.myvac.es1.loop${loop}
+      $client "${mya[@]}" -e "select * from information_schema.rocksdb_active_compaction_stats" -B >& o.myvac.rxstats.loop${loop}
+      status=$?
+
+      if [[ status -ne 0 ]]; then
+        echo "information_schema.rocksdb_active_compaction_stats does not exist, sleep for 30 seconds then continue" | tee -a o.myvac
+        sleep 30
+        break
+      fi
+
+      rowcount=$( wc -l o.myvac.rxstats.loop${loop} | awk '{ print $1 }' )
+      if [[ rowcount -gt 0 ]]; then
+        echo "compaction running at loop ${loop}, sleep 10 seconds" | tee -a o.myvac
+        sleep 10
+      else
+        echo "compaction not running at loop ${loop}, done" | tee -a o.myvac
+        break
+      fi
+    done
+    echo "Done waiting for RocksDB compaction to stop at $( date ) after $loop loops" | tee -a o.myvac
+
     echo Enable flush memtable and L0 in 2 parts >> o.myvac
     $client "${mya[@]}" -e "show engine rocksdb status\G" >& o.myvac.es1
     echo "Flush memtable at $( date )" >> o.myvac

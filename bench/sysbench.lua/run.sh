@@ -536,6 +536,34 @@ if [[ $postwrite -eq 1 ]]; then
       $client "${clientArgs[@]}" -e 'show global variables' >> sb.o.myvac.show.1 2>&1
 
     elif [[ $engine == "rocksdb" ]]; then
+
+      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es0
+      loop=0
+      while :; do
+        loop=$(( loop + 1 ))
+	echo "Wait for RocksDB compaction to stop at $( date )" | tee -a sb.o.myvac
+
+        $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es1.loop${loop}
+        $client "${clientArgs[@]}" -e "select * from information_schema.rocksdb_active_compaction_stats" -B >& sb.o.myvac.rxstats.loop${loop}
+        status=$?
+
+        if [[ status -ne 0 ]]; then
+          echo "information_schema.rocksdb_active_compaction_stats does not exist, sleep for 30 seconds then continue" | tee -a sb.o.myvac
+          sleep 30
+	  break
+	fi
+
+        rowcount=$( wc -l sb.o.myvac.rxstats.loop${loop} | awk '{ print $1 }' )
+        if [[ rowcount -gt 0 ]]; then
+          echo "compaction running at loop ${loop}, sleep 10 seconds" | tee -a sb.o.myvac
+          sleep 10
+        else
+          echo "compaction not running at loop ${loop}, done" | tee -a sb.o.myvac
+	  break
+        fi
+      done
+      echo "Done waiting for RocksDB compaction to stop at $( date ) after $loop loops" | tee -a sb.o.myvac
+
       echo Enable flush memtable and L0 in 2 parts >> sb.o.myvac
       $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es1
       echo "Flush memtable at $( date )" >> sb.o.myvac
