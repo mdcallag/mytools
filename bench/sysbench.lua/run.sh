@@ -462,6 +462,9 @@ bash an.sh sb.io.$sfxn sb.vm.$sfxn $dname $qps $realdop > sb.met.$sfxn
 ps aux > sb.end.ps.$sfx
 
 if [[ $driver == "mysql" ]]; then
+  if [[ $engine == "rocksdb" ]]; then
+    $client "${clientArgs[@]}" < frag.sql >& sb.frag.$sfx
+  fi
   $client "${clientArgs[@]}" -e "show memory status\G" >& sb.mem.$sfx
   $client "${clientArgs[@]}" -e "show engine $engine status\G" >& sb.es.$sfx
   $client "${clientArgs[@]}" -e "show indexes from sbtest1\G" >& sb.is.$sfx

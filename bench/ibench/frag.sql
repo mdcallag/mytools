@@ -1,7 +1,7 @@
 
-drop table if exists a1_pre;
+drop table if exists frag_temp;
 
-create table a1_pre as
+create temporary table frag_temp as
 SELECT
   ROUND(sum(m.num_rows) / (1000*1000), 1) as Mrows,
   ROUND(sum(m.data_size)/(1024*1024), 1) as sizeMB,
@@ -24,19 +24,21 @@ GROUP BY
   d.table_name,
   m.index_number;
 
-alter table a1_pre add index x (tschema, tname, idxnum);
+# alter table frag_temp add index x (tschema, tname, idxnum);
 
 select "BY tschema, tname, idxnum";
-select * from a1_pre ORDER BY tschema, tname, idxnum;
+select * from frag_temp ORDER BY tschema, tname, idxnum;
 
 select "By pctdel";
-select * from a1_pre ORDER BY pctdel desc;
+select * from frag_temp ORDER BY pctdel desc;
 
 select "By pctsdel";
-select * from a1_pre ORDER BY pctsdel desc;
+select * from frag_temp ORDER BY pctsdel desc;
 
 select "By pctbdel";
-select * from a1_pre ORDER BY pctbdel desc;
+select * from frag_temp ORDER BY pctbdel desc;
 
 select "By fragMB";
-select * from a1_pre ORDER BY fragMB desc;
+select * from frag_temp ORDER BY fragMB desc;
+
+drop table frag_temp;

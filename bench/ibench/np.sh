@@ -71,7 +71,7 @@ elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   fi
   while :; do date; $client -uroot -ppw -A -h$host -e 'show processlist'; sleep 20; done > o.espl.$sfx &
   splid=$!
-  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > o.ses.$sfx &
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $e status\G"; sleep 30; done > o.ses.$sfx &
   seid=$!
   idbms="mysql"
 elif [[ $dbms == "postgres" ]]; then
@@ -471,7 +471,9 @@ echo "db.oplog.rs.stats()" | $client $moauth local > o.oplog.$sfx
 echo "show dbs" | $client $moauth $dbid > o.dbs.$sfx
 
 elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
-$client -uroot -ppw -A -h$host test < frag.sql >& o.frag.$sfx
+if [[ $e == "rocksdb" ]]; then
+  $client -uroot -ppw -A -h$host test < frag.sql >& o.frag.$sfx
+fi
 $client -uroot -ppw -A -h$host -e 'show engine innodb status\G' > o.esi.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine rocksdb status\G' > o.esr.$sfx
 $client -uroot -ppw -A -h$host -e 'show engine tokudb status\G' > o.est.$sfx
