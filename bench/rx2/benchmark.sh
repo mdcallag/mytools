@@ -465,7 +465,25 @@ function month_to_num() {
     echo $date_str
 }
 
+perf=perf
 PERF_METRIC=${PERF_METRIC:-cycles}
+if [[ $PERF_METRIC != "cycles" ]]; then
+  counter=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $3 }' )
+  F_or_c=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $2}' )
+  perf_event_list=$( echo $PERF_METRIC | tr ':' ' ' | awk '{ print $1 }' )
+  perf_event_str="-e $perf_event_list -${F_or_c} $counter"
+else
+  perf_event_list="cycles"
+  perf_event_str="-e cycles -F 333"
+fi
+
+doperf1=1 ; perf_loop_sleep=30
+doperf2=0 ; perf_loop_sleep=50
+doperf3=0 ; perf_loop_sleep=50
+doperf4=0 ; perf_loop_sleep=30
+
+fgp="$HOME/git/FlameGraph.me"
+#if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 
 function start_stats {
   output=$1
@@ -488,116 +506,61 @@ function start_stats {
   # This sets a global value
   szpid=$!
 
+  rm $output.perf.last
   x=0
   perfpid=0
   if [ $x -gt 0 ]; then
-  #fgp="$HOME/git/FlameGraph.me"
-  #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
   echo PERF_METRIC is $PERF_METRIC
   while :; do
-    if [ $num_threads -eq 1 ]; then
-      perf_secs=30
-    else
-      perf_secs=10
-    fi
-    pause_secs=20
-    perf="perf"
 
-    sleep $pause_secs
+    sleep $perf_loop_sleep
 
     dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
 
     ts=$( date +'%b%d.%H%M%S' )
-    sfx="$x.$ts"
-    outf="$output.perf.rec.g.$sfx"
-    echo "$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs"
-    $perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_secs
+    #outf="$output.perf.rec.g.$sfx"
 
-    #$perf report --stdio --no-children -i $outf > $output.perf.rep.g.f0.c0.$sfx
-    #$perf report --stdio --children    -i $outf > $output.perf.rep.g.f0.c1.$sfx
-    #$perf report --stdio -n -g folded -i $outf > $output.perf.rep.g.f1.cother.$sfx
-    $perf report --stdio -n -g folded -i $outf --no-children > $output.perf.rep.g.f1.c0.$sfx
-    $perf report --stdio -n -g folded -i $outf --children > $output.perf.rep.g.f1.c1.$sfx
-    $perf script -i $outf > $output.perf.rep.g.scr.$sfx
-    gzip --fast $outf
-    # A hack to support differential flamegraphs for db_bench v6.0 vs v6.28
-    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl | \
-    #    sed 's/DataBlockIter::SeekImpl/DataBlockIter::Seek/g' | \
-    #    sed 's/DataBlockIter::NextImpl/DataBlockIter::Next/g' | \
-    #    sed 's/IndexBlockIter::SeekImpl/IndexBlockIter::Seek/g' \
-    #    > $output.perf.g.fold.$sfx
-    #cat $output.perf.rep.g.scr.$sfx | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.$sfx
-    #$fgp/flamegraph.pl $output.perf.g.fold.$sfx > $output.perf.g.$sfx.svg
-    gzip --fast $output.perf.rep.g.scr.$sfx
+    hw_secs=10
+    if [[ doperf1 -eq 1 ]]; then
+      outf="$output.perf.hw.$x"
+      $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions,branches,branch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e cache-references,cache-misses,stalled-cycles-backend,stalled-cycles-frontend -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads,L1-icache-loads-misses,L1-icache-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
+      $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
 
+      # dTLB-prefetch-misses
+      # $perf stat -o $outf --append -e mem-stores,mem-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+    fi
 
-    sleep $pause_secs
-    ts=$( date +'%b%d.%H%M%S' )
-    sfx="$x.$ts"
-    outf="$output.perf.rec.f.$sfx"
+    if [[ doperf2 -eq 1 ]]; then
+      perf_get_secs=10
+      outf="$output.perf.rec.g.$x"
+      #$perf record -e $PERF_METRIC -c 500000 -g -p $dbbpid -o $outf -- sleep $perf_get_secs
+      echo "$perf record $perf_event_str -g -p $dbbpid -o $outf -- sleep $perf_get_secs"
+      $perf record $perf_event_str -g -p $dbbpid -o $outf -- sleep $perf_get_secs
+    fi
 
-    $perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_secs
-    $perf report --stdio -i $outf > $output.perf.rep.f.$sfx
-    $perf script -i $outf | gzip --fast > $output.perf.rep.f.scr.$sfx.gz
-    gzip --fast $outf
+    if [[ doperf3 -eq 1 ]]; then
+      perf_get_secs=10
+      outf="$output.perf.rec.f.$x"
+      #$perf record -c 500000 -p $dbbpid -o $outf -- sleep $perf_get_secs
+      $perf record $perf_event_str -p $dbbpid -o $outf -- sleep $perf_get_secs
+    fi
 
+    if [[ doperf4 -eq 1 ]]; then
+      outf="$output.pmp.$x"
+      bash pmpf.sh $dbbpid $outf
+    fi
+
+    echo $x > $output.perf.last
     x=$(( $x + 1 ))
   done &
   # This sets a global value
   perfpid=$!
-  fi
-
-  y=0
-  perfpid2=0
-  if [ $y -gt 0 ]; then
-  while :; do
-    perf_secs=10
-    pause_secs=30
-    perf="perf"
-
-    sleep $pause_secs
-
-    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
-    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
-
-    ts=$( date +'%b%d.%H%M%S' )
-    sfx="$y.$ts"
-    outf="$output.perfstat.$sfx"
-
-    $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e cache-references,cache-misses,branches,branch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores,L1-icache-loads-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,dTLB-prefetch-misses -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $perf_secs ; sleep 3
-    $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $perf_secs ; sleep 3
-
-    y=$(( $y + 1 ))
-  done &
-  perfpid2=$!
-  fi
-
-  z=0
-  perfpid3=0
-  if [ $z -gt 0 ]; then
-  while :; do
-    pause_secs=30
-
-    sleep $pause_secs
-
-    dbbpid=$( ps aux | grep db_bench | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
-    if [ -z $dbbpid ]; then echo Cannot get db_bench PID; continue; fi
-
-    ts=$( date +'%b%d.%H%M%S' )
-    sfx="$z.$ts"
-    outf="$output.pmp.$sfx"
-
-    bash ./pmp.sh $dbbpid $outf
-
-    z=$(( $z + 1 ))
-  done &
-  perfpid3=$!
   fi
 }
 
@@ -605,8 +568,6 @@ function stop_stats {
   output=$1
 
   if [ $perfpid -gt 0 ]; then kill $perfpid ; fi
-  if [ $perfpid2 -gt 0 ]; then kill $perfpid2 ; fi
-  if [ $perfpid3 -gt 0 ]; then kill $perfpid3 ; fi
 
   kill $pspid
   kill $szpid
@@ -621,6 +582,79 @@ function stop_stats {
   lm=$( sort -nk 3,3 $output.sizes | tail -1 | awk '{ print $3 }' )
   bm=$( sort -nk 4,4 $output.sizes | tail -1 | awk '{ print $4 }' )
   echo -e "max sizes (GB): $am all, $sm sst, $lm log, $bm blob" >> $output.sizes
+
+  # Do this after sysbench is done because it can use a lot of CPU
+
+  last_loop=""
+  if [ -f $output.perf.last ]; then
+
+    read last_loop < $output.perf.last
+    echo last_loop is $last_loop for $output
+
+    if [[ ! -z $last_loop && $last_loop -ge 0 ]]; then
+      for x in $( seq 1 $last_loop ); do
+      #echo forloop $x perf rep for $output
+
+        if [[ doperf1 -eq 1 ]]; then
+          # post-processing for "perf stat"
+          inf="$output.perf.hw.$x"
+          bash grep_perfstat.sh $inf > ${inf}.raw ; sort -k 1,1 ${inf}.raw > ${inf}.sorted
+        fi
+
+        if [[ doperf2 -eq 1 ]]; then
+          perf_record_outf="$output.perf.rec.g.$x"
+
+          $perf report --stdio -g graph -i ${perf_record_outf} > $output.perf.rep.g.graph.$x
+          gzip --fast $output.perf.rep.g.graph.$x
+
+          $perf report --stdio -g flat -i ${perf_record_outf} > $output.perf.rep.g.flat.$x
+          gzip --fast $output.perf.rep.g.flat.$x
+
+          #$perf script -i ${perf_record_outf} > $oputput.perf.rep.g.scr.$x
+          $perf script -i ${perf_record_outf} --per-event-dump
+          # gzip --fast ${perf_record_outf}
+          rm ${perf_record_outf}
+
+          parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+
+          for event in $( echo $parsed_events ) ; do
+            echo SVG for $event
+            cat  ${perf_record_outf}.${event}.dump | $fgp/stackcollapse-perf.pl > $output.perf.g.fold.${event}.$x
+            $fgp/flamegraph.pl $output.perf.g.fold.${event}.$x > $output.perf.g.${event}.$x.svg
+            gzip --fast $output.perf.g.${event}.$x.svg
+            rm ${perf_record_outf}.${event}.dump
+          done
+        fi
+
+        if [[ doperf3 -eq 1 ]]; then
+          outf="$output.perf.rec.f.$x"
+          $perf report --stdio -i $outf > $output.perf.rep.f.$x
+          rm $outf
+        fi
+
+      done
+
+      if [[ doperf2 -eq 1 ]]; then
+        parsed_events=$( echo $perf_event_list | tr ',' ' ' )
+
+        for event in $( echo $parsed_events ) ; do
+          cat $output.perf.g.fold.${event}.* | $fgp/flamegraph.pl > $output.perf.g.${event}.all.svg
+          rm $output.perf.g.fold.${event}.*
+          rm -f $output.perf.rec.g.*
+        done
+      fi
+
+      if [[ doperf4 -eq 1 ]]; then
+        # post-processing for PMP
+        outf="$output.pmp.$x"
+        cat $output.pmp.*.flat \
+          | awk 'BEGIN { s = ""; }  /^Thread/ { print s; s = ""; } /^#/ { x=index($2, "0x"); if (x == 1) { n=$4 } else { n=$2 }; if (s != "" ) { s = s "," n} else { s = n } } END { print s }' -  \
+          | sort \
+          | uniq -c \
+          | sort -r -n -k 1,1 > $putput.pmp.all.hier
+      fi
+    fi
+  fi
 }
 
 function units_as_gb {
@@ -984,9 +1018,9 @@ function run_fillseq {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
 
   # The constant "fillseq" which we pass to db_bench is the benchmark name.
   summarize_result $log_file_name $test_name fillseq
@@ -1026,11 +1060,11 @@ function run_lsm {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   # waitforcompaction can hang with universal (compaction_style=1)
   # see bug https://github.com/facebook/rocksdb/issues/9275
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   # Don't summarize, the log doesn't have the output needed for it
 }
 
@@ -1056,9 +1090,9 @@ function run_change {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name ${output_name}.t${num_threads}.s${syncval} $grep_name
 }
 
@@ -1080,9 +1114,9 @@ function run_filluniquerandom {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name filluniquerandom filluniquerandom
 }
 
@@ -1103,9 +1137,9 @@ function run_readrandom {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name readrandom.t${num_threads} readrandom
 }
 
@@ -1127,9 +1161,9 @@ function run_multireadrandom {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name multireadrandom.t${num_threads} multireadrandom
 }
 
@@ -1153,9 +1187,9 @@ function run_readwhile {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name readwhile${operation}.t${num_threads} readwhile${operation}
 }
 
@@ -1178,9 +1212,9 @@ function run_rangewhile {
        --report_file=${log_file_name}.r.csv \
        2>&1 | tee -a $log_file_name"
   echo $cmd | tee $log_file_name
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name ${full_name}.t${num_threads} seekrandomwhile${operation}
 }
 
@@ -1205,9 +1239,9 @@ function run_range {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
   summarize_result $log_file_name ${full_name}.t${num_threads} seekrandom
 }
 
@@ -1228,9 +1262,9 @@ function run_randomtransaction {
   else
     echo $cmd | tee $log_file_name
   fi
-  start_stats $log_file_name.stats
+  start_stats $log_file_name
   eval $cmd
-  stop_stats $log_file_name.stats
+  stop_stats $log_file_name
 }
 
 function now() {
