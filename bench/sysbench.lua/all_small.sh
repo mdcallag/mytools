@@ -24,9 +24,14 @@ shift 15
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk 1 $prepstmt $ntabs
 
+echo scan warmup
+bash run.sh $ntabs $nrows 60         $dbAndCreds 0      0        scan.warmpre     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
 echo point-query.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        point-query.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
+doit1=0
+if [[ doit1 -eq 1 ]]; then
 for range in 10 100 1000 ; do
 echo random-points.pre range $range
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points.pre $range  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
@@ -57,6 +62,7 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovere
 
 echo range-covered-si.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si.pre    100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+fi
 
 echo range-notcovered-si.pre
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si.pre 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
@@ -83,6 +89,15 @@ echo read-write range 10
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      10  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 echo read-write range 100 and do postwrite
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        read-write      100 $client $tableoptions $sysbdir $ddir $dname $usepk 1    $prepstmt $@
+
+doit2=1
+if [[ doit2 -eq 1 ]]; then
+
+echo scan warmup
+bash run.sh $ntabs $nrows 60        $dbAndCreds 0     0        scan.warm            100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo scan
+bash run.sh $ntabs $nrows $readsecs $dbAndCreds 0     0        scan                 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
 for range in 10 100 10000 ; do
 #for range in 10 100 1000 2000 4000 8000 16000 32000 ; do
@@ -118,6 +133,12 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-
 echo points-notcovered-pk
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-pk 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
+echo range-covered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo range-notcovered-pk
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-pk  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
 # With MyRocks the secondary index data blocks are likely to get evicted because they aren't read until now, so the test is done twice, first to warm the cache
 echo points-covered-si.warm
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si.warm 100 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
@@ -128,20 +149,12 @@ bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-
 echo points-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-si 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
-echo range-covered-pk
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-pk     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
 echo range-covered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
 
-echo range-notcovered-pk
-bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-pk  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
 echo range-notcovered-si
 bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
-
-echo scan
-bash run.sh $ntabs $nrows $readsecs $dbAndCreds 0     0        scan                 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+fi
 
 echo delete
 bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        delete               100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@

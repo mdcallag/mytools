@@ -99,7 +99,7 @@ elif [[ $testType == "range-notcovered-si" || $testType == "range-notcovered-si.
   testArgs=(--rand-type=uniform --random-points=$range --skip-trx --on-id=false --covered=false)
 elif [[ $testType == "insert" ]]; then
   lua="oltp_insert.lua"
-elif [[ $testType == "scan" ]]; then
+elif [[ $testType == "scan" || $testType == "scan.warm" || $testType == "scan.warmpre" ]]; then
   lua="oltp_scan.lua"
 else
 echo Did not recognize testType $testType
