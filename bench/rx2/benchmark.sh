@@ -482,7 +482,7 @@ doperf2=0 ; perf_loop_sleep=50
 doperf3=0 ; perf_loop_sleep=50
 doperf4=0 ; perf_loop_sleep=30
 
-fgp="$HOME/git/FlameGraph.me"
+fgp="$HOME/git/FlameGraph"
 #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
 
 function start_stats {
