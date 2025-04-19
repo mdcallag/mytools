@@ -448,11 +448,12 @@ fi
 fi
 fi
 
-if [[ $testType == "scan" ]]; then
-  scans_per_sec=$( cat sb.o.$sfx.dop${nt} | grep queries: | awk '{ print $3 }' | tr '(' ' ' | awk '{ print $1 }' )
-  Krps=$( echo $nr $scans_per_sec | awk '{ printf "%.0f", (($1 * $2)/1000.0) }' )
+if [[ $testType == "scan" || $testType == "scan.warm" || $testType == "scan.warmpre" ]]; then
+  # avg:                              1731583.13
+  scan_latency_ms=$( cat sb.o.$sfx.dop${nt} | grep avg: | awk '{ printf $2 }' )
+  Krps=$( echo $nr $scan_latency_ms | awk '{ printf "%.0f", (( $1 / 1000.0 ) / ( $2 / 1000.0 )) }' )
   qps=$Krps
-  #echo Krps $Krps and scans_per_sec $scans_per_sec and qps $qps
+  echo Krps $Krps and scan_latency_ms $scan_latency_ms and qps $qps
 else
   qps=$( grep queries: sb.o.$sfxn | awk '{ print $3 }' | tr -d '(' )
 fi
@@ -680,10 +681,11 @@ done > sb.r.trx.$sfx
 echo "$engine $testType range=$range" >> sb.r.trx.$sfx
 
 for nt in "$@"; do
-if [[ $testType == "scan" ]]; then
-  scans_per_sec=$( cat sb.o.$sfx.dop${nt} | grep queries: | awk '{ print $3 }' | tr '(' ' ' | awk '{ print $1 }' )
-  Krps=$( echo $nr $scans_per_sec | awk '{ printf "%.0f", (($1 * $2)/1000.0) }' )
-  echo $Krps | awk '{ printf "%.0f\t", $1 }'
+if [[ $testType == "scan" || $testType == "scan.warm" || $testType == "scan.warmpre" ]]; then
+  # avg:                              1731583.13
+  scan_latency_ms=$( cat sb.o.$sfx.dop${nt} | grep avg: | awk '{ printf $2 }' )
+  Krps=$( echo $nr $scan_latency_ms | awk '{ printf "%.0f", (( $1 / 1000.0 ) / ( $2 / 1000.0 )) }' )
+  echo -n -e "$Krps\t"
 else
   grep queries: sb.o.$sfx.dop${nt} | awk '{ print $3 }' | tr -d '(' | awk '{ printf "%.0f\t", $1 }' 
 fi
