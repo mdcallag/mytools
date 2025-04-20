@@ -76,7 +76,11 @@ blob_gc_age_cutoff=${BLOB_GC_AGE_CUTOFF:-"0.25"}
 blob_gc_force_threshold=${BLOB_GC_FORCE_THRESHOLD:-1}
 
 # Arguments for dynamic loading
-base_args=( LD_LIBRARY_PATH="$ld_library_path" )
+if [ -z $LD_LIBRARY_PATH ]; then
+  base_args=( )
+else
+  base_args=( LD_LIBRARY_PATH="$ld_library_path" )
+fi
 
 # Arguments used for all tests
 base_args+=( NUM_KEYS="$num_keys" )
@@ -277,7 +281,7 @@ for v in "$@" ; do
     if [[ $ver_major -lt 7 || ( $ver_major -eq 7 && $ver_minor -le 6 ) ]] ; then
       # Don't set it because the default is lru_cache and the --cache_type flag isn't
       # supported until RocksDB 7.4
-      pass
+      :
     elif [[ $ver_major -lt 8 || ( $ver_major -eq 8 && $ver_minor -le 5 ) ]] ; then
       args_common+=( CACHE_TYPE="hyper_clock_cache" )
     else
@@ -295,7 +299,7 @@ for v in "$@" ; do
 
   # Load in key order
   echo env "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
-  "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
+  env "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
 
   # Read-only tests. The LSM tree shape is in a deterministic state if trivial move
   # was used during the load.
@@ -303,35 +307,35 @@ for v in "$@" ; do
   # Add revrange with a fixed duration and hardwired number of keys and threads to give
   # compaction debt leftover from fillseq a chance at being removed. Not using waitforcompaction
   # here because it isn't supported on older db_bench versions.
-  "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
+  env "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
 
   # Skipped for CI - a single essentail readrandom is enough to set up for other tests
   if [ "$ci_tests_only" != "true" ]; then
-    "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
-    "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
-    "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
+    env "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
+    env "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
+    env "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
   else
     echo "CI_TESTS_ONLY is set, skipping optional read steps."
   fi
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo "$num_keys" "$num_threads" | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )
-  "${args_nolim[@]}" WRITES="$p10"        bash ./benchmark.sh overwritesome
+  env "${args_nolim[@]}" WRITES="$p10"        bash ./benchmark.sh overwritesome
 
   if [ "$compaction_style" == "leveled" ]; then
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
+    env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
   elif [ "$compaction_style" == "universal" ]; then
     # For universal don't compact L0 as can have too many sorted runs
     # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
     # While this is disabled the test that follows will have more variance from compaction debt.
     if [[ $ver_major -gt 8 || ( $ver_major -eq 8 && $ver_minor -eq 6 ) ]] ; then
       echo "After overwritesome: with universal do flush_mt_wait"
-      "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_wait
+      env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_wait
     else
       echo "After overwritesome: with universal do flush_mt_nowait"
-      "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_nowait
+      env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_nowait
       # Sleep to let the flush finish
       sleep 10
     fi
@@ -339,13 +343,13 @@ for v in "$@" ; do
   else
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
+    env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
   fi
 
   # Read-mostly tests with a rate-limited writer
-  "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
-  "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
-  "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh readwhilewriting
+  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
+  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
+  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh readwhilewriting
 
   # Write-only tests
 
@@ -356,17 +360,17 @@ for v in "$@" ; do
     # With https://github.com/facebook/rocksdb/pull/11436 fixed in 8.4.0 and db_bench updated to
     # use it in 8.6 this should always be safe to use this which depends on waitforcompaction
     echo "writeonly is overwriteandwait because recent version"
-    "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
 
   elif [ "$compaction_style" == "leveled" ] && ./db_bench --benchmarks=waitforcompaction ; then
     # For older versions it is OK for leveled to use the hacky solution in db_bench
     echo "writeonly is overwriteandwait because older version but leveled"
-    "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
 
   else
     # avoid the bugs, including https://github.com/facebook/rocksdb/issues/9275
     echo "writeonly is overwrite because previous checks"
-    "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
+    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
   fi
 
   cp "$dbdir"/LOG* "$my_odir"
