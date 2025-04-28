@@ -298,8 +298,8 @@ for v in "$@" ; do
   find "$dbdir" -type f -exec rm \{\} \;
 
   # Load in key order
-  echo env "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
-  env "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
+  echo env -i "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
+  env -i "${args_load[@]}" bash ./benchmark.sh fillseq_disable_wal
 
   # Read-only tests. The LSM tree shape is in a deterministic state if trivial move
   # was used during the load.
@@ -307,35 +307,35 @@ for v in "$@" ; do
   # Add revrange with a fixed duration and hardwired number of keys and threads to give
   # compaction debt leftover from fillseq a chance at being removed. Not using waitforcompaction
   # here because it isn't supported on older db_bench versions.
-  env "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
+  env -i "${args_nolim[@]}" DURATION=300 NUM_KEYS=100 NUM_THREADS=1 bash ./benchmark.sh revrange
 
   # Skipped for CI - a single essentail readrandom is enough to set up for other tests
   if [ "$ci_tests_only" != "true" ]; then
-    env "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
-    env "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
-    env "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
+    env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
+    env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh fwdrange
+    env -i "${args_lim[@]}"   DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
   else
     echo "CI_TESTS_ONLY is set, skipping optional read steps."
   fi
 
   # Write 10% of the keys. The goal is to randomize keys prior to Lmax
   p10=$( echo "$num_keys" "$num_threads" | awk '{ printf "%.0f", $1 / $2 / 10.0 }' )
-  env "${args_nolim[@]}" WRITES="$p10"        bash ./benchmark.sh overwritesome
+  env -i "${args_nolim[@]}" WRITES="$p10"        bash ./benchmark.sh overwritesome
 
   if [ "$compaction_style" == "leveled" ]; then
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
+    env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
   elif [ "$compaction_style" == "universal" ]; then
     # For universal don't compact L0 as can have too many sorted runs
     # waitforcompaction can hang, see https://github.com/facebook/rocksdb/issues/9275
     # While this is disabled the test that follows will have more variance from compaction debt.
     if [[ $ver_major -gt 8 || ( $ver_major -eq 8 && $ver_minor -eq 6 ) ]] ; then
       echo "After overwritesome: with universal do flush_mt_wait"
-      env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_wait
+      env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_wait
     else
       echo "After overwritesome: with universal do flush_mt_nowait"
-      env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_nowait
+      env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_nowait
       # Sleep to let the flush finish
       sleep 10
     fi
@@ -343,13 +343,13 @@ for v in "$@" ; do
   else
     # These are not supported by older versions
     # Flush memtable & L0 to get LSM tree into deterministic state
-    env "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
+    env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
   fi
 
   # Read-mostly tests with a rate-limited writer
-  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
-  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
-  env "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh readwhilewriting
+  env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
+  env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
+  env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh readwhilewriting
 
   # Write-only tests
 
@@ -360,17 +360,17 @@ for v in "$@" ; do
     # With https://github.com/facebook/rocksdb/pull/11436 fixed in 8.4.0 and db_bench updated to
     # use it in 8.6 this should always be safe to use this which depends on waitforcompaction
     echo "writeonly is overwriteandwait because recent version"
-    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
 
   elif [ "$compaction_style" == "leveled" ] && ./db_bench --benchmarks=waitforcompaction ; then
     # For older versions it is OK for leveled to use the hacky solution in db_bench
     echo "writeonly is overwriteandwait because older version but leveled"
-    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
+    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwriteandwait
 
   else
     # avoid the bugs, including https://github.com/facebook/rocksdb/issues/9275
     echo "writeonly is overwrite because previous checks"
-    env "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
+    env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
   fi
 
   cp "$dbdir"/LOG* "$my_odir"
