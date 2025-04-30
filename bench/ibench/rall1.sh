@@ -399,6 +399,28 @@ function do_pg17 {
   cp $dpg17/conf.diff $rdir
 }
 
+# For OrioleDB
+function do_pgo17 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "postgres $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=pg.$rmemt.dop$dop.c$cnf
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.pg17.c${cnf}${ps}
+  mkdir -p $rdir
+  cd $dpg17; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  #echo "cd $dpg17; bash ini.sh $cnf >& o.ini.$sfx; sleep 10" ; exit
+  cd $dgit; bash iq.sh pgo "" $dpg17/bin/psql /data/m/pg $dev 1 $dop postgres no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cp $dpg17/logfile $rdir
+  cd $dpg17; bash down.sh; cd $dgit
+  mv $dpg17/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dpg17/conf.diff $rdir
+}
+
 function do_mo40 {
   dop=$1
   cnf=$2
@@ -480,6 +502,8 @@ elif [[ $dbms == "pg16" ]]; then
   do_pg16 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pg17" ]]; then
   do_pg17 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "pgo17" ]]; then
+  do_pgo17 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in57" ]]; then
