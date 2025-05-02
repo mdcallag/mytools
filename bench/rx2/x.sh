@@ -32,7 +32,12 @@ some_eight_versions=( 8.0.gcc 8.3.gcc 8.6.gcc 8.9.gcc 8.11.gcc )
 #use_versions="${some_seven_versions[@]} ${some_eight_versions[@]} ${nine_versions[@]}"
 #use_versions=( 7.0.gcc 8.0.gcc 8.6.gcc 9.1.gcc )
 #use_versions="${some_six_versions[@]} ${some_seven_versions[@]} ${eight_versions[@]} ${nine_versions[@]}"
-use_versions=( 9.1.gcc )
+#use_versions=( 9.1.gcc )
+
+use_versions=( 6.29.gcc 7.10.gcc 8.11.gcc 9.0.gcc 9.1.gcc 9.2.gcc 9.3.gcc 9.4.gcc 9.5.gcc 9.6.gcc 9.7.gcc 9.8.gcc 9.9.gcc 9.10.gcc 9.11.gcc 10.0.gcc 10.1.gcc 10.2.gcc )
+#use_versions=( 9.9.gcc 9.10.gcc 9.11.gcc 10.0.gcc 10.1.gcc )
+#use_versions=( 6.29.gcc 7.10.gcc 8.11.gcc 10.2.gcc )
+#use_versions=( 8.11.gcc 9.1.gcc 10.2.gcc )
 
 if [ "$#" -eq 0 ] ; then
   versions="${use_versions[@]}"
@@ -95,6 +100,12 @@ c16bc1g)
   # Options for 16-core, 1g block cache
   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=8 )
   cache_mb=$(( 1024 * 1 ))
+  nsub=4
+  ;;
+c24r64)
+  # Options for 24-core, 64g RAM
+  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=12 )
+  cache_mb=$(( 1024 * 48 ))
   nsub=4
   ;;
 c40r256)
