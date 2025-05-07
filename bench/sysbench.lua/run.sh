@@ -370,9 +370,11 @@ fi
 kill $pspid
 kill $vmpid
 kill $iopid
-kill $seid
-kill $splid
 kill $topid
+if [[ ${dbA[0]} != "postgres" ]]; then
+  kill $seid
+  kill $splid
+fi
 
 # Do this after sysbench is done because it can use a lot of CPU
 
@@ -618,7 +620,7 @@ if [[ $postwrite -eq 1 ]]; then
     echo "pg_vac starts at $( date ) with sleep_secs = $sleep_secs" > sb.o.pgvac
     echo nr is :: $total_nr :: and ntabs is :: $ntabs :: >> sb.o.pgvac
 
-    major_version=$( PGPASSWORD="pw" $client "${clientArgs[@]}" ib -x -c 'show server_version_num' | grep server_version_num | awk '{ print $3 }' )
+    major_version=$( PGPASSWORD="pw" $client "${clientArgs[@]}" -x -c 'show server_version_num' | grep server_version_num | awk '{ print $3 }' )
     vac_args="(verbose, analyze)"
     if [[ $major_version -ge 120000 ]]; then
       vac_args="(verbose, analyze, index_cleanup ON)"
