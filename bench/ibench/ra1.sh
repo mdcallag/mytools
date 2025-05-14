@@ -145,6 +145,17 @@ for ver in pg170_def ; do
 done
 done
 
+for dc in pg18.x7 ; do
+for ver in pg180_def ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/pg18; ln -s $mbd/$ver $mbd/pg18
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg18.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 1200
+done
+done
+
 for dc in ma10old.z11a_c8r32 ; do
 for ver in \
 ma100244_rel_withdbg \
