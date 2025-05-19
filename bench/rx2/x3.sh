@@ -11,8 +11,8 @@ shift 6
 # nt=1  cfg=c4.r16   nk_mem=20000000 nk_io=200000000
 # nt=1  cfg=c8.r16   nk_mem=20000000 nk_io=200000000
 # nt=1  cfg=c8.r32   nk_mem=40000000 nk_io=400000000
-# nt=16 cfg=c16.r64  nk_mem=40000000 nk_io=800000000
-# nt=32 cfg=c40.r256 nk_mem=40000000 nk_io=4000000000
+# nt=16 cfg=c16.r64  nk_mem=80000000 nk_io=800000000
+# nt=32 cfg=c40.r256 nk_mem=150000000 nk_io=4000000000
 
 for workload in $*; do
 
