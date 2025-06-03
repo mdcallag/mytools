@@ -815,9 +815,15 @@ def dump_pg_backend_id(cursor, output_file_name):
     print("select pg_backend_id() fails: %s\n%s\n%s\n" % (e.pgerror, e.pgcode, e.diag))
     sys.exit(-1)
 
-def get_min_or_max_trxid(get_min):
-  db_conn = get_conn()
+def get_min_or_max_trxid(get_min, db_conn=None):
+  #st = time.time()
+  close_conn = False
+  if db_conn is None:
+    db_conn = get_conn()
+    close_conn = True
   db_cursor = db_conn.cursor()
+  #et = time.time()
+  #print('get_min_or_max_trxid time: %.3f' % (et - st))
 
   if get_min:
     sql = 'select min(transactionid) from %s' % FLAGS.table_name
@@ -859,7 +865,8 @@ def get_min_or_max_trxid(get_min):
     print('Cursor.close in get_min_or_max_trxid: %s' % e)
 
   try:
-    db_conn.close()
+    if close_conn:
+      db_conn.close()
   except Exception as e:
     print('Connection.close in get_min_or_max_trxid: %s' % e)
 
@@ -977,7 +984,7 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   max_trxid = -1
   if FLAGS.query_pk_only:
     assert FLAGS.dbms != 'mongo'
-    max_trxid, _ = get_min_or_max_trxid(False)
+    max_trxid, _ = get_min_or_max_trxid(False, db_conn)
     assert max_trxid >= 0
     # print('max_trxid = %d\n' % max_trxid)
   
@@ -1072,7 +1079,7 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
         break
 
     if (loops % 100) == 0 and FLAGS.query_pk_only:
-      max_trxid, _ = get_min_or_max_trxid(False)
+      max_trxid, _ = get_min_or_max_trxid(False, db_conn)
       assert max_trxid >= 0
       # print('trxid(min,max) = (%d, %d)\n' % (min_trxid, max_trxid))
 
@@ -1112,6 +1119,8 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, sh
   resync = FLAGS.resync_get_min
   get_min_queried = False
 
+  db_conn = get_conn()
+
   # For anyone, including me, trying to figure out whether inserts and deletes happen at the same rate,
   # the queues (insert_stmt_q, delete_stmt_q) have a small fixed size (currently 8) so the inserter or
   # deleter threads that consume from those queues can be at most 8 statements ahead of the other.
@@ -1135,7 +1144,7 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, sh
       # or resync is requested (resync_get_min>0) and it is time to resync (resync=0).
       if not get_min_queried or (resync == 0 and FLAGS.resync_get_min > 0):
         resync = FLAGS.resync_get_min
-        min_trxid, nsecs = get_min_or_max_trxid(True)
+        min_trxid, nsecs = get_min_or_max_trxid(True, db_conn)
         if not get_min_queried or FLAGS.print_get_min:
           # Must print the first time, optionally print after that
           print("get_min_trxid = %d in %.3f seconds\n" % (min_trxid, nsecs), flush=True)
@@ -1184,6 +1193,8 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, sh
   if FLAGS.delete_per_insert:
     delete_stmt_q.put(you_are_done)
     delete_stmt_q.close()
+
+  db_conn.close()
 
 def insert_ps_pg(cursor, table_name):
   #col_sql = 'transactionid bigserial primary key, '\
