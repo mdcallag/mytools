@@ -831,7 +831,7 @@ def get_min_or_max_trxid(get_min, db_conn=None):
     sql = 'select max(transactionid) from %s' % FLAGS.table_name
 
   val = -99
-  st = time.time()
+  st = time.time_ns()
 
   if FLAGS.dbms == 'mysql':
     # print("Query is:", query)
@@ -870,8 +870,8 @@ def get_min_or_max_trxid(get_min, db_conn=None):
   except Exception as e:
     print('Connection.close in get_min_or_max_trxid: %s' % e)
 
-  et = time.time()
-  return (val, et-st)
+  et = time.time_ns()
+  return (val, et - st)
 
 def HtapTrx(done_flag, barrier):
 
@@ -1096,15 +1096,16 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   db_conn.close()
   result_q.put((rthist_result(rthist, 'Query rt:'), extra))
 
-def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf):
+def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf, stmt_maker_return_q):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   # block on this until main thread wants all processes to run
   barrier.wait()
   # print("statement_maker: post-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
   
   inserted = 0
-
   sum_queries = 0
+  get_min_nsecs = 0
+  get_min_queries = 0
 
   rounds_per_second = 0
   if (FLAGS.inserts_per_second):
@@ -1145,9 +1146,11 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, sh
       if not get_min_queried or (resync == 0 and FLAGS.resync_get_min > 0):
         resync = FLAGS.resync_get_min
         min_trxid, nsecs = get_min_or_max_trxid(True, db_conn)
+        get_min_nsecs += nsecs
+        get_min_queries += 1
         if not get_min_queried or FLAGS.print_get_min:
           # Must print the first time, optionally print after that
-          print("get_min_trxid = %d in %.3f seconds\n" % (min_trxid, nsecs), flush=True)
+          print("get_min_trxid = %d in %.3f seconds\n" % (min_trxid, nsecs / 1000000000.0 ), flush=True)
           get_min_queried = True
 
         if min_trxid is None:
@@ -1193,6 +1196,12 @@ def statement_maker(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, sh
   if FLAGS.delete_per_insert:
     delete_stmt_q.put(you_are_done)
     delete_stmt_q.close()
+
+  # Avoid divide by zero
+  if not get_min_queries: get_min_queries = 1
+
+  stmt_maker_return_q.put("getmin %d queries, %.3f total secs, %.6f secs/query\n" % (
+      get_min_queries, get_min_nsecs / 1000000000.0, get_min_nsecs / get_min_queries / 1000000000.0))
 
   db_conn.close()
 
@@ -1486,7 +1495,8 @@ def run_benchmark():
     if FLAGS.delete_per_insert:
       deleter = Process(target=statement_executor, args=(delete_stmt_q, shared_vars[-1], done_flag, barrier, delete_stmt_result, False))
 
-    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf))
+    stmt_maker_return_q = Queue()
+    request_gen = Process(target=statement_maker, args=(rounds, insert_stmt_q, delete_stmt_q, done_flag, barrier, shared_min_trxid, rand_data_buf, stmt_maker_return_q))
 
     # start up the insert execution process with this queue
     inserter.start()
@@ -1575,6 +1585,9 @@ def run_benchmark():
     create_index()
     x_end = time.time()
     print('Created secondary indexes in %.1f seconds' % (x_end - x_start))
+
+  if not FLAGS.no_inserts:
+    print(stmt_maker_return_q.get())
 
   test_end = time.time()
   max_q, sum_q, retry_q, retry_i, retry_d = sum_queries(shared_vars, inserted)
