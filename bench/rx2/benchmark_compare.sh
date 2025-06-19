@@ -265,7 +265,7 @@ for v in "$@" ; do
   ln -s db_bench."$v" db_bench
 
   nver=$( ./db_bench --version | awk '{ print NF }' )
-  if [[ nver -eq 3 ]]; then
+  if [[ $nver -eq 3 ]]; then
     ver=$( ./db_bench --version | awk '{ print $3 }' )
     ver_major=$( echo $ver | tr '.' ' ' | awk '{ print $1 }' )
     ver_minor=$( echo $ver | tr '.' ' ' | awk '{ print $2 }' )
@@ -277,7 +277,7 @@ for v in "$@" ; do
   fi
   echo RocksDB version is $ver_major $ver_minor $ver_patch
 
-  if [[ use_best_cache == "true" ]]; then
+  if [[ $use_best_cache == "true" ]]; then
     if [[ $ver_major -lt 7 || ( $ver_major -eq 7 && $ver_minor -le 6 ) ]] ; then
       # Don't set it because the default is lru_cache and the --cache_type flag isn't
       # supported until RocksDB 7.4
