@@ -118,7 +118,7 @@ if [[ ${dbA[0]} == "mysql" || ${dbA[0]} == "mariadb" ]]; then
 
   sbDbCreds=(--mysql-user=${dbA[1]} --mysql-password=${dbA[2]} --mysql-host=${dbA[3]} --mysql-db=${dbA[4]})
   export MYSQL_PWD=${dbA[2]}
-  clientArgs=(-u${dbA[1]} -h${dbA[3]} ${dbA[4]})
+  clientArgs=(-u${dbA[1]} -p${dbA[2]} -h${dbA[3]} ${dbA[4]})
   engine=${dbA[5]}
   engineArg="--mysql-storage-engine=$engine"
   sqlF=e
@@ -231,14 +231,14 @@ if [[ ${dbA[0]} == "mysql" ]]; then
   pspid=$!
   while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
   splid=$!
-  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > sb.sei.$sfx &
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status" -E ; sleep 30; done > sb.sei.$sfx &
   seid=$!
 elif [[ ${dbA[0]} == "mariadb" ]]; then
   while :; do date; ps aux | grep mariadbd | grep basedir | grep datadir | grep -v mariadbd-safe | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
   pspid=$!
   while :; do date; $client "${clientArgs[@]}" -e 'show processlist'; sleep 30; done > sb.espl.$sfx &
   splid=$!
-  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status\G"; sleep 30; done > sb.sei.$sfx &
+  while :; do date; $client "${clientArgs[@]}" -e "show engine $engine status" -E ; sleep 30; done > sb.sei.$sfx &
   seid=$!
 elif [[ ${dbA[0]} == "postgres" ]]; then
   while :; do date; ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 10; done >& sb.ps.$sfxn &
@@ -468,12 +468,12 @@ if [[ $driver == "mysql" ]]; then
   if [[ $engine == "rocksdb" ]]; then
     $client "${clientArgs[@]}" < frag.sql >& sb.frag.$sfx
   fi
-  $client "${clientArgs[@]}" -e "show memory status\G" >& sb.mem.$sfx
-  $client "${clientArgs[@]}" -e "show engine $engine status\G" >& sb.es.$sfx
-  $client "${clientArgs[@]}" -e "show indexes from sbtest1\G" >& sb.is.$sfx
+  $client "${clientArgs[@]}" -e "show memory status" -E >& sb.mem.$sfx
+  $client "${clientArgs[@]}" -e "show engine $engine status" -E >& sb.es.$sfx
+  $client "${clientArgs[@]}" -e "show indexes from sbtest1" -E >& sb.is.$sfx
   $client "${clientArgs[@]}" -e "show global variables" >& sb.gv.$sfx
-  $client "${clientArgs[@]}" -e "show global status\G" >& sb.gs.$sfx
-  $client "${clientArgs[@]}" -e "show table status\G" >& sb.ts.$sfx
+  $client "${clientArgs[@]}" -e "show global status" -E >& sb.gs.$sfx
+  $client "${clientArgs[@]}" -e "show table status" -E >& sb.ts.$sfx
   $client "${clientArgs[@]}" -e 'reset master' 2> /dev/null
 
 elif [[ $driver == "pgsql" ]]; then
@@ -528,7 +528,7 @@ if [[ $postwrite -eq 1 ]]; then
     done
 
     if [[ $engine == "innodb" ]]; then
-      $client "${clientArgs[@]}" -e "show engine innodb status\G" >& sb.o.myvac.es1
+      $client "${clientArgs[@]}" -e "show engine innodb status" -E >& sb.o.myvac.es1
       maxDirty=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct"' | awk '{ print $2 }' )
       maxDirtyLwm=$( $client "${clientArgs[@]}" -N -B -e 'show global variables like "innodb_max_dirty_pages_pct_lwm"' | awk '{ print $2 }' )
       # This option is only in 8.0.18+
@@ -543,13 +543,13 @@ if [[ $postwrite -eq 1 ]]; then
 
     elif [[ $engine == "rocksdb" ]]; then
 
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es0
+      $client "${clientArgs[@]}" -e "show engine rocksdb status" -E >& sb.o.myvac.es0
       loop=0
       while :; do
         loop=$(( loop + 1 ))
 	echo "Wait for RocksDB compaction to stop at $( date )" | tee -a sb.o.myvac
 
-        $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es1.loop${loop}
+        $client "${clientArgs[@]}" -e "show engine rocksdb status" -E >& sb.o.myvac.es1.loop${loop}
         $client "${clientArgs[@]}" -e "select * from information_schema.rocksdb_active_compaction_stats" -B >& sb.o.myvac.rxstats.loop${loop}
         status=$?
 
@@ -571,12 +571,12 @@ if [[ $postwrite -eq 1 ]]; then
       echo "Done waiting for RocksDB compaction to stop at $( date ) after $loop loops" | tee -a sb.o.myvac
 
       echo Enable flush memtable and L0 in 2 parts >> sb.o.myvac
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es1
+      $client "${clientArgs[@]}" -e "show engine rocksdb status" -E >& sb.o.myvac.es1
       echo "Flush memtable at $( date )" >> sb.o.myvac
       $client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_now=1' >> sb.o.myvac 2>&1
       sleep 20
       echo "Flush lzero at $( date )" >> sb.o.myvac
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es2
+      $client "${clientArgs[@]}" -e "show engine rocksdb status" -E >& sb.o.myvac.es2
       # Not safe to use, see issues 1200 and 1295
       #$client "${clientArgs[@]}" -e 'set global rocksdb_force_flush_memtable_and_lzero_now=1' >> sb.o.myvac 2>&1
       # Alas, this only works on releases from mid 2023 or more recent
@@ -603,9 +603,9 @@ if [[ $postwrite -eq 1 ]]; then
       echo "Reset idle_pct to $idlePct" >> sb.o.myvac
       $client "${clientArgs[@]}" -e "set global innodb_idle_flush_pct=$idlePct" >> sb.o.myvac 2>&1
       $client "${clientArgs[@]}" -e 'show global variables' >> sb.o.myvac.show.2 2>&1
-      $client "${clientArgs[@]}" -e "show engine innodb status\G" >& sb.o.myvac.es3
+      $client "${clientArgs[@]}" -e "show engine innodb status" -E >& sb.o.myvac.es3
     elif [[ $engine == "rocksdb" ]]; then
-      $client "${clientArgs[@]}" -e "show engine rocksdb status\G" >& sb.o.myvac.es3
+      $client "${clientArgs[@]}" -e "show engine rocksdb status" -E >& sb.o.myvac.es3
     fi
 
     now_secs=$( date +%s )
