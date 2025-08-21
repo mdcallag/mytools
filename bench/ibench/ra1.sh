@@ -44,8 +44,30 @@ done
 done
 fi
 
-for dc in in80.y8 ; do
-for ver in my8031 ; do
+for dc in in94.z12a_c8r32 ; do
+for ver in my9400_rel_o2nofp ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my94; ln -s $mbd/$ver $mbd/my94
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in94.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 1200
+done
+done
+
+for dc in in84.z12a_c8r32 ; do
+for ver in my8406_rel_o2nofp ; do
+  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
+  rm $mbd/my84; ln -s $mbd/$ver $mbd/my84
+  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
+  mv $rdir/${dop}u.1t${only1t}/${nrt}.in84.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
+  echo Done $ver $dc
+  sleep 1200
+done
+done
+
+for dc in in80.z12a_c8r32 ; do
+for ver in my8043_rel_o2nofp ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my80; ln -s $mbd/$ver $mbd/my80
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
@@ -55,8 +77,8 @@ for ver in my8031 ; do
 done
 done
 
-for dc in in57.y8 ; do
-for ver in my5735 ; do
+for dc in in57.z12a_c8r32 ; do
+for ver in my5744_rel_o2nofp ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my57; ln -s $mbd/$ver $mbd/my57
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
@@ -66,8 +88,8 @@ for ver in my5735 ; do
 done
 done
 
-for dc in in56.y8 ; do
-for ver in my5649 ; do
+for dc in in56.z12a_c8r32 ; do
+for ver in my5651_rel_o2nofp ; do
   cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
   rm $mbd/my56; ln -s $mbd/$ver $mbd/my56
   bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
