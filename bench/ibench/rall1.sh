@@ -49,6 +49,8 @@ dpg16=${dbms_pfx}/pg16
 dpg17=${dbms_pfx}/pg17
 dpg18=${dbms_pfx}/pg18
 dmy80=${dbms_pfx}/my80
+dmy84=${dbms_pfx}/my84
+dmy94=${dbms_pfx}/my94
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
 dma11=${dbms_pfx}/ma11
@@ -104,6 +106,44 @@ function do_rx80 {
   cd $dmyfb80; bash down.sh; cd $dgit
   mv $dmyfb80/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmyfb80/etc/my.cnf $rdir
+}
+
+function do_in94 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy94; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy94/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dmy94; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in94.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmy94/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dmy94/etc/my.cnf $rdir
+}
+
+function do_in84 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy84; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy84/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dmy84; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in84.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmy84/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dmy84/etc/my.cnf $rdir
 }
 
 function do_in80 {
@@ -528,6 +568,10 @@ elif [[ $dbms == "pg18" ]]; then
   do_pg18 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pgo17" ]]; then
   do_pgo17 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "in94" ]]; then
+  do_in94 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "in84" ]]; then
+  do_in84 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in80" ]]; then
   do_in80 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in57" ]]; then
