@@ -127,7 +127,7 @@ if [[ $PERF_METRIC != "cycles" ]]; then
   perf_event_str="-e $perf_event_list -${F_or_c} $counter"
 else
   perf_event_list="cycles"
-  perf_event_str="-e cycles -F 999"
+  perf_event_str="-e cycles -F 333"
 fi
 
 doperf1=1 ; perf_loop_sleep=30
