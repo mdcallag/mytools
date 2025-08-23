@@ -172,6 +172,9 @@ DEFINE_string('db_user', 'root', 'DB user for the test')
 DEFINE_string('db_password', '', 'DB password for the test')
 DEFINE_string('db_config_file', '', 'MySQL configuration file')
 DEFINE_string('db_socket', '/tmp/mysql.sock', 'socket for mysql connect')
+# Added this and True by default because Ubuntu 24 uses an old version of MySQLdb
+# that doesn't let me connect without SSL
+DEFINE_boolean('mysql_use_socket', True, 'Connect using socket')
 DEFINE_integer('unique_checks', 1, 'Set unique_checks')
 DEFINE_integer('bulk_load', 1, 'Enable bulk load optimizations - only RocksDB today')
 
@@ -278,10 +281,17 @@ def get_conn(autocommit_trx=True):
     assert autocommit_trx
     return pymongo.MongoClient("mongodb://%s:%s@%s:27017" % (FLAGS.db_user, FLAGS.db_password, FLAGS.db_host))
   elif FLAGS.dbms == 'mysql':
-    return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
-                           db=FLAGS.db_name, passwd=FLAGS.db_password,
-                           unix_socket=FLAGS.db_socket, read_default_file=FLAGS.db_config_file,
-                           autocommit=autocommit_trx)
+    if not FLAGS.mysql_use_socket:
+      return MySQLdb.connect(host=FLAGS.db_host, user=FLAGS.db_user,
+                             db=FLAGS.db_name, passwd=FLAGS.db_password,
+                             read_default_file=FLAGS.db_config_file,
+                             autocommit=autocommit_trx)
+    else:
+      return MySQLdb.connect(unix_socket=FLAGS.db_socket, user=FLAGS.db_user,
+                             db=FLAGS.db_name, passwd=FLAGS.db_password,
+                             read_default_file=FLAGS.db_config_file,
+                             autocommit=autocommit_trx)
+
   else:
     # TODO user, passwd, etc
     conn = psycopg2.connect(dbname=FLAGS.db_name, host=FLAGS.db_host,
