@@ -51,6 +51,7 @@ rm -f o.res.$sfx
 moauth="--authenticationDatabase admin -u root -p pw"
 pgauth="--host $host"
 uses_oriole=0
+socket_arg=""
 
 if [[ $dbms == "mongo" ]]; then
   dbid=ib
@@ -62,6 +63,10 @@ if [[ $dbms == "mongo" ]]; then
 elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
   dbid=ib
   $client -uroot -ppw -A -h$host -e 'reset master'
+
+  my_socket=$( $client -uroot -ppw -A -h$host -e 'show global variables like "socket"' -E | grep Value: | awk '{ print $2 }' )
+  socket_arg="--db_socket=${my_socket}"
+
   if [[ $dbms == "mysql" ]]; then
     while :; do ps aux | grep mysqld | grep basedir | grep datadir | grep -v mysqld_safe | grep -v grep; sleep 30; done >& o.ps.$sfx &
     spid=$!
@@ -267,7 +272,7 @@ for n in $( seq 1 $realdop ) ; do
   if [[ $dbms == "mongo" ]]; then
     db_args="--mongo_w=1 --db_user=root --db_password=pw"
   elif [[ $dbms == "mysql" || $dbms == "mariadb" ]]; then
-    db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
+    db_args="--db_user=root --db_password=pw --engine=$e --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk} ${socket_arg}"
   else
     #db_args="--db_user=root --db_password=pw --engine=pg --engine_options=$eo --unique_checks=${unique} --bulk_load=${bulk}"
     db_args="--db_user=root --db_password=pw --engine=pg --unique_checks=${unique} --bulk_load=${bulk}"
