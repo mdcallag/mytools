@@ -53,6 +53,7 @@ dmy84=${dbms_pfx}/my84
 dmy94=${dbms_pfx}/my94
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
+dma12=${dbms_pfx}/ma12
 dma11=${dbms_pfx}/ma11
 dma10=${dbms_pfx}/ma10
 dma10old=${dbms_pfx}/ma10old
@@ -201,6 +202,25 @@ function do_in56 {
   mkdir -p $rdir
   mv $dmy56/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmy56/etc/my.cnf $rdir
+}
+
+function do_ma12 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dma12; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dma12/bin/mariadb /data/m/my $dev 1 $dop mariadb no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dma12; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.ma12.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dma12/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dma12/etc/my.cnf $rdir
 }
 
 function do_ma11 {
@@ -578,6 +598,8 @@ elif [[ $dbms == "in57" ]]; then
   do_in57 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in56" ]]; then
   do_in56 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "ma12" ]]; then
+  do_ma12 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "ma11" ]]; then
   do_ma11 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "ma10" ]]; then
