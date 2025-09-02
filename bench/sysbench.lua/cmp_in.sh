@@ -28,7 +28,13 @@ function dbms_down() {
 }
 
 dbcreds=mysql,root,pw,127.0.0.1,test,innodb
-for dcnf in my8032.y9 my5740.y8 my5651.y8 ; do
+for dcnf in \
+my9400_rel_o2nofp.z12a_c8r32 \
+my8406_rel_o2nofp.z12a_c8r32 \
+my8043_rel_o2nofp.z12a_c8r32 \
+my5744_rel_o2nofp.z12a_c8r32 \
+my5651_rel_o2nofp.z12a_c8r32 \
+; do	
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
 
