@@ -23,11 +23,13 @@ fi
 six_versions=( 6.0.gcc 6.1.gcc 6.2.gcc 6.3.gcc 6.4.gcc 6.5.gcc 6.6.gcc 6.7.gcc 6.8.gcc 6.9.gcc 6.10.gcc 6.11.gcc 6.12.gcc 6.13.gcc 6.14.gcc 6.15.gcc 6.16.gcc 6.17.gcc 6.18.gcc 6.19.gcc 6.20.gcc 6.21.gcc 6.22.gcc 6.23.gcc 6.24.gcc 6.25.gcc 6.26.gcc 6.27.gcc 6.28.gcc 6.29.gcc )
 seven_versions=( 7.0.gcc 7.1.gcc 7.2.gcc 7.3.gcc 7.4.gcc 7.5.gcc 7.6.gcc 7.7.gcc 7.8.gcc 7.9.gcc 7.10.gcc )
 eight_versions=( 8.0.gcc 8.1.gcc 8.2.gcc 8.3.gcc 8.4.gcc 8.5.gcc 8.6.gcc 8.7.gcc 8.8.gcc 8.9.gcc 8.10.gcc 8.11.gcc )
-nine_versions=( 9.0.gcc 9.1.gcc 9.2.gcc 9.3.gcc )
+nine_versions=( 9.0.gcc 9.1.gcc 9.2.gcc 9.3.gcc 9.4.gcc 9.5.gcc 9.6.gcc 9.7.gcc 9.9.gcc 9.9.gcc 9.10.gcc 9.11.gcc )
+ten_versions=( 10.0.gcc 10.1.gcc 10.2.gcc 10.3.gcc 10.4.gcc 10.5.gcc 10.6.gcc )
 
 some_six_versions=( 6.0.gcc 6.10.gcc 6.20.gcc 6.29.gcc )
 some_seven_versions=( 7.0.gcc 7.3.gcc 7.6.gcc 7.10.gcc )
-some_eight_versions=( 8.0.gcc 8.3.gcc 8.6.gcc 8.9.gcc 8.11.gcc )
+some_eight_versions=( 8.0.gcc 8.4.gcc 8.8.gcc 8.11.gcc )
+some_nine_versions=( 9.0.gcc 9.4.gcc 9.8.gcc 9.11.gcc )
 
 #use_versions="${some_seven_versions[@]} ${some_eight_versions[@]} ${nine_versions[@]}"
 #use_versions=( 7.0.gcc 8.0.gcc 8.6.gcc 9.1.gcc )
