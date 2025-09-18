@@ -31,15 +31,7 @@ some_seven_versions=( 7.0.gcc 7.3.gcc 7.6.gcc 7.10.gcc )
 some_eight_versions=( 8.0.gcc 8.4.gcc 8.8.gcc 8.11.gcc )
 some_nine_versions=( 9.0.gcc 9.4.gcc 9.8.gcc 9.11.gcc )
 
-#use_versions="${some_seven_versions[@]} ${some_eight_versions[@]} ${nine_versions[@]}"
-#use_versions=( 7.0.gcc 8.0.gcc 8.6.gcc 9.1.gcc )
-#use_versions="${some_six_versions[@]} ${some_seven_versions[@]} ${eight_versions[@]} ${nine_versions[@]}"
-#use_versions=( 9.1.gcc )
-
-use_versions=( 6.29.gcc 7.10.gcc 8.11.gcc 9.0.gcc 9.1.gcc 9.2.gcc 9.3.gcc 9.4.gcc 9.5.gcc 9.6.gcc 9.7.gcc 9.8.gcc 9.9.gcc 9.10.gcc 9.11.gcc 10.0.gcc 10.1.gcc 10.2.gcc )
-#use_versions=( 9.9.gcc 9.10.gcc 9.11.gcc 10.0.gcc 10.1.gcc )
-#use_versions=( 6.29.gcc 7.10.gcc 8.11.gcc 10.2.gcc )
-#use_versions=( 8.11.gcc 9.1.gcc 10.2.gcc )
+use_versions="${some_six_versions[@]} ${some_seven_versions[@]} ${some_eight_versions[@]} ${some_nine_versions[@]} ${ten_versions[@]}"
 
 if [ "$#" -eq 0 ] ; then
   versions="${use_versions[@]}"
