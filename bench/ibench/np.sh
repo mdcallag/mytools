@@ -572,6 +572,11 @@ done
 cat o.ls.*.$sfx | grep -v "^total" | sort -rnk 1,1 > o.lsa.$sfx
 
 bash ios.sh o.io.$sfx o.vm.$sfx $dname $insert_rate $query_rate $realdop $rpc >> o.res.$sfx
+printf "\n" >> o.res.$sfx
+bash sum_iostat.sh o.io.$sfx $dname all >> o.res.$sfx
+bash sum_iostat.sh o.io.$sfx $dname all > o.iostat.avg.all.$sfx
+bash sum_iostat.sh o.io.$sfx $dname header > o.iostat.avg.header.$sfx
+bash sum_iostat.sh o.io.$sfx $dname data > o.iostat.avg.data.$sfx
 
 echo >> o.res.$sfx
 bash dbsize.sh $client $host o.dbsz.$sfx $dbid $dbms $ddir

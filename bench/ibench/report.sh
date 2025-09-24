@@ -31,6 +31,15 @@ for d in ${m}m.* ; do
 done
 cp ${m}m.*/o.sum.t.* $sumdir
 
+for d2 in l.i0 l.x l.i1 l.i2 qr100.L1 qp100.L2 qr500.L3 qp500.L4 qr1000.L5 qp1000.L6 ; do
+  rm -f $sumdir/o.iostat.avg.data.dop${dop}.${d2}
+  touch $sumdir/o.iostat.avg.data.dop${dop}.${d2}
+  for d in $( cat $ch ); do
+    cp ${m}m.${d}/${d2}/o.iostat.avg.header.dop${dop} $sumdir
+    cat ${m}m.${d}/${d2}/o.iostat.avg.data.dop${dop} | awk '{ printf "%s\t%s\n", $0, dirnm }' dirnm=$d >> $sumdir/o.iostat.avg.data.dop${dop}.${d2}
+  done
+done
+
 rm -rf $resdir; mkdir -p $resdir
 bash $bdir/mrg3.sh $sumdir $resdir ${m}m $( cat $etldirs )
 
@@ -46,7 +55,7 @@ bash $bdir/chart_rt.sh $m $rtdir $( cat $ch )
 echo D
 bash $bdir/plot_report.sh $m $dop $( cat $ch )
 echo E
-bash $bdir/gen_html.sh "${m}M docs and $dop client(s)" $m $ht $resdir $rtdir > report/all.html
+bash $bdir/gen_html.sh "${m}M docs and $dop client(s)" $m $ht $resdir $rtdir $sumdir $dop > report/all.html
 
 mv z1 z1f z1q z2.asRel0 z2.asRel1 z3 ztmp tput.tab tputr.tab do.ch tput_hdr iput.tab report
 mv do.gp.* report

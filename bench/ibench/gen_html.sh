@@ -3,6 +3,8 @@ m=$2
 conf=$3
 resdir=$4
 rtdir=$5
+sumdir=$6
+dop=$7
 
 function catme {
   fn=$1
@@ -175,6 +177,17 @@ H3IpsEOF
 catme $resdir/mrg.${sec}.some
 echo "</pre>"
 
+cat <<H5IpsEOF
+<p>
+Average values from iostat.
+</p>
+<pre>
+H5IpsEOF
+
+catme $sumdir/o.iostat.avg.header.dop${dop}
+catme $sumdir/o.iostat.avg.data.dop${dop}.${sec}
+echo "</pre>"
+
 done
 
 for sx in $( seq ${#qsections[@]}  ) ; do
@@ -215,7 +228,20 @@ H3QpsEOF
 
 catme $resdir/mrg.${sec}.some
 echo "</pre>"
+
+cat <<H5QpsEOF
+<p>
+Average values from iostat.
+</p>
+<pre>
+H5QpsEOF
+
+catme $sumdir/o.iostat.avg.header.dop${dop}
+catme $sumdir/o.iostat.avg.data.dop${dop}.${sec}
+echo "</pre>"
+
 done
+
 
 # ----- Generate metrics sections
 

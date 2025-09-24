@@ -6,7 +6,8 @@ query_rate=$5
 realdop=$6
 rpc=$7
 
-# iostat output formats for Ubuntu 20, 18 and 16. Someone likes change.
+# iostat output formats for Ubuntu 24/22, 20, 18 and 16. Someone likes change.
+#Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz f/s f_await  aqu-sz  %util
 #Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz  aqu-sz  %util
 #Device            r/s     w/s     rkB/s     wkB/s   rrqm/s   wrqm/s  %rrqm  %wrqm r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
 #Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
@@ -15,22 +16,27 @@ rs=$( grep Device $iof | head -1 | awk '{ print $4 }' )
 rkb=$( grep Device $iof | head -1 | awk '{ print $6 }' )
 wkb=$( grep Device $iof | head -1 | awk '{ print $7 }' )
 
+# when the value is =0 then that field doesn't exist
 if [[ "$rs" == "r/s" && "$rkb" == "rkB/s" && "$wkb" == "wkB/s" ]] ; then
-  iover=ub16; crs=4; crkb=6; cwkb=7; cws=5;
+  iover=ub16; crs=4; crkb=6; cwkb=7; cws=5; rsz=8; wsz=8; rwait=11; wwait=12; fwait=0
 else
   rs=$( grep Device $iof | head -1 | awk '{ print $2 }' )
   rkb=$( grep Device $iof | head -1 | awk '{ print $4 }' )
   wkb=$( grep Device $iof | head -1 | awk '{ print $5 }' )
 
   if [[ "$rs" == "r/s" && "$rkb" == "rkB/s" && "$wkb" == "wkB/s" ]] ; then
-    iover=ub18; crs=2; crkb=4; cwkb=5; cws=3;
+    iover=ub18; crs=2; crkb=4; cwkb=5; cws=3; rsz=13; wsz=14; rwait=10; wwait=11; fwait=0
   else
     rs=$( grep Device $iof | head -1 | awk '{ print $2 }' )
     rkb=$( grep Device $iof | head -1 | awk '{ print $3 }' )
     wkb=$( grep Device $iof | head -1 | awk '{ print $9 }' )
+    aqusz=$( grep Device $iof | head -1 | awk '{ print $20 }' )
+    fwait=$( grep Device $iof | head -1 | awk '{ print $21 }' )
 
-    if [[ "$rs" == "r/s" && "$rkb" == "rkB/s" && "$wkb" == "wkB/s" ]] ; then
-      iover=ub20; crs=2; crkb=3; cwkb=9; cws=8;
+    if [[ "$rs" == "r/s" && "$rkb" == "rkB/s" && "$wkb" == "wkB/s" && "$aqusz" == "aqu-sz" ]] ; then
+      iover=ub20; crs=2; crkb=3; cwkb=9; cws=8; rsz=7; wsz=13; rwait=6; wwait=12; fwait=0
+    elif [[ "$rs" == "r/s" && "$rkb" == "rkB/s" && "$wkb" == "wkB/s" && "$fwait" == "f_await" ]] ; then
+      iover=ub22; crs=2; crkb=3; cwkb=9; cws=8; rsz=7; wsz=13; rwait=6; wwait=12; fwait=21
     else
       echo "Cannot parse: $( grep Device $iof | head -1 )"
       exit -1
