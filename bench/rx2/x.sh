@@ -42,12 +42,6 @@ else
 fi
 
 case $myhw in
-c8r32)
-  # Options for 8-core, 32g RAM
-  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=4 )
-  cache_mb=$(( 1024 * 20 ))
-  nsub=2
-  ;;
 c4r16)
   # Options for 4-core, 16g RAM
   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=3 )
