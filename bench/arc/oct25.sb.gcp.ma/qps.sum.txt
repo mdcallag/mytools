@@ -1,0 +1,57 @@
+I used:
+  mariadb-es-11.8.3-1-noble-deb-2025-10-14
+  mariadb-enterprise-10.6.23-19-ubuntu-noble-amd64-debs
+  mariadb-enterprise-11.4.8-5-ubuntu-noble-amd64-debs
+
+Server is:
+* c4-standard-32 from Google Cloud with 16 cores and 128G RAM
+* Intel Hyperthreading disabled
+* Ubuntu 24.04
+
+Workload is sysbench with 12 users, 8 tables, 10M rows/table
+Database fits in the InnoDB buffer pool.
+
+Numbers below are relative QPS: (QPS for $my_version / QPS for MariaDB 10.6.23)
+A value > 1.0 means $my_version is faster than 10.6.23
+A value < 1.0 means there is a performance regression
+And there appears to be a regression on the scan test that does a full table scan 
+where relative QPS is 0.93 for MariaDB 11.8.3.
+
+Relative to: MariaDB Enterprise 10.6.23
+col-1 : MariaDB Enterprise 11.4.8
+col-2 : MariaDB Enterprise 11.8.3 
+
+col-1	col-2
+1.00	1.00	hot-points_range=100
+1.01	1.03	point-query_range=100
+0.99	0.99	points-covered-pk_range=100
+1.00	1.00	points-covered-si_range=100
+0.99	0.99	points-notcovered-pk_range=100
+1.00	0.99	points-notcovered-si_range=100
+0.99	0.99	random-points_range=10
+0.99	0.99	random-points_range=100
+0.99	0.99	random-points_range=1000
+1.00	1.01	range-covered-pk_range=100
+1.00	1.01	range-covered-si_range=100
+1.00	1.00	range-notcovered-pk_range=100
+0.99	0.99	range-notcovered-si_range=100
+1.00	1.00	read-only-count_range=1000
+1.00	1.00	read-only-distinct_range=1000
+1.00	1.01	read-only-order_range=1000
+1.00	1.01	read-only-simple_range=1000
+1.00	1.01	read-only-sum_range=1000
+1.00	1.02	read-only_range=10
+1.00	1.01	read-only_range=100
+1.00	1.00	read-only_range=10000
+1.01	0.93	scan_range=100
+1.00	1.00	scan.warm_range=100
+1.00	1.02	delete_range=100
+1.00	1.00	insert_range=100
+1.00	1.00	read-write_range=10
+1.00	1.01	read-write_range=100
+1.00	1.00	update-index_range=100
+1.00	1.00	update-inlist_range=100
+1.00	1.00	update-nonindex_range=100
+1.00	1.00	update-one_range=100
+1.00	1.00	update-zipf_range=100
+1.00	1.00	write-only_range=10000
