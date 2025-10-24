@@ -1,0 +1,405 @@
+diff --git a/bench/ibench/np.sh b/bench/ibench/np.sh
+index 0b68c103..543ec646 100644
+--- a/bench/ibench/np.sh
++++ b/bench/ibench/np.sh
+@@ -135,14 +135,14 @@ else
+   perf_event_str="-e cycles -F 333"
+ fi
+ 
+-doperf1=1 ; perf_loop_sleep=30
+-doperf2=0 ; perf_loop_sleep=50
++doperf1=0 ; perf_loop_sleep=30
++doperf2=1 ; perf_loop_sleep=50
+ doperf3=0 ; perf_loop_sleep=50
+ doperf4=0 ; perf_loop_sleep=30
+ 
+ echo Before perf loops
+ 
+-x=0
++x=1
+ perfpid="-1"
+ if [ $x -gt 0 ]; then
+ fgp="$HOME/git/FlameGraph"
+diff --git a/bench/ibench/ra1.sh b/bench/ibench/ra1.sh
+index a820b2f8..09101a10 100644
+--- a/bench/ibench/ra1.sh
++++ b/bench/ibench/ra1.sh
+@@ -18,6 +18,84 @@ fi
+ 
+ shift 11
+ 
++for dc in \
++pg18.x10b_c8r32 \
++pg18.x10c_c8r32 \
++pg18.x10d_c8r32 \
++; do
++for ver in \
++pg180_o2nofp \
++; do	
++  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
++  rm $mbd/pg18; ln -s $mbd/$ver $mbd/pg18
++  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
++  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg18.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
++  echo Done $ver $dc
++  sleep 1200
++done
++done
++
++exit
++
++for dc in pg17.x10a_c8r32 ; do
++for ver in pg176_o2nofp ; do
++  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
++  rm $mbd/pg17; ln -s $mbd/$ver $mbd/pg17
++  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
++  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg17.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
++  echo Done $ver $dc
++  sleep 1200
++done
++done
++
++for dc in pg18.x10b_c8r32 ; do
++for ver in \
++pg18beta1_o2nofp \
++pg18beta2_o2nofp \
++pg18beta3_o2nofp \
++; do	
++  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
++  rm $mbd/pg18; ln -s $mbd/$ver $mbd/pg18
++  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
++  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg18.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
++  echo Done $ver $dc
++  sleep 1200
++done
++done
++
++for dc in pg18.x10d_c8r32 ; do
++for ver in \
++pg18beta3_o2nofp \
++; do	
++  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
++  rm $mbd/pg18; ln -s $mbd/$ver $mbd/pg18
++  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
++  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg18.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
++  echo Done $ver $dc
++  sleep 1200
++done
++done
++
++for dc in \
++pg18.x10b1_c8r32 \
++pg18.x10b2_c8r32 \
++pg18.x10d1_c8r32 \
++pg18.x10d2_c8r32 \
++; do
++for ver in \
++pg18beta3_o2nofp \
++; do	
++  cnf=$( echo $dc | tr '.' ' ' | awk '{ print $2 }' )
++  rm $mbd/pg18; ln -s $mbd/$ver $mbd/pg18
++  bash rall1.sh $dc $dop $nsecs $rdir $nr1 $nr2 $nrt $dev $only1t $mbd none $npart $delete_per_insert $@
++  mv $rdir/${dop}u.1t${only1t}/${nrt}.pg18.c${cnf}${ps} $rdir/${dop}u.1t${only1t}/${nrt}.${ver}.c${cnf}${ps}
++  echo Done $ver $dc
++  sleep 1200
++done
++done
++
++exit
++
+ if [[ $npart -eq 0 ]]; then
+ for dc in rx56.y9c ; do
+ for ver in fbmy5635 ; do
+diff --git a/bench/rx2/benchmark.sh b/bench/rx2/benchmark.sh
+index 3d313d3b..b6dd5144 100644
+--- a/bench/rx2/benchmark.sh
++++ b/bench/rx2/benchmark.sh
+@@ -276,6 +276,7 @@ const_params_base="
+   --undefok=$undef_params \
+   --db=$DB_DIR \
+   --wal_dir=$WAL_DIR \
++  --block_align \
+   \
+   --num=$num_keys \
+   --key_size=$key_size \
+@@ -477,12 +478,13 @@ else
+   perf_event_str="-e cycles -F 333"
+ fi
+ 
+-doperf1=1 ; perf_loop_sleep=30
+-doperf2=0 ; perf_loop_sleep=50
++doperf1=0 ; perf_loop_sleep=30
++doperf2=1 ; perf_loop_sleep=50
+ doperf3=0 ; perf_loop_sleep=50
+ doperf4=0 ; perf_loop_sleep=30
+ 
+-fgp="$HOME/git/FlameGraph"
++#fgp="$HOME/git/FlameGraph"
++fgp="/home/mdcallag/git/FlameGraph"
+ #if [ ! -d $fgp ]; then echo FlameGraph not found; exit 1; fi
+ 
+ function start_stats {
+@@ -507,7 +509,7 @@ function start_stats {
+   szpid=$!
+ 
+   rm $output.perf.last
+-  x=0
++  x=1
+   perfpid=0
+   if [ $x -gt 0 ]; then
+   echo PERF_METRIC is $PERF_METRIC
+@@ -525,12 +527,13 @@ function start_stats {
+     if [[ doperf1 -eq 1 ]]; then
+       outf="$output.perf.hw.$x"
+       $perf stat -o $outf -e cpu-clock,cycles,bus-cycles,instructions,branches,branch-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e cache-references,cache-misses,stalled-cycles-backend,stalled-cycles-frontend -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads,L1-icache-loads-misses,L1-icache-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
+-      $perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e cache-references,cache-misses,stalled-cycles-backend,stalled-cycles-frontend -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e L1-dcache-loads,L1-dcache-load-misses,L1-dcache-stores -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e iTLB-load-misses,iTLB-loads,L1-icache-loads-misses,L1-icache-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e LLC-loads,LLC-load-misses,LLC-stores,LLC-store-misses,LLC-prefetches -p $dbbpid -- sleep $hw_secs ; sleep 2
++      #$perf stat -o $outf --append -e alignment-faults,context-switches,migrations,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
++      $perf stat -o $outf --append -e alignment-faults,major-faults,minor-faults,faults -p $dbbpid -- sleep $hw_secs ; sleep 2
+ 
+       # dTLB-prefetch-misses
+       # $perf stat -o $outf --append -e mem-stores,mem-loads -p $dbbpid -- sleep $hw_secs ; sleep 2
+@@ -856,6 +859,26 @@ function run_bulkload {
+   eval $cmd
+ }
+ 
++function run_compact {
++  echo "Compacting..."
++  log_file_name=$output_dir/benchmark_compact.log
++  time_cmd=$( get_cmd $log_file_name.time )
++  cmd="$time_cmd ./db_bench --benchmarks=levelstats,flush,waitforcompaction,levelstats,compact0,waitforcompaction,levelstats,compact1,waitforcompaction,levelstats,compactall,waitforcompaction,stats,levelstats \
++       --use_existing_db=1 \
++       --disable_auto_compactions=1 \
++       --sync=0 \
++       $params_w \
++       --threads=1 \
++       2>&1 | tee -a $log_file_name"
++  if [[ "$job_id" != "" ]]; then
++    echo "Job ID: ${job_id}" > $log_file_name
++    echo $cmd | tee -a $log_file_name
++  else
++    echo $cmd | tee $log_file_name
++  fi
++  eval $cmd
++}
++
+ #
+ # Parameter description:
+ #
+@@ -1143,6 +1166,53 @@ function run_readrandom {
+   summarize_result $log_file_name readrandom.t${num_threads} readrandom
+ }
+ 
++function run_readrandom2 {
++  echo "Reading $num_keys random keys"
++  log_file_name="${output_dir}/benchmark_readrandom2.t${num_threads}.log"
++  time_cmd=$( get_cmd $log_file_name.time )
++  cmd="$time_cmd ./db_bench --benchmarks=readrandom,stats \
++       --use_existing_db=1 \
++       $params_w \
++       --threads=$num_threads \
++       --seed=$( date +%s ) \
++       --report_file=${log_file_name}.r.csv \
++       2>&1 | tee -a $log_file_name"
++  if [[ "$job_id" != "" ]]; then
++    echo "Job ID: ${job_id}" > $log_file_name
++    echo $cmd | tee -a $log_file_name
++  else
++    echo $cmd | tee $log_file_name
++  fi
++  start_stats $log_file_name
++  eval $cmd
++  stop_stats $log_file_name
++  summarize_result $log_file_name readrandom2.t${num_threads} readrandom
++}
++
++function run_readrandom3 {
++  echo "Reading $num_keys random keys"
++  log_file_name="${output_dir}/benchmark_readrandom3.t${num_threads}.log"
++  time_cmd=$( get_cmd $log_file_name.time )
++  cmd="$time_cmd ./db_bench --benchmarks=readrandom,stats \
++       --use_existing_db=1 \
++       --optimize_filters_for_hits=1 \
++       $params_w \
++       --threads=$num_threads \
++       --seed=$( date +%s ) \
++       --report_file=${log_file_name}.r.csv \
++       2>&1 | tee -a $log_file_name"
++  if [[ "$job_id" != "" ]]; then
++    echo "Job ID: ${job_id}" > $log_file_name
++    echo $cmd | tee -a $log_file_name
++  else
++    echo $cmd | tee $log_file_name
++  fi
++  start_stats $log_file_name
++  eval $cmd
++  stop_stats $log_file_name
++  summarize_result $log_file_name readrandom3.t${num_threads} readrandom
++}
++
+ function run_multireadrandom {
+   echo "Multi-Reading $num_keys random keys"
+   log_file_name="${output_dir}/benchmark_multireadrandom.t${num_threads}.log"
+@@ -1167,6 +1237,31 @@ function run_multireadrandom {
+   summarize_result $log_file_name multireadrandom.t${num_threads} multireadrandom
+ }
+ 
++function run_multireadrandom3 {
++  echo "Multi-Reading $num_keys random keys"
++  log_file_name="${output_dir}/benchmark_multireadrandom3.t${num_threads}.log"
++  time_cmd=$( get_cmd $log_file_name.time )
++  cmd="$time_cmd ./db_bench --benchmarks=multireadrandom,stats \
++       --use_existing_db=1 \
++       --optimize_filters_for_hits=1 \
++       --threads=$num_threads \
++       --batch_size=10 \
++       $params_w \
++       --seed=$( date +%s ) \
++       --report_file=${log_file_name}.r.csv \
++       2>&1 | tee -a $log_file_name"
++  if [[ "$job_id" != "" ]]; then
++    echo "Job ID: ${job_id}" > $log_file_name
++    echo $cmd | tee -a $log_file_name
++  else
++    echo $cmd | tee $log_file_name
++  fi
++  start_stats $log_file_name
++  eval $cmd
++  stop_stats $log_file_name
++  summarize_result $log_file_name multireadrandom3.t${num_threads} multireadrandom
++}
++
+ function run_readwhile {
+   operation=$1
+   echo "Reading $num_keys random keys while $operation"
+@@ -1338,6 +1433,14 @@ for job in ${jobs[@]}; do
+   elif [ $job = debug ]; then
+     num_keys=1000; # debug
+     echo "Setting num_keys to $num_keys"
++  elif [ $job = compact ]; then
++    run_compact
++  elif [ $job = readrandom2 ]; then
++    run_readrandom2
++  elif [ $job = readrandom3 ]; then
++    run_readrandom3
++  elif [ $job = multireadrandom3 ]; then
++    run_multireadrandom3
+   else
+     echo "unknown job $job"
+     exit $EXIT_UNKNOWN_JOB
+diff --git a/bench/rx2/benchmark_compare.sh b/bench/rx2/benchmark_compare.sh
+index 411d5f41..4e6df881 100644
+--- a/bench/rx2/benchmark_compare.sh
++++ b/bench/rx2/benchmark_compare.sh
+@@ -346,6 +346,17 @@ for v in "$@" ; do
+     env -i "${args_nolim[@]}"                  bash ./benchmark.sh flush_mt_l0
+   fi
+ 
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh waitforcompaction
++
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom
++  env -i "${args_nolim[@]}"                         bash ./benchmark.sh compact
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom2
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh readrandom3
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh multireadrandom --multiread_batched
++  env -i "${args_nolim[@]}" DURATION="$duration_ro" bash ./benchmark.sh multireadrandom3 --multiread_batched
++
++  dowrites=0
++  if [[ $dowrites -eq 1 ]]; then
+   # Read-mostly tests with a rate-limited writer
+   env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh revrangewhilewriting
+   env -i "${args_lim[@]}" DURATION="$duration_rw" bash ./benchmark.sh fwdrangewhilewriting
+@@ -373,6 +384,8 @@ for v in "$@" ; do
+     env -i "${args_nolim[@]}" DURATION="$duration_rw" bash ./benchmark.sh overwrite
+   fi
+ 
++  fi
++
+   cp "$dbdir"/LOG* "$my_odir"
+   gzip -9 "$my_odir"/LOG*
+ 
+diff --git a/bench/rx2/x.sh b/bench/rx2/x.sh
+index 77149a49..0dcfab86 100644
+--- a/bench/rx2/x.sh
++++ b/bench/rx2/x.sh
+@@ -31,7 +31,10 @@ some_seven_versions=( 7.0.gcc 7.3.gcc 7.6.gcc 7.10.gcc )
+ some_eight_versions=( 8.0.gcc 8.4.gcc 8.8.gcc 8.11.gcc )
+ some_nine_versions=( 9.0.gcc 9.4.gcc 9.8.gcc 9.11.gcc )
+ 
+-use_versions="${some_six_versions[@]} ${some_seven_versions[@]} ${some_eight_versions[@]} ${some_nine_versions[@]} ${ten_versions[@]}"
++#use_versions="${some_six_versions[@]} ${some_seven_versions[@]} ${some_eight_versions[@]} ${some_nine_versions[@]} ${ten_versions[@]}"
++
++use_versions=( 10.2.gcc )
++#use_versions=( 10.2.nojem )
+ 
+ if [ "$#" -eq 0 ] ; then
+   versions="${use_versions[@]}"
+@@ -42,12 +45,6 @@ else
+ fi
+ 
+ case $myhw in
+-c8r32)
+-  # Options for 8-core, 32g RAM
+-  args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=4 )
+-  cache_mb=$(( 1024 * 20 ))
+-  nsub=2
+-  ;;
+ c4r16)
+   # Options for 4-core, 16g RAM
+   args=( WRITE_BUFFER_SIZE_MB=16 TARGET_FILE_SIZE_BASE_MB=16 MAX_BYTES_FOR_LEVEL_BASE_MB=64 MAX_BACKGROUND_JOBS=3 )
+diff --git a/bench/sysbench.lua/cmp_pg.sh b/bench/sysbench.lua/cmp_pg.sh
+index c7ad231a..f479dfe2 100644
+--- a/bench/sysbench.lua/cmp_pg.sh
++++ b/bench/sysbench.lua/cmp_pg.sh
+@@ -27,8 +27,16 @@ function dbms_down() {
+   cd $bdir; bash down.sh $cnf >& o.down; cd $cdir
+ }
+ 
++#pg176_o2nofp.x10a_c8r32 \
++#pg180_o2nofp.x10b_c8r32 \
++#pg180_o2nofp.x10c_c8r32 \
++#pg180_o2nofp.x10d_c8r32 \
+ dbcreds=postgres,root,pw,127.0.0.1,ib
+-for dcnf in pg151.x7 ; do
++for dcnf in \
++pg180_o2nofp.x10b_c8r32 \
++pg180_o2nofp.x10c_c8r32 \
++pg180_o2nofp.x10d_c8r32 \
++; do
+   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
+   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
+ 
+diff --git a/bench/sysbench.lua/r.sh b/bench/sysbench.lua/r.sh
+index f7c20e4a..b287b108 100644
+--- a/bench/sysbench.lua/r.sh
++++ b/bench/sysbench.lua/r.sh
+@@ -10,6 +10,6 @@ prep=$7
+ 
+ shift 7
+ 
+-bash cmp_rx.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/fbmy/data/.rocksdb $dev $usepk $prep $@
+-bash cmp_in.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/my/data $dev $usepk $prep $@
++#bash cmp_rx.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/fbmy/data/.rocksdb $dev $usepk $prep $@
++#bash cmp_in.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/my/data $dev $usepk $prep $@
+ bash cmp_pg.sh $ntabs $nrows $nsecs_r $nsecs_w ~/d $PWD/lua /data/m/pg/base $dev $usepk $prep $@
+diff --git a/bench/sysbench.lua/run.sh b/bench/sysbench.lua/run.sh
+index e6d075cd..46750a82 100644
+--- a/bench/sysbench.lua/run.sh
++++ b/bench/sysbench.lua/run.sh
+@@ -266,7 +266,7 @@ doperf2=1 ; perf_loop_sleep=50
+ doperf3=0 ; perf_loop_sleep=50
+ doperf4=0 ; perf_loop_sleep=30
+ 
+-x=0
++x=1
+ perfpid="-1"
+ if [ $x -gt 0 ]; then
+ fgp="$HOME/git/FlameGraph"
