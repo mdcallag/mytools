@@ -66,6 +66,14 @@ ma120101_rel_withdbg.z12b_${config_suffix} \
 
   sfx=ma.$dcnf
 
+  vmstat 1 10000000 >& o.$sfx.build.vm &
+  vmpid=$!
+  iostat -y -kx 1 10000000 >& o.$sfx.build.io &
+  iopid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | head -20 ; sleep 10; done >& o.$sfx.build.ps &
+  pspid=$!
+
   echo "Build at $( date )"
   HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse \
       ./hammerdbcli auto testscripts/mariabuildN.tcl > o.$sfx.build.out 2> o.$sfx.build.err 
@@ -77,6 +85,10 @@ ma120101_rel_withdbg.z12b_${config_suffix} \
   du -hs /data/m/my/data/* >> o.$sfx.build.df
   echo >> o.$sfx.build.df
   du -hs /data/m/my/data/tpcc/* >> o.$sfx.build.df
+
+  kill $vmpid
+  kill $iopid
+  kill $pspid
 
   cd /home/mdcallag/d/$dbms
   bin/mysql -uroot -ppw tpcc -e 'show table status' -E > o.$sfx.build.tablestatus
@@ -99,6 +111,9 @@ ma120101_rel_withdbg.z12b_${config_suffix} \
   HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration \
       ./hammerdbcli auto testscripts/mariarunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | head -20 ; sleep 10; done >& o.$sfx.run.ps &
+  pspid=$!
 
   # don't collect vmstat and iostat during rampup
   sleep $(( 60 * $rampup ))
@@ -149,6 +164,7 @@ ma120101_rel_withdbg.z12b_${config_suffix} \
 
   kill $vmpid
   kill $iopid
+  kill $pspid
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df

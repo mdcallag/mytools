@@ -14,14 +14,25 @@ duration=$6
 config_suffix=$7
 
 for d in \
-x10b_${config_suffx} \
+pg176_o2nofp.x10a_${config_suffix} \
+pg180_o2nofp.x10b_${config_suffix} \
 ; do
-  echo Run $d
-  cd /home/mdcallag/d/pg180_o2nofp
-  bash ini.sh $d >& o.ini.$d ; sleep 5
+  dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
+  cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
+  echo Run $dbms $cnf
+  cd /home/mdcallag/d/$dbms
+  bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
   sfx=pg.$d
+
+  vmstat 1 10000000 >& o.$sfx.build.vm &
+  vmpid=$!
+  iostat -y -kx 1 10000000 >& o.$sfx.build.io &
+  iopid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | grep -E 'postgres|hammerdbcli' ; sleep 10; done >& o.$sfx.build.ps &
+  pspid=$!
 
   echo "Build at $( date )"
   HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse \
@@ -33,7 +44,11 @@ x10b_${config_suffx} \
   echo >> o.$sfx.build.df
   du -hs /data/m/pg/base/* >> o.$sfx.build.df
 
-  cd /home/mdcallag/d/pg180_o2nofp
+  kill $vmpid
+  kill $iopid
+  kill $pspid
+
+  cd /home/mdcallag/d/$dbms
   rm -f o.$sfx.build.sizes
   for t in customer district history item new_order order_line orders stock warehouse ; do
     echo "Sizes: $t" >> o.$sfx.build.sizes
@@ -69,6 +84,9 @@ x10b_${config_suffx} \
   HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration \
       ./hammerdbcli auto testscripts/postgresrunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | grep -E 'postgres|hammerdbcli' ; sleep 10; done >& o.$sfx.run.ps &
+  pspid=$!
 
   # don't collect vmstat and iostat during rampup
   sleep $(( 60 * $rampup ))
@@ -113,6 +131,7 @@ x10b_${config_suffx} \
 
   kill $vmpid
   kill $iopid
+  kill $pspid
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df
@@ -120,8 +139,8 @@ x10b_${config_suffx} \
   echo >> o.$sfx.run.df
   du -hs /data/m/pg/base/* >> o.$sfx.run.df
 
-  cp /home/mdcallag/d/pg180_o2nofp/logfile o.$sfx.logfile
-  cd /home/mdcallag/d/pg180_o2nofp
+  cp /home/mdcallag/d/$dbms/logfile o.$sfx.logfile
+  cd /home/mdcallag/d/$dbms
 
   bin/psql tpcc -c 'show all' > o.$sfx.conf
   bin/psql tpcc -x -c 'select * from pg_stat_io' > o.$sfx.pgs.io
@@ -167,6 +186,6 @@ x10b_${config_suffx} \
 
   bash down.sh >& o.down.$d
   cd /opt/HammerDB-5.0
-  mv /home/mdcallag/d/pg180_o2nofp/o.$sfx.* .
+  mv /home/mdcallag/d/$dbms/o.$sfx.* .
 
 done

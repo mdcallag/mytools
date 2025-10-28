@@ -16,6 +16,12 @@ config_suffix=$7
 export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
 
+#my5651_rel_o2nofp.z12a_${config_suffix} \
+#my5744_rel_o2nofp.z12a_${config_suffix} \
+#my8043_rel_o2nofp.z12a_${config_suffix} \
+#my8406_rel_o2nofp.z12a_${config_suffix} \
+#my9400_rel_o2nofp.z12a_${config_suffix} \
+
 for dcnf in \
 my5651_rel_o2nofp.z12a_${config_suffix} \
 my5744_rel_o2nofp.z12a_${config_suffix} \
@@ -36,6 +42,14 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
 
   sfx=my.$dcnf
 
+  vmstat 1 10000000 >& o.$sfx.build.vm &
+  vmpid=$!
+  iostat -y -kx 1 10000000 >& o.$sfx.build.io &
+  iopid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | head -20 ; sleep 10; done >& o.$sfx.build.ps &
+  pspid=$!
+
   echo "Build at $( date )"
   HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse HAMMER_MYSOCK=$mysock \
       ./hammerdbcli auto testscripts/mysqlbuildN.tcl > o.$sfx.build.out 2> o.$sfx.build.err 
@@ -47,6 +61,10 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
   du -hs /data/m/my/data/* >> o.$sfx.build.df
   echo >> o.$sfx.build.df
   du -hs /data/m/my/data/tpcc/* >> o.$sfx.build.df
+
+  kill $vmpid
+  kill $iopid
+  kill $pspid
 
   cd /home/mdcallag/d/$dbms
   bin/mysql -uroot -ppw tpcc -e 'show table status' -E > o.$sfx.build.tablestatus
@@ -69,6 +87,9 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
   HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration HAMMER_MYSOCK=$mysock \
       ./hammerdbcli auto testscripts/mysqlrunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
+
+  while :; do date; ps aux | sort -rnk 6,6 | head -20 ; sleep 10; done >& o.$sfx.run.ps &
+  pspid=$!
 
   # don't collect vmstat and iostat during rampup
   sleep $(( 60 * $rampup ))
@@ -119,6 +140,7 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
 
   kill $vmpid
   kill $iopid
+  kill $pspid
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df
