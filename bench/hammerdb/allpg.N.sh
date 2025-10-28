@@ -71,7 +71,7 @@ x10b_${config_suffx} \
   hpid=$!
 
   # don't collect vmstat and iostat during rampup
-  sleep $( 60 * $rampup )
+  sleep $(( 60 * $rampup ))
 
   vmstat 1 10000000 >& o.$sfx.run.vm &
   vmpid=$!

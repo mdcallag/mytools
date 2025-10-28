@@ -4,7 +4,7 @@ dbset bm TPC-C
  
 diset connection mysql_host localhost
 diset connection mysql_port 3306
-diset connection mysql_socket /tmp/mysql.sock
+diset connection mysql_socket $::env(HAMMER_MYSOCK)
 
 set vu $::env(HAMMER_BUILD_VU)
 puts "vu: $vu"

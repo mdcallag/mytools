@@ -26,7 +26,7 @@ giset timeprofile xt_gather_timeout 1200
  
 diset connection mysql_host 127.0.0.1
 diset connection mysql_port 3306
-diset connection mysql_socket /tmp/mysql.sock
+diset connection mysql_socket $::env(HAMMER_MYSOCK)
 #
 diset tpcc mysql_user root
 diset tpcc mysql_pass pw

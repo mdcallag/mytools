@@ -9,34 +9,35 @@ run_vu=$3
 warehouse=$4
 # an integer, duration in minutes for rampup
 rampup=$5
-# an integer, duration in minutes to run test
+# an integer, duration in minutes to run test 
 duration=$6
 config_suffix=$7
 
 export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
 
-#z12a_${config_suffix} \
-#z12a_dw0_${config_suffix} \
-#z12a_md1_${config_suffix} \
-#z12a_pl0_${config_suffix} \
-#z12a_bl0_${config_suffix} \
-#z12a_bl0_pl0_md1_${config_suffix} \
-#z12a_bl0_pl0_dw0_${config_suffix} \
-#z12a_bl0_pl0_md1_dw0_${config_suffix} \
-
-for d in \
-z12a_${config_suffix} \
+for dcnf in \
+my5651_rel_o2nofp.z12a_${config_suffix} \
+my5744_rel_o2nofp.z12a_${config_suffix} \
+my8043_rel_o2nofp.z12a_${config_suffix} \
+my8406_rel_o2nofp.z12a_${config_suffix} \
+my9400_rel_o2nofp.z12a_${config_suffix} \
 ; do
-  echo Run $d
-  cd /home/mdcallag/d/my8406_rel_o2nofp
-  bash ini.sh $d >& o.ini.$d ; sleep 5
+  dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
+  cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
+  echo Run $dbms $cnf
+  cd /home/mdcallag/d/$dbms
+  bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
-  sfx=my.$d
+  mysock=$( /home/mdcallag/d/$dbms/bin/mysql -uroot -ppw -A -h 127.0.0.1 -e 'show global variables like "socket"' -E | grep Value: | awk '{ print $2 }' )
+  /home/mdcallag/d/$dbms/bin/mysql -uroot -ppw -A -h 127.0.0.1 -e 'show global variables like "socket"' -E
+  echo Socket is :: $mysock ::
+
+  sfx=my.$dcnf
 
   echo "Build at $( date )"
-  HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse \
+  HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse HAMMER_MYSOCK=$mysock \
       ./hammerdbcli auto testscripts/mysqlbuildN.tcl > o.$sfx.build.out 2> o.$sfx.build.err 
 
   du -hs /data/m/* > o.$sfx.build.df
@@ -47,7 +48,7 @@ z12a_${config_suffix} \
   echo >> o.$sfx.build.df
   du -hs /data/m/my/data/tpcc/* >> o.$sfx.build.df
 
-  cd /home/mdcallag/d/my8406_rel_o2nofp
+  cd /home/mdcallag/d/$dbms
   bin/mysql -uroot -ppw tpcc -e 'show table status' -E > o.$sfx.build.tablestatus
 
   bin/mysql -uroot -ppw information_schema -e \
@@ -56,21 +57,21 @@ z12a_${config_suffix} \
        other_index_size / (1024*1024*1024.0) as SI_gb, \
        (clust_index_size + other_index_size) / (1024*1024*1024.0) as TOT_gb, \
        name \
-       from innodb_tablestats where name like "tpcc%"' > o.$sfx.build.tablesize
+       from innodb_sys_tablestats where name like "tpcc%"' > o.$sfx.build.tablesize
 
   cd /opt/HammerDB-5.0
-  mv /home/mdcallag/d/my8406_rel_o2nofp/o.$sfx.* .
+  mv /home/mdcallag/d/$dbms/o.$sfx.* .
 
   # let hardware and DBMS cool off
   sleep 300
 
   echo "Run at $( date )"
-  HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration \
+  HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration HAMMER_MYSOCK=$mysock \
       ./hammerdbcli auto testscripts/mysqlrunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
 
   # don't collect vmstat and iostat during rampup
-  sleep $( 60 * $rampup )
+  sleep $(( 60 * $rampup ))
 
   vmstat 1 10000000 >& o.$sfx.run.vm &
   vmpid=$!
@@ -81,7 +82,7 @@ z12a_${config_suffix} \
     echo Collecting perf
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     if [ -z $dbbpid ]; then
-      echo Cannot get mysqld PID
+      echo Cannot get MariaDB PID
     else
       for loop in 1 2 3 4 5 6 7 8 9 ; do
         #perf record -F 333 -p PID -- sleep 15
@@ -107,7 +108,7 @@ z12a_${config_suffix} \
       done
 
       cat o.$sfx.perf.loop*.folded |  $fgp/flamegraph.pl > o.$sfx.perf.all.svg
-      rm o.$sfx.perf.loop*.folded
+      rm o.$sfx.perf.loop*.folded 
     fi
 
   fi
@@ -127,7 +128,7 @@ z12a_${config_suffix} \
   echo >> o.$sfx.run.df
   du -hs /data/m/my/data/tpcc/* >> o.$sfx.run.df
 
-  cd /home/mdcallag/d/my8406_rel_o2nofp
+  cd /home/mdcallag/d/$dbms
   bin/mysql -uroot -ppw -e 'show engine innodb status' -E > o.$sfx.seis
   bin/mysql -uroot -ppw -e 'show global status' > o.$sfx.sgs
   bin/mysql -uroot -ppw -e 'show global variables' > o.$sfx.sgv
@@ -139,7 +140,7 @@ z12a_${config_suffix} \
        other_index_size / (1024*1024*1024.0) as SI_gb, \
        (clust_index_size + other_index_size) / (1024*1024*1024.0) as TOT_gb, \
        name \
-       from innodb_tablestats where name like "tpcc%"' > o.$sfx.run.tablesize
+       from innodb_sys_tablestats where name like "tpcc%"' > o.$sfx.run.tablesize
 
   rm -f o.$sfx.createtable
   for t in customer district history item new_order order_line orders stock warehouse ; do
@@ -148,8 +149,6 @@ z12a_${config_suffix} \
   done
 
   bash down.sh >& o.$sfx.down
-
   cd /opt/HammerDB-5.0
-  mv /home/mdcallag/d/my8406_rel_o2nofp/o.$sfx.* .
+  mv /home/mdcallag/d/$dbms/o.$sfx.* .
 done
-
