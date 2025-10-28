@@ -92,13 +92,16 @@ ma120101_rel_withdbg.z12b_${config_suffix} \
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
 
+  # let hardware and DBMS cool off
+  sleep 300
+
   echo "Run at $( date )"
   HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration \
       ./hammerdbcli auto testscripts/mariarunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
 
-  # Assuming ramp time is 2 minutes, don't collect vmstat and iostat during it
-  sleep 120
+  # don't collect vmstat and iostat during rampup
+  sleep $( 60 * $rampup )
 
   vmstat 1 10000000 >& o.$sfx.run.vm &
   vmpid=$!
