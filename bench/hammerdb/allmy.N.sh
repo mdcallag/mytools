@@ -57,7 +57,7 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
        other_index_size / (1024*1024*1024.0) as SI_gb, \
        (clust_index_size + other_index_size) / (1024*1024*1024.0) as TOT_gb, \
        name \
-       from innodb_sys_tablestats where name like "tpcc%"' > o.$sfx.build.tablesize
+       from innodb_tablestats where name like "tpcc%"' > o.$sfx.build.tablesize
 
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
@@ -82,7 +82,7 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
     echo Collecting perf
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     if [ -z $dbbpid ]; then
-      echo Cannot get MariaDB PID
+      echo Cannot get mysqld PID
     else
       for loop in 1 2 3 4 5 6 7 8 9 ; do
         #perf record -F 333 -p PID -- sleep 15
@@ -140,7 +140,7 @@ my9400_rel_o2nofp.z12a_${config_suffix} \
        other_index_size / (1024*1024*1024.0) as SI_gb, \
        (clust_index_size + other_index_size) / (1024*1024*1024.0) as TOT_gb, \
        name \
-       from innodb_sys_tablestats where name like "tpcc%"' > o.$sfx.run.tablesize
+       from innodb_tablestats where name like "tpcc%"' > o.$sfx.run.tablesize
 
   rm -f o.$sfx.createtable
   for t in customer district history item new_order order_line orders stock warehouse ; do
