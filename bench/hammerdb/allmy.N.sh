@@ -11,21 +11,22 @@ warehouse=$4
 rampup=$5
 # an integer, duration in minutes to run test
 duration=$6
+config_suffix=$7
 
 export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
 
-#z12a_c8r32 \
-#z12a_dw0_c8r32 \
-#z12a_md1_c8r32 \
-#z12a_pl0_c8r32 \
-#z12a_bl0_c8r32 \
-#z12a_bl0_pl0_md1_c8r32 \
-#z12a_bl0_pl0_dw0_c8r32 \
-#z12a_bl0_pl0_md1_dw0_c8r32 \
+#z12a_${config_suffix} \
+#z12a_dw0_${config_suffix} \
+#z12a_md1_${config_suffix} \
+#z12a_pl0_${config_suffix} \
+#z12a_bl0_${config_suffix} \
+#z12a_bl0_pl0_md1_${config_suffix} \
+#z12a_bl0_pl0_dw0_${config_suffix} \
+#z12a_bl0_pl0_md1_dw0_${config_suffix} \
 
 for d in \
-z12a_c8r32 \
+z12a_${config_suffix} \
 ; do
   echo Run $d
   cd /home/mdcallag/d/my8406_rel_o2nofp

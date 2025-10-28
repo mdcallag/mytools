@@ -11,9 +11,10 @@ warehouse=$4
 rampup=$5
 # an integer, duration in minutes to run test
 duration=$6
+config_suffix=$7
 
 for d in \
-x10b_c8r32 \
+x10b_${config_suffx} \
 ; do
   echo Run $d
   cd /home/mdcallag/d/pg180_o2nofp

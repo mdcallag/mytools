@@ -11,50 +11,51 @@ warehouse=$4
 rampup=$5
 # an integer, duration in minutes to run test 
 duration=$6
+config_suffix=$7
 
-#ma100244_rel_withdbg.z12a_c8r32 \
-#ma100339_rel_withdbg.z12a_c8r32 \
-#ma100434_rel_withdbg.z12a_c8r32 \
-#ma100529_rel_withdbg.z12a_c8r32 \
-#ma100623_rel_withdbg.z12a_c8r32 \
-#ma100708_rel_withdbg.z12a_c8r32 \
-#ma100808_rel_withdbg.z12a_c8r32 \
-#ma100908_rel_withdbg.z12a_c8r32 \
-#ma101007_rel_withdbg.z12a_c8r32 \
-#ma101114_rel_withdbg.z12a_c8r32 \
-#ma110408_rel_withdbg.z12b_c8r32 \
-#ma110803_rel_withdbg.z12b_c8r32 \
-#ma120101_rel_withdbg.z12b_c8r32 \
+#ma100244_rel_withdbg.z12a_${config_suffix} \
+#ma100339_rel_withdbg.z12a_${config_suffix} \
+#ma100434_rel_withdbg.z12a_${config_suffix} \
+#ma100529_rel_withdbg.z12a_${config_suffix} \
+#ma100623_rel_withdbg.z12a_${config_suffix} \
+#ma100708_rel_withdbg.z12a_${config_suffix} \
+#ma100808_rel_withdbg.z12a_${config_suffix} \
+#ma100908_rel_withdbg.z12a_${config_suffix} \
+#ma101007_rel_withdbg.z12a_${config_suffix} \
+#ma101114_rel_withdbg.z12a_${config_suffix} \
+#ma110408_rel_withdbg.z12b_${config_suffix} \
+#ma110803_rel_withdbg.z12b_${config_suffix} \
+#ma120101_rel_withdbg.z12b_${config_suffix} \
 
-#ma100230_rel_withdbg.z12a_c8r32 \
-#ma100309_rel_withdbg.z12a_c8r32 \
-#ma100408_rel_withdbg.z12a_c8r32 \
-#ma100506_rel_withdbg.z12a_c8r32 \
-#ma100605_rel_withdbg.z12a_c8r32 \
-#ma101104_rel_withdbg.z12a_c8r32 \
-#ma120101_rel_withdbg.z12b_ahi1_c8r32 \
+#ma100230_rel_withdbg.z12a_${config_suffix} \
+#ma100309_rel_withdbg.z12a_${config_suffix} \
+#ma100408_rel_withdbg.z12a_${config_suffix} \
+#ma100506_rel_withdbg.z12a_${config_suffix} \
+#ma100605_rel_withdbg.z12a_${config_suffix} \
+#ma101104_rel_withdbg.z12a_${config_suffix} \
+#ma120101_rel_withdbg.z12b_ahi1_${config_suffix} \
 
 for dcnf in \
-ma100230_rel_withdbg.z12a_c8r32 \
-ma100309_rel_withdbg.z12a_c8r32 \
-ma100408_rel_withdbg.z12a_c8r32 \
-ma100506_rel_withdbg.z12a_c8r32 \
-ma100605_rel_withdbg.z12a_c8r32 \
-ma101104_rel_withdbg.z12a_c8r32 \
-ma120101_rel_withdbg.z12b_ahi1_c8r32 \
-ma100244_rel_withdbg.z12a_c8r32 \
-ma100339_rel_withdbg.z12a_c8r32 \
-ma100434_rel_withdbg.z12a_c8r32 \
-ma100529_rel_withdbg.z12a_c8r32 \
-ma100623_rel_withdbg.z12a_c8r32 \
-ma100708_rel_withdbg.z12a_c8r32 \
-ma100808_rel_withdbg.z12a_c8r32 \
-ma100908_rel_withdbg.z12a_c8r32 \
-ma101007_rel_withdbg.z12a_c8r32 \
-ma101114_rel_withdbg.z12a_c8r32 \
-ma110408_rel_withdbg.z12b_c8r32 \
-ma110803_rel_withdbg.z12b_c8r32 \
-ma120101_rel_withdbg.z12b_c8r32 \
+ma100230_rel_withdbg.z12a_${config_suffix} \
+ma100309_rel_withdbg.z12a_${config_suffix} \
+ma100408_rel_withdbg.z12a_${config_suffix} \
+ma100506_rel_withdbg.z12a_${config_suffix} \
+ma100605_rel_withdbg.z12a_${config_suffix} \
+ma101104_rel_withdbg.z12a_${config_suffix} \
+ma120101_rel_withdbg.z12b_ahi1_${config_suffix} \
+ma100244_rel_withdbg.z12a_${config_suffix} \
+ma100339_rel_withdbg.z12a_${config_suffix} \
+ma100434_rel_withdbg.z12a_${config_suffix} \
+ma100529_rel_withdbg.z12a_${config_suffix} \
+ma100623_rel_withdbg.z12a_${config_suffix} \
+ma100708_rel_withdbg.z12a_${config_suffix} \
+ma100808_rel_withdbg.z12a_${config_suffix} \
+ma100908_rel_withdbg.z12a_${config_suffix} \
+ma101007_rel_withdbg.z12a_${config_suffix} \
+ma101114_rel_withdbg.z12a_${config_suffix} \
+ma110408_rel_withdbg.z12b_${config_suffix} \
+ma110803_rel_withdbg.z12b_${config_suffix} \
+ma120101_rel_withdbg.z12b_${config_suffix} \
 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
