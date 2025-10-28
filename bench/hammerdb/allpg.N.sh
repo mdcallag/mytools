@@ -13,7 +13,7 @@ rampup=$5
 duration=$6
 config_suffix=$7
 
-for d in \
+for dcnf in \
 pg176_o2nofp.x10a_${config_suffix} \
 pg180_o2nofp.x10b_${config_suffix} \
 ; do
@@ -24,7 +24,7 @@ pg180_o2nofp.x10b_${config_suffix} \
   bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
-  sfx=pg.$d
+  sfx=pg.$dcnf
 
   vmstat 1 10000000 >& o.$sfx.build.vm &
   vmpid=$!
@@ -184,7 +184,7 @@ pg180_o2nofp.x10b_${config_suffix} \
     bin/psql tpcc -c "SELECT * FROM pgstatindex('${t}_i2')" >> o.$sfx.run.frag
   done
 
-  bash down.sh >& o.down.$d
+  bash down.sh >& o.down.$dcnf
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
 
