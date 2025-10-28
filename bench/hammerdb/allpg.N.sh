@@ -24,7 +24,7 @@ x10b_c8r32 \
 
   echo "Build at $( date )"
   HAMMER_BUILD_VU=$build_vu HAMMER_WAREHOUSE=$warehouse \
-      ./hammerdbcli auto ~/testscripts.hammerdb/postgresbuildN.tcl > o.$sfx.build.out 2> o.$sfx.build.err 
+      ./hammerdbcli auto testscripts/postgresbuildN.tcl > o.$sfx.build.out 2> o.$sfx.build.err 
 
   du -hs /data/m/* > o.$sfx.build.df
   echo >> o.$sfx.build.df
@@ -63,7 +63,7 @@ x10b_c8r32 \
 
   echo "Run at $( date )"
   HAMMER_RUN_VU=$run_vu HAMMER_WAREHOUSE=$warehouse HAMMER_RAMPUP=$rampup HAMMER_DURATION=$duration \
-      ./hammerdbcli auto ~/testscripts.hammerdb/postgresrunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
+      ./hammerdbcli auto testscripts/postgresrunN.tcl > o.$sfx.run.out 2> o.$sfx.run.err &
   hpid=$!
 
   # Assuming ramp time is 2 minutes, don't collect vmstat and iostat during it
