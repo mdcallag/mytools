@@ -7,18 +7,12 @@ luabasepath=/home/mdcallag/git/mytools/bench/sysbench.lua/lua
 luapath="$luabasepath/?.lua"
 
 # Edit these
-ntabs=2
-nthreads=10
-nrows=1000000
-rsecs=10
-wsecs=10
 sleepsecs=140
-
-#ntabs=8
-#nthreads=40
-#nrows=10000000
-#rsecs=630
-#wsecs=930
+ntabs=8
+nthreads=40
+nrows=10000000
+rsecs=630
+wsecs=930
 my_user=root
 my_pass=pw
 my_db=test
