@@ -1,0 +1,66 @@
+ntabs=$1
+nrows=$2
+readsecs=$3
+writesecs=$4
+insertsecs=$5
+dbAndCreds=$6
+setup=$7
+cleanup=$8
+client=$9
+tableoptions=${10}
+sysbdir=${11}
+ddir=${12}
+dname=${13}
+usepk=${14}
+prepstmt=${15}
+
+# value for "postwrite" option for most tests
+pwr=0
+
+# The remaining args are the number of concurrent users per test run, for example "1 2 4"
+shift 15
+
+# This does load, runs a query test and then does "postwrite" work
+echo point-query.pre
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds $setup 0        point-query.warm 100    $client $tableoptions $sysbdir $ddir $dname $usepk 1 $prepstmt $ntabs
+
+echo update-inlist
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-inlist   100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo update-index
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-index    100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo update-nonindex
+bash run.sh $ntabs $nrows $writesecs $dbAndCreds 0      0        update-nonindex 100    $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo scan warmup
+bash run.sh $ntabs $nrows $readsecs $dbAndCreds 0     0        scan.warm            100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo scan
+bash run.sh $ntabs $nrows $readsecs $dbAndCreds 0     0        scan                 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo read-only-count
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        read-only-count        1000 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+for range in 10 ; do
+echo random-points range $range
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        random-points $range   $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+done
+
+# With MyRocks the secondary index data blocks are likely to get evicted because they aren't read until now, so the test is done twice, first to warm the cache
+echo points-covered-si.warm
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si.warm 100 $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo points-covered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-covered-si    100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo points-notcovered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        points-notcovered-si 100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo range-covered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-covered-si     100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo range-notcovered-si
+bash run.sh $ntabs $nrows $readsecs  $dbAndCreds 0      0        range-notcovered-si  100  $client $tableoptions $sysbdir $ddir $dname $usepk $pwr $prepstmt $@
+
+echo Done
