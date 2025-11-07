@@ -1,12 +1,8 @@
 tag=$1
 dev=$2
 
-#L1-dcache-loads,L1-dcache-load-misses,L1-icache-loads,L1-icache-loads-misses:F:111
-#dTLB-loads,dTLB-load-misses,iTLB-load-misses,iTLB-loads:F:111
-#branches,branch-misses,instructions:F:111
-
-pm=L1-dcache-loads,L1-dcache-load-misses,L1-icache-loads-misses:F:111
-#pm=iTLB-load-misses,iTLB-loads:F:111
+pm=L1-dcache-loads,L1-dcache-load-misses,L1-icache-loads-misses,cache-misses:F:111
+#pm=dTLB-loads,dTLB-load-misses,iTLB-load-misses,iTLB-loads:F:111
 #pm=branches,branch-misses,instructions:F:111
 
 PERF_METRIC="${pm}" \
