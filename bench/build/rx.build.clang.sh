@@ -11,14 +11,11 @@ for v in $( seq 0 8 ) ; do git branch -D 10.$v.fb; git checkout remotes/origin/1
 
 #b=7; for v in $( seq 0 10 ) ; do git checkout $b.$v.fb ; git log -1 > o.gitlog.$b.$v ; make clean >& /dev/null; CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.$b.$v.clang ; done
 
-#b=6; v=29; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.6.29.clang
-#b=6; v=29; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make USE_LTO=1 DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang.lto 2> e.mk.$b.$v.clang.lto; mv db_bench db_bench.6.29.clang.lto
+#b=6; v=29; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.$b.$v.clang
+#b=6; v=29; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make USE_LTO=1 DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang.lto 2> e.mk.$b.$v.clang.lto; mv db_bench db_bench.$b.$v.clang.lto
 
-#b=7; v=0; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.7.0.clang
-#b=7; v=0; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make USE_LTO=1 DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang.lto 2> e.mk.$b.$v.clang.lto; mv db_bench db_bench.7.0.clang.lto
-
-#b=7; v=10; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.7.0.clang
-#b=7; v=10; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make USE_LTO=1 DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang.lto 2> e.mk.$b.$v.clang.lto; mv db_bench db_bench.7.0.clang.lto
+#b=7; v=0; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang 2> e.mk.$b.$v.clang; mv db_bench db_bench.$b.$v.clang
+#b=7; v=0; dop=6; make clean >& /dev/null; AR=llvm-ar-18 RANLIB=llvm-ranlib-18 CC=clang CXX=clang++ make USE_LTO=1 DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 -j${dop} static_lib db_bench > o.mk.$b.$v.clang.lto 2> e.mk.$b.$v.clang.lto; mv db_bench      db_bench.$b.$v.clang.lto
 
 flags=( DISABLE_WARNING_AS_ERROR=1 DEBUG_LEVEL=0 V=1 VERBOSE=1 )
 
