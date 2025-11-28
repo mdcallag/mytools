@@ -1,0 +1,50 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=10 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=600 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_inlist_select.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform --random-points=10 --skip-trx
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 17847117, 49800794, 44989375, 28807323, 345394, 23243752, 30980334, 19841177, 20971648, 23452390)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 17847117, 49800794, 44989375, 28807323, 345394, 23243752, 30980334, 19841177, 20971648, 23452390)
+	-> Filter: (sbtest1.id in (17847117,49800794,44989375,28807323,345394,23243752,30980334,19841177,20971648,23452390))  (cost=4.53 rows=10)
+    -> Index range scan on sbtest1 using PRIMARY over (id = 345394) OR (id = 17847117) OR (8 more)  (cost=4.53 rows=10)
+
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            5176238
+        write:                           0
+        other:                           0
+        total:                           5176238
+    transactions:                        5176238 (8627.06 per sec.)
+    queries:                             5176238 (8627.06 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      8627.0569
+    time elapsed:                        600.0006s
+    total number of events:              5176238
+
+Latency (ms):
+         min:                                    0.10
+         avg:                                    0.12
+         max:                                    1.40
+         95th percentile:                        0.12
+         sum:                               598055.59
+
+Threads fairness:
+    events (avg/stddev):           5176228.0000/0.00
+    execution time (avg/stddev):   598.0556/0.00
+

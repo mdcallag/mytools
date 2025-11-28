@@ -1,0 +1,48 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=600 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_point_select.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform --skip-trx
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for point_selects :: explain SELECT c FROM sbtest%u WHERE id=%u
+for point_selects
+table 1 : explain SELECT c FROM sbtest1 WHERE id=39861708
+	1	SIMPLE	sbtest1	null	const	PRIMARY	PRIMARY	4	const	1
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            9782454
+        write:                           0
+        other:                           0
+        total:                           9782454
+    transactions:                        9782454 (16304.08 per sec.)
+    queries:                             9782454 (16304.08 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      16304.0836
+    time elapsed:                        600.0003s
+    total number of events:              9782454
+
+Latency (ms):
+         min:                                    0.05
+         avg:                                    0.06
+         max:                                    0.74
+         95th percentile:                        0.07
+         sum:                               598788.41
+
+Threads fairness:
+    events (avg/stddev):           9782449.0000/0.00
+    execution time (avg/stddev):   598.7884/0.00
+

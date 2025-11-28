@@ -1,0 +1,103 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=900 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_read_write.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for point_selects :: explain SELECT c FROM sbtest%u WHERE id=%u
+for point_selects
+table 1 : explain SELECT c FROM sbtest1 WHERE id=41173522
+	-> Rows fetched before execution  (cost=0..0 rows=1)
+
+
+for: simple_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 1811355 AND 1811454
+	-> Filter: (sbtest1.id between 1811355 and 1811454)  (cost=20.4 rows=100)
+    -> Index range scan on sbtest1 using PRIMARY over (1811355 <= id <= 1811454)  (cost=20.4 rows=100)
+
+
+for: sum_ranges
+table 1 : explain SELECT SUM(k) FROM sbtest1 WHERE id BETWEEN 7759346 AND 7759445
+	-> Aggregate: sum(sbtest1.k)  (cost=43.5 rows=1)
+    -> Filter: (sbtest1.id between 7759346 and 7759445)  (cost=20.4 rows=100)
+        -> Index range scan on sbtest1 using PRIMARY over (7759346 <= id <= 7759445)  (cost=20.4 rows=100)
+
+
+for: order_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 36929718 AND 36929817 ORDER BY c
+	-> Sort: sbtest1.c  (cost=20.4 rows=100)
+    -> Filter: (sbtest1.id between 36929718 and 36929817)  (cost=20.4 rows=100)
+        -> Index range scan on sbtest1 using PRIMARY over (36929718 <= id <= 36929817)  (cost=20.4 rows=100)
+
+
+for: distinct_ranges
+table 1 : explain SELECT DISTINCT c FROM sbtest1 WHERE id BETWEEN 29270849 AND 29270948 ORDER BY c
+	-> Sort: sbtest1.c
+    -> Table scan on <temporary>  (cost=43.5..47.2 rows=100)
+        -> Temporary table with deduplication  (cost=43.5..43.5 rows=100)
+            -> Filter: (sbtest1.id between 29270849 and 29270948)  (cost=20.4 rows=100)
+                -> Index range scan on sbtest1 using PRIMARY over (29270849 <= id <= 29270948)  (cost=20.4 rows=100)
+
+
+explain: for index_updates :: explain UPDATE sbtest%u SET k=k+1 WHERE id=%u
+for index_updates
+table 1 : explain UPDATE sbtest1 SET k=k+1 WHERE id=24427006
+	-> <not executable by iterator executor>
+
+
+explain: for non_index_updates :: explain UPDATE sbtest%u SET c='foobar' WHERE id=%u
+for non_index_updates
+table 1 : explain UPDATE sbtest1 SET c='foobar' WHERE id=29401328
+	-> <not executable by iterator executor>
+
+
+explain: for deletes :: explain DELETE FROM sbtest%u WHERE id=%u
+for deletes
+table 1 : explain DELETE FROM sbtest1 WHERE id=46063235
+	-> <not executable by iterator executor>
+
+
+explain: for inserts :: explain INSERT INTO sbtest%u (id, k, c, pad) VALUES (%u, 13, 'foobar', 'foobar')
+for inserts
+table 1 : explain INSERT INTO sbtest1 (id, k, c, pad) VALUES (44852460, 13, 'foobar', 'foobar')
+	-> Insert into sbtest1
+    -> Rows fetched before execution
+
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            7299142
+        write:                           2085472
+        other:                           1042735
+        total:                           10427349
+    transactions:                        521368 (579.30 per sec.)
+    queries:                             10427349 (11585.93 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      579.2970
+    time elapsed:                        900.0014s
+    total number of events:              521368
+
+Latency (ms):
+         min:                                    1.63
+         avg:                                    1.73
+         max:                                  273.03
+         95th percentile:                        1.79
+         sum:                               899701.69
+
+Threads fairness:
+    events (avg/stddev):           521368.0000/0.00
+    execution time (avg/stddev):   899.7017/0.00
+

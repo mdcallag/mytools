@@ -1,0 +1,48 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=900 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_inlist_update.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for update-inlist :: explain UPDATE sbtest%d set c=7 WHERE id IN ( 4677713, 44929973, 28024977, 47385426, 24347655, 35342436, 22176081, 9638130, 28514600, 23805115)
+for update-inlist
+table 1 : explain UPDATE sbtest1 set c=7 WHERE id IN ( 4677713, 44929973, 28024977, 47385426, 24347655, 35342436, 22176081, 9638130, 28514600, 23805115)
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	10	100.00
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            0
+        write:                           3911411
+        other:                           0
+        total:                           3911411
+    transactions:                        3911411 (4346.01 per sec.)
+    queries:                             3911411 (4346.01 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      4346.0096
+    time elapsed:                        900.0007s
+    total number of events:              3911411
+
+Latency (ms):
+         min:                                    0.20
+         avg:                                    0.23
+         max:                                  126.67
+         95th percentile:                        0.26
+         sum:                               897956.51
+
+Threads fairness:
+    events (avg/stddev):           3911406.0000/0.00
+    execution time (avg/stddev):   897.9565/0.00
+

@@ -1,0 +1,84 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=900 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_read_write.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for point_selects :: explain SELECT c FROM sbtest%u WHERE id=%u
+for point_selects
+table 1 : explain SELECT c FROM sbtest1 WHERE id=13105225
+	1	SIMPLE	sbtest1	null	const	PRIMARY	PRIMARY	4	const	1
+
+for: simple_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 15702304 AND 15702403
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+for: sum_ranges
+table 1 : explain SELECT SUM(k) FROM sbtest1 WHERE id BETWEEN 29154270 AND 29154369
+	1	SIMPLE	sbtest1	null	range	PRIMARY,k_1	PRIMARY	4	null	100
+
+for: order_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 13589404 AND 13589503 ORDER BY c
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+for: distinct_ranges
+table 1 : explain SELECT DISTINCT c FROM sbtest1 WHERE id BETWEEN 9307396 AND 9307495 ORDER BY c
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+explain: for index_updates :: explain UPDATE sbtest%u SET k=k+1 WHERE id=%u
+for index_updates
+table 1 : explain UPDATE sbtest1 SET k=k+1 WHERE id=39530785
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for non_index_updates :: explain UPDATE sbtest%u SET c='foobar' WHERE id=%u
+for non_index_updates
+table 1 : explain UPDATE sbtest1 SET c='foobar' WHERE id=23009135
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for deletes :: explain DELETE FROM sbtest%u WHERE id=%u
+for deletes
+table 1 : explain DELETE FROM sbtest1 WHERE id=9658647
+	1	DELETE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for inserts :: explain INSERT INTO sbtest%u (id, k, c, pad) VALUES (%u, 13, 'foobar', 'foobar')
+for inserts
+table 1 : explain INSERT INTO sbtest1 (id, k, c, pad) VALUES (13645736, 13, 'foobar', 'foobar')
+	1	INSERT	sbtest1	null
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            7449190
+        write:                           2128344
+        other:                           1064171
+        total:                           10641705
+    transactions:                        532086 (591.21 per sec.)
+    queries:                             10641705 (11824.11 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      591.2062
+    time elapsed:                        900.0009s
+    total number of events:              532086
+
+Latency (ms):
+         min:                                    1.59
+         avg:                                    1.69
+         max:                                   47.32
+         95th percentile:                        1.76
+         sum:                               899582.03
+
+Threads fairness:
+    events (avg/stddev):           532085.0000/0.00
+    execution time (avg/stddev):   899.5820/0.00
+

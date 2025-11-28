@@ -1,0 +1,78 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=10000 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=600 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_read_only.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for point_selects :: explain SELECT c FROM sbtest%u WHERE id=%u
+for point_selects
+table 1 : explain SELECT c FROM sbtest1 WHERE id=27861452
+	-> Rows fetched before execution  (cost=0..0 rows=1)
+
+
+for: simple_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 48032465 AND 48042464
+	-> Filter: (sbtest1.id between 48032465 and 48042464)  (cost=3991 rows=19800)
+    -> Index range scan on sbtest1 using PRIMARY over (48032465 <= id <= 48042464)  (cost=3991 rows=19800)
+
+
+for: sum_ranges
+table 1 : explain SELECT SUM(k) FROM sbtest1 WHERE id BETWEEN 36702672 AND 36712671
+	-> Aggregate: sum(sbtest1.k)  (cost=8554 rows=1)
+    -> Filter: (sbtest1.id between 36702672 and 36712671)  (cost=3991 rows=19800)
+        -> Index range scan on sbtest1 using PRIMARY over (36702672 <= id <= 36712671)  (cost=3991 rows=19800)
+
+
+for: order_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 46196336 AND 46206335 ORDER BY c
+	-> Sort: sbtest1.c  (cost=4359 rows=21626)
+    -> Filter: (sbtest1.id between 46196336 and 46206335)  (cost=4359 rows=21626)
+        -> Index range scan on sbtest1 using PRIMARY over (46196336 <= id <= 46206335)  (cost=4359 rows=21626)
+
+
+for: distinct_ranges
+table 1 : explain SELECT DISTINCT c FROM sbtest1 WHERE id BETWEEN 35893069 AND 35903068 ORDER BY c
+	-> Sort: sbtest1.c
+    -> Table scan on <temporary>  (cost=8554..8804 rows=19800)
+        -> Temporary table with deduplication  (cost=8554..8554 rows=19800)
+            -> Filter: (sbtest1.id between 35893069 and 35903068)  (cost=3991 rows=19800)
+                -> Index range scan on sbtest1 using PRIMARY over (35893069 <= id <= 35903068)  (cost=3991 rows=19800)
+
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            250559
+        write:                           0
+        other:                           35795
+        total:                           286354
+    transactions:                        17898  (29.83 per sec.)
+    queries:                             286354 (477.24 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      29.8288
+    time elapsed:                        600.0235s
+    total number of events:              17898
+
+Latency (ms):
+         min:                                   20.28
+         avg:                                   33.52
+         max:                                   44.17
+         95th percentile:                       33.72
+         sum:                               600012.48
+
+Threads fairness:
+    events (avg/stddev):           17898.0000/0.00
+    execution time (avg/stddev):   600.0125/0.00
+

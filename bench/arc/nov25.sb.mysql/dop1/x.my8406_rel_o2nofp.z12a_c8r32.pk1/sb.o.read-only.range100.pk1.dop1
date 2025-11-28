@@ -1,0 +1,64 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=600 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_read_only.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for point_selects :: explain SELECT c FROM sbtest%u WHERE id=%u
+for point_selects
+table 1 : explain SELECT c FROM sbtest1 WHERE id=14277988
+	1	SIMPLE	sbtest1	null	const	PRIMARY	PRIMARY	4	const	1
+
+for: simple_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 21284552 AND 21284651
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+for: sum_ranges
+table 1 : explain SELECT SUM(k) FROM sbtest1 WHERE id BETWEEN 24031071 AND 24031170
+	1	SIMPLE	sbtest1	null	range	PRIMARY,k_1	PRIMARY	4	null	100
+
+for: order_ranges
+table 1 : explain SELECT c FROM sbtest1 WHERE id BETWEEN 23580426 AND 23580525 ORDER BY c
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+for: distinct_ranges
+table 1 : explain SELECT DISTINCT c FROM sbtest1 WHERE id BETWEEN 49588254 AND 49588353 ORDER BY c
+	1	SIMPLE	sbtest1	null	range	PRIMARY	PRIMARY	4	null	100
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            6708759
+        write:                           0
+        other:                           958395
+        total:                           7667154
+    transactions:                        479198 (798.66 per sec.)
+    queries:                             7667154 (12778.58 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      798.6627
+    time elapsed:                        600.0006s
+    total number of events:              479198
+
+Latency (ms):
+         min:                                    1.17
+         avg:                                    1.25
+         max:                                    2.50
+         95th percentile:                        1.27
+         sum:                               599712.21
+
+Threads fairness:
+    events (avg/stddev):           479197.0000/0.00
+    execution time (avg/stddev):   599.7122/0.00
+

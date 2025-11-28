@@ -1,0 +1,48 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=1 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=900 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_update_non_index.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for non_index_updates :: explain UPDATE sbtest%u SET c='foobar' WHERE id=%u
+for non_index_updates
+table 1 : explain UPDATE sbtest1 SET c='foobar' WHERE id=1
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            0
+        write:                           7316640
+        other:                           0
+        total:                           7316640
+    transactions:                        7316640 (8129.60 per sec.)
+    queries:                             7316640 (8129.60 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      8129.5970
+    time elapsed:                        900.0004s
+    total number of events:              7316640
+
+Latency (ms):
+         min:                                    0.10
+         avg:                                    0.12
+         max:                                   66.39
+         95th percentile:                        0.14
+         sum:                               898740.34
+
+Threads fairness:
+    events (avg/stddev):           7316637.0000/0.00
+    execution time (avg/stddev):   898.7403/0.00
+

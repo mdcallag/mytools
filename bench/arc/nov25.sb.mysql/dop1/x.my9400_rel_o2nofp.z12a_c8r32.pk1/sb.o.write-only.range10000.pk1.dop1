@@ -1,0 +1,63 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=10000 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=600 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_write_only.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=uniform
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for index_updates :: explain UPDATE sbtest%u SET k=k+1 WHERE id=%u
+for index_updates
+table 1 : explain UPDATE sbtest1 SET k=k+1 WHERE id=17810450
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for non_index_updates :: explain UPDATE sbtest%u SET c='foobar' WHERE id=%u
+for non_index_updates
+table 1 : explain UPDATE sbtest1 SET c='foobar' WHERE id=4876991
+	1	UPDATE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for deletes :: explain DELETE FROM sbtest%u WHERE id=%u
+for deletes
+table 1 : explain DELETE FROM sbtest1 WHERE id=37314888
+	1	DELETE	sbtest1	null	range	PRIMARY	PRIMARY	4	const	1	100.00
+
+explain: for inserts :: explain INSERT INTO sbtest%u (id, k, c, pad) VALUES (%u, 13, 'foobar', 'foobar')
+for inserts
+table 1 : explain INSERT INTO sbtest1 (id, k, c, pad) VALUES (41556589, 13, 'foobar', 'foobar')
+	1	INSERT	sbtest1	null
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            0
+        write:                           4746893
+        other:                           2373447
+        total:                           7120340
+    transactions:                        1186724 (1977.87 per sec.)
+    queries:                             7120340 (11867.22 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      1977.8715
+    time elapsed:                        600.0006s
+    total number of events:              1186724
+
+Latency (ms):
+         min:                                    0.43
+         avg:                                    0.51
+         max:                                   64.41
+         95th percentile:                        0.64
+         sum:                               599435.79
+
+Threads fairness:
+    events (avg/stddev):           1186721.0000/0.00
+    execution time (avg/stddev):   599.4358/0.00
+

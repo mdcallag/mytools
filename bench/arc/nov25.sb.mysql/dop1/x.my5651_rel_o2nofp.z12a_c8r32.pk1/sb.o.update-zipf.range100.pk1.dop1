@@ -1,0 +1,48 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=mysql --range-size=100 --table-size=50000000 --tables=1 --threads=1 --events=0 --warmup-time=5 --time=900 /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_update_non_index.lua run --mysql-user=root --mysql-password=pw --mysql-host=127.0.0.1 --mysql-db=test --rand-type=zipfian
+8 CPUs
+sysbench 1.1.0-3ceba0b (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for non_index_updates :: explain UPDATE sbtest%u SET c='foobar' WHERE id=%u
+for non_index_updates
+table 1 : explain UPDATE sbtest1 SET c='foobar' WHERE id=547639
+	1	SIMPLE	sbtest1	range	PRIMARY	PRIMARY	4	const	1	Using where
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            0
+        write:                           11546472
+        other:                           0
+        total:                           11546472
+    transactions:                        11546472 (12829.41 per sec.)
+    queries:                             11546472 (12829.41 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      12829.4101
+    time elapsed:                        900.0003s
+    total number of events:              11546472
+
+Latency (ms):
+         min:                                    0.06
+         avg:                                    0.08
+         max:                                   54.68
+         95th percentile:                        0.10
+         sum:                               898467.18
+
+Threads fairness:
+    events (avg/stddev):           11546465.0000/0.00
+    execution time (avg/stddev):   898.4672/0.00
+
