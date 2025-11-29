@@ -1,0 +1,2165 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=pgsql --range-size=1000 --table-size=10000000 --tables=8 --threads=40 --events=0 --warmup-time=5 --time=630 --pgsql_conn_id=true /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_read_only_count.lua run --pgsql-user=root --pgsql-password=pw --pgsql-host=127.0.0.1 --pgsql-db=ib --rand-type=uniform --skip-trx
+48 CPUs
+sysbench 1.1.0-9072687 (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 40
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 9566254 AND 9567253
+	Aggregate  (cost=3986.91..3986.92 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.98..3984.34 rows=1029 width=121)
+	        Recheck Cond: ((id >= 9566254) AND (id <= 9567253))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.73 rows=1029 width=0)
+	              Index Cond: ((id >= 9566254) AND (id <= 9567253))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4251946 AND 4252945
+	Aggregate  (cost=3783.41..3783.42 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.42..3780.97 rows=974 width=121)
+	        Recheck Cond: ((id >= 4251946) AND (id <= 4252945))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.18 rows=974 width=0)
+	              Index Cond: ((id >= 4251946) AND (id <= 4252945))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9898739 AND 9899738
+	Aggregate  (cost=4065.66..4065.67 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.19..4063.03 rows=1049 width=121)
+	        Recheck Cond: ((id >= 9898739) AND (id <= 9899738))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.93 rows=1049 width=0)
+	              Index Cond: ((id >= 9898739) AND (id <= 9899738))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 1349301 AND 1350300
+	Aggregate  (cost=3983.15..3983.16 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3980.60 rows=1019 width=121)
+	        Index Cond: ((id >= 1349301) AND (id <= 1350300))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 2852614 AND 2853613
+	Aggregate  (cost=4461.41..4461.42 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=40.24..4458.53 rows=1152 width=121)
+	        Recheck Cond: ((id >= 2852614) AND (id <= 2853613))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..39.95 rows=1152 width=0)
+	              Index Cond: ((id >= 2852614) AND (id <= 2853613))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 3508693 AND 3509692
+	Aggregate  (cost=3516.85..3516.86 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=29.70..3514.59 rows=904 width=121)
+	        Recheck Cond: ((id >= 3508693) AND (id <= 3509692))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..29.47 rows=904 width=0)
+	              Index Cond: ((id >= 3508693) AND (id <= 3509692))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 1910150 AND 1911149
+	Aggregate  (cost=3703.50..3703.51 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3701.14 rows=944 width=121)
+	        Index Cond: ((id >= 1910150) AND (id <= 1911149))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 8615239 AND 8616238
+	Aggregate  (cost=3684.50..3684.51 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3682.16 rows=938 width=121)
+	        Index Cond: ((id >= 8615239) AND (id <= 8616238))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 1389057 AND 1390056
+	Aggregate  (cost=3836.09..3836.10 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.57..3833.62 rows=989 width=121)
+	        Recheck Cond: ((id >= 1389057) AND (id <= 1390056))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.33 rows=989 width=0)
+	              Index Cond: ((id >= 1389057) AND (id <= 1390056))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 2124722 AND 2125721
+	Aggregate  (cost=3798.53..3798.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.46..3796.09 rows=978 width=121)
+	        Recheck Cond: ((id >= 2124722) AND (id <= 2125721))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.22 rows=978 width=0)
+	              Index Cond: ((id >= 2124722) AND (id <= 2125721))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8762719 AND 8763718
+	Aggregate  (cost=3631.25..3631.26 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.01..3628.91 rows=934 width=121)
+	        Recheck Cond: ((id >= 8762719) AND (id <= 8763718))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.78 rows=934 width=0)
+	              Index Cond: ((id >= 8762719) AND (id <= 8763718))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 8748028 AND 8749027
+	Aggregate  (cost=4278.77..4278.78 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4276.04 rows=1094 width=121)
+	        Index Cond: ((id >= 8748028) AND (id <= 8749027))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 8783945 AND 8784944
+	Aggregate  (cost=3797.04..3797.05 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.45..3794.60 rows=977 width=121)
+	        Recheck Cond: ((id >= 8783945) AND (id <= 8784944))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.20 rows=977 width=0)
+	              Index Cond: ((id >= 8783945) AND (id <= 8784944))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 7247317 AND 7248316
+	Aggregate  (cost=4092.32..4092.33 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.25..4089.68 rows=1055 width=121)
+	        Recheck Cond: ((id >= 7247317) AND (id <= 7248316))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.98 rows=1055 width=0)
+	              Index Cond: ((id >= 7247317) AND (id <= 7248316))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8803780 AND 8804779
+	Aggregate  (cost=3812.74..3812.75 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3810.31 rows=972 width=121)
+	        Index Cond: ((id >= 8803780) AND (id <= 8804779))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3892827 AND 3893826
+	Aggregate  (cost=4322.78..4322.79 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=39.86..4319.99 rows=1115 width=121)
+	        Recheck Cond: ((id >= 3892827) AND (id <= 3893826))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..39.59 rows=1115 width=0)
+	              Index Cond: ((id >= 3892827) AND (id <= 3893826))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 8040699 AND 8041698
+	Aggregate  (cost=3798.35..3798.36 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.47..3795.91 rows=979 width=121)
+	        Recheck Cond: ((id >= 8040699) AND (id <= 8041698))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.23 rows=979 width=0)
+	              Index Cond: ((id >= 8040699) AND (id <= 8041698))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 7208678 AND 7209677
+	Aggregate  (cost=3843.89..3843.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.58..3841.41 rows=990 width=121)
+	        Recheck Cond: ((id >= 7208678) AND (id <= 7209677))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.34 rows=990 width=0)
+	              Index Cond: ((id >= 7208678) AND (id <= 7209677))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1058044 AND 1059043
+	Aggregate  (cost=4254.25..4254.26 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=39.69..4251.51 rows=1098 width=121)
+	        Recheck Cond: ((id >= 1058044) AND (id <= 1059043))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..39.42 rows=1098 width=0)
+	              Index Cond: ((id >= 1058044) AND (id <= 1059043))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 3518375 AND 3519374
+	Aggregate  (cost=3714.81..3714.82 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3712.44 rows=950 width=121)
+	        Index Cond: ((id >= 3518375) AND (id <= 3519374))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5943653 AND 5944652
+	Aggregate  (cost=3762.98..3762.99 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.36..3760.56 rows=968 width=121)
+	        Recheck Cond: ((id >= 5943653) AND (id <= 5944652))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.12 rows=968 width=0)
+	              Index Cond: ((id >= 5943653) AND (id <= 5944652))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 8246371 AND 8247370
+	Aggregate  (cost=4145.16..4145.17 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.39..4142.49 rows=1069 width=121)
+	        Recheck Cond: ((id >= 8246371) AND (id <= 8247370))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.12 rows=1069 width=0)
+	              Index Cond: ((id >= 8246371) AND (id <= 8247370))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2323181 AND 2324180
+	Aggregate  (cost=3972.72..3972.73 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3970.18 rows=1013 width=121)
+	        Index Cond: ((id >= 2323181) AND (id <= 2324180))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 8023883 AND 8024882
+	Aggregate  (cost=3839.23..3839.24 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.56..3836.76 rows=988 width=121)
+	        Recheck Cond: ((id >= 8023883) AND (id <= 8024882))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.32 rows=988 width=0)
+	              Index Cond: ((id >= 8023883) AND (id <= 8024882))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 1174517 AND 1175516
+	Aggregate  (cost=3956.76..3956.77 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.90..3954.21 rows=1021 width=121)
+	        Recheck Cond: ((id >= 1174517) AND (id <= 1175516))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.65 rows=1021 width=0)
+	              Index Cond: ((id >= 1174517) AND (id <= 1175516))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 2566703 AND 2567702
+	Aggregate  (cost=3544.74..3544.75 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=29.78..3542.46 rows=912 width=121)
+	        Recheck Cond: ((id >= 2566703) AND (id <= 2567702))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..29.55 rows=912 width=0)
+	              Index Cond: ((id >= 2566703) AND (id <= 2567702))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 2994113 AND 2995112
+	Aggregate  (cost=3710.70..3710.71 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.22..3708.31 rows=955 width=121)
+	        Recheck Cond: ((id >= 2994113) AND (id <= 2995112))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.98 rows=955 width=0)
+	              Index Cond: ((id >= 2994113) AND (id <= 2995112))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 8350899 AND 8351898
+	Aggregate  (cost=3994.81..3994.82 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3992.25 rows=1022 width=121)
+	        Index Cond: ((id >= 8350899) AND (id <= 8351898))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 4298250 AND 4299249
+	Aggregate  (cost=3914.29..3914.30 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.77..3911.77 rows=1008 width=121)
+	        Recheck Cond: ((id >= 4298250) AND (id <= 4299249))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 4298250) AND (id <= 4299249))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 9887215 AND 9888214
+	Aggregate  (cost=4013.01..4013.02 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.03..4010.43 rows=1034 width=121)
+	        Recheck Cond: ((id >= 9887215) AND (id <= 9888214))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.78 rows=1034 width=0)
+	              Index Cond: ((id >= 9887215) AND (id <= 9888214))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 9034995 AND 9035994
+	Aggregate  (cost=4051.01..4051.02 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.14..4048.40 rows=1044 width=121)
+	        Recheck Cond: ((id >= 9034995) AND (id <= 9035994))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.88 rows=1044 width=0)
+	              Index Cond: ((id >= 9034995) AND (id <= 9035994))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 544871 AND 545870
+	Aggregate  (cost=4001.81..4001.82 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.00..3999.24 rows=1031 width=121)
+	        Recheck Cond: ((id >= 544871) AND (id <= 545870))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.75 rows=1031 width=0)
+	              Index Cond: ((id >= 544871) AND (id <= 545870))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 7579153 AND 7580152
+	Aggregate  (cost=3692.62..3692.63 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.18..3690.25 rows=951 width=121)
+	        Recheck Cond: ((id >= 7579153) AND (id <= 7580152))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.95 rows=951 width=0)
+	              Index Cond: ((id >= 7579153) AND (id <= 7580152))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3641848 AND 3642847
+	Aggregate  (cost=3824.99..3825.00 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.53..3822.53 rows=985 width=121)
+	        Recheck Cond: ((id >= 3641848) AND (id <= 3642847))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.29 rows=985 width=0)
+	              Index Cond: ((id >= 3641848) AND (id <= 3642847))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 3575332 AND 3576331
+	Aggregate  (cost=3926.07..3926.08 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.81..3923.54 rows=1012 width=121)
+	        Recheck Cond: ((id >= 3575332) AND (id <= 3576331))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.56 rows=1012 width=0)
+	              Index Cond: ((id >= 3575332) AND (id <= 3576331))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 796132 AND 797131
+	Aggregate  (cost=3656.50..3656.51 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3654.16 rows=935 width=121)
+	        Index Cond: ((id >= 796132) AND (id <= 797131))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5260279 AND 5261278
+	Aggregate  (cost=3675.88..3675.89 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.12..3673.52 rows=945 width=121)
+	        Recheck Cond: ((id >= 5260279) AND (id <= 5261278))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.89 rows=945 width=0)
+	              Index Cond: ((id >= 5260279) AND (id <= 5261278))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 8551513 AND 8552512
+	Aggregate  (cost=3827.75..3827.76 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.53..3825.29 rows=985 width=121)
+	        Recheck Cond: ((id >= 8551513) AND (id <= 8552512))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.29 rows=985 width=0)
+	              Index Cond: ((id >= 8551513) AND (id <= 8552512))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2590063 AND 2591062
+	Aggregate  (cost=3707.40..3707.41 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3705.04 rows=945 width=121)
+	        Index Cond: ((id >= 2590063) AND (id <= 2591062))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 2137431 AND 2138430
+	Aggregate  (cost=3743.11..3743.12 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3740.73 rows=953 width=121)
+	        Index Cond: ((id >= 2137431) AND (id <= 2138430))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2713147 AND 2714146
+	Aggregate  (cost=3703.96..3703.97 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.21..3701.57 rows=954 width=121)
+	        Recheck Cond: ((id >= 2713147) AND (id <= 2714146))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.98 rows=954 width=0)
+	              Index Cond: ((id >= 2713147) AND (id <= 2714146))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4920946 AND 4921945
+	Aggregate  (cost=4134.50..4134.51 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.37..4131.83 rows=1067 width=121)
+	        Recheck Cond: ((id >= 4920946) AND (id <= 4921945))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.11 rows=1067 width=0)
+	              Index Cond: ((id >= 4920946) AND (id <= 4921945))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 6250934 AND 6251933
+	Aggregate  (cost=3839.22..3839.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.57..3836.74 rows=989 width=121)
+	        Recheck Cond: ((id >= 6250934) AND (id <= 6251933))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.33 rows=989 width=0)
+	              Index Cond: ((id >= 6250934) AND (id <= 6251933))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 9492732 AND 9493731
+	Aggregate  (cost=4091.99..4092.00 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4089.38 rows=1047 width=121)
+	        Index Cond: ((id >= 9492732) AND (id <= 9493731))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5227397 AND 5228396
+	Aggregate  (cost=3675.88..3675.89 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.12..3673.52 rows=945 width=121)
+	        Recheck Cond: ((id >= 5227397) AND (id <= 5228396))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.89 rows=945 width=0)
+	              Index Cond: ((id >= 5227397) AND (id <= 5228396))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2502119 AND 2503118
+	Aggregate  (cost=3611.87..3611.88 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=33.95..3609.55 rows=928 width=121)
+	        Recheck Cond: ((id >= 2502119) AND (id <= 2503118))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..33.72 rows=928 width=0)
+	              Index Cond: ((id >= 2502119) AND (id <= 2503118))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8986912 AND 8987911
+	Aggregate  (cost=3967.88..3967.89 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=34.91..3965.33 rows=1022 width=121)
+	        Recheck Cond: ((id >= 8986912) AND (id <= 8987911))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.66 rows=1022 width=0)
+	              Index Cond: ((id >= 8986912) AND (id <= 8987911))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3696175 AND 3697174
+	Aggregate  (cost=3489.10..3489.11 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3486.88 rows=889 width=121)
+	        Index Cond: ((id >= 3696175) AND (id <= 3697174))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 3286285 AND 3287284
+	Aggregate  (cost=3518.48..3518.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=29.72..3516.22 rows=906 width=121)
+	        Recheck Cond: ((id >= 3286285) AND (id <= 3287284))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..29.50 rows=906 width=0)
+	              Index Cond: ((id >= 3286285) AND (id <= 3287284))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3241744 AND 3242743
+	Aggregate  (cost=3503.05..3503.06 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=29.67..3500.80 rows=901 width=121)
+	        Recheck Cond: ((id >= 3241744) AND (id <= 3242743))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..29.44 rows=901 width=0)
+	              Index Cond: ((id >= 3241744) AND (id <= 3242743))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 5160397 AND 5161396
+	Aggregate  (cost=3994.00..3994.01 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.99..3991.42 rows=1030 width=121)
+	        Recheck Cond: ((id >= 5160397) AND (id <= 5161396))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.73 rows=1030 width=0)
+	              Index Cond: ((id >= 5160397) AND (id <= 5161396))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5096768 AND 5097767
+	Aggregate  (cost=4138.68..4138.69 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4136.03 rows=1059 width=121)
+	        Index Cond: ((id >= 5096768) AND (id <= 5097767))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 8796512 AND 8797511
+	Aggregate  (cost=3797.04..3797.05 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.45..3794.60 rows=977 width=121)
+	        Recheck Cond: ((id >= 8796512) AND (id <= 8797511))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.20 rows=977 width=0)
+	              Index Cond: ((id >= 8796512) AND (id <= 8797511))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2730094 AND 2731093
+	Aggregate  (cost=3948.77..3948.78 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.86..3946.23 rows=1017 width=121)
+	        Recheck Cond: ((id >= 2730094) AND (id <= 2731093))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.61 rows=1017 width=0)
+	              Index Cond: ((id >= 2730094) AND (id <= 2731093))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 4721440 AND 4722439
+	Aggregate  (cost=4013.23..4013.24 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.03..4010.65 rows=1034 width=121)
+	        Recheck Cond: ((id >= 4721440) AND (id <= 4722439))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.78 rows=1034 width=0)
+	              Index Cond: ((id >= 4721440) AND (id <= 4722439))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 7627888 AND 7628887
+	Aggregate  (cost=3754.82..3754.83 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3752.43 rows=956 width=121)
+	        Index Cond: ((id >= 7627888) AND (id <= 7628887))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4277093 AND 4278092
+	Aggregate  (cost=3828.54..3828.55 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.55..3826.08 rows=987 width=121)
+	        Recheck Cond: ((id >= 4277093) AND (id <= 4278092))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.31 rows=987 width=0)
+	              Index Cond: ((id >= 4277093) AND (id <= 4278092))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 8823320 AND 8824319
+	Aggregate  (cost=4153.35..4153.36 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.42..4150.67 rows=1072 width=121)
+	        Recheck Cond: ((id >= 8823320) AND (id <= 8824319))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.16 rows=1072 width=0)
+	              Index Cond: ((id >= 8823320) AND (id <= 8824319))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 212802 AND 213801
+	Aggregate  (cost=4001.54..4001.55 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.01..3998.96 rows=1032 width=121)
+	        Recheck Cond: ((id >= 212802) AND (id <= 213801))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.76 rows=1032 width=0)
+	              Index Cond: ((id >= 212802) AND (id <= 213801))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 147 AND 1146
+	Aggregate  (cost=4088.11..4088.12 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4085.49 rows=1046 width=121)
+	        Index Cond: ((id >= 147) AND (id <= 1146))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 4714010 AND 4715009
+	Aggregate  (cost=3709.97..3709.98 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.21..3707.59 rows=954 width=121)
+	        Recheck Cond: ((id >= 4714010) AND (id <= 4715009))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.98 rows=954 width=0)
+	              Index Cond: ((id >= 4714010) AND (id <= 4715009))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 913399 AND 914398
+	Aggregate  (cost=3710.39..3710.40 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.21..3708.01 rows=954 width=121)
+	        Recheck Cond: ((id >= 913399) AND (id <= 914398))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..33.98 rows=954 width=0)
+	              Index Cond: ((id >= 913399) AND (id <= 914398))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 3968249 AND 3969248
+	Aggregate  (cost=3990.56..3990.57 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=34.97..3987.99 rows=1028 width=121)
+	        Recheck Cond: ((id >= 3968249) AND (id <= 3969248))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.72 rows=1028 width=0)
+	              Index Cond: ((id >= 3968249) AND (id <= 3969248))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 1502716 AND 1503715
+	Aggregate  (cost=4228.30..4228.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.62..4225.57 rows=1091 width=121)
+	        Recheck Cond: ((id >= 1502716) AND (id <= 1503715))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.34 rows=1091 width=0)
+	              Index Cond: ((id >= 1502716) AND (id <= 1503715))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4815580 AND 4816579
+	Aggregate  (cost=3968.07..3968.08 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.93..3965.51 rows=1024 width=121)
+	        Recheck Cond: ((id >= 4815580) AND (id <= 4816579))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.68 rows=1024 width=0)
+	              Index Cond: ((id >= 4815580) AND (id <= 4816579))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 7078830 AND 7079829
+	Aggregate  (cost=3510.63..3510.64 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=29.69..3508.37 rows=903 width=121)
+	        Recheck Cond: ((id >= 7078830) AND (id <= 7079829))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..29.46 rows=903 width=0)
+	              Index Cond: ((id >= 7078830) AND (id <= 7079829))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 2061037 AND 2062036
+	Aggregate  (cost=4201.31..4201.32 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.56..4198.59 rows=1085 width=121)
+	        Recheck Cond: ((id >= 2061037) AND (id <= 2062036))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.29 rows=1085 width=0)
+	              Index Cond: ((id >= 2061037) AND (id <= 2062036))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5174168 AND 5175167
+	Aggregate  (cost=3862.60..3862.61 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3860.13 rows=988 width=121)
+	        Index Cond: ((id >= 5174168) AND (id <= 5175167))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 2321666 AND 2322665
+	Aggregate  (cost=3751.62..3751.63 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.33..3749.21 rows=965 width=121)
+	        Recheck Cond: ((id >= 2321666) AND (id <= 2322665))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 2321666) AND (id <= 2322665))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 8823698 AND 8824697
+	Aggregate  (cost=3986.57..3986.58 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.96..3984.00 rows=1027 width=121)
+	        Recheck Cond: ((id >= 8823698) AND (id <= 8824697))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.70 rows=1027 width=0)
+	              Index Cond: ((id >= 8823698) AND (id <= 8824697))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 7552000 AND 7552999
+	Aggregate  (cost=4266.33..4266.34 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=39.71..4263.58 rows=1100 width=121)
+	        Recheck Cond: ((id >= 7552000) AND (id <= 7552999))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..39.44 rows=1100 width=0)
+	              Index Cond: ((id >= 7552000) AND (id <= 7552999))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3031595 AND 3032594
+	Aggregate  (cost=3700.12..3700.13 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3697.77 rows=942 width=121)
+	        Index Cond: ((id >= 3031595) AND (id <= 3032594))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 7691662 AND 7692661
+	Aggregate  (cost=4107.42..4107.43 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=35.31..4104.76 rows=1061 width=121)
+	        Recheck Cond: ((id >= 7691662) AND (id <= 7692661))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..35.05 rows=1061 width=0)
+	              Index Cond: ((id >= 7691662) AND (id <= 7692661))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1115878 AND 1116877
+	Aggregate  (cost=3772.06..3772.07 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.39..3769.64 rows=971 width=121)
+	        Recheck Cond: ((id >= 1115878) AND (id <= 1116877))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.15 rows=971 width=0)
+	              Index Cond: ((id >= 1115878) AND (id <= 1116877))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8230001 AND 8231000
+	Aggregate  (cost=3676.65..3676.66 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.13..3674.29 rows=946 width=121)
+	        Recheck Cond: ((id >= 8230001) AND (id <= 8231000))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.90 rows=946 width=0)
+	              Index Cond: ((id >= 8230001) AND (id <= 8231000))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 3849855 AND 3850854
+	Aggregate  (cost=3854.79..3854.80 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3852.33 rows=986 width=121)
+	        Index Cond: ((id >= 3849855) AND (id <= 3850854))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 8017025 AND 8018024
+	Aggregate  (cost=3717.55..3717.56 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.23..3715.16 rows=956 width=121)
+	        Recheck Cond: ((id >= 8017025) AND (id <= 8018024))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.00 rows=956 width=0)
+	              Index Cond: ((id >= 8017025) AND (id <= 8018024))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 8250588 AND 8251587
+	Aggregate  (cost=4145.16..4145.17 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.39..4142.49 rows=1069 width=121)
+	        Recheck Cond: ((id >= 8250588) AND (id <= 8251587))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.12 rows=1069 width=0)
+	              Index Cond: ((id >= 8250588) AND (id <= 8251587))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 7468754 AND 7469753
+	Aggregate  (cost=3867.38..3867.39 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3864.91 rows=986 width=121)
+	        Index Cond: ((id >= 7468754) AND (id <= 7469753))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 1498837 AND 1499836
+	Aggregate  (cost=4228.30..4228.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.62..4225.57 rows=1091 width=121)
+	        Recheck Cond: ((id >= 1498837) AND (id <= 1499836))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.34 rows=1091 width=0)
+	              Index Cond: ((id >= 1498837) AND (id <= 1499836))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2829700 AND 2830699
+	Aggregate  (cost=3862.50..3862.51 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.64..3860.01 rows=996 width=121)
+	        Recheck Cond: ((id >= 2829700) AND (id <= 2830699))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.40 rows=996 width=0)
+	              Index Cond: ((id >= 2829700) AND (id <= 2830699))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4321081 AND 4322080
+	Aggregate  (cost=3877.89..3877.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.67..3875.40 rows=999 width=121)
+	        Recheck Cond: ((id >= 4321081) AND (id <= 4322080))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.43 rows=999 width=0)
+	              Index Cond: ((id >= 4321081) AND (id <= 4322080))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 4487815 AND 4488814
+	Aggregate  (cost=4174.94..4174.95 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.48..4172.25 rows=1078 width=121)
+	        Recheck Cond: ((id >= 4487815) AND (id <= 4488814))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.22 rows=1078 width=0)
+	              Index Cond: ((id >= 4487815) AND (id <= 4488814))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 547519 AND 548518
+	Aggregate  (cost=4088.11..4088.12 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4085.49 rows=1046 width=121)
+	        Index Cond: ((id >= 547519) AND (id <= 548518))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 3714458 AND 3715457
+	Aggregate  (cost=4171.07..4171.08 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.46..4168.38 rows=1076 width=121)
+	        Recheck Cond: ((id >= 3714458) AND (id <= 3715457))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.20 rows=1076 width=0)
+	              Index Cond: ((id >= 3714458) AND (id <= 3715457))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4322601 AND 4323600
+	Aggregate  (cost=3752.05..3752.06 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.33..3749.64 rows=965 width=121)
+	        Recheck Cond: ((id >= 4322601) AND (id <= 4323600))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 4322601) AND (id <= 4323600))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 3911670 AND 3912669
+	Aggregate  (cost=4081.22..4081.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.22..4078.59 rows=1052 width=121)
+	        Recheck Cond: ((id >= 3911670) AND (id <= 3912669))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.95 rows=1052 width=0)
+	              Index Cond: ((id >= 3911670) AND (id <= 3912669))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 6694257 AND 6695256
+	Aggregate  (cost=3895.97..3895.98 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.72..3893.46 rows=1003 width=121)
+	        Recheck Cond: ((id >= 6694257) AND (id <= 6695256))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.47 rows=1003 width=0)
+	              Index Cond: ((id >= 6694257) AND (id <= 6695256))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 5176268 AND 5177267
+	Aggregate  (cost=3643.50..3643.51 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.05..3641.15 rows=938 width=121)
+	        Recheck Cond: ((id >= 5176268) AND (id <= 5177267))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.82 rows=938 width=0)
+	              Index Cond: ((id >= 5176268) AND (id <= 5177267))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5803075 AND 5804074
+	Aggregate  (cost=4379.50..4379.51 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=40.03..4376.67 rows=1131 width=121)
+	        Recheck Cond: ((id >= 5803075) AND (id <= 5804074))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..39.75 rows=1131 width=0)
+	              Index Cond: ((id >= 5803075) AND (id <= 5804074))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8840677 AND 8841676
+	Aggregate  (cost=4039.26..4039.27 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.12..4036.66 rows=1042 width=121)
+	        Recheck Cond: ((id >= 8840677) AND (id <= 8841676))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.86 rows=1042 width=0)
+	              Index Cond: ((id >= 8840677) AND (id <= 8841676))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5373828 AND 5374827
+	Aggregate  (cost=4072.56..4072.57 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4069.95 rows=1042 width=121)
+	        Index Cond: ((id >= 5373828) AND (id <= 5374827))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 9044109 AND 9045108
+	Aggregate  (cost=3997.43..3997.44 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.99..3994.85 rows=1030 width=121)
+	        Recheck Cond: ((id >= 9044109) AND (id <= 9045108))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.73 rows=1030 width=0)
+	              Index Cond: ((id >= 9044109) AND (id <= 9045108))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 9338120 AND 9339119
+	Aggregate  (cost=3831.54..3831.55 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.54..3829.07 rows=986 width=121)
+	        Recheck Cond: ((id >= 9338120) AND (id <= 9339119))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.30 rows=986 width=0)
+	              Index Cond: ((id >= 9338120) AND (id <= 9339119))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2172361 AND 2173360
+	Aggregate  (cost=3929.78..3929.79 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3927.28 rows=1002 width=121)
+	        Index Cond: ((id >= 2172361) AND (id <= 2173360))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 5509150 AND 5510149
+	Aggregate  (cost=3653.26..3653.27 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3650.94 rows=930 width=121)
+	        Index Cond: ((id >= 5509150) AND (id <= 5510149))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 738139 AND 739138
+	Aggregate  (cost=3847.41..3847.42 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.60..3844.93 rows=992 width=121)
+	        Recheck Cond: ((id >= 738139) AND (id <= 739138))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.36 rows=992 width=0)
+	              Index Cond: ((id >= 738139) AND (id <= 739138))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1187200 AND 1188199
+	Aggregate  (cost=3772.06..3772.07 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.39..3769.64 rows=971 width=121)
+	        Recheck Cond: ((id >= 1187200) AND (id <= 1188199))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.15 rows=971 width=0)
+	              Index Cond: ((id >= 1187200) AND (id <= 1188199))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 4376452 AND 4377451
+	Aggregate  (cost=4235.19..4235.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.65..4232.46 rows=1094 width=121)
+	        Recheck Cond: ((id >= 4376452) AND (id <= 4377451))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.38 rows=1094 width=0)
+	              Index Cond: ((id >= 4376452) AND (id <= 4377451))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 67724 AND 68723
+	Aggregate  (cost=4088.11..4088.12 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4085.49 rows=1046 width=121)
+	        Index Cond: ((id >= 67724) AND (id <= 68723))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 621822 AND 622821
+	Aggregate  (cost=3861.35..3861.36 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.62..3858.87 rows=994 width=121)
+	        Recheck Cond: ((id >= 621822) AND (id <= 622821))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.38 rows=994 width=0)
+	              Index Cond: ((id >= 621822) AND (id <= 622821))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 5048807 AND 5049806
+	Aggregate  (cost=3914.75..3914.76 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.77..3912.23 rows=1008 width=121)
+	        Recheck Cond: ((id >= 5048807) AND (id <= 5049806))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 5048807) AND (id <= 5049806))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 540134 AND 541133
+	Aggregate  (cost=3992.22..3992.23 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3989.67 rows=1018 width=121)
+	        Index Cond: ((id >= 540134) AND (id <= 541133))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 6916621 AND 6917620
+	Aggregate  (cost=3571.13..3571.14 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3568.86 rows=910 width=121)
+	        Index Cond: ((id >= 6916621) AND (id <= 6917620))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 3442697 AND 3443696
+	Aggregate  (cost=3813.45..3813.46 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.51..3810.99 rows=983 width=121)
+	        Recheck Cond: ((id >= 3442697) AND (id <= 3443696))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.27 rows=983 width=0)
+	              Index Cond: ((id >= 3442697) AND (id <= 3443696))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5979721 AND 5980720
+	Aggregate  (cost=4126.96..4126.97 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.35..4124.30 rows=1065 width=121)
+	        Recheck Cond: ((id >= 5979721) AND (id <= 5980720))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.09 rows=1065 width=0)
+	              Index Cond: ((id >= 5979721) AND (id <= 5980720))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 869629 AND 870628
+	Aggregate  (cost=4171.17..4171.18 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.47..4168.48 rows=1077 width=121)
+	        Recheck Cond: ((id >= 869629) AND (id <= 870628))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.20 rows=1077 width=0)
+	              Index Cond: ((id >= 869629) AND (id <= 870628))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 2015388 AND 2016387
+	Aggregate  (cost=3524.18..3524.19 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3521.93 rows=902 width=121)
+	        Index Cond: ((id >= 2015388) AND (id <= 2016387))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 9220666 AND 9221665
+	Aggregate  (cost=4122.02..4122.03 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.33..4119.36 rows=1063 width=121)
+	        Recheck Cond: ((id >= 9220666) AND (id <= 9221665))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.07 rows=1063 width=0)
+	              Index Cond: ((id >= 9220666) AND (id <= 9221665))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2061003 AND 2062002
+	Aggregate  (cost=4428.09..4428.10 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=40.15..4425.23 rows=1143 width=121)
+	        Recheck Cond: ((id >= 2061003) AND (id <= 2062002))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..39.87 rows=1143 width=0)
+	              Index Cond: ((id >= 2061003) AND (id <= 2062002))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 7350470 AND 7351469
+	Aggregate  (cost=3902.48..3902.49 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3899.99 rows=995 width=121)
+	        Index Cond: ((id >= 7350470) AND (id <= 7351469))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 107032 AND 108031
+	Aggregate  (cost=3586.85..3586.86 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3584.57 rows=913 width=121)
+	        Index Cond: ((id >= 107032) AND (id <= 108031))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 3312504 AND 3313503
+	Aggregate  (cost=4175.15..4175.16 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=35.49..4172.45 rows=1079 width=121)
+	        Recheck Cond: ((id >= 3312504) AND (id <= 3313503))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..35.23 rows=1079 width=0)
+	              Index Cond: ((id >= 3312504) AND (id <= 3313503))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3312772 AND 3313771
+	Aggregate  (cost=4100.57..4100.58 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.28..4097.93 rows=1058 width=121)
+	        Recheck Cond: ((id >= 3312772) AND (id <= 3313771))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.02 rows=1058 width=0)
+	              Index Cond: ((id >= 3312772) AND (id <= 3313771))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1641423 AND 1642422
+	Aggregate  (cost=3816.55..3816.56 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.51..3814.09 rows=983 width=121)
+	        Recheck Cond: ((id >= 1641423) AND (id <= 1642422))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.27 rows=983 width=0)
+	              Index Cond: ((id >= 1641423) AND (id <= 1642422))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 2974891 AND 2975890
+	Aggregate  (cost=3633.18..3633.19 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3630.85 rows=929 width=121)
+	        Index Cond: ((id >= 2974891) AND (id <= 2975890))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 487691 AND 488690
+	Aggregate  (cost=3751.62..3751.63 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.33..3749.21 rows=965 width=121)
+	        Recheck Cond: ((id >= 487691) AND (id <= 488690))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 487691) AND (id <= 488690))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 1162216 AND 1163215
+	Aggregate  (cost=3653.57..3653.58 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.06..3651.22 rows=939 width=121)
+	        Recheck Cond: ((id >= 1162216) AND (id <= 1163215))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..33.83 rows=939 width=0)
+	              Index Cond: ((id >= 1162216) AND (id <= 1163215))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2251334 AND 2252333
+	Aggregate  (cost=4319.10..4319.11 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=39.85..4316.32 rows=1114 width=121)
+	        Recheck Cond: ((id >= 2251334) AND (id <= 2252333))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..39.58 rows=1114 width=0)
+	              Index Cond: ((id >= 2251334) AND (id <= 2252333))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3192913 AND 3193912
+	Aggregate  (cost=3903.53..3903.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.74..3901.02 rows=1005 width=121)
+	        Recheck Cond: ((id >= 3192913) AND (id <= 3193912))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.48 rows=1005 width=0)
+	              Index Cond: ((id >= 3192913) AND (id <= 3193912))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4206463 AND 4207462
+	Aggregate  (cost=3741.73..3741.74 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.32..3739.32 rows=964 width=121)
+	        Recheck Cond: ((id >= 4206463) AND (id <= 4207462))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.08 rows=964 width=0)
+	              Index Cond: ((id >= 4206463) AND (id <= 4207462))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1734986 AND 1735985
+	Aggregate  (cost=3669.92..3669.93 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.11..3667.56 rows=944 width=121)
+	        Recheck Cond: ((id >= 1734986) AND (id <= 1735985))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..33.88 rows=944 width=0)
+	              Index Cond: ((id >= 1734986) AND (id <= 1735985))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 2315135 AND 2316134
+	Aggregate  (cost=3714.48..3714.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.23..3712.09 rows=956 width=121)
+	        Recheck Cond: ((id >= 2315135) AND (id <= 2316134))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.00 rows=956 width=0)
+	              Index Cond: ((id >= 2315135) AND (id <= 2316134))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 3115065 AND 3116064
+	Aggregate  (cost=4134.79..4134.80 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4132.15 rows=1058 width=121)
+	        Index Cond: ((id >= 3115065) AND (id <= 3116064))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 7246660 AND 7247659
+	Aggregate  (cost=3713.76..3713.77 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.22..3711.37 rows=955 width=121)
+	        Recheck Cond: ((id >= 7246660) AND (id <= 7247659))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.98 rows=955 width=0)
+	              Index Cond: ((id >= 7246660) AND (id <= 7247659))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 7682377 AND 7683376
+	Aggregate  (cost=3937.43..3937.44 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.83..3934.90 rows=1014 width=121)
+	        Recheck Cond: ((id >= 7682377) AND (id <= 7683376))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.58 rows=1014 width=0)
+	              Index Cond: ((id >= 7682377) AND (id <= 7683376))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2402138 AND 2403137
+	Aggregate  (cost=3953.18..3953.19 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3950.66 rows=1008 width=121)
+	        Index Cond: ((id >= 2402138) AND (id <= 2403137))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 2671353 AND 2672352
+	Aggregate  (cost=3743.11..3743.12 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3740.73 rows=953 width=121)
+	        Index Cond: ((id >= 2671353) AND (id <= 2672352))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4569419 AND 4570418
+	Aggregate  (cost=3990.68..3990.69 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.99..3988.10 rows=1030 width=121)
+	        Recheck Cond: ((id >= 4569419) AND (id <= 4570418))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.73 rows=1030 width=0)
+	              Index Cond: ((id >= 4569419) AND (id <= 4570418))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3677284 AND 3678283
+	Aggregate  (cost=3824.99..3825.00 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.53..3822.53 rows=985 width=121)
+	        Recheck Cond: ((id >= 3677284) AND (id <= 3678283))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.29 rows=985 width=0)
+	              Index Cond: ((id >= 3677284) AND (id <= 3678283))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1824118 AND 1825117
+	Aggregate  (cost=4122.20..4122.21 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.34..4119.54 rows=1064 width=121)
+	        Recheck Cond: ((id >= 1824118) AND (id <= 1825117))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.08 rows=1064 width=0)
+	              Index Cond: ((id >= 1824118) AND (id <= 1825117))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 6092723 AND 6093722
+	Aggregate  (cost=3874.26..3874.27 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3871.79 rows=991 width=121)
+	        Index Cond: ((id >= 6092723) AND (id <= 6093722))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 6500226 AND 6501225
+	Aggregate  (cost=3918.07..3918.08 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.78..3915.55 rows=1009 width=121)
+	        Recheck Cond: ((id >= 6500226) AND (id <= 6501225))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.53 rows=1009 width=0)
+	              Index Cond: ((id >= 6500226) AND (id <= 6501225))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2809879 AND 2810878
+	Aggregate  (cost=3782.34..3782.35 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.41..3779.91 rows=973 width=121)
+	        Recheck Cond: ((id >= 2809879) AND (id <= 2810878))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.17 rows=973 width=0)
+	              Index Cond: ((id >= 2809879) AND (id <= 2810878))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 9453119 AND 9454118
+	Aggregate  (cost=3843.95..3843.96 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3841.50 rows=980 width=121)
+	        Index Cond: ((id >= 9453119) AND (id <= 9454118))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3368889 AND 3369888
+	Aggregate  (cost=4228.30..4228.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.62..4225.57 rows=1091 width=121)
+	        Recheck Cond: ((id >= 3368889) AND (id <= 3369888))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.34 rows=1091 width=0)
+	              Index Cond: ((id >= 3368889) AND (id <= 3369888))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4763904 AND 4764903
+	Aggregate  (cost=3605.69..3605.70 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=33.95..3603.37 rows=928 width=121)
+	        Recheck Cond: ((id >= 4763904) AND (id <= 4764903))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.72 rows=928 width=0)
+	              Index Cond: ((id >= 4763904) AND (id <= 4764903))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3474401 AND 3475400
+	Aggregate  (cost=3719.11..3719.12 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.24..3716.72 rows=957 width=121)
+	        Recheck Cond: ((id >= 3474401) AND (id <= 3475400))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.01 rows=957 width=0)
+	              Index Cond: ((id >= 3474401) AND (id <= 3475400))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 5194866 AND 5195865
+	Aggregate  (cost=3994.00..3994.01 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.99..3991.42 rows=1030 width=121)
+	        Recheck Cond: ((id >= 5194866) AND (id <= 5195865))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.73 rows=1030 width=0)
+	              Index Cond: ((id >= 5194866) AND (id <= 5195865))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 2783436 AND 2784435
+	Aggregate  (cost=3302.53..3302.54 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3300.42 rows=845 width=121)
+	        Index Cond: ((id >= 2783436) AND (id <= 2784435))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 4250270 AND 4251269
+	Aggregate  (cost=4235.18..4235.19 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.64..4232.44 rows=1093 width=121)
+	        Recheck Cond: ((id >= 4250270) AND (id <= 4251269))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.37 rows=1093 width=0)
+	              Index Cond: ((id >= 4250270) AND (id <= 4251269))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 7532698 AND 7533697
+	Aggregate  (cost=3528.23..3528.24 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=29.73..3525.97 rows=907 width=121)
+	        Recheck Cond: ((id >= 7532698) AND (id <= 7533697))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..29.50 rows=907 width=0)
+	              Index Cond: ((id >= 7532698) AND (id <= 7533697))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 622643 AND 623642
+	Aggregate  (cost=3836.15..3836.16 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3833.70 rows=978 width=121)
+	        Index Cond: ((id >= 622643) AND (id <= 623642))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3626057 AND 3627056
+	Aggregate  (cost=3516.46..3516.47 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3514.22 rows=896 width=121)
+	        Index Cond: ((id >= 3626057) AND (id <= 3627056))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 8170713 AND 8171712
+	Aggregate  (cost=3760.60..3760.61 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.37..3758.18 rows=969 width=121)
+	        Recheck Cond: ((id >= 8170713) AND (id <= 8171712))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.12 rows=969 width=0)
+	              Index Cond: ((id >= 8170713) AND (id <= 8171712))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1351417 AND 1352416
+	Aggregate  (cost=3968.53..3968.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.92..3965.97 rows=1023 width=121)
+	        Recheck Cond: ((id >= 1351417) AND (id <= 1352416))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.67 rows=1023 width=0)
+	              Index Cond: ((id >= 1351417) AND (id <= 1352416))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8156058 AND 8157057
+	Aggregate  (cost=3703.13..3703.14 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.20..3700.75 rows=953 width=121)
+	        Recheck Cond: ((id >= 8156058) AND (id <= 8157057))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.97 rows=953 width=0)
+	              Index Cond: ((id >= 8156058) AND (id <= 8157057))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 651705 AND 652704
+	Aggregate  (cost=4212.57..4212.58 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4209.88 rows=1078 width=121)
+	        Index Cond: ((id >= 651705) AND (id <= 652704))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 4525156 AND 4526155
+	Aggregate  (cost=3993.65..3993.66 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.98..3991.08 rows=1029 width=121)
+	        Recheck Cond: ((id >= 4525156) AND (id <= 4526155))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.73 rows=1029 width=0)
+	              Index Cond: ((id >= 4525156) AND (id <= 4526155))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4409380 AND 4410379
+	Aggregate  (cost=3907.19..3907.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.75..3904.67 rows=1006 width=121)
+	        Recheck Cond: ((id >= 4409380) AND (id <= 4410379))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.50 rows=1006 width=0)
+	              Index Cond: ((id >= 4409380) AND (id <= 4410379))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 6214661 AND 6215660
+	Aggregate  (cost=3960.33..3960.34 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=34.89..3957.78 rows=1020 width=121)
+	        Recheck Cond: ((id >= 6214661) AND (id <= 6215660))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.64 rows=1020 width=0)
+	              Index Cond: ((id >= 6214661) AND (id <= 6215660))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 854572 AND 855571
+	Aggregate  (cost=3869.50..3869.51 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.64..3867.01 rows=996 width=121)
+	        Recheck Cond: ((id >= 854572) AND (id <= 855571))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.40 rows=996 width=0)
+	              Index Cond: ((id >= 854572) AND (id <= 855571))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2385725 AND 2386724
+	Aggregate  (cost=3401.11..3401.12 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=29.40..3398.93 rows=875 width=121)
+	        Recheck Cond: ((id >= 2385725) AND (id <= 2386724))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..29.18 rows=875 width=0)
+	              Index Cond: ((id >= 2385725) AND (id <= 2386724))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 9814465 AND 9815464
+	Aggregate  (cost=3991.17..3991.18 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.98..3988.60 rows=1029 width=121)
+	        Recheck Cond: ((id >= 9814465) AND (id <= 9815464))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.73 rows=1029 width=0)
+	              Index Cond: ((id >= 9814465) AND (id <= 9815464))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9166161 AND 9167160
+	Aggregate  (cost=4314.47..4314.48 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=39.85..4311.68 rows=1114 width=121)
+	        Recheck Cond: ((id >= 9166161) AND (id <= 9167160))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..39.58 rows=1114 width=0)
+	              Index Cond: ((id >= 9166161) AND (id <= 9167160))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 6863462 AND 6864461
+	Aggregate  (cost=4002.58..4002.59 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4000.02 rows=1024 width=121)
+	        Index Cond: ((id >= 6863462) AND (id <= 6864461))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5712342 AND 5713341
+	Aggregate  (cost=3823.53..3823.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.52..3821.07 rows=984 width=121)
+	        Recheck Cond: ((id >= 5712342) AND (id <= 5713341))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.28 rows=984 width=0)
+	              Index Cond: ((id >= 5712342) AND (id <= 5713341))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 3499911 AND 3500910
+	Aggregate  (cost=3516.85..3516.86 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=29.70..3514.59 rows=904 width=121)
+	        Recheck Cond: ((id >= 3499911) AND (id <= 3500910))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..29.47 rows=904 width=0)
+	              Index Cond: ((id >= 3499911) AND (id <= 3500910))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2377269 AND 2378268
+	Aggregate  (cost=3972.72..3972.73 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3970.18 rows=1013 width=121)
+	        Index Cond: ((id >= 2377269) AND (id <= 2378268))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 4148198 AND 4149197
+	Aggregate  (cost=3743.08..3743.09 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3740.70 rows=953 width=121)
+	        Index Cond: ((id >= 4148198) AND (id <= 4149197))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 3383568 AND 3384567
+	Aggregate  (cost=4175.15..4175.16 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=35.49..4172.45 rows=1079 width=121)
+	        Recheck Cond: ((id >= 3383568) AND (id <= 3384567))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..35.23 rows=1079 width=0)
+	              Index Cond: ((id >= 3383568) AND (id <= 3384567))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4406598 AND 4407597
+	Aggregate  (cost=3798.53..3798.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.46..3796.09 rows=978 width=121)
+	        Recheck Cond: ((id >= 4406598) AND (id <= 4407597))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.22 rows=978 width=0)
+	              Index Cond: ((id >= 4406598) AND (id <= 4407597))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8371519 AND 8372518
+	Aggregate  (cost=3888.32..3888.33 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.71..3885.81 rows=1002 width=121)
+	        Recheck Cond: ((id >= 8371519) AND (id <= 8372518))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.45 rows=1002 width=0)
+	              Index Cond: ((id >= 8371519) AND (id <= 8372518))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 9574039 AND 9575038
+	Aggregate  (cost=3586.49..3586.50 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3584.20 rows=917 width=121)
+	        Index Cond: ((id >= 9574039) AND (id <= 9575038))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 233270 AND 234269
+	Aggregate  (cost=4163.52..4163.53 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.44..4160.84 rows=1074 width=121)
+	        Recheck Cond: ((id >= 233270) AND (id <= 234269))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.18 rows=1074 width=0)
+	              Index Cond: ((id >= 233270) AND (id <= 234269))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4436335 AND 4437334
+	Aggregate  (cost=3907.19..3907.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.75..3904.67 rows=1006 width=121)
+	        Recheck Cond: ((id >= 4436335) AND (id <= 4437334))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.50 rows=1006 width=0)
+	              Index Cond: ((id >= 4436335) AND (id <= 4437334))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 4497836 AND 4498835
+	Aggregate  (cost=3879.08..3879.09 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3876.61 rows=989 width=121)
+	        Index Cond: ((id >= 4497836) AND (id <= 4498835))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 5816296 AND 5817295
+	Aggregate  (cost=3850.58..3850.59 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.59..3848.10 rows=991 width=121)
+	        Recheck Cond: ((id >= 5816296) AND (id <= 5817295))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.34 rows=991 width=0)
+	              Index Cond: ((id >= 5816296) AND (id <= 5817295))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 31453 AND 32452
+	Aggregate  (cost=3907.75..3907.76 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.77..3905.23 rows=1008 width=121)
+	        Recheck Cond: ((id >= 31453) AND (id <= 32452))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 31453) AND (id <= 32452))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5757753 AND 5758752
+	Aggregate  (cost=3787.19..3787.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.43..3784.75 rows=975 width=121)
+	        Recheck Cond: ((id >= 5757753) AND (id <= 5758752))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.19 rows=975 width=0)
+	              Index Cond: ((id >= 5757753) AND (id <= 5758752))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 4604039 AND 4605038
+	Aggregate  (cost=3619.89..3619.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=33.98..3617.56 rows=931 width=121)
+	        Recheck Cond: ((id >= 4604039) AND (id <= 4605038))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.75 rows=931 width=0)
+	              Index Cond: ((id >= 4604039) AND (id <= 4605038))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 9848710 AND 9849709
+	Aggregate  (cost=4119.24..4119.25 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4116.61 rows=1054 width=121)
+	        Index Cond: ((id >= 9848710) AND (id <= 9849709))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 2984613 AND 2985612
+	Aggregate  (cost=3622.84..3622.85 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=33.98..3620.51 rows=931 width=121)
+	        Recheck Cond: ((id >= 2984613) AND (id <= 2985612))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.75 rows=931 width=0)
+	              Index Cond: ((id >= 2984613) AND (id <= 2985612))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 3391867 AND 3392866
+	Aggregate  (cost=3759.62..3759.63 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.35..3757.21 rows=967 width=121)
+	        Recheck Cond: ((id >= 3391867) AND (id <= 3392866))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.11 rows=967 width=0)
+	              Index Cond: ((id >= 3391867) AND (id <= 3392866))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 3648891 AND 3649890
+	Aggregate  (cost=3855.68..3855.69 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3853.22 rows=983 width=121)
+	        Index Cond: ((id >= 3648891) AND (id <= 3649890))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 264516 AND 265515
+	Aggregate  (cost=4115.11..4115.12 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.31..4112.46 rows=1061 width=121)
+	        Recheck Cond: ((id >= 264516) AND (id <= 265515))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.05 rows=1061 width=0)
+	              Index Cond: ((id >= 264516) AND (id <= 265515))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 641115 AND 642114
+	Aggregate  (cost=3465.49..3465.50 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=29.58..3463.26 rows=892 width=121)
+	        Recheck Cond: ((id >= 641115) AND (id <= 642114))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..29.36 rows=892 width=0)
+	              Index Cond: ((id >= 641115) AND (id <= 642114))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 3162124 AND 3163123
+	Aggregate  (cost=4123.19..4123.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.34..4120.53 rows=1064 width=121)
+	        Recheck Cond: ((id >= 3162124) AND (id <= 3163123))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.08 rows=1064 width=0)
+	              Index Cond: ((id >= 3162124) AND (id <= 3163123))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1216180 AND 1217179
+	Aggregate  (cost=3854.33..3854.34 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.61..3851.84 rows=993 width=121)
+	        Recheck Cond: ((id >= 1216180) AND (id <= 1217179))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.37 rows=993 width=0)
+	              Index Cond: ((id >= 1216180) AND (id <= 1217179))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 191291 AND 192290
+	Aggregate  (cost=3633.18..3633.19 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3630.85 rows=929 width=121)
+	        Index Cond: ((id >= 191291) AND (id <= 192290))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 8526248 AND 8527247
+	Aggregate  (cost=3876.48..3876.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.66..3873.98 rows=998 width=121)
+	        Recheck Cond: ((id >= 8526248) AND (id <= 8527247))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.42 rows=998 width=0)
+	              Index Cond: ((id >= 8526248) AND (id <= 8527247))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2266995 AND 2267994
+	Aggregate  (cost=3744.48..3744.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.31..3742.07 rows=963 width=121)
+	        Recheck Cond: ((id >= 2266995) AND (id <= 2267994))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.07 rows=963 width=0)
+	              Index Cond: ((id >= 2266995) AND (id <= 2267994))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 7686462 AND 7687461
+	Aggregate  (cost=3676.20..3676.21 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3673.86 rows=937 width=121)
+	        Index Cond: ((id >= 7686462) AND (id <= 7687461))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 7122021 AND 7123020
+	Aggregate  (cost=3846.80..3846.81 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.58..3844.32 rows=990 width=121)
+	        Recheck Cond: ((id >= 7122021) AND (id <= 7123020))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.34 rows=990 width=0)
+	              Index Cond: ((id >= 7122021) AND (id <= 7123020))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 1173355 AND 1174354
+	Aggregate  (cost=3956.76..3956.77 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.90..3954.21 rows=1021 width=121)
+	        Recheck Cond: ((id >= 1173355) AND (id <= 1174354))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.65 rows=1021 width=0)
+	              Index Cond: ((id >= 1173355) AND (id <= 1174354))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4655127 AND 4656126
+	Aggregate  (cost=4002.49..4002.50 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.01..3999.91 rows=1032 width=121)
+	        Recheck Cond: ((id >= 4655127) AND (id <= 4656126))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.76 rows=1032 width=0)
+	              Index Cond: ((id >= 4655127) AND (id <= 4656126))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 3312124 AND 3313123
+	Aggregate  (cost=3869.43..3869.44 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.65..3866.94 rows=997 width=121)
+	        Recheck Cond: ((id >= 3312124) AND (id <= 3313123))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.41 rows=997 width=0)
+	              Index Cond: ((id >= 3312124) AND (id <= 3313123))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 1907426 AND 1908425
+	Aggregate  (cost=3893.70..3893.71 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3891.21 rows=996 width=121)
+	        Index Cond: ((id >= 1907426) AND (id <= 1908425))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5752975 AND 5753974
+	Aggregate  (cost=4110.70..4110.71 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.30..4108.05 rows=1060 width=121)
+	        Recheck Cond: ((id >= 5752975) AND (id <= 5753974))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.04 rows=1060 width=0)
+	              Index Cond: ((id >= 5752975) AND (id <= 5753974))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 3699267 AND 3700266
+	Aggregate  (cost=3903.40..3903.41 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.74..3900.89 rows=1005 width=121)
+	        Recheck Cond: ((id >= 3699267) AND (id <= 3700266))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.48 rows=1005 width=0)
+	              Index Cond: ((id >= 3699267) AND (id <= 3700266))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 6446726 AND 6447725
+	Aggregate  (cost=3765.94..3765.95 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3763.54 rows=960 width=121)
+	        Index Cond: ((id >= 6446726) AND (id <= 6447725))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 497786 AND 498785
+	Aggregate  (cost=3676.69..3676.70 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3674.35 rows=936 width=121)
+	        Index Cond: ((id >= 497786) AND (id <= 498785))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 5823820 AND 5824819
+	Aggregate  (cost=3817.22..3817.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.52..3814.76 rows=984 width=121)
+	        Recheck Cond: ((id >= 5823820) AND (id <= 5824819))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.28 rows=984 width=0)
+	              Index Cond: ((id >= 5823820) AND (id <= 5824819))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5403190 AND 5404189
+	Aggregate  (cost=4232.47..4232.48 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.64..4229.73 rows=1093 width=121)
+	        Recheck Cond: ((id >= 5403190) AND (id <= 5404189))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.37 rows=1093 width=0)
+	              Index Cond: ((id >= 5403190) AND (id <= 5404189))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 6955561 AND 6956560
+	Aggregate  (cost=3627.46..3627.47 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.00..3625.13 rows=933 width=121)
+	        Recheck Cond: ((id >= 6955561) AND (id <= 6956560))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.77 rows=933 width=0)
+	              Index Cond: ((id >= 6955561) AND (id <= 6956560))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 4037956 AND 4038955
+	Aggregate  (cost=3983.15..3983.16 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3980.60 rows=1019 width=121)
+	        Index Cond: ((id >= 4037956) AND (id <= 4038955))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 7184269 AND 7185268
+	Aggregate  (cost=3367.52..3367.53 rows=1 width=8)
+	  ->  Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..3365.38 rows=856 width=121)
+	        Index Cond: ((id >= 7184269) AND (id <= 7185268))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2813681 AND 2814680
+	Aggregate  (cost=3782.34..3782.35 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.41..3779.91 rows=973 width=121)
+	        Recheck Cond: ((id >= 2813681) AND (id <= 2814680))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.17 rows=973 width=0)
+	              Index Cond: ((id >= 2813681) AND (id <= 2814680))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2312181 AND 2313180
+	Aggregate  (cost=3972.72..3972.73 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3970.18 rows=1013 width=121)
+	        Index Cond: ((id >= 2312181) AND (id <= 2313180))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 1337923 AND 1338922
+	Aggregate  (cost=3926.22..3926.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.80..3923.69 rows=1011 width=121)
+	        Recheck Cond: ((id >= 1337923) AND (id <= 1338922))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.55 rows=1011 width=0)
+	              Index Cond: ((id >= 1337923) AND (id <= 1338922))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2707299 AND 2708298
+	Aggregate  (cost=3703.96..3703.97 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.21..3701.57 rows=954 width=121)
+	        Recheck Cond: ((id >= 2707299) AND (id <= 2708298))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.98 rows=954 width=0)
+	              Index Cond: ((id >= 2707299) AND (id <= 2708298))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 7545455 AND 7546454
+	Aggregate  (cost=4070.40..4070.41 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.20..4067.78 rows=1050 width=121)
+	        Recheck Cond: ((id >= 7545455) AND (id <= 7546454))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.94 rows=1050 width=0)
+	              Index Cond: ((id >= 7545455) AND (id <= 7546454))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1908622 AND 1909621
+	Aggregate  (cost=3865.66..3865.67 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.64..3863.17 rows=996 width=121)
+	        Recheck Cond: ((id >= 1908622) AND (id <= 1909621))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.40 rows=996 width=0)
+	              Index Cond: ((id >= 1908622) AND (id <= 1909621))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 6376086 AND 6377085
+	Aggregate  (cost=3773.16..3773.17 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3770.75 rows=965 width=121)
+	        Index Cond: ((id >= 6376086) AND (id <= 6377085))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 8504588 AND 8505587
+	Aggregate  (cost=3876.48..3876.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.66..3873.98 rows=998 width=121)
+	        Recheck Cond: ((id >= 8504588) AND (id <= 8505587))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.42 rows=998 width=0)
+	              Index Cond: ((id >= 8504588) AND (id <= 8505587))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4289740 AND 4290739
+	Aggregate  (cost=4608.70..4608.71 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=40.65..4605.72 rows=1192 width=121)
+	        Recheck Cond: ((id >= 4289740) AND (id <= 4290739))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..40.36 rows=1192 width=0)
+	              Index Cond: ((id >= 4289740) AND (id <= 4290739))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2241445 AND 2242444
+	Aggregate  (cost=4319.10..4319.11 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=39.85..4316.32 rows=1114 width=121)
+	        Recheck Cond: ((id >= 2241445) AND (id <= 2242444))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..39.58 rows=1114 width=0)
+	              Index Cond: ((id >= 2241445) AND (id <= 2242444))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 6713605 AND 6714604
+	Aggregate  (cost=3865.71..3865.72 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.63..3863.23 rows=995 width=121)
+	        Recheck Cond: ((id >= 6713605) AND (id <= 6714604))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.39 rows=995 width=0)
+	              Index Cond: ((id >= 6713605) AND (id <= 6714604))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 6659596 AND 6660595
+	Aggregate  (cost=3726.62..3726.63 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.28..3724.22 rows=960 width=121)
+	        Recheck Cond: ((id >= 6659596) AND (id <= 6660595))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.04 rows=960 width=0)
+	              Index Cond: ((id >= 6659596) AND (id <= 6660595))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1169494 AND 1170493
+	Aggregate  (cost=3772.06..3772.07 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.39..3769.64 rows=971 width=121)
+	        Recheck Cond: ((id >= 1169494) AND (id <= 1170493))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.15 rows=971 width=0)
+	              Index Cond: ((id >= 1169494) AND (id <= 1170493))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 7751883 AND 7752882
+	Aggregate  (cost=3597.18..3597.19 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=33.92..3594.86 rows=925 width=121)
+	        Recheck Cond: ((id >= 7751883) AND (id <= 7752882))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.69 rows=925 width=0)
+	              Index Cond: ((id >= 7751883) AND (id <= 7752882))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 3029410 AND 3030409
+	Aggregate  (cost=4134.79..4134.80 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4132.15 rows=1058 width=121)
+	        Index Cond: ((id >= 3029410) AND (id <= 3030409))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 2697624 AND 2698623
+	Aggregate  (cost=3436.77..3436.78 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=29.49..3434.56 rows=883 width=121)
+	        Recheck Cond: ((id >= 2697624) AND (id <= 2698623))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..29.26 rows=883 width=0)
+	              Index Cond: ((id >= 2697624) AND (id <= 2698623))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 8286955 AND 8287954
+	Aggregate  (cost=4145.16..4145.17 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.39..4142.49 rows=1069 width=121)
+	        Recheck Cond: ((id >= 8286955) AND (id <= 8287954))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.12 rows=1069 width=0)
+	              Index Cond: ((id >= 8286955) AND (id <= 8287954))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 4890328 AND 4891327
+	Aggregate  (cost=4039.68..4039.69 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.11..4037.07 rows=1041 width=121)
+	        Recheck Cond: ((id >= 4890328) AND (id <= 4891327))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.84 rows=1041 width=0)
+	              Index Cond: ((id >= 4890328) AND (id <= 4891327))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 512263 AND 513262
+	Aggregate  (cost=4001.81..4001.82 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.00..3999.24 rows=1031 width=121)
+	        Recheck Cond: ((id >= 512263) AND (id <= 513262))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.75 rows=1031 width=0)
+	              Index Cond: ((id >= 512263) AND (id <= 513262))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 7077857 AND 7078856
+	Aggregate  (cost=3994.44..3994.45 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=35.00..3991.87 rows=1031 width=121)
+	        Recheck Cond: ((id >= 7077857) AND (id <= 7078856))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.75 rows=1031 width=0)
+	              Index Cond: ((id >= 7077857) AND (id <= 7078856))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4004481 AND 4005480
+	Aggregate  (cost=3749.37..3749.38 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.33..3746.96 rows=965 width=121)
+	        Recheck Cond: ((id >= 4004481) AND (id <= 4005480))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 4004481) AND (id <= 4005480))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 2968391 AND 2969390
+	Aggregate  (cost=3869.43..3869.44 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.65..3866.94 rows=997 width=121)
+	        Recheck Cond: ((id >= 2968391) AND (id <= 2969390))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.41 rows=997 width=0)
+	              Index Cond: ((id >= 2968391) AND (id <= 2969390))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 7379572 AND 7380571
+	Aggregate  (cost=3843.13..3843.14 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3840.67 rows=983 width=121)
+	        Index Cond: ((id >= 7379572) AND (id <= 7380571))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 153372 AND 154371
+	Aggregate  (cost=4310.79..4310.80 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=39.83..4308.01 rows=1112 width=121)
+	        Recheck Cond: ((id >= 153372) AND (id <= 154371))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..39.56 rows=1112 width=0)
+	              Index Cond: ((id >= 153372) AND (id <= 154371))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4454873 AND 4455872
+	Aggregate  (cost=3907.19..3907.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.75..3904.67 rows=1006 width=121)
+	        Recheck Cond: ((id >= 4454873) AND (id <= 4455872))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.50 rows=1006 width=0)
+	              Index Cond: ((id >= 4454873) AND (id <= 4455872))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8045858 AND 8046857
+	Aggregate  (cost=4130.30..4130.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.35..4127.63 rows=1065 width=121)
+	        Recheck Cond: ((id >= 8045858) AND (id <= 8046857))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..35.09 rows=1065 width=0)
+	              Index Cond: ((id >= 8045858) AND (id <= 8046857))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 3697779 AND 3698778
+	Aggregate  (cost=3489.10..3489.11 rows=1 width=8)
+	  ->  Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..3486.88 rows=889 width=121)
+	        Index Cond: ((id >= 3697779) AND (id <= 3698778))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4139391 AND 4140390
+	Aggregate  (cost=3647.28..3647.29 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.06..3644.93 rows=939 width=121)
+	        Recheck Cond: ((id >= 4139391) AND (id <= 4140390))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.83 rows=939 width=0)
+	              Index Cond: ((id >= 4139391) AND (id <= 4140390))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4036150 AND 4037149
+	Aggregate  (cost=3749.37..3749.38 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.33..3746.96 rows=965 width=121)
+	        Recheck Cond: ((id >= 4036150) AND (id <= 4037149))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 4036150) AND (id <= 4037149))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 3099072 AND 3100071
+	Aggregate  (cost=4137.27..4137.28 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.38..4134.60 rows=1068 width=121)
+	        Recheck Cond: ((id >= 3099072) AND (id <= 3100071))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.12 rows=1068 width=0)
+	              Index Cond: ((id >= 3099072) AND (id <= 3100071))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5767359 AND 5768358
+	Aggregate  (cost=4080.33..4080.34 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4077.72 rows=1044 width=121)
+	        Index Cond: ((id >= 5767359) AND (id <= 5768358))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 6385852 AND 6386851
+	Aggregate  (cost=4182.38..4182.39 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.49..4179.69 rows=1079 width=121)
+	        Recheck Cond: ((id >= 6385852) AND (id <= 6386851))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.23 rows=1079 width=0)
+	              Index Cond: ((id >= 6385852) AND (id <= 6386851))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 2412833 AND 2413832
+	Aggregate  (cost=3611.87..3611.88 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=33.95..3609.55 rows=928 width=121)
+	        Recheck Cond: ((id >= 2412833) AND (id <= 2413832))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..33.72 rows=928 width=0)
+	              Index Cond: ((id >= 2412833) AND (id <= 2413832))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 9291676 AND 9292675
+	Aggregate  (cost=3979.22..3979.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=34.94..3976.66 rows=1025 width=121)
+	        Recheck Cond: ((id >= 9291676) AND (id <= 9292675))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.69 rows=1025 width=0)
+	              Index Cond: ((id >= 9291676) AND (id <= 9292675))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 5854435 AND 5855434
+	Aggregate  (cost=3850.58..3850.59 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.59..3848.10 rows=991 width=121)
+	        Recheck Cond: ((id >= 5854435) AND (id <= 5855434))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.34 rows=991 width=0)
+	              Index Cond: ((id >= 5854435) AND (id <= 5855434))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 6766520 AND 6767519
+	Aggregate  (cost=3790.81..3790.82 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.45..3788.36 rows=977 width=121)
+	        Recheck Cond: ((id >= 6766520) AND (id <= 6767519))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.20 rows=977 width=0)
+	              Index Cond: ((id >= 6766520) AND (id <= 6767519))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 1868224 AND 1869223
+	Aggregate  (cost=4187.26..4187.27 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.52..4184.56 rows=1081 width=121)
+	        Recheck Cond: ((id >= 1868224) AND (id <= 1869223))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.25 rows=1081 width=0)
+	              Index Cond: ((id >= 1868224) AND (id <= 1869223))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9923371 AND 9924370
+	Aggregate  (cost=4092.04..4092.05 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.26..4089.40 rows=1056 width=121)
+	        Recheck Cond: ((id >= 9923371) AND (id <= 9924370))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.00 rows=1056 width=0)
+	              Index Cond: ((id >= 9923371) AND (id <= 9924370))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 2485351 AND 2486350
+	Aggregate  (cost=3699.26..3699.27 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3696.90 rows=946 width=121)
+	        Index Cond: ((id >= 2485351) AND (id <= 2486350))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 1343488 AND 1344487
+	Aggregate  (cost=4012.54..4012.55 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.03..4009.95 rows=1034 width=121)
+	        Recheck Cond: ((id >= 1343488) AND (id <= 1344487))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.78 rows=1034 width=0)
+	              Index Cond: ((id >= 1343488) AND (id <= 1344487))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 4969033 AND 4970032
+	Aggregate  (cost=4050.79..4050.80 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.14..4048.18 rows=1044 width=121)
+	        Recheck Cond: ((id >= 4969033) AND (id <= 4970032))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.88 rows=1044 width=0)
+	              Index Cond: ((id >= 4969033) AND (id <= 4970032))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 1274442 AND 1275441
+	Aggregate  (cost=3968.82..3968.83 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3966.29 rows=1012 width=121)
+	        Index Cond: ((id >= 1274442) AND (id <= 1275441))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 5432296 AND 5433295
+	Aggregate  (cost=4379.29..4379.30 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=40.02..4376.46 rows=1130 width=121)
+	        Recheck Cond: ((id >= 5432296) AND (id <= 5433295))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..39.73 rows=1130 width=0)
+	              Index Cond: ((id >= 5432296) AND (id <= 5433295))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2917579 AND 2918578
+	Aggregate  (cost=4156.34..4156.35 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=35.44..4153.65 rows=1074 width=121)
+	        Recheck Cond: ((id >= 2917579) AND (id <= 2918578))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..35.18 rows=1074 width=0)
+	              Index Cond: ((id >= 2917579) AND (id <= 2918578))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 4044890 AND 4045889
+	Aggregate  (cost=3749.37..3749.38 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.33..3746.96 rows=965 width=121)
+	        Recheck Cond: ((id >= 4044890) AND (id <= 4045889))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.09 rows=965 width=0)
+	              Index Cond: ((id >= 4044890) AND (id <= 4045889))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 7772403 AND 7773402
+	Aggregate  (cost=3597.18..3597.19 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=33.92..3594.86 rows=925 width=121)
+	        Recheck Cond: ((id >= 7772403) AND (id <= 7773402))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.69 rows=925 width=0)
+	              Index Cond: ((id >= 7772403) AND (id <= 7773402))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5797001 AND 5798000
+	Aggregate  (cost=4080.33..4080.34 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4077.72 rows=1044 width=121)
+	        Index Cond: ((id >= 5797001) AND (id <= 5798000))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5447588 AND 5448587
+	Aggregate  (cost=3694.82..3694.83 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.17..3692.45 rows=950 width=121)
+	        Recheck Cond: ((id >= 5447588) AND (id <= 5448587))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.94 rows=950 width=0)
+	              Index Cond: ((id >= 5447588) AND (id <= 5448587))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 9555187 AND 9556186
+	Aggregate  (cost=3990.34..3990.35 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.97..3987.77 rows=1028 width=121)
+	        Recheck Cond: ((id >= 9555187) AND (id <= 9556186))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.72 rows=1028 width=0)
+	              Index Cond: ((id >= 9555187) AND (id <= 9556186))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 2183685 AND 2184684
+	Aggregate  (cost=3929.78..3929.79 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3927.28 rows=1002 width=121)
+	        Index Cond: ((id >= 2183685) AND (id <= 2184684))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 8112098 AND 8113097
+	Aggregate  (cost=3839.23..3839.24 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.56..3836.76 rows=988 width=121)
+	        Recheck Cond: ((id >= 8112098) AND (id <= 8113097))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.32 rows=988 width=0)
+	              Index Cond: ((id >= 8112098) AND (id <= 8113097))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 6333476 AND 6334475
+	Aggregate  (cost=3677.51..3677.52 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.14..3675.14 rows=947 width=121)
+	        Recheck Cond: ((id >= 6333476) AND (id <= 6334475))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.91 rows=947 width=0)
+	              Index Cond: ((id >= 6333476) AND (id <= 6334475))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 8067504 AND 8068503
+	Aggregate  (cost=3741.81..3741.82 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.31..3739.40 rows=963 width=121)
+	        Recheck Cond: ((id >= 8067504) AND (id <= 8068503))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.07 rows=963 width=0)
+	              Index Cond: ((id >= 8067504) AND (id <= 8068503))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9492154 AND 9493153
+	Aggregate  (cost=4076.97..4076.98 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.22..4074.34 rows=1052 width=121)
+	        Recheck Cond: ((id >= 9492154) AND (id <= 9493153))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.95 rows=1052 width=0)
+	              Index Cond: ((id >= 9492154) AND (id <= 9493153))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 1491487 AND 1492486
+	Aggregate  (cost=3878.15..3878.16 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3875.67 rows=992 width=121)
+	        Index Cond: ((id >= 1491487) AND (id <= 1492486))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 9791982 AND 9792981
+	Aggregate  (cost=3861.35..3861.36 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.62..3858.87 rows=994 width=121)
+	        Recheck Cond: ((id >= 9791982) AND (id <= 9792981))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.38 rows=994 width=0)
+	              Index Cond: ((id >= 9791982) AND (id <= 9792981))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 5062448 AND 5063447
+	Aggregate  (cost=3914.75..3914.76 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.77..3912.23 rows=1008 width=121)
+	        Recheck Cond: ((id >= 5062448) AND (id <= 5063447))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 5062448) AND (id <= 5063447))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 1208548 AND 1209547
+	Aggregate  (cost=3968.82..3968.83 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3966.29 rows=1012 width=121)
+	        Index Cond: ((id >= 1208548) AND (id <= 1209547))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 4769859 AND 4770858
+	Aggregate  (cost=4201.90..4201.91 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.55..4199.19 rows=1084 width=121)
+	        Recheck Cond: ((id >= 4769859) AND (id <= 4770858))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.28 rows=1084 width=0)
+	              Index Cond: ((id >= 4769859) AND (id <= 4770858))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 1891037 AND 1892036
+	Aggregate  (cost=3915.30..3915.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.79..3912.77 rows=1010 width=121)
+	        Recheck Cond: ((id >= 1891037) AND (id <= 1892036))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.54 rows=1010 width=0)
+	              Index Cond: ((id >= 1891037) AND (id <= 1892036))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 2569066 AND 2570065
+	Aggregate  (cost=3544.74..3544.75 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=29.78..3542.46 rows=912 width=121)
+	        Recheck Cond: ((id >= 2569066) AND (id <= 2570065))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..29.55 rows=912 width=0)
+	              Index Cond: ((id >= 2569066) AND (id <= 2570065))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 1669749 AND 1670748
+	Aggregate  (cost=3816.55..3816.56 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.51..3814.09 rows=983 width=121)
+	        Recheck Cond: ((id >= 1669749) AND (id <= 1670748))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.27 rows=983 width=0)
+	              Index Cond: ((id >= 1669749) AND (id <= 1670748))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 5598125 AND 5599124
+	Aggregate  (cost=3854.79..3854.80 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3852.33 rows=986 width=121)
+	        Index Cond: ((id >= 5598125) AND (id <= 5599124))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 1082783 AND 1083782
+	Aggregate  (cost=3721.33..3721.34 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.24..3718.94 rows=957 width=121)
+	        Recheck Cond: ((id >= 1082783) AND (id <= 1083782))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.01 rows=957 width=0)
+	              Index Cond: ((id >= 1082783) AND (id <= 1083782))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 9163114 AND 9164113
+	Aggregate  (cost=4205.53..4205.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.56..4202.81 rows=1085 width=121)
+	        Recheck Cond: ((id >= 9163114) AND (id <= 9164113))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.29 rows=1085 width=0)
+	              Index Cond: ((id >= 9163114) AND (id <= 9164113))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8342700 AND 8343699
+	Aggregate  (cost=3555.16..3555.17 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3552.90 rows=907 width=121)
+	        Index Cond: ((id >= 8342700) AND (id <= 8343699))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 9197984 AND 9198983
+	Aggregate  (cost=4016.93..4016.94 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.04..4014.34 rows=1035 width=121)
+	        Recheck Cond: ((id >= 9197984) AND (id <= 9198983))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.79 rows=1035 width=0)
+	              Index Cond: ((id >= 9197984) AND (id <= 9198983))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 114252 AND 115251
+	Aggregate  (cost=3560.31..3560.32 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=33.82..3558.02 rows=916 width=121)
+	        Recheck Cond: ((id >= 114252) AND (id <= 115251))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.59 rows=916 width=0)
+	              Index Cond: ((id >= 114252) AND (id <= 115251))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 2140333 AND 2141332
+	Aggregate  (cost=3798.53..3798.54 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.46..3796.09 rows=978 width=121)
+	        Recheck Cond: ((id >= 2140333) AND (id <= 2141332))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.22 rows=978 width=0)
+	              Index Cond: ((id >= 2140333) AND (id <= 2141332))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 8050566 AND 8051565
+	Aggregate  (cost=3616.11..3616.12 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=33.97..3613.78 rows=930 width=121)
+	        Recheck Cond: ((id >= 8050566) AND (id <= 8051565))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..33.73 rows=930 width=0)
+	              Index Cond: ((id >= 8050566) AND (id <= 8051565))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 2689634 AND 2690633
+	Aggregate  (cost=3512.52..3512.53 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3510.27 rows=899 width=121)
+	        Index Cond: ((id >= 2689634) AND (id <= 2690633))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 9455550 AND 9456549
+	Aggregate  (cost=3607.68..3607.69 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=33.94..3605.36 rows=927 width=121)
+	        Recheck Cond: ((id >= 9455550) AND (id <= 9456549))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..33.70 rows=927 width=0)
+	              Index Cond: ((id >= 9455550) AND (id <= 9456549))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 821150 AND 822149
+	Aggregate  (cost=4016.79..4016.80 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.04..4014.20 rows=1035 width=121)
+	        Recheck Cond: ((id >= 821150) AND (id <= 822149))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.79 rows=1035 width=0)
+	              Index Cond: ((id >= 821150) AND (id <= 822149))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8668293 AND 8669292
+	Aggregate  (cost=3461.53..3461.54 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3459.32 rows=883 width=121)
+	        Index Cond: ((id >= 8668293) AND (id <= 8669292))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 9227499 AND 9228498
+	Aggregate  (cost=3990.48..3990.49 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.97..3987.91 rows=1028 width=121)
+	        Recheck Cond: ((id >= 9227499) AND (id <= 9228498))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.72 rows=1028 width=0)
+	              Index Cond: ((id >= 9227499) AND (id <= 9228498))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 2058620 AND 2059619
+	Aggregate  (cost=4389.64..4389.65 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=40.08..4386.80 rows=1136 width=121)
+	        Recheck Cond: ((id >= 2058620) AND (id <= 2059619))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..39.80 rows=1136 width=0)
+	              Index Cond: ((id >= 2058620) AND (id <= 2059619))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5674247 AND 5675246
+	Aggregate  (cost=3787.19..3787.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.43..3784.75 rows=975 width=121)
+	        Recheck Cond: ((id >= 5674247) AND (id <= 5675246))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.19 rows=975 width=0)
+	              Index Cond: ((id >= 5674247) AND (id <= 5675246))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 3939661 AND 3940660
+	Aggregate  (cost=4299.42..4299.43 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=39.81..4296.64 rows=1110 width=121)
+	        Recheck Cond: ((id >= 3939661) AND (id <= 3940660))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..39.54 rows=1110 width=0)
+	              Index Cond: ((id >= 3939661) AND (id <= 3940660))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 1968251 AND 1969250
+	Aggregate  (cost=3893.70..3893.71 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3891.21 rows=996 width=121)
+	        Index Cond: ((id >= 1968251) AND (id <= 1969250))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5715921 AND 5716920
+	Aggregate  (cost=4110.70..4110.71 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.30..4108.05 rows=1060 width=121)
+	        Recheck Cond: ((id >= 5715921) AND (id <= 5716920))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.04 rows=1060 width=0)
+	              Index Cond: ((id >= 5715921) AND (id <= 5716920))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 6606209 AND 6607208
+	Aggregate  (cost=4201.75..4201.76 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.55..4199.04 rows=1084 width=121)
+	        Recheck Cond: ((id >= 6606209) AND (id <= 6607208))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.28 rows=1084 width=0)
+	              Index Cond: ((id >= 6606209) AND (id <= 6607208))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 3983000 AND 3983999
+	Aggregate  (cost=3990.56..3990.57 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=34.97..3987.99 rows=1028 width=121)
+	        Recheck Cond: ((id >= 3983000) AND (id <= 3983999))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.72 rows=1028 width=0)
+	              Index Cond: ((id >= 3983000) AND (id <= 3983999))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 8730686 AND 8731685
+	Aggregate  (cost=3831.66..3831.67 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.54..3829.20 rows=986 width=121)
+	        Recheck Cond: ((id >= 8730686) AND (id <= 8731685))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.30 rows=986 width=0)
+	              Index Cond: ((id >= 8730686) AND (id <= 8731685))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 812711 AND 813710
+	Aggregate  (cost=3847.41..3847.42 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.60..3844.93 rows=992 width=121)
+	        Recheck Cond: ((id >= 812711) AND (id <= 813710))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.36 rows=992 width=0)
+	              Index Cond: ((id >= 812711) AND (id <= 813710))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 5111499 AND 5112498
+	Aggregate  (cost=4017.59..4017.60 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.05..4015.00 rows=1036 width=121)
+	        Recheck Cond: ((id >= 5111499) AND (id <= 5112498))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.80 rows=1036 width=0)
+	              Index Cond: ((id >= 5111499) AND (id <= 5112498))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9031111 AND 9032110
+	Aggregate  (cost=3752.29..3752.30 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.34..3749.88 rows=966 width=121)
+	        Recheck Cond: ((id >= 9031111) AND (id <= 9032110))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.09 rows=966 width=0)
+	              Index Cond: ((id >= 9031111) AND (id <= 9032110))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 7284940 AND 7285939
+	Aggregate  (cost=4216.46..4216.47 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4213.76 rows=1079 width=121)
+	        Index Cond: ((id >= 7284940) AND (id <= 7285939))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 4010993 AND 4011992
+	Aggregate  (cost=4197.47..4197.48 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.54..4194.76 rows=1083 width=121)
+	        Recheck Cond: ((id >= 4010993) AND (id <= 4011992))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.27 rows=1083 width=0)
+	              Index Cond: ((id >= 4010993) AND (id <= 4011992))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 34206 AND 35205
+	Aggregate  (cost=4364.07..4364.08 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=39.98..4361.25 rows=1126 width=121)
+	        Recheck Cond: ((id >= 34206) AND (id <= 35205))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..39.70 rows=1126 width=0)
+	              Index Cond: ((id >= 34206) AND (id <= 35205))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 9768814 AND 9769813
+	Aggregate  (cost=3797.14..3797.15 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3794.72 rows=968 width=121)
+	        Index Cond: ((id >= 9768814) AND (id <= 9769813))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 7413467 AND 7414466
+	Aggregate  (cost=4111.34..4111.35 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.30..4108.69 rows=1060 width=121)
+	        Recheck Cond: ((id >= 7413467) AND (id <= 7414466))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.04 rows=1060 width=0)
+	              Index Cond: ((id >= 7413467) AND (id <= 7414466))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 5006060 AND 5007059
+	Aggregate  (cost=3941.68..3941.69 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.86..3939.14 rows=1017 width=121)
+	        Recheck Cond: ((id >= 5006060) AND (id <= 5007059))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.61 rows=1017 width=0)
+	              Index Cond: ((id >= 5006060) AND (id <= 5007059))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 7711457 AND 7712456
+	Aggregate  (cost=3911.89..3911.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.77..3909.37 rows=1008 width=121)
+	        Recheck Cond: ((id >= 7711457) AND (id <= 7712456))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 7711457) AND (id <= 7712456))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 2743198 AND 2744197
+	Aggregate  (cost=4212.60..4212.61 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.59..4209.88 rows=1088 width=121)
+	        Recheck Cond: ((id >= 2743198) AND (id <= 2744197))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..35.32 rows=1088 width=0)
+	              Index Cond: ((id >= 2743198) AND (id <= 2744197))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 4726914 AND 4727913
+	Aggregate  (cost=3489.16..3489.17 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3486.93 rows=893 width=121)
+	        Index Cond: ((id >= 4726914) AND (id <= 4727913))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 1045488 AND 1046487
+	Aggregate  (cost=3721.33..3721.34 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.24..3718.94 rows=957 width=121)
+	        Recheck Cond: ((id >= 1045488) AND (id <= 1046487))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.01 rows=957 width=0)
+	              Index Cond: ((id >= 1045488) AND (id <= 1046487))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 3041880 AND 3042879
+	Aggregate  (cost=4099.87..4099.88 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.27..4097.23 rows=1057 width=121)
+	        Recheck Cond: ((id >= 3041880) AND (id <= 3042879))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..35.01 rows=1057 width=0)
+	              Index Cond: ((id >= 3041880) AND (id <= 3042879))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 7494855 AND 7495854
+	Aggregate  (cost=3867.38..3867.39 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3864.91 rows=986 width=121)
+	        Index Cond: ((id >= 7494855) AND (id <= 7495854))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 4393138 AND 4394137
+	Aggregate  (cost=3945.12..3945.13 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=34.85..3942.58 rows=1016 width=121)
+	        Recheck Cond: ((id >= 4393138) AND (id <= 4394137))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.59 rows=1016 width=0)
+	              Index Cond: ((id >= 4393138) AND (id <= 4394137))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 6385881 AND 6386880
+	Aggregate  (cost=3768.16..3768.17 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.39..3765.73 rows=971 width=121)
+	        Recheck Cond: ((id >= 6385881) AND (id <= 6386880))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.15 rows=971 width=0)
+	              Index Cond: ((id >= 6385881) AND (id <= 6386880))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 7676203 AND 7677202
+	Aggregate  (cost=3911.89..3911.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=34.77..3909.37 rows=1008 width=121)
+	        Recheck Cond: ((id >= 7676203) AND (id <= 7677202))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..34.52 rows=1008 width=0)
+	              Index Cond: ((id >= 7676203) AND (id <= 7677202))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 6054003 AND 6055002
+	Aggregate  (cost=3827.88..3827.89 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=34.54..3825.42 rows=986 width=121)
+	        Recheck Cond: ((id >= 6054003) AND (id <= 6055002))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.30 rows=986 width=0)
+	              Index Cond: ((id >= 6054003) AND (id <= 6055002))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 6666253 AND 6667252
+	Aggregate  (cost=3773.16..3773.17 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..3770.75 rows=965 width=121)
+	        Index Cond: ((id >= 6666253) AND (id <= 6667252))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 1160583 AND 1161582
+	Aggregate  (cost=4205.01..4205.02 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.56..4202.30 rows=1085 width=121)
+	        Recheck Cond: ((id >= 1160583) AND (id <= 1161582))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.29 rows=1085 width=0)
+	              Index Cond: ((id >= 1160583) AND (id <= 1161582))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 5781727 AND 5782726
+	Aggregate  (cost=3642.20..3642.21 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.03..3639.86 rows=936 width=121)
+	        Recheck Cond: ((id >= 5781727) AND (id <= 5782726))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..33.80 rows=936 width=0)
+	              Index Cond: ((id >= 5781727) AND (id <= 5782726))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 1426103 AND 1427102
+	Aggregate  (cost=4390.68..4390.69 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=40.05..4387.85 rows=1133 width=121)
+	        Recheck Cond: ((id >= 1426103) AND (id <= 1427102))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..39.77 rows=1133 width=0)
+	              Index Cond: ((id >= 1426103) AND (id <= 1427102))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 1580996 AND 1581995
+	Aggregate  (cost=4228.30..4228.31 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.62..4225.57 rows=1091 width=121)
+	        Recheck Cond: ((id >= 1580996) AND (id <= 1581995))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..35.34 rows=1091 width=0)
+	              Index Cond: ((id >= 1580996) AND (id <= 1581995))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 4677686 AND 4678685
+	Aggregate  (cost=3605.69..3605.70 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=33.95..3603.37 rows=928 width=121)
+	        Recheck Cond: ((id >= 4677686) AND (id <= 4678685))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..33.72 rows=928 width=0)
+	              Index Cond: ((id >= 4677686) AND (id <= 4678685))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 6981130 AND 6982129
+	Aggregate  (cost=4277.89..4277.90 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=39.75..4275.13 rows=1104 width=121)
+	        Recheck Cond: ((id >= 6981130) AND (id <= 6982129))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..39.48 rows=1104 width=0)
+	              Index Cond: ((id >= 6981130) AND (id <= 6982129))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 9171562 AND 9172561
+	Aggregate  (cost=4314.47..4314.48 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=39.85..4311.68 rows=1114 width=121)
+	        Recheck Cond: ((id >= 9171562) AND (id <= 9172561))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..39.58 rows=1114 width=0)
+	              Index Cond: ((id >= 9171562) AND (id <= 9172561))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 1828394 AND 1829393
+	Aggregate  (cost=4442.08..4442.09 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4439.24 rows=1136 width=121)
+	        Index Cond: ((id >= 1828394) AND (id <= 1829393))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 263775 AND 264774
+	Aggregate  (cost=4163.52..4163.53 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=35.44..4160.84 rows=1074 width=121)
+	        Recheck Cond: ((id >= 263775) AND (id <= 264774))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..35.18 rows=1074 width=0)
+	              Index Cond: ((id >= 263775) AND (id <= 264774))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 1000096 AND 1001095
+	Aggregate  (cost=4047.01..4047.02 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=35.13..4044.40 rows=1043 width=121)
+	        Recheck Cond: ((id >= 1000096) AND (id <= 1001095))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.87 rows=1043 width=0)
+	              Index Cond: ((id >= 1000096) AND (id <= 1001095))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 3142773 AND 3143772
+	Aggregate  (cost=4054.78..4054.79 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest7  (cost=35.15..4052.17 rows=1045 width=121)
+	        Recheck Cond: ((id >= 3142773) AND (id <= 3143772))
+	        ->  Bitmap Index Scan on sbtest7_pkey  (cost=0.00..34.89 rows=1045 width=0)
+	              Index Cond: ((id >= 3142773) AND (id <= 3143772))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 2699009 AND 2700008
+	Aggregate  (cost=4484.71..4484.72 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=40.30..4481.82 rows=1158 width=121)
+	        Recheck Cond: ((id >= 2699009) AND (id <= 2700008))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..40.02 rows=1158 width=0)
+	              Index Cond: ((id >= 2699009) AND (id <= 2700008))
+
+for: count_ranges
+table 1 : explain SELECT count(c) FROM sbtest1 WHERE id BETWEEN 5807090 AND 5808089
+	Aggregate  (cost=3817.22..3817.23 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest1  (cost=34.52..3814.76 rows=984 width=121)
+	        Recheck Cond: ((id >= 5807090) AND (id <= 5808089))
+	        ->  Bitmap Index Scan on sbtest1_pkey  (cost=0.00..34.28 rows=984 width=0)
+	              Index Cond: ((id >= 5807090) AND (id <= 5808089))
+
+table 2 : explain SELECT count(c) FROM sbtest2 WHERE id BETWEEN 2214250 AND 2215249
+	Aggregate  (cost=4194.80..4194.81 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest2  (cost=35.54..4192.09 rows=1083 width=121)
+	        Recheck Cond: ((id >= 2214250) AND (id <= 2215249))
+	        ->  Bitmap Index Scan on sbtest2_pkey  (cost=0.00..35.27 rows=1083 width=0)
+	              Index Cond: ((id >= 2214250) AND (id <= 2215249))
+
+table 3 : explain SELECT count(c) FROM sbtest3 WHERE id BETWEEN 6987471 AND 6988470
+	Aggregate  (cost=4001.54..4001.55 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest3  (cost=35.01..3998.96 rows=1032 width=121)
+	        Recheck Cond: ((id >= 6987471) AND (id <= 6988470))
+	        ->  Bitmap Index Scan on sbtest3_pkey  (cost=0.00..34.76 rows=1032 width=0)
+	              Index Cond: ((id >= 6987471) AND (id <= 6988470))
+
+table 4 : explain SELECT count(c) FROM sbtest4 WHERE id BETWEEN 8055952 AND 8056951
+	Aggregate  (cost=4484.87..4484.88 rows=1 width=8)
+	  ->  Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..4482.01 rows=1147 width=121)
+	        Index Cond: ((id >= 8055952) AND (id <= 8056951))
+
+table 5 : explain SELECT count(c) FROM sbtest5 WHERE id BETWEEN 5643027 AND 5644026
+	Aggregate  (cost=3759.19..3759.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest5  (cost=34.35..3756.77 rows=967 width=121)
+	        Recheck Cond: ((id >= 5643027) AND (id <= 5644026))
+	        ->  Bitmap Index Scan on sbtest5_pkey  (cost=0.00..34.11 rows=967 width=0)
+	              Index Cond: ((id >= 5643027) AND (id <= 5644026))
+
+table 6 : explain SELECT count(c) FROM sbtest6 WHERE id BETWEEN 1419541 AND 1420540
+	Aggregate  (cost=3907.19..3907.20 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest6  (cost=34.75..3904.67 rows=1006 width=121)
+	        Recheck Cond: ((id >= 1419541) AND (id <= 1420540))
+	        ->  Bitmap Index Scan on sbtest6_pkey  (cost=0.00..34.50 rows=1006 width=0)
+	              Index Cond: ((id >= 1419541) AND (id <= 1420540))
+
+table 7 : explain SELECT count(c) FROM sbtest7 WHERE id BETWEEN 8498838 AND 8499837
+	Aggregate  (cost=3676.20..3676.21 rows=1 width=8)
+	  ->  Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..3673.86 rows=937 width=121)
+	        Index Cond: ((id >= 8498838) AND (id <= 8499837))
+
+table 8 : explain SELECT count(c) FROM sbtest8 WHERE id BETWEEN 588305 AND 589304
+	Aggregate  (cost=4001.81..4001.82 rows=1 width=8)
+	  ->  Bitmap Heap Scan on sbtest8  (cost=35.00..3999.24 rows=1031 width=121)
+	        Recheck Cond: ((id >= 588305) AND (id <= 589304))
+	        ->  Bitmap Index Scan on sbtest8_pkey  (cost=0.00..34.75 rows=1031 width=0)
+	              Index Cond: ((id >= 588305) AND (id <= 589304))
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            20020711
+        write:                           0
+        other:                           0
+        total:                           20020711
+    transactions:                        20020711 (31778.62 per sec.)
+    queries:                             20020711 (31778.62 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      31778.6163
+    time elapsed:                        630.0059s
+    total number of events:              20020711
+
+Latency (ms):
+         min:                                    0.09
+         avg:                                    1.26
+         max:                                    9.43
+         95th percentile:                        1.39
+         sum:                             25190764.43
+
+Threads fairness:
+    events (avg/stddev):           500517.3750/717.03
+    execution time (avg/stddev):   629.7691/0.00
+

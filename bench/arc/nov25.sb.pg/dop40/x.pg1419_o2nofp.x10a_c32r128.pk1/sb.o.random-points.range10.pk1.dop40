@@ -1,0 +1,1403 @@
+LUA_PATH=/home/mdcallag/git/mytools/bench/sysbench.lua/lua/?.lua /home/mdcallag/git/mytools/bench/sysbench.lua/lua/sysbench --db-driver=pgsql --range-size=10 --table-size=10000000 --tables=8 --threads=40 --events=0 --warmup-time=5 --time=630 --pgsql_conn_id=true /home/mdcallag/git/mytools/bench/sysbench.lua/lua/oltp_inlist_select.lua run --pgsql-user=root --pgsql-password=pw --pgsql-host=127.0.0.1 --pgsql-db=ib --rand-type=uniform --random-points=10 --skip-trx
+48 CPUs
+sysbench 1.1.0-9072687 (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 40
+Warmup time: 5s
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7739764, 4638545, 2673409, 6374607, 9529131, 7972309, 3247952, 133394, 4744300, 7784940)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7739764,4638545,2673409,6374607,9529131,7972309,3247952,133394,4744300,7784940}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 3504573, 8125351, 4046200, 7370094, 2202653, 4802497, 8590182, 7174535, 2594936, 5712078)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3504573,8125351,4046200,7370094,2202653,4802497,8590182,7174535,2594936,5712078}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 593045, 2175628, 8316521, 1814417, 5840221, 7727965, 8929871, 8987929, 8466183, 9339368)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{593045,2175628,8316521,1814417,5840221,7727965,8929871,8987929,8466183,9339368}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7993122, 213976, 9046388, 9674449, 1854384, 8438894, 8885021, 3142720, 1528921, 2335071)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7993122,213976,9046388,9674449,1854384,8438894,8885021,3142720,1528921,2335071}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2673574, 6344505, 4751593, 7151781, 5233475, 2225816, 5083316, 8544617, 1432873, 6547489)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2673574,6344505,4751593,7151781,5233475,2225816,5083316,8544617,1432873,6547489}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 9538464, 2123677, 2376166, 1112688, 5618610, 7311214, 2916136, 6361013, 1005694, 152791)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9538464,2123677,2376166,1112688,5618610,7311214,2916136,6361013,1005694,152791}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 5340796, 9424592, 6123034, 3124637, 6403188, 5796991, 2015358, 2151164, 9005876, 2017098)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5340796,9424592,6123034,3124637,6403188,5796991,2015358,2151164,9005876,2017098}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 5579712, 8618399, 1356644, 6493936, 6961867, 1311937, 121550, 2077885, 204171, 7712193)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5579712,8618399,1356644,6493936,6961867,1311937,121550,2077885,204171,7712193}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7679996, 4558763, 14767, 6767338, 3488385, 4702717, 5257117, 3765273, 9872917, 7176511)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7679996,4558763,14767,6767338,3488385,4702717,5257117,3765273,9872917,7176511}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 5948240, 4460516, 5750092, 9121658, 3555996, 1854540, 8267667, 8219689, 3683031, 1533495)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{5948240,4460516,5750092,9121658,3555996,1854540,8267667,8219689,3683031,1533495}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 1460379, 8607968, 7757310, 9649435, 4967277, 8411358, 5656216, 9648577, 89708, 5184263)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1460379,8607968,7757310,9649435,4967277,8411358,5656216,9648577,89708,5184263}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2044008, 6401373, 7640743, 9205093, 5745171, 5238167, 5872351, 9682071, 5490211, 4250113)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2044008,6401373,7640743,9205093,5745171,5238167,5872351,9682071,5490211,4250113}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2923356, 3120896, 1671849, 3882690, 8064406, 6204188, 3173660, 2905946, 1541080, 976718)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2923356,3120896,1671849,3882690,8064406,6204188,3173660,2905946,1541080,976718}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7180769, 7033422, 1588032, 2362364, 9418364, 4593635, 6514066, 3918385, 5807448, 5407603)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7180769,7033422,1588032,2362364,9418364,4593635,6514066,3918385,5807448,5407603}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 8582788, 7182294, 1448105, 2802416, 2993195, 1333561, 2992714, 9163239, 1928550, 6628720)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8582788,7182294,1448105,2802416,2993195,1333561,2992714,9163239,1928550,6628720}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 6183674, 6379351, 4822190, 662224, 3870201, 8225316, 9006098, 5214543, 1136658, 3295925)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6183674,6379351,4822190,662224,3870201,8225316,9006098,5214543,1136658,3295925}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 3614210, 6276113, 7481650, 1609624, 3232388, 2605775, 2525695, 3381306, 5870739, 1048258)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3614210,6276113,7481650,1609624,3232388,2605775,2525695,3381306,5870739,1048258}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7912621, 5604908, 5755496, 3549528, 3265291, 3679535, 2912732, 4483105, 128629, 7159616)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7912621,5604908,5755496,3549528,3265291,3679535,2912732,4483105,128629,7159616}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 1423225, 8138415, 4194191, 6573237, 6123205, 6476880, 6752710, 3250851, 258259, 8460454)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1423225,8138415,4194191,6573237,6123205,6476880,6752710,3250851,258259,8460454}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 3844571, 5421957, 83804, 8022294, 5805104, 8660357, 5073535, 3429093, 9979636, 9151596)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3844571,5421957,83804,8022294,5805104,8660357,5073535,3429093,9979636,9151596}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 6768865, 3564909, 5702198, 9037803, 6388436, 4461721, 9624340, 9614361, 343294, 4469827)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6768865,3564909,5702198,9037803,6388436,4461721,9624340,9614361,343294,4469827}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 9860723, 8711969, 616411, 1395954, 5242550, 8922755, 8024933, 5865767, 2452953, 1610175)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9860723,8711969,616411,1395954,5242550,8922755,8024933,5865767,2452953,1610175}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 7522451, 3935407, 760453, 1492709, 6294121, 995741, 1634036, 6666856, 7338929, 7711598)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{7522451,3935407,760453,1492709,6294121,995741,1634036,6666856,7338929,7711598}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 8396244, 692253, 8181831, 4575416, 1634473, 1139266, 8936145, 5761568, 5373755, 9822476)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8396244,692253,8181831,4575416,1634473,1139266,8936145,5761568,5373755,9822476}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 161274, 3913780, 2011374, 8183655, 4081386, 981605, 6947467, 5720742, 8576101, 5983924)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{161274,3913780,2011374,8183655,4081386,981605,6947467,5720742,8576101,5983924}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2140033, 7397747, 7932000, 7925444, 1251053, 5565527, 6398357, 9522644, 2371921, 5375296)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2140033,7397747,7932000,7925444,1251053,5565527,6398357,9522644,2371921,5375296}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 8908147, 1602015, 2525306, 1364509, 381567, 8999716, 5153661, 7775682, 7573721, 7693596)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8908147,1602015,2525306,1364509,381567,8999716,5153661,7775682,7573721,7693596}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 964915, 6451623, 6720784, 5834342, 9544792, 1174041, 1436917, 8877706, 1826477, 5183706)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{964915,6451623,6720784,5834342,9544792,1174041,1436917,8877706,1826477,5183706}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 3635557, 7856730, 7141014, 712056, 4667607, 601155, 2827558, 774449, 6375235, 2208492)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3635557,7856730,7141014,712056,4667607,601155,2827558,774449,6375235,2208492}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 8212921, 8085490, 2964218, 747683, 312664, 3172236, 9052062, 2358491, 2944224, 2983055)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{8212921,8085490,2964218,747683,312664,3172236,9052062,2358491,2944224,2983055}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 3616345, 5902626, 9632287, 1239062, 4902547, 4733013, 8633964, 5576465, 4586713, 3068622)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{3616345,5902626,9632287,1239062,4902547,4733013,8633964,5576465,4586713,3068622}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 966071, 6901695, 276203, 1482255, 2837983, 8580828, 9777433, 7039472, 2448406, 3551342)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{966071,6901695,276203,1482255,2837983,8580828,9777433,7039472,2448406,3551342}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2077262, 4572261, 7346382, 6582527, 1968403, 2819281, 5330245, 5349796, 5100247, 4413179)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2077262,4572261,7346382,6582527,1968403,2819281,5330245,5349796,5100247,4413179}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 9732399, 4648967, 3389895, 4188353, 3058803, 2576461, 6344928, 8293303, 5827897, 5867091)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{9732399,4648967,3389895,4188353,3058803,2576461,6344928,8293303,5827897,5867091}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 2842888, 2553546, 5493916, 9171479, 2747300, 9080362, 5714835, 3513962, 761649, 3203657)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{2842888,2553546,5493916,9171479,2747300,9080362,5714835,3513962,761649,3203657}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 6858514, 5341674, 5006740, 3664914, 1545573, 4456665, 9987002, 4101402, 3670951, 3763040)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6858514,5341674,5006740,3664914,1545573,4456665,9987002,4101402,3670951,3763040}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 1413217, 2399390, 3910364, 2511416, 2928473, 9347670, 7748302, 1151594, 3162268, 3876023)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1413217,2399390,3910364,2511416,2928473,9347670,7748302,1151594,3162268,3876023}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 6116765, 2928496, 1990027, 478875, 156613, 7330407, 4702654, 2711836, 5051651, 3524569)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6116765,2928496,1990027,478875,156613,7330407,4702654,2711836,5051651,3524569}'::integer[]))
+
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 1081224, 4961732, 109412, 792005, 8409536, 116823, 2684358, 2039949, 7233398, 9736013)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{1081224,4961732,109412,792005,8409536,116823,2684358,2039949,7233398,9736013}'::integer[]))
+
+explain: for select-inlist :: explain SELECT c FROM sbtest%d WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+for select-inlist
+table 1 : explain SELECT c FROM sbtest1 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest1_pkey on sbtest1  (cost=0.43..83.77 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 2 : explain SELECT c FROM sbtest2 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest2_pkey on sbtest2  (cost=0.43..83.85 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 3 : explain SELECT c FROM sbtest3 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest3_pkey on sbtest3  (cost=0.43..83.72 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 4 : explain SELECT c FROM sbtest4 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest4_pkey on sbtest4  (cost=0.43..83.70 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 5 : explain SELECT c FROM sbtest5 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest5_pkey on sbtest5  (cost=0.43..83.65 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 6 : explain SELECT c FROM sbtest6 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest6_pkey on sbtest6  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 7 : explain SELECT c FROM sbtest7 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest7_pkey on sbtest7  (cost=0.43..83.73 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+table 8 : explain SELECT c FROM sbtest8 WHERE id IN ( 6356872, 5556342, 617926, 7278988, 950214, 8788441, 6528180, 3435920, 8823488, 3094596)
+	Index Scan using sbtest8_pkey on sbtest8  (cost=0.43..83.75 rows=10 width=121)
+	  Index Cond: (id = ANY ('{6356872,5556342,617926,7278988,950214,8788441,6528180,3435920,8823488,3094596}'::integer[]))
+
+Threads started!
+
+Warming up for 5 seconds...
+
+SQL statistics:
+    queries performed:
+        read:                            301354946
+        write:                           0
+        other:                           0
+        total:                           301354946
+    transactions:                        301354946 (478334.28 per sec.)
+    queries:                             301354946 (478334.28 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+Throughput:
+    events/s (eps):                      478334.2840
+    time elapsed:                        630.0092s
+    total number of events:              301354946
+
+Latency (ms):
+         min:                                    0.07
+         avg:                                    0.08
+         max:                                   20.13
+         95th percentile:                        0.09
+         sum:                             25039108.45
+
+Threads fairness:
+    events (avg/stddev):           7533867.5000/48957.88
+    execution time (avg/stddev):   625.9777/0.07
+
