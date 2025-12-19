@@ -6,7 +6,8 @@ nsecs=$2
 
 rm $fname
 
-fio --name=write_fsync_latency_test --filename=$fname --size=1024M --time_based --runtime=15s --ioengine=libaio --bs=16K --rw=randwrite --direct=1 --fsync=1 --output-format=normal --create_only=1
+# create the test file and write to it to make sure it is fully allocated
+fio --name=seqwrite --rw=write --ioengine=sync --bs=1M --size=1024M --filename=$fname --direct=1
 sync; sleep 5
 
 echo
