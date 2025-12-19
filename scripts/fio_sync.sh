@@ -2,6 +2,8 @@
 fname=$1
 nsecs=$2
 
+# bash fio_sync.sh /data/m/f1 5 | tee o.fio_sync | egrep "O_DIRECT|IOPS"
+
 rm $fname
 
 fio --name=write_fsync_latency_test --filename=$fname --size=1024M --time_based --runtime=15s --ioengine=libaio --bs=16K --rw=randwrite --direct=1 --fsync=1 --output-format=normal --create_only=1
