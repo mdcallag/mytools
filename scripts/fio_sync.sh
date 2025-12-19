@@ -1,0 +1,44 @@
+
+fname=$1
+nsecs=$2
+
+rm $fname
+
+fio --name=write_fsync_latency_test --filename=$fname --size=1024M --time_based --runtime=15s --ioengine=libaio --bs=16K --rw=randwrite --direct=1 --fsync=1 --output-format=normal --create_only=1
+sync; sleep 5
+
+echo
+echo
+ls -lh $fname
+ls -ls $fname
+echo
+echo
+
+flags=( --name=sync_latency --filename=$fname --size=1024M --time_based --runtime=${nsecs}s --ioengine=psync --rw=randwrite --direct=1 --output-format=normal )
+
+for bs in 16K 2M ; do
+echo Test for block size $bs
+
+  for sync in 0 1 ; do
+    echo O_DIRECT with fsync=$sync for block size $bs
+    fio "${flags[@]}" --filename=$fname --bs=$bs --fsync=$sync 
+    sleep 5
+
+    echo O_DIRECT with fsync=$sync for block size $bs
+    fio "${flags[@]}" --filename=$fname --bs=$bs --fsync=$sync 
+    sleep 5
+  done
+
+  for sync in 0 1 ; do
+    echo O_DIRECT with fdatasync=$sync for block size $bs
+    fio "${flags[@]}" --filename=$fname --bs=$bs --fdatasync=$sync 
+    sleep 5
+
+    echo O_DIRECT with fdatasync=$sync for block size $bs
+    fio "${flags[@]}" --filename=$fname --bs=$bs --fdatasync=$sync 
+    sleep 5
+  done
+
+done
+
+rm $fname
