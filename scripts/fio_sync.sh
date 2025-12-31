@@ -3,7 +3,7 @@ fname=$1
 nsecs=$2
 jobs=$3
 
-# bash fio_sync.sh /data/m/f1 60 1 > o.fio_sync 
+# secs=300; for j in 1 2 4 8 16 32 ; do echo $j ; bash scripts/fio_sync.sh /data/m/f1 $secs $j > o.ext4.ser7.secs${secs}.$j ;  sleep $secs; done
 # egrep "O_DIRECT|IOPS" o.fio_sync > o.sum.fio_sync.ser7
 # egrep "O_DIRECT|clat \(|sync \(" o.fio_sync
 
@@ -20,7 +20,7 @@ ls -ls $fname
 echo
 echo
 
-flags=( --name=sync_latency --filename=$fname --size=1024M --time_based --runtime=${nsecs}s --ioengine=psync --rw=randwrite --direct=1 --output-format=normal --max-jobs=$jobs )
+flags=( --name=sync_latency --filename=$fname --size=1024M --time_based --runtime=${nsecs}s --ioengine=psync --rw=randwrite --direct=1 --output-format=normal --numjobs=$jobs --max-jobs=$jobs )
 
 for bs in 16K 2M ; do
 echo Test for block size $bs
