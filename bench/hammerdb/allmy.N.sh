@@ -13,21 +13,16 @@ rampup=$5
 duration=$6
 config_suffix=$7
 
-export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib
+export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib:$LD_LIBRARY_PATH
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
-
-#my5651_rel_o2nofp.z12a_${config_suffix} \
-#my5744_rel_o2nofp.z12a_${config_suffix} \
-#my8043_rel_o2nofp.z12a_${config_suffix} \
-#my8406_rel_o2nofp.z12a_${config_suffix} \
-#my9400_rel_o2nofp.z12a_${config_suffix} \
 
 for dcnf in \
 my5651_rel_o2nofp.z12a_${config_suffix} \
 my5744_rel_o2nofp.z12a_${config_suffix} \
-my8043_rel_o2nofp.z12a_${config_suffix} \
-my8406_rel_o2nofp.z12a_${config_suffix} \
+my8044_rel_o2nofp.z12a_${config_suffix} \
+my8407_rel_o2nofp.z12a_${config_suffix} \
 my9400_rel_o2nofp.z12a_${config_suffix} \
+my9500_rel_o2nofp.z12a_${config_suffix} \
 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
