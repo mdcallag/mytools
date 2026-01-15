@@ -14,8 +14,13 @@ duration=$6
 config_suffix=$7
 
 for dcnf in \
-pg176_o2nofp.x10a_${config_suffix} \
-pg180_o2nofp.x10b_${config_suffix} \
+pg1222_o2nofp.x10a_${config_suffix} \
+pg1323_o2nofp.x10a_${config_suffix} \
+pg1420_o2nofp.x10a_${config_suffix} \
+pg1515_o2nofp.x10a_${config_suffix} \
+pg1611_o2nofp.x10a_${config_suffix} \
+pg177_o2nofp.x10a_${config_suffix} \
+pg181_o2nofp.x10b_${config_suffix} \
 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
