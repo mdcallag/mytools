@@ -13,49 +13,24 @@ rampup=$5
 duration=$6
 config_suffix=$7
 
-#ma100244_rel_withdbg.z12a_${config_suffix} \
-#ma100339_rel_withdbg.z12a_${config_suffix} \
-#ma100434_rel_withdbg.z12a_${config_suffix} \
-#ma100529_rel_withdbg.z12a_${config_suffix} \
-#ma100623_rel_withdbg.z12a_${config_suffix} \
-#ma100708_rel_withdbg.z12a_${config_suffix} \
-#ma100808_rel_withdbg.z12a_${config_suffix} \
-#ma100908_rel_withdbg.z12a_${config_suffix} \
-#ma101007_rel_withdbg.z12a_${config_suffix} \
-#ma101114_rel_withdbg.z12a_${config_suffix} \
-#ma110408_rel_withdbg.z12b_${config_suffix} \
-#ma110803_rel_withdbg.z12b_${config_suffix} \
-#ma120101_rel_withdbg.z12b_${config_suffix} \
-
-#ma100230_rel_withdbg.z12a_${config_suffix} \
-#ma100309_rel_withdbg.z12a_${config_suffix} \
-#ma100408_rel_withdbg.z12a_${config_suffix} \
-#ma100506_rel_withdbg.z12a_${config_suffix} \
-#ma100605_rel_withdbg.z12a_${config_suffix} \
-#ma101104_rel_withdbg.z12a_${config_suffix} \
-#ma120101_rel_withdbg.z12b_ahi1_${config_suffix} \
+export LD_LIBRARY_PATH=/home/mdcallag/d/ma120101_rel_withdbg/lib:$LD_LIBRARY_PATH
+echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
 
 for dcnf in \
 ma100230_rel_withdbg.z12a_${config_suffix} \
-ma100309_rel_withdbg.z12a_${config_suffix} \
-ma100408_rel_withdbg.z12a_${config_suffix} \
-ma100506_rel_withdbg.z12a_${config_suffix} \
-ma100605_rel_withdbg.z12a_${config_suffix} \
-ma101104_rel_withdbg.z12a_${config_suffix} \
-ma120101_rel_withdbg.z12b_ahi1_${config_suffix} \
 ma100244_rel_withdbg.z12a_${config_suffix} \
 ma100339_rel_withdbg.z12a_${config_suffix} \
 ma100434_rel_withdbg.z12a_${config_suffix} \
 ma100529_rel_withdbg.z12a_${config_suffix} \
-ma100623_rel_withdbg.z12a_${config_suffix} \
-ma100708_rel_withdbg.z12a_${config_suffix} \
+ma100624_rel_withdbg.z12a_${config_suffix} \
 ma100808_rel_withdbg.z12a_${config_suffix} \
 ma100908_rel_withdbg.z12a_${config_suffix} \
 ma101007_rel_withdbg.z12a_${config_suffix} \
-ma101114_rel_withdbg.z12a_${config_suffix} \
-ma110408_rel_withdbg.z12b_${config_suffix} \
-ma110803_rel_withdbg.z12b_${config_suffix} \
-ma120101_rel_withdbg.z12b_${config_suffix} \
+ma101115_rel_withdbg.z12a_${config_suffix} \
+ma110409_rel_withdbg.z12b_${config_suffix} \
+ma110805_rel_withdbg.z12b_${config_suffix} \
+ma120102_rel_withdbg.z12b_${config_suffix} \
+ma120201_rel_withdbg.z12b_${config_suffix} \
 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
