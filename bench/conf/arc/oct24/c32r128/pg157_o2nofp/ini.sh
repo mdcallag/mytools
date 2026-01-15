@@ -28,11 +28,14 @@ numactl --interleave=all bin/pg_ctl -D $bdir -l logfile start >& o.ini.2
 sleep 5
 
 echo "create db and users"
+
+bin/psql template1 -c 'create extension pgstattuple'
+bin/psql template1 -c 'create extension pg_stat_statements'
+
 bin/createdb me
 bin/createdb ib
 bin/createdb linkbench
 bin/psql me -c "create user root with superuser login password 'pw'"
 bin/psql me -c "create user linkbench with superuser login password 'pw'"
 
-bin/psql template1 -c 'create extension pgstattuple'
 

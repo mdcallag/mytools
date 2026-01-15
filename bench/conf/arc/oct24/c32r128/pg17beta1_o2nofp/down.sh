@@ -1,8 +1,7 @@
-
 bdir=/data/m/pg
 
 echo "stop and remove files"
-bin/pg_ctl -m immediate -D $bdir stop
-sleep 5
+bin/pg_ctl -D $bdir stop
 rm -rf $bdir/*
 rm -f logfile; touch logfile
+
