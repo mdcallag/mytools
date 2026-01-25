@@ -85,6 +85,10 @@ elif [[ $dbms == "postgres" ]]; then
   echo "TODO: reset Postgres replication"
   while :; do ps aux | grep postgres | grep -v python | grep -v psql | grep -v grep; sleep 30; done >& o.ps.$sfx &
   spid=$!
+
+  while :; do $client ib -x -c 'SELECT COUNT(*) FROM pg_ls_waldir()' 2> /dev/null | grep count ; sleep 5 ; done >& o.pg.lswal.$sfx &
+  walpid=$!
+
   idbms="postgres"
 else
   echo "dbms must be one of mongodb, mysql, mariadb, postgres but was $dbms"
@@ -379,6 +383,7 @@ kill $spid >& /dev/null
 kill $splid >& /dev/null
 kill $seid >& /dev/null
 kill $topid >& /dev/null
+kill $walpid >& /dev/null
 gzip -9 o.top.$sfx 
 
 #rm o.perf.rec.g.*
