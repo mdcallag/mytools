@@ -23,7 +23,7 @@ e2=$( date +%s )
 t2=$(( e2 - s2 ))
 echo Total secs during, after shutdown is $t1 , $t2
 echo Total secs during, after shutdown is $t1 , $t2 > o.stopsecs
-cp /data/m/my/data/dell32.err .
+cp /data/m/my/data/*.err .
 
 sleep 3
 

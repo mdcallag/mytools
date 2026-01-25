@@ -7,7 +7,7 @@ while ps aux | egrep "mariadb|mysqld" | grep -v grep ; do sleep 1; echo running;
 esecs=$( date +%s )
 tsecs=$(( esecs - ssecs ))
 echo Total secs after shutdown is $tsecs
-cp /data/m/my/data/dell32.err .
+cp /data/m/my/data/*.err .
 
 sleep 5
 
