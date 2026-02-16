@@ -31,6 +31,9 @@ pg181_o2nofp.x10b_${config_suffix} \
   bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
+  ts=$( date +"%b%d%H%M" )
+  mv /tmp/hammer.DB hammer.DB.$ts.existing
+
   sfx=pg.$dcnf
 
   vmstat 1 10000000 >& o.$sfx.build.vm &
@@ -211,5 +214,5 @@ pg181_o2nofp.x10b_${config_suffix} \
   bash down.sh >& o.down.$dcnf
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
-
+  mv /tmp/hammer.DB o.$sfx.hammer.DB
 done

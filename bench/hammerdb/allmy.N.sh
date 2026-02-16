@@ -33,6 +33,9 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
   bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
+  ts=$( date +"%b%d%H%M" )
+  mv /tmp/hammer.DB hammer.DB.$ts.existing
+
   mysock=$( /home/mdcallag/d/$dbms/bin/mysql -uroot -ppw -A -h 127.0.0.1 -e 'show global variables like "socket"' -E | grep Value: | awk '{ print $2 }' )
   /home/mdcallag/d/$dbms/bin/mysql -uroot -ppw -A -h 127.0.0.1 -e 'show global variables like "socket"' -E
   echo Socket is :: $mysock ::
@@ -189,4 +192,5 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
   bash down.sh >& o.$sfx.down
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
+  mv /tmp/hammer.DB o.$sfx.hammer.DB
 done

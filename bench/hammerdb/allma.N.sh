@@ -53,6 +53,9 @@ ma120300_rel_withdbg.z12b_${config_suffix} \
   bash ini.sh $cnf >& o.ini.$cnf ; sleep 5
   cd /opt/HammerDB-5.0
 
+  ts=$( date +"%b%d%H%M" )
+  mv /tmp/hammer.DB hammer.DB.$ts.existing
+
   sfx=ma.$dcnf
 
   vmstat 1 10000000 >& o.$sfx.build.vm &
@@ -204,4 +207,5 @@ ma120300_rel_withdbg.z12b_${config_suffix} \
   bash down.sh >& o.$sfx.down
   cd /opt/HammerDB-5.0
   mv /home/mdcallag/d/$dbms/o.$sfx.* .
+  mv /tmp/hammer.DB o.$sfx.hammer.DB
 done
