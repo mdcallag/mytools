@@ -101,42 +101,58 @@ pg181_o2nofp.x10b_${config_suffix} \
   iostat -y -kx 1 10000000 >& o.$sfx.run.io &
   iopid=$!
 
-  if [[ $doperf -eq 1 ]]; then
+  fgp="$HOME/git/FlameGraph"
+  if [ ! -d $fgp ]; then
+    echo FlameGraph not found
+    doperf=0
+  fi
+
+  if [[ $doperf -gt 0 ]]; then
     echo Collecting perf
-    for loop in 1 2 3 4 5 6 7 8 9 ; do
-      #perf record -F 333 -p PID -- sleep 15
-      #perf record -F 333 -p $dbbpid -g -- sleep 15
-      perf record -F 333 -a -g -- sleep 15
 
-      perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
-      perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+    # skip the "if" block where there is a check for the DBMS process ID
 
-      fgp="$HOME/git/FlameGraph"
-      if [ ! -d $fgp ]; then
-        echo FlameGraph not found
-      else
-        perf script | $fgp/stackcollapse-perf.pl > o.$sfx.perf.loop${loop}.folded
-        cat o.$sfx.perf.loop${loop}.folded | $fgp/flamegraph.pl > o.$sfx.perf.loop${loop}.svg
-      fi
+      loop=1
+      while :; do
 
-      #perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
-      perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        if [[ $doperf -eq 1 ]]; then
+          #perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
+          perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        fi
 
-      # TODO - collect all samples into one big sample
-      sleep 30
-    done
+        if [[ $doperf -eq 2 ]]; then
+          #perf record -F 333 -p PID -- sleep 15
+          #perf record -F 333 -p $dbbpid -g -- sleep 15
+          perf record -F 333 -a -g -- sleep 15
 
-    cat o.$sfx.perf.loop*.folded |  $fgp/flamegraph.pl > o.$sfx.perf.all.svg
-    rm o.$sfx.perf.loop*.folded
+          perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
+          perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+
+          perf script | $fgp/stackcollapse-perf.pl > o.$sfx.perf.loop${loop}.folded
+          cat o.$sfx.perf.loop${loop}.folded | $fgp/flamegraph.pl > o.$sfx.perf.loop${loop}.svg
+        fi
+
+        # TODO - collect all samples into one big sample
+        sleep 60
+        loop=$(( $loop + 1 ))
+      done &
+      perfpid=$!
+
   fi
 
   wait $hpid
-  cat o.$sfx.run.out | grep "System achieved" 
+  cat o.$sfx.run.out | grep "System achieved"
   echo
 
   kill $vmpid
   kill $iopid
   kill $pspid
+  if [[ $perfpid -gt 0 ]]; then
+    kill $perfpid
+
+    cat o.$sfx.perf.loop*.folded | $fgp/flamegraph.pl > o.$sfx.perf.all.svg
+    rm o.$sfx.perf.loop*.folded
+  fi
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df

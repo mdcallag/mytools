@@ -101,7 +101,7 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
   fi
 
   perfpid=0
-  if [[ $doperf -eq 1 ]]; then
+  if [[ $doperf -gt 0 ]]; then
     echo Collecting perf
 
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
