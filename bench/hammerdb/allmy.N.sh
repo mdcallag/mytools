@@ -12,6 +12,8 @@ rampup=$5
 # an integer, duration in minutes to run test 
 duration=$6
 config_suffix=$7
+# sample frequency for perf
+samples_per_sec=$8
 
 export LD_LIBRARY_PATH=/home/mdcallag/d/my8406_rel_o2nofp/lib:$LD_LIBRARY_PATH
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
@@ -121,9 +123,9 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
         fi
 
         if [[ $doperf -eq 2 ]]; then
-          #perf record -F 333 -p PID -- sleep 15
-          #perf record -F 333 -p $dbbpid -g -- sleep 15
-          perf record -F 333 -a -g -- sleep 15
+          #perf record -F $samples_per_sec -p PID -- sleep 15
+          #perf record -F $samples_per_sec -p $dbbpid -g -- sleep 15
+          perf record -F $samples_per_sec -a -g -- sleep 15
 
           perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
           perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}

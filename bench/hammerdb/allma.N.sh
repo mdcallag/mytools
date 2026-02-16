@@ -12,25 +12,39 @@ rampup=$5
 # an integer, duration in minutes to run test 
 duration=$6
 config_suffix=$7
+# sample frequency for perf
+samples_per_sec=$8
 
 export LD_LIBRARY_PATH=/home/mdcallag/d/ma120101_rel_withdbg/lib:$LD_LIBRARY_PATH
 echo LD_LIBRARY_PATH set to $LD_LIBRARY_PATH
 
+#ma100230_rel_withdbg.z12a_${config_suffix} \
+#ma100244_rel_withdbg.z12a_${config_suffix} \
+#ma100339_rel_withdbg.z12a_${config_suffix} \
+#ma100434_rel_withdbg.z12a_${config_suffix} \
+#ma100529_rel_withdbg.z12a_${config_suffix} \
+#ma100624_rel_withdbg.z12a_${config_suffix} \
+#ma101115_rel_withdbg.z12a_${config_suffix} \
+#ma110409_rel_withdbg.z12b_${config_suffix} \
+#ma110805_rel_withdbg.z12b_${config_suffix} \
+#ma120102_rel_withdbg.z12b_${config_suffix} \
+#ma120201_rel_withdbg.z12b_${config_suffix} \
+#
+#ma120300_rel_withdbg.z12b_${config_suffix} \
+#ma120300_rel_withdbg.z12c_${config_suffix} \
+
 for dcnf in \
-ma100230_rel_withdbg.z12a_${config_suffix} \
 ma100244_rel_withdbg.z12a_${config_suffix} \
 ma100339_rel_withdbg.z12a_${config_suffix} \
 ma100434_rel_withdbg.z12a_${config_suffix} \
 ma100529_rel_withdbg.z12a_${config_suffix} \
 ma100624_rel_withdbg.z12a_${config_suffix} \
-ma100808_rel_withdbg.z12a_${config_suffix} \
-ma100908_rel_withdbg.z12a_${config_suffix} \
-ma101007_rel_withdbg.z12a_${config_suffix} \
 ma101115_rel_withdbg.z12a_${config_suffix} \
 ma110409_rel_withdbg.z12b_${config_suffix} \
 ma110805_rel_withdbg.z12b_${config_suffix} \
 ma120102_rel_withdbg.z12b_${config_suffix} \
 ma120201_rel_withdbg.z12b_${config_suffix} \
+ma120300_rel_withdbg.z12b_${config_suffix} \
 ; do
   dbms=$( echo $dcnf | tr '.' ' ' | awk '{ print $1 }' )
   cnf=$( echo $dcnf | tr '.' ' ' | awk '{ print $2 }' )
@@ -98,37 +112,49 @@ ma120201_rel_withdbg.z12b_${config_suffix} \
   iostat -y -kx 1 10000000 >& o.$sfx.run.io &
   iopid=$!
 
-  if [[ $doperf -eq 1 ]]; then
+  fgp="$HOME/git/FlameGraph"
+  if [ ! -d $fgp ]; then
+    echo FlameGraph not found
+    doperf=0
+  fi
+
+  perfpid=0
+  if [[ $doperf -gt 0 ]]; then
     echo Collecting perf
     dbbpid=$( ps aux | grep mariadbd | grep -v mariadbd-safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     if [ -z $dbbpid ]; then
+      dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    fi
+
+    if [ -z $dbbpid ]; then
       echo Cannot get MariaDB PID
     else
-      for loop in 1 2 3 4 5 6 7 8 9 ; do
-        #perf record -F 333 -p PID -- sleep 15
-        #perf record -F 333 -p $dbbpid -g -- sleep 15
-        perf record -F 333 -a -g -- sleep 15
+      loop=1
+      while :; do
 
-        perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
-        perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+        if [[ $doperf -eq 1 ]]; then
+          #perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
+          perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        fi
 
-	fgp="$HOME/git/FlameGraph"
-        if [ ! -d $fgp ]; then
-	  echo FlameGraph not found
-	else
+        if [[ $doperf -eq 2 ]]; then
+          #perf record -F $samples_per_sec -p PID -- sleep 15
+          #perf record -F $samples_per_sec -p $dbbpid -g -- sleep 15
+          perf record -F $samples_per_sec -a -g -- sleep 15
+
+          perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
+          perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+
           perf script | $fgp/stackcollapse-perf.pl > o.$sfx.perf.loop${loop}.folded
           cat o.$sfx.perf.loop${loop}.folded | $fgp/flamegraph.pl > o.$sfx.perf.loop${loop}.svg
-	fi
-
-	#perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
-	perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        fi
 
 	# TODO - collect all samples into one big sample
-	sleep 30
-      done
+	sleep 60
+	loop=$(( $loop + 1 ))
+      done &
+      perfpid=$!
 
-      cat o.$sfx.perf.loop*.folded |  $fgp/flamegraph.pl > o.$sfx.perf.all.svg
-      rm o.$sfx.perf.loop*.folded 
     fi
 
   fi
@@ -140,6 +166,12 @@ ma120201_rel_withdbg.z12b_${config_suffix} \
   kill $vmpid
   kill $iopid
   kill $pspid
+  if [[ $perfpid -gt 0 ]]; then
+    kill $perfpid
+
+    cat o.$sfx.perf.loop*.folded |  $fgp/flamegraph.pl > o.$sfx.perf.all.svg
+    rm o.$sfx.perf.loop*.folded 
+  fi
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df

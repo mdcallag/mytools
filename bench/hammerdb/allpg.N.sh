@@ -12,6 +12,8 @@ rampup=$5
 # an integer, duration in minutes to run test
 duration=$6
 config_suffix=$7
+# sample frequency for perf
+samples_per_sec=$8
 
 for dcnf in \
 pg1222_o2nofp.x10a_${config_suffix} \
@@ -107,6 +109,7 @@ pg181_o2nofp.x10b_${config_suffix} \
     doperf=0
   fi
 
+  perfpid=0
   if [[ $doperf -gt 0 ]]; then
     echo Collecting perf
 
@@ -121,9 +124,9 @@ pg181_o2nofp.x10b_${config_suffix} \
         fi
 
         if [[ $doperf -eq 2 ]]; then
-          #perf record -F 333 -p PID -- sleep 15
-          #perf record -F 333 -p $dbbpid -g -- sleep 15
-          perf record -F 333 -a -g -- sleep 15
+          #perf record -F $samples_per_sec -p PID -- sleep 15
+          #perf record -F $samples_per_sec -p $dbbpid -g -- sleep 15
+          perf record -F $samples_per_sec -a -g -- sleep 15
 
           perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
           perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
