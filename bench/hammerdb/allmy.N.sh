@@ -94,37 +94,50 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
   iostat -y -kx 1 10000000 >& o.$sfx.run.io &
   iopid=$!
 
+  fgp="$HOME/git/FlameGraph"
+  if [ ! -d $fgp ]; then
+    echo FlameGraph not found
+    doperf=0
+  fi
+
+  perfpid=0
   if [[ $doperf -eq 1 ]]; then
     echo Collecting perf
+
     dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
     if [ -z $dbbpid ]; then
-      echo Cannot get mysqld PID
+      dbbpid=$( ps aux | grep mysqld | grep -v mysqld_safe | grep -v \/usr\/bin\/time | grep -v timeout | grep -v grep | awk '{ print $2 }' )
+    fi
+
+    if [ -z $dbbpid ]; then
+      echo Cannot get MariaDB PID
     else
-      for loop in 1 2 3 4 5 6 7 8 9 ; do
-        #perf record -F 333 -p PID -- sleep 15
-        #perf record -F 333 -p $dbbpid -g -- sleep 15
-        perf record -F 333 -a -g -- sleep 15
+      loop=1
+      while :; do
 
-        perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
-        perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+        if [[ $doperf -eq 1 ]]; then
+          #perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
+          perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        fi
 
-	fgp="$HOME/git/FlameGraph"
-        if [ ! -d $fgp ]; then
-	  echo FlameGraph not found
-	else
+        if [[ $doperf -eq 2 ]]; then
+          #perf record -F 333 -p PID -- sleep 15
+          #perf record -F 333 -p $dbbpid -g -- sleep 15
+          perf record -F 333 -a -g -- sleep 15
+
+          perf report --stdio -g graph > o.$sfx.perf.rep.g.graph.loop${loop}
+          perf report --stdio -g flat  > o.$sfx.perf.rep.g.flat.looop${loop}
+
           perf script | $fgp/stackcollapse-perf.pl > o.$sfx.perf.loop${loop}.folded
           cat o.$sfx.perf.loop${loop}.folded | $fgp/flamegraph.pl > o.$sfx.perf.loop${loop}.svg
-	fi
+        fi
 
-	#perf stat -o o.$sfx.perf.stat.loop${loop} -p $dbbpid -- sleep 15
-	perf stat -o o.$sfx.perf.stat.loop${loop} -a -- sleep 15
+        # TODO - collect all samples into one big sample
+        sleep 60
+        loop=$(( $loop + 1 ))
+      done &
+      perfpid=$!
 
-	# TODO - collect all samples into one big sample
-	sleep 30
-      done
-
-      cat o.$sfx.perf.loop*.folded |  $fgp/flamegraph.pl > o.$sfx.perf.all.svg
-      rm o.$sfx.perf.loop*.folded 
     fi
 
   fi
@@ -136,6 +149,12 @@ my9500_rel_o2nofp.z12a_${config_suffix} \
   kill $vmpid
   kill $iopid
   kill $pspid
+  if [[ $perfpid -gt 0 ]]; then
+    kill $perfpid
+
+    cat o.$sfx.perf.loop*.folded | $fgp/flamegraph.pl > o.$sfx.perf.all.svg
+    rm o.$sfx.perf.loop*.folded
+  fi
 
   du -hs /data/m/* > o.$sfx.run.df
   echo >> o.$sfx.run.df
