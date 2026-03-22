@@ -51,6 +51,9 @@ dpg18=${dbms_pfx}/pg18
 dmy80=${dbms_pfx}/my80
 dmy84=${dbms_pfx}/my84
 dmy94=${dbms_pfx}/my94
+dmy95=${dbms_pfx}/my95
+dmy96=${dbms_pfx}/my96
+dmy97=${dbms_pfx}/my97
 dmy57=${dbms_pfx}/my57
 dmy56=${dbms_pfx}/my56
 dma12=${dbms_pfx}/ma12
@@ -107,6 +110,63 @@ function do_rx80 {
   cd $dmyfb80; bash down.sh; cd $dgit
   mv $dmyfb80/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
   cp $dmyfb80/etc/my.cnf $rdir
+}
+
+function do_in97 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy97; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy97/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dmy97; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in97.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmy97/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dmy97/etc/my.cnf $rdir
+}
+
+function do_in96 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy96; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy96/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dmy96; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in96.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmy96/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dmy96/etc/my.cnf $rdir
+}
+
+function do_in95 {
+  dop=$1
+  cnf=$2
+  rmemt=$3
+  rmem1=$4
+  rmem2=$5
+  shift 5
+
+  echo "innodb $rmemt, dop $dop, conf $cnf at $( date )"
+  sfx=in.$rmemt.dop$dop.c$cnf
+  cd $dmy95; bash ini.sh $cnf >& o.ini.$sfx; sleep 10
+  cd $dgit; bash iq.sh innodb "" $dmy95/bin/mysql /data/m/my $dev 1 $dop mysql no $only1t 0 $rmem1 $rmem2 $qsecs $dbopt $npart $perpart $delete_per_insert $@ >& a.$sfx; sleep 10
+  cd $dmy95; bash down.sh; cd $dgit
+  rdir=${brdir}/${dop}u.1t${only1t}/$rmemt.in95.c${cnf}${ps}
+  mkdir -p $rdir
+  mv $dmy95/o.ini.* l.i0 l.i1 l.i2 l.x end qr*.L* qp*.L* a.$sfx $rdir
+  cp $dmy95/etc/my.cnf $rdir
 }
 
 function do_in94 {
@@ -588,6 +648,12 @@ elif [[ $dbms == "pg18" ]]; then
   do_pg18 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "pgo17" ]]; then
   do_pgo17 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "in97" ]]; then
+  do_in97 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "in96" ]]; then
+  do_in96 $dop $cnf $nrt $nr1 $nr2 $@
+elif [[ $dbms == "in95" ]]; then
+  do_in95 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in94" ]]; then
   do_in94 $dop $cnf $nrt $nr1 $nr2 $@
 elif [[ $dbms == "in84" ]]; then
