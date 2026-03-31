@@ -185,11 +185,11 @@ fi
 start_secs=$( date +'%s' )
 exA=(--db-driver=$driver $setupArgs $engineArg --range-size=$range --table-size=$nr --tables=$ntabs --events=0 --time=$secs $sysbdir/$lua $prepareArgs prepare)
 if [[ $client == *"oriole"* ]]; then 
-  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx
-  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx 2>&1
+  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx
+  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" --create-table-options="using orioledb" >> sb.prepare.o.$sfx 2>&1
 else
-  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
-  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
+  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx
+  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" >> sb.prepare.o.$sfx 2>&1
 fi
 status=$?
 if [[ $status != 0 ]]; then
@@ -354,13 +354,13 @@ repint=""
 exA=(--db-driver=$driver --range-size=$range --table-size=$nr --tables=$ntabs --threads=$nt --events=0 --warmup-time=5 --time=$secs $useps $repint $pgid $sysbdir/$lua run)
 
 if [[ $client == *"oriole"* ]]; then 
-  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb"  > sb.o.$sfxn
+  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb"  > sb.o.$sfxn
   echo "$realdop CPUs" >> sb.o.$sfxn
-  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb" >> sb.o.$sfxn 2>&1
+  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" --create-table-options="using orioledb" >> sb.o.$sfxn 2>&1
 else
-  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
+  echo LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}"  > sb.o.$sfxn
   echo "$realdop CPUs" >> sb.o.$sfxn
-  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my5744_rel_o2nofp/lib LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
+  LANG=POSIX LD_LIBRARY_PATH=/home/mdcallag/d/my8045_rel_o2nofp/lib LUA_PATH="$lua_path" /usr/bin/time -o sb.time.$sfxn $sysbdir/sysbench "${exA[@]}" "${sbDbCreds[@]}" "${testArgs[@]}" >> sb.o.$sfxn 2>&1
 fi
 
 if [ $perfpid -ge 0 ]; then
