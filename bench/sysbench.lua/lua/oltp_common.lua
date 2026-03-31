@@ -167,6 +167,17 @@ function create_table(drv, con, table_num)
    local extra_table_options = ""
    local query
 
+   -- con:query("set session character_set_client='latin1'")
+   -- con:query("set session character_set_connection='latin1'")
+   -- con:query("set session character_set_results='latin1'")
+   rs = con:query("SHOW SESSION VARIABLES LIKE 'character_set_%'")
+   for i = 1, rs.nrows do
+      row = rs:fetch_row()
+      for i, v in pairs(row) do
+         print(string.format("%s ", v))
+      end
+   end
+
    if drv:name() == "mysql"
    then
       if sysbench.opt.auto_inc then
